@@ -170,6 +170,10 @@ rather than quietly dropping it, as the handoff asks.
 
 ## 3. Things that must come from you (not buildable)
 
+`RELEASE.md` sequences this list into the order the steps unblock each other,
+with the three irreversible decisions (bundle ID, product IDs, data region)
+first. What follows is the inventory.
+
 - Apple Developer / App Store Connect and Google Play Console accounts; bundle
   IDs; the IAP products (`pro_monthly`, `pro_yearly` + 7-day trial, 3 tips).
 - `theonething.app` domain + DNS. Three public pages are **required** by both
