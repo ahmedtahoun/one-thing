@@ -1,4 +1,4 @@
-# Shipping The One Thing — what the Apple and Google accounts are for
+# Shipping The One Thing — from this repo to a build in review
 
 This is the path from the current repo to a build sitting in review, in the
 order the steps actually unblock each other. Every item says who it belongs to.
@@ -13,49 +13,47 @@ Those are the three things the accounts unlock.
 
 ---
 
-## 0. What you have, and what it is actually for
+## 0. The accounts
 
-Your Apple ID and your Google account are logins. Each one opens two different
-doors, and the app needs both doors on both platforms.
+Both developer accounts exist and have shipped apps before, so enrolment,
+Agreements/Tax/Banking and Play's closed-testing requirement are all behind
+us. Two things are still worth stating, because they catch people who have
+shipped before:
 
-| | Apple | Google |
-|---|---|---|
-| **Distribution** | Apple Developer Program — $99/year, renews. Gets you App Store Connect: the app record, TestFlight, the IAP products, the review queue. | Google Play Console — $25 once. Gets you the app record, the testing tracks, Play Billing, the review queue. |
-| **Sign-in** | The same Developer account issues the Services ID + signing key that "Sign in with Apple" needs. | A **Google Cloud** project (same Google account, different console) issues the OAuth client IDs. Not Play Console. |
-
-So: one Apple enrolment covers both Apple jobs. On Google, Play Console and
-Cloud Console are separate set-ups that happen to share your login.
-
-**Individual or company?** This decides two things you cannot change later:
-the seller name shown on both stores, and — on Google — whether you are hit by
-the closed-testing requirement in step 6. A company account needs a D-U-N-S
-number, which takes days to get. Decide before enrolling.
+- **Sign in with Apple is configured in the Developer account, not App Store
+  Connect** — a Services ID, a `.p8` key, the Team ID and the Key ID. Those
+  four values go into Supabase, not into this repo.
+- **Google sign-in does not come from Play Console.** It comes from a **Google
+  Cloud** project: OAuth 2.0 client IDs, one Web (this is the one Supabase
+  needs) plus iOS and Android. The Android client needs the release signing
+  certificate's SHA-1, which only exists after the first EAS production build.
 
 ---
 
-## 1. Decisions to make before anything is created — **irreversible**
+## 1. The three irreversible decisions
 
-### 1.1 Bundle ID / package name
-`app.json` currently has:
-
-```
-ios.bundleIdentifier   app.theonething.ios
-android.package        app.theonething.android
-```
-
-Those per-platform suffixes work, but they are unusual, they can never be
-changed after the first submission on either store, and they make every
-sign-in and purchase configuration read oddly. The normal shape is one
-identifier used on both platforms:
+### 1.1 Bundle ID / package name — **decided**
+One identifier on both platforms, from the `onlyonething.app` domain in the
+normal reverse-DNS form:
 
 ```
-app.theonething
+ios.bundleIdentifier   app.onlyonething
+android.package        app.onlyonething
+scheme                 onlyonething
 ```
 
-Say which you want and I will change it. After the first upload, nobody can.
+The old ids carried `.ios` / `.android` suffixes, which worked but read oddly
+in every sign-in and purchase configuration. The `scheme` moved with them: it
+is the deep-link scheme the OAuth redirect URIs are built from, so it has to
+be settled before the Google Cloud clients are created. Nothing referenced the
+old scheme.
 
-### 1.2 Product IDs for the subscription
-`DATA_MODEL.md` fixes these, and they are permanent per store:
+If the identifier was meant to be the literal string `onlyonething.app` rather
+than its reverse-DNS form, that is a one-line change — but only until the
+first upload, after which neither store will move it.
+
+### 1.2 Product IDs for the subscription — **decided**
+Both periods ship, at the handoff's prices. Permanent per store once created:
 
 | | Apple (StoreKit 2) | Google (Play Billing) |
 |---|---|---|
@@ -63,57 +61,54 @@ Say which you want and I will change it. After the first upload, nobody can.
 | Yearly | `pro_yearly` — $35.88, 7-day intro trial | base plan, yearly + 7-day free trial offer |
 | Tips (consumables) | `tip_small` 0.99 · `tip_regular` 2.99 · `tip_large` 4.99 | same three |
 
-Two things to settle while you are in there: `$35.88/year` is an odd-looking
-price in the required fine print (BUILD-REVIEW §2.8 — it is $2.99 × 12, so it
-reads as a monthly figure annualised), and Arabic-locale pricing in SAR is a
-separate price tier you set per territory. The paywall's fine print is already
-written word-for-word in `SCREENS.md` §24 and must match what you configure.
+The paywall already offers both cards and its fine print is written word-for-word
+in `SCREENS.md` §24 — what you configure in the stores has to match that text
+exactly, including `$35.88/year`. One thing to set while you are in there:
+Arabic-locale pricing in SAR is a separate price tier per territory, and the
+app shows prices LTR inside Arabic text, so a SAR tier needs looking at on the
+Arabic paywall once it is live.
 
-### 1.3 Data region
+### 1.3 Data region — **still open, and now the only blocker here**
 PDPL applies and most of the seed data is Saudi/Gulf. The Supabase region is
-chosen when the project is created and cannot be moved afterwards. This also
-decides what the Privacy Policy has to say.
+chosen when the project is created and cannot be moved afterwards; it also
+decides what the Privacy Policy has to say. Nothing server-side can start
+until this is picked.
 
 ---
 
 ## 2. Apple, step by step
 
-1. **Enrol** in the Apple Developer Program with your Apple ID. Allow a day or
-   two; identity checks are sometimes slow.
-2. **Register the bundle ID** (§1.1) in Certificates, Identifiers & Profiles,
-   with **Sign in with Apple** and **Push Notifications** capabilities enabled.
+1. **Register `app.onlyonething`** in Certificates, Identifiers & Profiles,
+   with **Sign in with Apple** and **Push Notifications** enabled.
    Notifications in this build are local, so push is not strictly needed yet —
    but adding the capability later means a new provisioning profile, so turn it
    on now.
-3. **Create the app record** in App Store Connect.
-4. **Sign in with Apple server-side**: a Services ID, a private key (`.p8`),
+2. **Create the app record** in App Store Connect.
+3. **Sign in with Apple server-side**: a Services ID, a private key (`.p8`),
    your Team ID and Key ID. These four values go into Supabase →
    Authentication → Providers → Apple. Nothing in this repo stores them.
-5. **Create the IAP products** from §1.2, with the 7-day introductory offer on
+4. **Create the IAP products** from §1.2, with the 7-day introductory offer on
    the yearly. Fill in the subscription group, localisations (EN **and** AR),
    and the review screenshot each product needs, or the submission is blocked
    on the products rather than the build.
-6. **Agreements, Tax, and Banking** must be complete before a paid app can be
-   reviewed at all. This is the step people forget, and it can take a week.
-7. **EU trader status** — App Store Connect will not accept submissions for EU
-   distribution without it, and a verified address, phone and email are shown
-   publicly on your listing. If you would rather not publish a home address,
-   either use a company address or exclude the EU for v1.
+5. **EU trader status** — if this account has not submitted since the rule
+   came in, App Store Connect will not accept an EU submission without it, and
+   a verified address, phone and email then appear publicly on the listing.
 
 ## 3. Google, step by step
 
-1. **Pay the $25** and create the Play Console account.
-2. **Create the app**, EN-US and AR listings.
-3. **Google Cloud Console** (separate): a project, then OAuth 2.0 client IDs —
-   a **Web** client (this is the one Supabase needs), plus **iOS** and
-   **Android** clients. The Android client needs your release signing
+1. **Create the app** with the `app.onlyonething` package, EN-US and AR
+   listings.
+2. **Google Cloud Console** (separate from Play): a project, then OAuth 2.0
+   client IDs — a **Web** client (this is the one Supabase needs), plus **iOS**
+   and **Android** clients. The Android client needs the release signing
    certificate's SHA-1, which comes from EAS after the first production build,
-   so this step straddles step 5 below.
-4. **Supabase** → Providers → Google: the Web client ID and secret.
-5. **Play Billing**: the subscription with monthly and yearly base plans, the
+   so this step straddles step 4 below.
+3. **Supabase** → Providers → Google: the Web client ID and secret.
+4. **Play Billing**: the subscription with monthly and yearly base plans, the
    7-day free-trial offer, and the three consumable tips. Product IDs from §1.2.
-6. **A service account JSON** for `eas submit` to upload builds without you.
-7. **Data safety form** and the **account-deletion URL** (step 7 below).
+5. **A service account JSON** for `eas submit` to upload builds without you.
+6. **Data safety form** and the **account-deletion URL** (§7).
 
 ---
 
@@ -140,7 +135,12 @@ real. Do this one first; most of the rest follows from it.
 | Notification delivery on a real device | rules are written and unit-tested; never once delivered (BUILD-REVIEW §2.26) | a build on hardware |
 | Store webhooks → `plan` | nothing exists; the admin panel also assumes it | backend + store products |
 
-Not in this repo at all: the admin panel (13 screens) and the public website.
+Not in this repo: the admin panel (13 screens), now being built by a third
+developer, and the public website, which still has no owner. The admin panel
+reads the same Supabase project, so it is waiting on §1.3 too, and both it and
+this app need the store webhooks in the last row above — without them nobody's
+`plan` ever changes and the admin panel's subscription screens have nothing to
+show.
 
 ## 5. Two config fixes already applied
 
@@ -165,26 +165,32 @@ eas submit --platform ios    # needs the ASC app ID + Apple ID
 eas submit --platform android  # needs the service account JSON
 ```
 
-**The Google tester rule is the long pole.** A *personal* Play account created
-after 13 Nov 2023 must run a closed test with ~12 opted-in testers who keep the
-app installed and actually use it for 14 continuous days before the Production
-track unlocks. The count has changed before (it was 20) and the continuity
-rules are strict — if testers drop below the threshold the clock can reset —
-so read the current requirement in your own Console rather than trusting any
-number here, including mine. **Organisation accounts are exempt**, which is a
-real argument for enrolling as a company. Start recruiting testers the day you
-create the account; this can add two to three weeks on its own.
+Play's closed-testing requirement — roughly 12 testers for 14 continuous days
+before the Production track unlocks — applies to personal accounts opened
+after 13 Nov 2023 that have not yet cleared it. This account has shipped
+before, so it does not apply, and that removes two to three weeks of calendar
+time from the plan. Worth one glance at the Production track in Console to
+confirm it is open rather than assuming.
 
-TestFlight has no equivalent gate — iOS can be in review while Android is
-still serving its 14 days.
+Use the tracks anyway: `preview` to TestFlight and to an internal Play track
+is where the notification delivery and the purchase flow get tested, and
+neither has ever run on hardware.
 
 ## 7. What both stores will ask for, and do not have yet
 
-- **Three public pages at a real domain.** Privacy, Terms, and a deletion
-  route. The delete sheet's own copy already promises
-  `theonething.app/delete`, so that URL has to resolve. Play requires a
-  web-accessible deletion path, not only the in-app one. `app/legal.tsx` is
-  the in-app copy of the text; nobody owns the website yet (BUILD-REVIEW §3).
+- **Three public pages at a real domain** — Privacy, Terms, and a deletion
+  route. Play requires a web-accessible deletion path, not only the in-app
+  one. `app/legal.tsx` is the in-app copy of the text; nobody owns the website
+  (BUILD-REVIEW §3).
+
+  **The domain in the app's copy no longer matches the bundle ID.** The
+  handoff's copy says `theonething.app`, and it is user-facing in six places,
+  in both languages: `privacy@theonething.app` ×4 (`src/content/strings.ts`
+  1057, 1061, 1073, 1165, 1173) and `theonething.app/delete` ×2 (1061, 1214).
+  If the domain is now `onlyonething.app`, all six change, that mailbox has to
+  exist, and `/delete` has to resolve — a reviewer can and does click them.
+  Not changed on a guess, because the handoff set that copy and two of the
+  strings are Arabic. Say which domain is real and it is a five-minute edit.
 - **Legal review of that text.** What ships in `ACC` is plain-English summary
   copy. It is good UX writing and it is not a policy that satisfies PDPL or
   GDPR.
@@ -242,13 +248,18 @@ still serving its 14 days.
 
 ---
 
-## The honest timeline
+## What is actually left
 
-Enrolment and store set-up: a week, mostly waiting on Apple's identity check
-and Agreements/Tax/Banking. The code in §4: the large part, and the paywall
-sits on developer 2's branch. Google's 14-day closed test: two to three weeks
-of calendar time that runs in parallel with everything else, unless you enrol
-as a company and skip it.
+With both accounts already shipping-ready and Play's tester gate behind us,
+the calendar-time risks are gone and what remains is work:
 
-Start with §1 — the three irreversible decisions — then enrol. Everything
-else can be worked in parallel; those three cannot be taken back.
+1. **Pick the data region** (§1.3). Nothing server-side — not this app, not
+   the admin panel — starts without it.
+2. **Real Apple and Google sign-in** (§4). The keystone; the sync engine does
+   nothing until it exists.
+3. **The website**, three pages, and the domain question in §7.
+4. **Purchases and the store webhooks**, which is what makes anyone Pro.
+5. **A build on hardware**, because notifications and deletion have only ever
+   been tested in a browser and in Postgres.
+
+Of those, only (1) and the domain in §7 are waiting on you. The rest is ours.
