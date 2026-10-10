@@ -87,7 +87,7 @@ npm run capture:prototype  # screenshots the handoff's prototype at 402 x 874
 npm run capture:app        # exports web, screenshots each route
 npm run compare            # pixel diff, writes .screens/diff/
 npm run drift              # per-element ±2 pt check; `-- tasks` for one screen
-npm run smoke              # drives Tasks, People, Follow-ups, Settings and Compose in a browser
+npm run smoke              # drives every built screen with behaviour, in a browser
 ```
 
 Each reads `design-handoff/`. To point at a different copy, set `HANDOFF=`.
@@ -134,7 +134,11 @@ done until "Did you send it?" is answered. On the day's own screens
 field table and what a saved event becomes, Overwhelm's one-step-at-a-time,
 the focus timer, that the evening review changes nothing until "Close the
 day", and that Reschedule in remind mode moves the reminder and not the task.
-A screenshot says a screen looks right; this says it behaves right.
+On Quick capture, Brain dump, the Assistant and the Paywall
+(`scripts/smoke-capture.js`): that nothing is saved until it is confirmed, the
+Assistant's daily limit and the paywall it opens, and that starting the trial
+makes nobody Pro. A screenshot says a screen looks right; this says it behaves
+right.
 
 One trap worth knowing: the prototype almost never sets `line-height`, so
 nearly all of its text takes the font's own metrics — and those are not a flat
@@ -218,7 +222,8 @@ that is what the design was reviewed in. Re-run it before changing a colour.
 Built: design tokens, the generated content layer (copy, 33 icons, 198
 countries), the schema with row-level security on every table, the entitlements
 policy, the UI primitives, the task, people and preference stores, the glass
-tab bar, the notification layer, and screens 01–03, 05–07, 09–16 and 20–23 — Sign in, Account setup,
+tab bar, the notification layer, the free-text parser and the assistant meter,
+and screens 01–03 and 05–24 — Sign in, Account setup,
 Legal, Today in full (header,
 first-run card, One Thing card, evening card, quick actions, Small promises
 with swipe-to-done and swipe-to-reschedule, and the empty state) and Tasks in
@@ -236,13 +241,16 @@ history with its quick log) and the contact form (new and edit, the
 searchable country picker, the duplicate banner, "Save & message", and delete
 with Undo), Morning priority, the event form in all four shapes (Visit,
 Meeting, Webinar, Course), Focus with its ring and its end-of-session
-notification, Overwhelm mode, the evening review, and Reschedule.
+notification, Overwhelm mode, the evening review, Reschedule, Quick capture
+(typed or spoken, with the parsed card), Brain dump (sorted into separate
+things, each kept or dropped), the Assistant (task cards, the day's plan, the
+follow-up count, and the Free plan's 10 requests a day), and the Paywall.
 
-Across 164 probes on those screens, in both languages, the worst element sits
+Across 202 probes on those screens, in both languages, the worst element sits
 within 2 pt of the prototype — ACCEPTANCE.md's bar — with two documented
 exceptions (`KNOWN_DEVIATIONS`). Pixel difference is 0.0–1.1 % on Today,
-Tasks, Follow-ups, Settings, the contact profile and form, Focus, Overwhelm
-and the evening review; 2–3 % on Morning priority, the event form and
+Tasks, Follow-ups, Settings, the contact profile and form, Focus, Overwhelm,
+the evening review, Quick capture, Brain dump, the Assistant and the Paywall; 2–3 % on Morning priority, the event form and
 Compose, whose Send button is drawn at 56 pt where the prototype squeezes it
 to 26 (BUILD-REVIEW.md §2.21); 1.0–2.6 % on Sign in and Account setup, where
 the prototype's missing `box-sizing` makes every bordered box 2–3 pt taller
@@ -250,11 +258,16 @@ than its stated height (§2.11); and 3–4 % on
 People, whose search field is the 48 pt SCREENS.md gives where the prototype
 squeezes it to 24 (§2.19).
 
-Not built yet: screens 04, 17–19 and 24. (Screen 08 is the Tasks add sheet,
-which is built — SCREENS.md files it under § 07; screen 04, onboarding, is
-dead in v1 — BUILD-REVIEW.md §2.9.) The mic orb's two
-gestures and the paywall still lead to routes that do not exist yet. Purchases, restore
-and the tip jar show their toasts but need the store accounts; Delete account
+Not built: screen 04, onboarding, which is dead in v1 (BUILD-REVIEW.md §2.9).
+Screen 08 is the Tasks add sheet, which is built; SCREENS.md files it under
+§ 07. Every route the built screens lead to now exists.
+
+What waits on things outside the code. Purchases need the store accounts:
+starting the trial changes nothing and makes nobody Pro, Restore truthfully
+finds nothing, and the tip jar still says thank you for a purchase that did
+not happen (§2.34). The parser is on-device rules until the backend carries
+the Claude API call (§2.34), and speech uses a browser's own recogniser where
+there is one and typing everywhere else (§2.35). Delete account
 erases the device but has no server to erase yet. Notifications are written
 and their rules tested, but never delivered on a real device. Real Apple and Google sign-in are stubbed pending
 developer accounts; `src/lib/session.tsx` holds the session on the device until
@@ -286,5 +299,3 @@ differ by 0.03–0.78 % of pixels. `scripts/smoke-capture.js` (part of
   "unavailable" until the store accounts exist. Starting the trial makes
   nobody Pro.
 
-The Status section above predates these four screens and still lists them as
-not built; it is left as it was so the parallel branches merge cleanly.
