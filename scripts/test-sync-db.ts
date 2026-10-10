@@ -16,86 +16,23 @@
  * removes every row.
  */
 import assert from 'node:assert/strict';
-import { execFileSync } from 'node:child_process';
-import fs from 'node:fs';
-import os from 'node:os';
-import path from 'node:path';
 import { after, before, describe, it } from 'node:test';
 
 import { EMPTY_BASE, syncOnce, type Base, type LocalState, type Remote } from '../src/lib/sync/engine';
 import { bareTask, contact, emptyLocal, followUp, fullTask, historyFor } from '../src/lib/sync/fixtures';
 import { contactToRow, followUpToRow, historyToRow, taskToRow } from '../src/lib/sync/rows';
+import { startCluster, type Cluster } from './pg-cluster';
 
-const ROOT = path.join(__dirname, '..');
-const PORT = '54329';
+const PORT = 54329;
 const TODAY = '2026-10-10';
 const A = '00000000-0000-4000-8000-00000000000a';
 const B = '00000000-0000-4000-8000-00000000000b';
 
 // --------------------------------------------------------------- cluster ----
 
-function binDir(): string {
-  try {
-    const dir = execFileSync('pg_config', ['--bindir'], { encoding: 'utf8' }).trim();
-    if (fs.existsSync(path.join(dir, 'initdb'))) return dir;
-  } catch {
-    // Not on PATH; look where Debian and Ubuntu put it.
-  }
-  const versions = fs.existsSync('/usr/lib/postgresql') ? fs.readdirSync('/usr/lib/postgresql').sort().reverse() : [];
-  for (const v of versions) {
-    const dir = `/usr/lib/postgresql/${v}/bin`;
-    if (fs.existsSync(path.join(dir, 'initdb'))) return dir;
-  }
-  throw new Error('No Postgres server binaries found (initdb). Install postgresql to run this test.');
-}
-
-const BIN = binDir();
-const DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'one-thing-db-'));
-const DATA = path.join(DIR, 'data');
-// Postgres refuses to run as root; the CI runner is not root, a container may be.
-const asRoot = process.getuid?.() === 0;
-
-function server(command: string, args: string[]) {
-  const full = path.join(BIN, command);
-  if (asRoot) execFileSync('runuser', ['-u', 'postgres', '--', full, ...args], { stdio: 'pipe' });
-  else execFileSync(full, args, { stdio: 'pipe' });
-}
-
-function psql(sql: string): string {
-  return execFileSync(
-    path.join(BIN, 'psql'),
-    ['-X', '-q', '-t', '-A', '-v', 'ON_ERROR_STOP=1', '-h', DIR, '-p', PORT, '-U', 'postgres', '-d', 'postgres'],
-    { input: sql, encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] }
-  );
-}
-
-/** Runs as a signed-in user, as PostgREST does. Throws Postgres's message. */
-function asUser(userId: string, sql: string): string {
-  try {
-    return psql(
-      `begin;\nset local role authenticated;\nset local "request.jwt.claim.sub" = '${userId}';\n${sql};\ncommit;\n`
-    );
-  } catch (error) {
-    const stderr = (error as { stderr?: string }).stderr ?? String(error);
-    throw new Error(stderr.trim());
-  }
-}
-
-const SUPABASE_STUB = `
-create role anon nologin;
-create role authenticated nologin;
-create schema auth;
-create table auth.users (id uuid primary key);
-create function auth.uid() returns uuid language sql stable as $$
-  select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid
-$$;
-grant usage on schema public, auth to anon, authenticated;
-grant execute on function auth.uid() to anon, authenticated;
--- Supabase's defaults: the API roles get every table, and RLS decides.
-alter default privileges in schema public grant all on tables to anon, authenticated;
-alter default privileges in schema public grant all on sequences to anon, authenticated;
-alter default privileges in schema public grant execute on functions to anon, authenticated;
-`;
+let cluster: Cluster;
+const psql = (sql: string) => cluster.psql(sql);
+const asUser = (userId: string, sql: string) => cluster.asUser(userId, sql);
 
 // ---------------------------------------------------------------- remote ----
 
@@ -117,7 +54,7 @@ function postgresRemote(userId: string): Remote {
       asUser(
         userId,
         `insert into public.${table} (${cols}) select ${cols} from json_populate_recordset(null::public.${table}, ${json(rows)})
-         on conflict (${keys.join(', ')}) do update set ${set}`
+         on conflict (${keys.join(', ')}) ${set ? `do update set ${set}` : 'do nothing'}`
       );
     },
     async insert(table, rows) {
@@ -170,23 +107,11 @@ const count = (table: string, userId: string) =>
 
 describe('sync against Postgres', () => {
   before(() => {
-    if (asRoot) execFileSync('chown', ['postgres', DIR]);
-    server('initdb', ['-D', DATA, '-A', 'trust', '-U', 'postgres', '--no-instructions']);
-    server('pg_ctl', ['-D', DATA, '-o', `-k ${DIR} -c listen_addresses= -p ${PORT}`, '-w', '-l', path.join(DIR, 'log'), 'start']);
-    psql(SUPABASE_STUB);
-    for (const file of fs.readdirSync(path.join(ROOT, 'supabase/migrations')).sort()) {
-      psql(fs.readFileSync(path.join(ROOT, 'supabase/migrations', file), 'utf8'));
-    }
+    cluster = startCluster(PORT);
     psql(`insert into auth.users (id) values ('${A}'), ('${B}')`);
   });
 
-  after(() => {
-    try {
-      server('pg_ctl', ['-D', DATA, '-m', 'immediate', 'stop']);
-    } finally {
-      fs.rmSync(DIR, { recursive: true, force: true });
-    }
-  });
+  after(() => cluster.stop());
 
   it('writes every kind of row the app makes, and a second device reads them back unchanged', async () => {
     const noura = contact();

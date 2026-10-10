@@ -787,3 +787,122 @@ What changed on the device:
   despite the comment saying it was kept. Delete account clears the queue,
   so one account's consent is never sent as the next account's.
 - **Plan comes only from the server**, which the store webhooks will write.
+
+### 2.37 The admin panel
+All 13 screens in ADMIN.md are built, as a separate Next.js app in
+`admin/`. In demo mode, run on the prototype's own seed data, they match the
+prototype: all 56 probed elements are within 2 px of it, and pixel
+difference is 0–0.22 % (`npm run fidelity`). Every remaining pixel
+difference is explained below. Live, the panel reads the app's real tables
+over a server-only Postgres connection, and signs the team in with Supabase
+Auth (password, then TOTP).
+
+**What it enforces**
+- **Sign-in:** an @theonething.app address; Supabase at assurance level 2
+  (password and TOTP); and a row in `admin_member`. All three, or no access.
+  Five failures in 15 minutes lock that email for 15 minutes.
+- **Roles, checked on the server for every page and action**
+  (`admin/src/auth/permissions.ts`):
+  - Owner: everything.
+  - Support: users, subscriptions, support, privacy requests, trial
+    extensions, replies and exports. It cannot delete, suspend, grant Pro,
+    read the audit log or manage the team.
+  - Analyst: Overview, Growth and the pseudonymised export only.
+
+  Where the handoff is silent, the narrower reading was taken ("give each
+  person the least access they need"): Grant Pro, Suspend, offer codes and
+  the audit log are the Owner's. The sidebar leaves out what a role cannot
+  open. The prototype shows every item to everyone, because it has only one
+  admin.
+- **Every view is logged.** A user's record reaches the browser only
+  through the action that writes "Opened user record", and each drawer tab
+  writes "Viewed …". Actions use the prototype's wording.
+- **The audit log is append-only in the database itself** (a trigger in
+  `0004_admin.sql`). This holds even for the panel's own connection, which
+  owns the table.
+- **Suspend sets Supabase Auth's ban.** The suspended user cannot sign in or
+  refresh a session; one already open lasts until its token expires (an
+  hour at most).
+- **The analytics export is pseudonymised:**
+  - each user gets a stable ID derived with a secret key (`DATASET_KEY`);
+  - phone numbers and emails are SHA-256 hashed;
+  - no names or message text are included.
+
+  The database test checks that no name, email, phone or account ID appears
+  in it.
+
+**What the app now reports, for the panel** (`0004_admin.sql`): its app
+version and notification permission when they change; and, once a day, that
+the user was active (`last_seen_at`, and one `active_day` row). Active
+users and Retention are counted from those rows. They hold a date, nothing
+about what was done.
+
+**Shown live as designed, but with nothing behind it yet.** Each of these
+needs a service that does not exist yet. Until then the button does
+nothing, writes no log line, and says "Not connected yet — …" (stand-in
+wording). Demo mode behaves as the prototype does.
+- **Emails** — Send how-to, Export their data, Send export, and the
+  confirmation email after a deletion. They need an email provider.
+- **Store APIs** — Re-check receipt; Extend trial and Grant Pro (the trial
+  and promotional offers belong to the stores); offer codes; replying to
+  store reviews; importing reviews at all.
+- **Force re-sync** needs push notifications sent from the server.
+- **In-app replies** need somewhere in the app to read them. The app has no
+  "Contact us" or support inbox, so no in-app ticket can arrive yet either.
+- **Figures with no source are left out rather than invented:**
+  - Downloads (the funnel starts at "Signed in");
+  - crash counts (the Crashes check is omitted);
+  - store-review counts;
+  - trial conversion and the change in cancellations (they need history the
+    tables do not keep).
+
+  Revenue is an estimate from list prices with a 15 % store fee, until the
+  stores report the real figures.
+- **The activity timeline is built from what the tables record:**
+  - sign-up;
+  - One Things set;
+  - messages confirmed sent;
+  - meetings and visits added;
+  - follow-ups closed;
+  - the subscription starting.
+
+  Moments the app does not store (a focus session ending, a brain dump)
+  cannot appear until there is an event log. DATA_MODEL's analytics events
+  list is that log; it is not built.
+
+**Where the prototype is wrong, and the panel is not**
+- **The Overview's date line** is hard-coded "Friday, 10 October 2026". 10
+  October 2026 is a Saturday. The panel writes the real date.
+- **Growth's insight line** names "Added 3+ tasks → Started trial (−58%)"
+  as the biggest drop. By the prototype's own numbers it is Started trial →
+  Became Pro (−59%). The panel works it out from the funnel. The suggestion
+  that follows is the prototype's own words and is shown only on demo data.
+- **The sign-up chart's day labels** are a fixed "Mon…Sun" twice. The panel
+  labels each bar with its real weekday; the demo uses dates that read the
+  same way.
+
+**Other decisions**
+1. **Missing copy.** The prototype accepts any password and any code, so it
+   has no words for these. Stand-ins are used; please supply real copy.
+   - a wrong password: "That email and password don't match."
+   - a wrong code: "That code didn't work. Try the newest one."
+   - a locked account: "Too many attempts. Try again in 15 minutes."
+   - an admin with no authenticator: "Your 2-step verification isn't set up.
+     Ask the Owner."
+   - an action whose service isn't connected yet: "Not connected yet — …"
+2. **Adding an admin has no screen.** Team & roles lists the team but adds
+   nobody, and a TOTP factor can only be enrolled by the person themselves.
+   Until a screen is designed, `admin/scripts/add-admin.ts` does it from the
+   command line, with the new admin present to scan the code. It has not
+   been run against a real project, since none exists. Resetting a lost
+   authenticator ("Ask the Owner") is likewise done in the Supabase
+   dashboard.
+3. **The "why do you need to see this?" panel is not built.** The prototype
+   wires a reason-and-ticket prompt with "Unlock for 10 min", but nothing in
+   the final design opens it: contact data is always shown, and the role
+   cards' "Reveal contact data" lines describe it. It comes back if contact
+   data is to be masked by default.
+4. **Dates are written in Asia/Riyadh time** (`NEXT_PUBLIC_ADMIN_TIME_ZONE`),
+   on the server and in the browser alike.
+5. **Two task kinds borrow colours.** The prototype colours six kinds; the
+   app has eight, so Webinar uses Meeting's colours and Course uses Remind's.

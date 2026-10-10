@@ -18,6 +18,7 @@ const KEYS: Record<string, string[]> = {
   one_thing: ['user_id', 'date'],
   settings: ['user_id'],
   consent: ['id'],
+  active_day: ['user_id', 'day'],
 };
 
 export type MemoryServer = Remote & {

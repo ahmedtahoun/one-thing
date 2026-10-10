@@ -17,7 +17,7 @@ see `BUILD-REVIEW.md`.
 | App | React Native via Expo (SDK 57), expo-router |
 | Backend | Supabase (Postgres + auth + row-level security) |
 | Assistant / text parsing | Claude API, behind the backend — never from the device |
-| Admin panel | Next.js, separate, not started |
+| Admin panel | Next.js 16, separate (`admin/`) |
 
 ## Layout
 
@@ -247,7 +247,8 @@ notification, Overwhelm mode, the evening review, Reschedule, Quick capture
 things, each kept or dropped), the Assistant (task cards, the day's plan, the
 follow-up count, and the Free plan's 10 requests a day), and the Paywall.
 Sync with the server is built and tested against Postgres, but it stays off
-until real sign-in exists (see Sync below).
+until real sign-in exists (see Sync below). The admin panel's 13 screens are
+built too (see Admin panel below).
 
 Across 202 probes on those screens, in both languages, the worst element sits
 within 2 pt of the prototype — ACCEPTANCE.md's bar — with two documented
@@ -325,3 +326,48 @@ what is still open.
 **Dormant until real sign-in exists.** A sync needs a Supabase session, and
 sign-in is still the local stub, so today the app runs on the device alone,
 as before.
+
+## Admin panel
+
+`admin/` is the team's panel: ADMIN.md's 13 screens, as a separate Next.js
+app. It is never part of the mobile app, and its pages load nothing from
+third parties. BUILD-REVIEW.md §2.37 has the reasoning and what is still
+open.
+
+```sh
+cd admin
+npm install
+cp .env.example .env.local   # live: DATABASE_URL, Supabase URL and anon key, DATASET_KEY
+npm run dev                  # http://localhost:3100
+
+# Or with the handoff's seed data and no database:
+ADMIN_DEMO=1 npm run dev
+```
+
+- **Live mode** reads the app's tables over a Postgres connection only the
+  panel's server holds. The team signs in through Supabase Auth with a
+  password and a TOTP code. `scripts/add-admin.ts` adds someone to the
+  team, since the design has no screen for it.
+- **Demo mode** (`ADMIN_DEMO=1`) uses the prototype's own data and sign-in
+  rules. It is how the panel is measured against the prototype. The panel
+  refuses to start with neither mode, or with both.
+- **Roles** (Owner, Support, Analyst) are checked on the server for every
+  page and action (`src/auth/permissions.ts`).
+- **Every view of a user's record is logged**, and the audit log cannot be
+  edited, even from the database.
+
+Checks, all run in CI:
+
+```sh
+npm run typecheck
+npm test            # roles
+npm run test:db     # the live data source against Postgres with every migration
+npm run build:demo
+npm run smoke       # sign-in rules, roles, logging, actions, in a browser
+npm run fidelity    # every probe within 2 px of the prototype; pixels reported
+```
+
+**Several actions wait on outside services.** They need an email provider,
+the stores' APIs, or push notifications. Live, those buttons say
+"Not connected yet" and change nothing. Figures with no source, such as
+downloads, crashes and store reviews, are left out rather than invented.
