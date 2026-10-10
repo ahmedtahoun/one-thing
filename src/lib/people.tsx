@@ -7,17 +7,45 @@
  */
 import { createContext, useCallback, useContext, useMemo, type ReactNode } from 'react';
 
-import type { Contact, FollowUp } from './model-types';
+import { displayName, type Contact, type FollowUp, type HistoryEntry, type Task } from './model-types';
 import { usePersisted } from './persisted';
 
 const CONTACTS_KEY = 'ot.contacts';
 const FOLLOWUPS_KEY = 'ot.followups';
+const HISTORY_KEY = 'ot.history';
+
+/**
+ * The contact a task is with: the one it is linked to, else the one whose
+ * name it carries. Seed and captured tasks only have the name ("Faisal ·
+ * Lawyer"), so the prototype matches on the first word, as its "Last time"
+ * row does.
+ */
+export function contactForTask(task: Task, contacts: Contact[]): Contact | undefined {
+  const linked = task.contactIds[0];
+  if (linked) {
+    const found = contacts.find((c) => c.id === linked);
+    if (found) return found;
+  }
+  if (!task.who) return undefined;
+  const name = displayName(task.who).trim();
+  const first = name.split(' ')[0] ?? '';
+  return contacts.find((c) => c.name === name) ?? (first ? contacts.find((c) => c.name.startsWith(first)) : undefined);
+}
 
 type PeopleValue = {
   /** Most recent interaction first — the order People lists them in. */
   contacts: Contact[];
   followUps: FollowUp[];
+  /** Every dated moment with every contact, newest first. */
+  history: HistoryEntry[];
   ready: boolean;
+  /**
+   * Remembers how to reach someone after a message goes out: updates the
+   * contact (or adds one, named as the task names them) and moves them to the
+   * top of People. Returns the contact's id.
+   */
+  saveContact: (input: { id?: string; name: string; role?: string; lastLabel: string }, patch: Partial<Contact>) => string;
+  addFollowUp: (followUp: FollowUp) => void;
   updateFollowUp: (id: string, patch: Partial<FollowUp>) => void;
   /** Replaces the whole list — used by Undo, which restores a snapshot. */
   restoreFollowUps: (followUps: FollowUp[]) => void;
@@ -27,7 +55,8 @@ type PeopleValue = {
 const PeopleContext = createContext<PeopleValue | null>(null);
 
 export function PeopleProvider({ children }: { children: ReactNode }) {
-  const [contacts, , contactsReady, resetContacts] = usePersisted<Contact[]>(CONTACTS_KEY, []);
+  const [contacts, setContacts, contactsReady, resetContacts] = usePersisted<Contact[]>(CONTACTS_KEY, []);
+  const [history, , historyReady, resetHistory] = usePersisted<HistoryEntry[]>(HISTORY_KEY, []);
   const [followUps, setFollowUps, followUpsReady, resetFollowUps] = usePersisted<FollowUp[]>(FOLLOWUPS_KEY, []);
 
   const updateFollowUp = useCallback<PeopleValue['updateFollowUp']>(
@@ -35,21 +64,57 @@ export function PeopleProvider({ children }: { children: ReactNode }) {
     [setFollowUps]
   );
 
+  const saveContact = useCallback<PeopleValue['saveContact']>(
+    ({ id, name, role, lastLabel }, patch) => {
+      const newId = id ?? `c_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+      setContacts((list) => {
+        const current = id ? list.find((c) => c.id === id) : undefined;
+        const next: Contact = current
+          ? { ...current, ...patch, lastLabel }
+          : { id: newId, name, role: role || undefined, ...patch, lastLabel, createdAt: new Date().toISOString() };
+        return [next, ...list.filter((c) => c.id !== next.id)];
+      });
+      return newId;
+    },
+    [setContacts]
+  );
+
+  const addFollowUp = useCallback<PeopleValue['addFollowUp']>(
+    (followUp) => setFollowUps((list) => [followUp, ...list]),
+    [setFollowUps]
+  );
+
   const reset = useCallback(() => {
     resetContacts();
     resetFollowUps();
-  }, [resetContacts, resetFollowUps]);
+    resetHistory();
+  }, [resetContacts, resetFollowUps, resetHistory]);
 
   const value = useMemo<PeopleValue>(
     () => ({
       contacts,
       followUps,
-      ready: contactsReady && followUpsReady,
+      history,
+      ready: contactsReady && followUpsReady && historyReady,
+      saveContact,
+      addFollowUp,
       updateFollowUp,
       restoreFollowUps: setFollowUps,
       reset,
     }),
-    [contacts, followUps, contactsReady, followUpsReady, updateFollowUp, setFollowUps, reset]
+    [
+      contacts,
+      followUps,
+      history,
+      contactsReady,
+      followUpsReady,
+      historyReady,
+      saveContact,
+      addFollowUp,
+      updateFollowUp,
+      setFollowUps,
+      reset,
+    ]
   );
   return <PeopleContext.Provider value={value}>{children}</PeopleContext.Provider>;
 }

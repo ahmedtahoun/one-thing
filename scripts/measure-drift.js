@@ -16,7 +16,7 @@ const { chromium } = require('playwright');
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
-const { demoContacts, demoFollowUps, demoTasks, dateKey } = require('./demo-state');
+const { demoContacts, demoFollowUps, demoHistory, demoTasks, dateKey } = require('./demo-state');
 const { handoffDir } = require('./handoff.js');
 
 const ROOT = path.join(__dirname, '..');
@@ -148,6 +148,24 @@ const PROBES = {
       since: { en: '3 days, no reply', ar: '3 أيام بدون رد' },
     },
   },
+  compose: {
+    app: '/compose?id=t1',
+    proto: '18',
+    state: { signedIn: true, firstRun: false, seedTasks: true, seedPeople: true },
+    labels: {
+      title: { en: 'Follow up on price quote', ar: 'متابعة عرض السعر' },
+      who: { en: 'Mohammed Al-Saadi', ar: 'محمد السعدي' },
+      phoneLabel: { en: 'WhatsApp number', ar: 'رقم الواتساب' },
+      phoneMessage: { en: 'Add their number once — I’ll remember it.', ar: 'أضف رقمه مرة وحدة، وأنا أحفظه.' },
+      goalLabel: { en: 'Goal', ar: 'الهدف' },
+      goal: {
+        en: 'Confirm he received the quote and get a yes/no by Sunday',
+        ar: 'أتأكد إنه وصله العرض وآخذ رد قبل الأحد',
+      },
+      lastTime: { en: 'Sent the price quote', ar: 'أرسلت عرض السعر' },
+      draftLabel: { en: 'Draft', ar: 'المسودة' },
+    },
+  },
   'sign-in': {
     app: '/sign-in',
     proto: '01',
@@ -220,13 +238,14 @@ async function measureApp(lang, screen, probe) {
 
   await page.goto(`http://127.0.0.1:${port}/`, { waitUntil: 'domcontentloaded' });
   await page.evaluate(
-    ({ session, tasks, oneThing, contacts, followUps }) => {
+    ({ session, tasks, oneThing, contacts, followUps, history }) => {
       const put = (k, v) => (v ? localStorage.setItem(k, JSON.stringify(v)) : localStorage.removeItem(k));
       put('ot.session', session);
       put('ot.tasks', tasks);
       put('ot.oneThing', oneThing);
       put('ot.contacts', contacts);
       put('ot.followups', followUps);
+      put('ot.history', history);
     },
     {
       session: probe.state.signedIn ? { ...DEMO_SESSION[lang], firstRun: probe.state.firstRun !== false } : null,
@@ -236,6 +255,7 @@ async function measureApp(lang, screen, probe) {
         : null,
       contacts: probe.state.seedPeople ? demoContacts(lang, new Date()) : null,
       followUps: probe.state.seedPeople ? demoFollowUps(lang) : null,
+      history: probe.state.seedPeople ? demoHistory(lang, new Date()) : null,
     }
   );
   await page.goto(`http://127.0.0.1:${port}${probe.app}`, { waitUntil: 'networkidle' });

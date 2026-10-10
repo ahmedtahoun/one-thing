@@ -9,6 +9,7 @@
 import { useEffect, useRef, type ReactNode } from 'react';
 import { Animated, Easing, Pressable, View } from 'react-native';
 
+import { ForwardChevron } from '@/ui/ForwardChevron';
 import { Icon } from '@/ui/Icon';
 import { Text } from '@/ui/Text';
 import { Toggle } from '@/ui/Toggle';
@@ -21,24 +22,6 @@ const rule = { borderBottomWidth: 1, borderBottomColor: surface.lineSoft } as co
 /** White, radius 16, clipped — the two grouped cards. */
 export function SettingsCard({ children }: { children: ReactNode }) {
   return <View style={{ backgroundColor: surface.white, borderRadius: 16, overflow: 'hidden' }}>{children}</View>;
-}
-
-/**
- * A forward chevron: points right in English and left in Arabic.
- *
- * The prototype asks for its *back* icon in Arabic here, and its icon helper
- * then mirrors every back icon in Arabic a second time, so its Arabic
- * chevrons point right. The handoff's own Arabic screenshot
- * (28-ar-settings.png) shows them pointing left, which is the intent — see
- * BUILD-REVIEW.md §2.19.
- */
-export function ForwardChevron({ color = ink.disabledBtn }: { color?: string }) {
-  const { isRTL } = useDirection();
-  return (
-    <View style={{ transform: [{ scaleX: isRTL ? -1 : 1 }] }}>
-      <Icon name="chevR" size={18} color={color} strokeWidth={2} />
-    </View>
-  );
 }
 
 /** A 32 pt rounded tile holding a 17 pt icon, at the start of a row. */

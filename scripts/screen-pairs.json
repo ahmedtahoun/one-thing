@@ -68,5 +68,15 @@
     "name": "ar-settings",
     "app": "ar-21-settings.png",
     "proto": "ar-13-profile-settings.png"
+  },
+  {
+    "name": "en-compose",
+    "app": "en-13-compose.png",
+    "proto": "en-18-compose-send.png"
+  },
+  {
+    "name": "ar-compose",
+    "app": "ar-13-compose.png",
+    "proto": "ar-18-compose-send.png"
   }
 ]

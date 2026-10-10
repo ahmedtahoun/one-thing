@@ -15,6 +15,7 @@ const seedArray = (name) => JSON.parse(source.match(new RegExp(`export const ${n
 const SEED_TASKS = seedArray('SEED_TASKS');
 const SEED_CONTACTS = seedArray('SEED_CONTACTS');
 const SEED_FOLLOWUPS = seedArray('SEED_FOLLOWUPS');
+const SEED_HISTORY = JSON.parse(source.match(/export const SEED_HISTORY = ([\s\S]*?);\nexport/)[1]);
 
 const REMIND = { at: 'at', 10: 'min_10', 30: 'min_30', 60: 'hour_1', morning: 'morning' };
 
@@ -105,4 +106,19 @@ function demoFollowUps(lang) {
   });
 }
 
-module.exports = { demoTasks, demoContacts, demoFollowUps, dateKey };
+/** Mirrors demoHistory() in src/content/demo.ts. */
+function demoHistory(lang, base = new Date()) {
+  const entries = [];
+  SEED_CONTACTS.forEach((contact, i) => {
+    (SEED_HISTORY[contact.en] || []).forEach(([daysAgo, kind, en, ar, time], j) => {
+      const [h, m] = time.split(':').map(Number);
+      const at = new Date(base);
+      at.setDate(at.getDate() - daysAgo);
+      at.setHours(h, m, 0, 0);
+      entries.push({ id: `h${i + 1}_${j}`, contactId: `c${i + 1}`, kind, text: lang === 'ar' ? ar : en, at: at.toISOString() });
+    });
+  });
+  return entries.sort((a, b) => b.at.localeCompare(a.at));
+}
+
+module.exports = { demoTasks, demoContacts, demoFollowUps, demoHistory, dateKey };

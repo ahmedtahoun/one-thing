@@ -76,6 +76,10 @@ export const surface = {
   countIdle: '#E0DFDB',
   /** The Settings language pill's track. */
   langTrack: '#F1F1EE',
+  /** Compose's brief card, its country button and a picked country row. */
+  brief: '#F4F4F1',
+  /** The rule above "Last time" inside the brief card. */
+  briefRule: '#E6E5E0',
 } as const;
 
 export type TaskType =
@@ -143,6 +147,8 @@ export const status = {
   successBgSoft: '#DCF7E1',
   /** The red count on Follow-ups' Nudge segment, `oklch(0.55 0.18 25)`. */
   countBadge: '#C53637',
+  /** A field that fails validation, and its message — Compose. Same oklch as `countBadge`. */
+  invalid: '#C53637',
   /** The trash tile on the delete-account sheet, `oklch(0.95 0.035 25)`. */
   dangerTile: '#FFE6E3',
   /** Trial / info pill. */

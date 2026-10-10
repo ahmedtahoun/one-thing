@@ -14,7 +14,6 @@ import { router } from 'expo-router';
 import {
   AccordionPanel,
   AccordionRow,
-  ForwardChevron,
   LinkRow,
   RowTile,
   Segmented,
@@ -23,6 +22,7 @@ import {
   rowRule,
 } from '@/features/settings/parts';
 import { DeleteSheet, TipSheet } from '@/features/settings/sheets';
+import { ForwardChevron } from '@/ui/ForwardChevron';
 import { Icon } from '@/ui/Icon';
 import { Screen } from '@/ui/Screen';
 import { LTRText, Text } from '@/ui/Text';

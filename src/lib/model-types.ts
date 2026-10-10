@@ -121,6 +121,17 @@ export type Contact = {
   createdAt: string;
 };
 
+export type HistoryKind = 'note' | 'call' | 'meeting' | 'visit' | 'email' | 'whatsapp' | 'followup_closed';
+
+/** DATA_MODEL.md § Entities → History: one dated moment with a contact. */
+export type HistoryEntry = {
+  id: string;
+  contactId: string;
+  kind: HistoryKind;
+  text: string;
+  at: string;
+};
+
 export type FollowUpStatus = 'due' | 'waiting' | 'done';
 
 /** DATA_MODEL.md § Entities → FollowUp. */

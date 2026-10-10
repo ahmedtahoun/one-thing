@@ -9,9 +9,18 @@
  * and prefixes later days with "z". Here those become real instants relative
  * to the day the data is seeded.
  */
-import { SEED_CONTACTS, SEED_FOLLOWUPS, SEED_TASKS } from './seed';
+import { SEED_CONTACTS, SEED_FOLLOWUPS, SEED_HISTORY, SEED_TASKS } from './seed';
 import type { Lang } from './strings';
-import { displayName, type Channel, type Contact, type FollowUp, type RemindOffset, type Task } from '@/lib/model-types';
+import {
+  displayName,
+  type Channel,
+  type Contact,
+  type FollowUp,
+  type HistoryEntry,
+  type HistoryKind,
+  type RemindOffset,
+  type Task,
+} from '@/lib/model-types';
 import type { TaskType } from '@/design/tokens';
 
 /** Maps the seed's reminder strings onto the app's enum. */
@@ -124,4 +133,25 @@ export function demoFollowUps(lang: Lang): FollowUp[] {
       nextAt: null,
     };
   });
+}
+
+/**
+ * The prototype's contact history — `[days ago, kind, English, Arabic,
+ * HH:MM]`, keyed by the contact's English name — as dated entries, newest
+ * first.
+ */
+export function demoHistory(lang: Lang, base: Date = new Date()): HistoryEntry[] {
+  const entries: HistoryEntry[] = [];
+  SEED_CONTACTS.forEach((contact, i) => {
+    const rows = (SEED_HISTORY as Record<string, (string | number)[][]>)[contact.en] ?? [];
+    rows.forEach((row, j) => {
+      const [daysAgo, kind, en, ar, time] = row as [number, string, string, string, string];
+      const [h, m] = time.split(':').map(Number);
+      const at = new Date(base);
+      at.setDate(at.getDate() - daysAgo);
+      at.setHours(h ?? 0, m ?? 0, 0, 0);
+      entries.push({ id: `h${i + 1}_${j}`, contactId: `c${i + 1}`, kind: kind as HistoryKind, text: lang === 'ar' ? ar : en, at: at.toISOString() });
+    });
+  });
+  return entries.sort((a, b) => b.at.localeCompare(a.at));
 }

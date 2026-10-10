@@ -13,8 +13,9 @@
  * and " min" to be typed by hand. Anything matching either shape must now be
  * named below — as copy, or as explicitly not copy — or this script fails.
  *
- * Two lines need patterns of their own — Settings' reminder-style
- * descriptions and the follow-up Nudge's task — see the note above them.
+ * A few lines need patterns of their own — Settings' reminder-style
+ * descriptions, the follow-up Nudge's task, and the follow-up Compose writes
+ * after "Did you send it?" — see the notes above them.
  *
  *   node scripts/extract-inline-copy.js <path to design_handoff_the_one_thing>
  */
@@ -253,6 +254,18 @@ const must = (line, pattern, what) => {
   const line = lineWith('justNote: { en:');
   const m = must(line, new RegExp(`justNote: \\{ en: ${STR}, ar: ${STR} \\}`), 'Nudge note');
   found.draftReadyNote = { en: m[1], ar: m[2] };
+}
+
+{
+  // Compose's "Did you send it?" → Tomorrow / In 2 days / Next week writes a
+  // follow-up whose footer names the choice: `{w}` is that option.
+  const line = lineWith("since: 'Sent today · follow up '");
+  const m = must(
+    line,
+    new RegExp(`since: ${STR} \\+ C\\.en\\.fuOpts\\[i\\]\\.toLowerCase\\(\\) \\}, ar: \\{ who: ct\\.ar\\.who, what: ct\\.ar\\.title, since: ${STR} \\+ C\\.ar\\.fuOpts\\[i\\] \\}`),
+    'Sent-today follow-up note'
+  );
+  found.sentFollowUp = { en: `${m[1]}{w}`, ar: `${m[2]}{w}` };
 }
 
 const en = {};

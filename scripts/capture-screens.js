@@ -15,7 +15,7 @@ const { chromium } = require('playwright');
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
-const { demoContacts, demoFollowUps, demoTasks, dateKey } = require('./demo-state');
+const { demoContacts, demoFollowUps, demoHistory, demoTasks, dateKey } = require('./demo-state');
 
 const ROOT = path.join(__dirname, '..');
 const DIST = path.join(ROOT, 'dist');
@@ -70,6 +70,10 @@ const ROUTES = [
   { path: '/followups', name: '14-followups', signedIn: true, firstRun: false, seedPeople: true },
   { path: '/followups', name: '14-followups-empty', signedIn: true, firstRun: false },
   { path: '/settings', name: '21-settings', signedIn: true, firstRun: false },
+  { path: '/compose?id=t1', name: '13-compose', signedIn: true, firstRun: false, seedTasks: true, seedPeople: true },
+  { path: '/compose?id=t3', name: '13-compose-email', signedIn: true, firstRun: false, seedTasks: true, seedPeople: true },
+  { path: '/compose?id=t2', name: '13-compose-call', signedIn: true, firstRun: false, seedTasks: true, seedPeople: true },
+  { path: '/compose?id=t4', name: '13-compose-reminder', signedIn: true, firstRun: false, seedTasks: true, seedPeople: true },
 ];
 
 const MIME = {
@@ -136,7 +140,7 @@ function serve(dir) {
       // The session is read from AsyncStorage, which is localStorage on web.
       await page.goto(`http://127.0.0.1:${port}/`, { waitUntil: 'domcontentloaded' });
       await page.evaluate(
-        ({ session, tasks, oneThing, contacts, followUps }) => {
+        ({ session, tasks, oneThing, contacts, followUps, history }) => {
           const put = (key, value) => {
             if (value) window.localStorage.setItem(key, JSON.stringify(value));
             else window.localStorage.removeItem(key);
@@ -146,6 +150,7 @@ function serve(dir) {
           put('ot.oneThing', oneThing);
           put('ot.contacts', contacts);
           put('ot.followups', followUps);
+          put('ot.history', history);
         },
         {
           session: route.signedIn
@@ -157,6 +162,7 @@ function serve(dir) {
             : null,
           contacts: route.seedPeople ? demoContacts(lang, new Date()) : null,
           followUps: route.seedPeople ? demoFollowUps(lang) : null,
+          history: route.seedPeople ? demoHistory(lang, new Date()) : null,
         }
       );
       await page.goto(`http://127.0.0.1:${port}${route.path}`, { waitUntil: 'networkidle' });

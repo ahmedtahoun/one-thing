@@ -71,7 +71,8 @@ const INLINE_en = {
     "Ask for a date"
   ],
   "nudgeDraft": "Hi {n}, just checking in on {what}. Any update when you get a moment? Thanks!",
-  "draftReadyNote": "Draft ready · not sent yet"
+  "draftReadyNote": "Draft ready · not sent yet",
+  "sentFollowUp": "Sent today · follow up {w}"
 };
 
 // Declared as `typeof INLINE_en` so a missing Arabic string is a compile error.
@@ -140,7 +141,8 @@ const INLINE_ar: typeof INLINE_en = {
     "اطلب موعد"
   ],
   "nudgeDraft": "هلا {n}، حبيت أتطمّن بخصوص {what}. في أي جديد؟ شكراً لك!",
-  "draftReadyNote": "المسودة جاهزة · ما انرسلت"
+  "draftReadyNote": "المسودة جاهزة · ما انرسلت",
+  "sentFollowUp": "أرسلتها اليوم · تابع {w}"
 };
 
 export const INLINE = { en: INLINE_en, ar: INLINE_ar };

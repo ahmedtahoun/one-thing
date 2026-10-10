@@ -326,6 +326,46 @@ whichever came last won, and Settings would have read "45 دقيقة" where the
 prototype has "45 د". The Reminders row now has its own name, and a name that
 comes back with different copy now fails the run.
 
+### 2.21 Compose: where the build departs from the prototype
+Every probe sits within 1.1 pt of the prototype. Pixel difference is 2–3 %,
+most of it the first item below.
+
+- **The Send button is 56 pt; the prototype renders it 26.** It is the same
+  flex-shrink artefact as People's search field (§2.19). The screen's column
+  overflows by a few points, and the button, with no `flex: none`, absorbs
+  it. README gives primary buttons 56 h, so that is what is drawn.
+- **A saved number or address is filled in.** The prototype only fills the
+  recipient when the task was started from People. Otherwise it starts empty,
+  even for a contact whose number it holds, and after "Saved for next time"
+  it does not use the number next time either. The build fills it in from the
+  task's contact: the linked one, or else the one whose name the task carries,
+  matched on the first word as the prototype's "Last time" row does. That is
+  what "Add their number once — I'll remember it" promises.
+- **"Send email" opens the phone's own mail sheet.** In the prototype it
+  only raises "Sent to {address}", which no real app can do without sending
+  mail from a server. Nothing in DATA_MODEL does that, and README rules out
+  sending without the user. So "Send email" opens the system mail composer,
+  already filled in, over the app, and the user taps send there. "Sent to …"
+  is shown only when the composer reports that it sent. "Open in Mail app
+  instead" opens the Mail app through `mailto:`. Without a mail account, and
+  on the web build, "Send email" falls back to that. **Say if you meant
+  something else by the two buttons.**
+- **"Draft copied" is true.** The toast after "Open in Mail app" says the
+  draft was copied, and the prototype does not copy it; the build does. A long
+  body can be cut short in a `mailto:` link.
+- **The country button's chevron points down in Arabic too.** The prototype
+  rotates its back chevron to point down, but in Arabic its icon helper has
+  already mirrored it, so the chevron points up. This is the double mirroring
+  again (§2.14, §2.19). So is "Last time"'s chevron, which follows Settings.
+- **Call now dials the contact's number** when the app has one. The
+  prototype shows "Calling…" and dials nothing.
+- **Answering "Did you send it?" returns to Today**, as the prototype does,
+  whichever screen Compose was opened from.
+- **The "Last time" row reads the contact's history**, newest first, and
+  falls back to their People line ("Emailed · Sunday") when there is none.
+  The history store and its demo data are new here. The contact profile (11)
+  will write to them.
+
 ## 5. Decisions taken
 
 Agreed with the product owner on 10 Oct 2026: React Native (Expo) for the app,

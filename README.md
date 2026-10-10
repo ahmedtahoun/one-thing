@@ -86,7 +86,7 @@ npm run capture:prototype  # screenshots the handoff's prototype at 402 x 874
 npm run capture:app        # exports web, screenshots each route
 npm run compare            # pixel diff, writes .screens/diff/
 npm run drift              # per-element ±2 pt check; `-- tasks` for one screen
-npm run smoke              # drives Tasks, People, Follow-ups and Settings in a browser
+npm run smoke              # drives Tasks, People, Follow-ups, Settings and Compose in a browser
 ```
 
 Each reads `design-handoff/`. To point at a different copy, set `HANDOFF=`.
@@ -117,7 +117,10 @@ ticked task moves group, "Move to tomorrow", and the empty state. On People,
 Follow-ups and Settings (`scripts/smoke-people.js`): search, starting a task
 from a contact, Got a reply with its Undo, Reopen, Nudge writing a draft
 without sending it, one accordion panel at a time, the stored preferences, the
-language switch, and what Delete account erases. A screenshot says a screen
+language switch, and what Delete account erases. On Compose
+(`scripts/smoke-compose.js`): what is opened (wa.me, `mailto:`, `tel:`) and
+with what, that a number given once is remembered, and that nothing is marked
+done until "Did you send it?" is answered. A screenshot says a screen
 looks right; this says it behaves right.
 
 One trap worth knowing: the prototype almost never sets `line-height`, so
@@ -178,7 +181,7 @@ that is what the design was reviewed in. Re-run it before changing a colour.
 Built: design tokens, the generated content layer (copy, 33 icons, 198
 countries), the schema with row-level security on every table, the entitlements
 policy, the UI primitives, the task, people and preference stores, the glass
-tab bar, and screens 01–03, 06, 07, 10, 14 and 21–23 — Sign in, Account setup,
+tab bar, and screens 01–03, 06, 07, 10, 13, 14 and 21–23 — Sign in, Account setup,
 Legal, Today in full (header,
 first-run card, One Thing card, evening card, quick actions, Small promises
 with swipe-to-done and swipe-to-reschedule, and the empty state) and Tasks in
@@ -186,19 +189,23 @@ full (progress header, the bulk reminder hint, filter chips, the Up next card,
 all seven groups with their collapse and bulk actions, status pills, the add
 sheet and the reminder sheet), People (search, quick WhatsApp / email / call
 buttons), Follow-ups (the three segments, Got a reply with Undo, Reopen,
-Nudge) and Settings (the accordion, language switch, privacy toggles, the tip
-sheet and the delete-account sheet).
+Nudge), Settings (the accordion, language switch, privacy toggles, the tip
+sheet and the delete-account sheet) and Compose (the WhatsApp number with its
+country picker, email To and Subject, suggestions from People, the brief with
+"Last time", the editable draft, handing off to WhatsApp, Mail or the phone,
+and "Did you send it?" with the follow-up it sets).
 
-Across 76 probes on those screens, in both languages, the worst element sits
-1 pt from the prototype against ACCEPTANCE.md's 2 pt bar, with two documented
+Across 92 probes on those screens, in both languages, the worst element sits
+1.1 pt from the prototype against ACCEPTANCE.md's 2 pt bar, with two documented
 exceptions (`KNOWN_DEVIATIONS`). Pixel difference is 0.0–0.7 % on Today, Tasks,
-Follow-ups and Settings; 1.0–2.6 % on Sign in and Account setup, where the
+Follow-ups and Settings; 2–3 % on Compose, whose Send button is drawn at 56 pt
+where the prototype squeezes it to 26 (BUILD-REVIEW.md §2.21); 1.0–2.6 % on Sign in and Account setup, where the
 consent checkbox's box model changes a line break (BUILD-REVIEW.md §2.11); and
 3–4 % on People, whose search field we draw at the 48 pt SCREENS.md gives where
 the prototype squeezes it to 24 (BUILD-REVIEW.md §2.19).
 
-Not built yet: screens 04, 05, 08, 09, 11–13, 15–20 and 24. Several buttons on
-the built screens lead to them (Compose, the contact profile and form, the
+Not built yet: screens 04, 05, 08, 09, 11, 12, 15–20 and 24. Several buttons on
+the built screens lead to them (the contact profile and form, Reschedule, the
 paywall) and land on the not-found route until they exist. Purchases, restore
 and the tip jar show their toasts but need the store accounts; Delete account
 erases the device but has no server to erase yet. Real Apple and Google sign-in are stubbed pending
