@@ -6,7 +6,9 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
+import type { QueuedEvent } from '../analytics/events';
 import type { ConsentRecord } from '../consent';
+import type { QueuedPrivacyRequest } from '../privacy-request';
 import { isUuid } from '../ids';
 import { EMPTY_BASE, ORDER, syncOnce, type Base, type LocalState, type Remote } from './engine';
 import { bareTask, contact, emptyLocal, followUp, fullTask, historyFor } from './fixtures';
@@ -22,12 +24,25 @@ function device(remote: Remote, local: LocalState = emptyLocal(), userId = USER)
   const d = {
     local,
     consent: [] as ConsentRecord[],
+    events: [] as QueuedEvent[],
+    privacyRequests: [] as QueuedPrivacyRequest[],
     plan: null as string | null,
     marketing: null as boolean | null,
     async sync() {
-      const result = await syncOnce({ remote, userId, local: d.local, base, consent: d.consent, today: TODAY });
+      const result = await syncOnce({
+        remote,
+        userId,
+        local: d.local,
+        base,
+        consent: d.consent,
+        events: d.events,
+        privacyRequests: d.privacyRequests,
+        today: TODAY,
+      });
       base = result.base;
       d.consent = d.consent.slice(result.consentSent);
+      d.events = d.events.slice(result.eventsSent);
+      d.privacyRequests = d.privacyRequests.slice(result.privacySent);
       d.plan = result.plan;
       d.marketing = result.marketing;
       d.local = {

@@ -10,6 +10,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { router } from 'expo-router';
 
+import { track } from '@/lib/analytics/track';
 import { ReviewRow, type ReviewMark } from '@/features/review/ReviewRow';
 import { BackButton } from '@/ui/BackButton';
 import { Icon } from '@/ui/Icon';
@@ -84,6 +85,10 @@ export default function DailyReview() {
       at.setDate(at.getDate() + 1);
       return { dueAt: at.toISOString() };
     });
+    // One per task the user confirmed they kept, which `toggleDone` cannot
+    // see: closing the day marks several at once through `patchMany`.
+    for (const mark of Object.values(marks)) if (mark === 'kept') track({ name: 'task_done' });
+    track({ name: 'review_closed' });
     setClosed(true);
   }, [marks, patchMany]);
 

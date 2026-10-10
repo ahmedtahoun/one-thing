@@ -145,8 +145,21 @@ function device(userId: string, local: LocalState = emptyLocal()) {
   let base: Base = EMPTY_BASE;
   const d = {
     local,
-    async sync(consent: Parameters<typeof syncOnce>[0]['consent'] = []) {
-      const result = await syncOnce({ remote: postgresRemote(userId), userId, local: d.local, base, consent, today: TODAY });
+    async sync(
+      consent: Parameters<typeof syncOnce>[0]['consent'] = [],
+      events: Parameters<typeof syncOnce>[0]['events'] = [],
+      privacyRequests: Parameters<typeof syncOnce>[0]['privacyRequests'] = []
+    ) {
+      const result = await syncOnce({
+        remote: postgresRemote(userId),
+        userId,
+        local: d.local,
+        base,
+        consent,
+        events,
+        privacyRequests,
+        today: TODAY,
+      });
       base = result.base;
       d.local = {
         ...d.local,
@@ -272,6 +285,43 @@ describe('sync against Postgres', () => {
     asUser(A, `update public.app_user set job_title = 'Founder' where id = '${A}'`);
   });
 
+  it('takes analytics events and an export request, and will not let them be rewritten', async () => {
+    const phone = device(A);
+    const result = await phone.sync(
+      [],
+      [
+        { name: 'task_created', at: '2026-10-10T08:00:00.000Z', props: { type: 'call', via: 'quick' } },
+        { name: 'task_done', at: '2026-10-10T09:00:00.000Z', props: null },
+      ],
+      [{ kind: 'export', at: '2026-10-10T09:30:00.000Z' }]
+    );
+    assert.equal(result.eventsSent, 2);
+    assert.equal(result.privacySent, 1);
+    assert.equal(count('analytics_event', A), 2);
+    // The enum keeps a typo out, and jsonb keeps the properties queryable.
+    assert.equal(
+      psql(`select props->>'via' from public.analytics_event where name = 'task_created'`).trim(),
+      'quick'
+    );
+    assert.equal(count('privacy_request', A), 1);
+    // The 30-day clock the admin panel counts down starts itself.
+    assert.equal(
+      psql(`select (deadline_at > requested_at + interval '29 days') from public.privacy_request where user_id = '${A}'`).trim(),
+      't'
+    );
+
+    // Both are records of something that happened: readable, never editable.
+    assert.throws(() => asUser(A, `update public.analytics_event set name = 'purchase' where user_id = '${A}'`), /permission denied/);
+    assert.throws(() => asUser(A, `delete from public.analytics_event where user_id = '${A}'`), /permission denied/);
+    assert.throws(() => asUser(A, `delete from public.privacy_request where user_id = '${A}'`), /permission denied/);
+    // And they are nobody else's to read or write.
+    assert.equal(Number(asUser(B, `select count(*) from public.analytics_event`).trim()), 0);
+    assert.throws(
+      () => asUser(B, `insert into public.analytics_event (user_id, name) values ('${A}', 'signin')`),
+      /row-level security/
+    );
+  });
+
   it('deletes every row of the account and nothing of anyone else’s', () => {
     asUser(A, 'select public.delete_my_account()');
     for (const table of ['task', 'contact', 'history', 'follow_up', 'one_thing', 'settings', 'consent']) {
@@ -281,6 +331,15 @@ describe('sync against Postgres', () => {
     assert.equal(Number(psql(`select count(*) from auth.users where id = '${A}'`).trim()), 0);
     assert.equal(count('task', B), 1);
     assert.equal(Number(psql(`select count(*) from public.privacy_request where type = 'delete' and user_id is null`).trim()), 1);
+    // The deletion event, and the events A had already sent, survive the hard
+    // delete with no user_id — which is what lets the funnel keep its shape
+    // without keeping who was in it.
+    assert.equal(count('analytics_event', A), 0);
+    assert.equal(
+      Number(psql(`select count(*) from public.analytics_event where user_id is null and name = 'account_deleted'`).trim()),
+      1
+    );
+    assert.equal(Number(psql(`select count(*) from public.analytics_event where user_id is null`).trim()), 3);
     assert.throws(() => psql(`begin; set local role anon; select public.delete_my_account(); commit;`), /permission denied/);
   });
 });

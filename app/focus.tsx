@@ -14,6 +14,7 @@ import { Alert, Platform, Pressable, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 
+import { track } from '@/lib/analytics/track';
 import { RingTimer } from '@/features/focus/RingTimer';
 import { BalancedText } from '@/ui/BalancedText';
 import { BackButton } from '@/ui/BackButton';
@@ -50,6 +51,9 @@ export default function Focus() {
   const [idle, setIdle] = useState(false);
 
   const idleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // The clock starts with the screen, so a mount is a started session.
+  useEffect(() => track({ name: 'focus_started', min: minutes }), [minutes]);
 
   const wake = useCallback(() => {
     setIdle(false);
@@ -107,6 +111,11 @@ export default function Focus() {
   const finish = useCallback(() => {
     const early = remaining > 0 && remaining < total - 1;
     const done = () => {
+      // "Completed" is the user saying the One Thing is done, which is what
+      // this button means whether the clock ran out or they ended it early.
+      // A session abandoned by leaving the screen reports nothing, so
+      // started-minus-completed is the drop-off.
+      track({ name: 'focus_completed' });
       setRunning(false);
       setOneThingDone(true);
       cancelFocusEnd().catch(() => {});

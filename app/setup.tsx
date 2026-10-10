@@ -18,6 +18,7 @@ import { Screen } from '@/ui/Screen';
 import { Text } from '@/ui/Text';
 import { ink, space } from '@/design/tokens';
 import { useDirection, useLanguage } from '@/i18n/LanguageProvider';
+import { track } from '@/lib/analytics/track';
 import { recordConsent } from '@/lib/consent';
 import { usePrefs } from '@/lib/prefs';
 import { useSession } from '@/lib/session';
@@ -71,6 +72,8 @@ export default function Setup() {
       await recordConsent(d.consent);
       draft.clear();
     }
+
+    track({ name: 'setup_done' });
 
     // Defaults applied silently (SCREENS.md § 02): reminder style Gentle,
     // channels all on, focus 45 min — these are the column defaults in

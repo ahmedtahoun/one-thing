@@ -16,6 +16,12 @@ export type Period = 'year' | 'month';
 /** The store product behind each plan card. */
 export const PRODUCT: Record<Period, string> = { year: 'pro_yearly', month: 'pro_monthly' };
 
+/**
+ * The tip jar's three consumables, in the order the sheet shows them
+ * (DATA_MODEL § Integrations: tip_small 0.99, tip_regular 2.99, tip_large 4.99).
+ */
+export const TIP_PRODUCTS = ['tip_small', 'tip_regular', 'tip_large'] as const;
+
 export type TrialResult = 'started' | 'cancelled' | 'unavailable';
 
 export async function startTrial(_period: Period): Promise<TrialResult> {

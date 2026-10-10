@@ -11,11 +11,12 @@
  * for now, to be designed or dropped before submission (§2.34). Nothing here
  * routes to it — `can(plan, 'weeklyRecap')` is false for everyone.
  */
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { router } from 'expo-router';
 
-import { startTrial, type Period } from '@/features/paywall/purchases';
+import { track } from '@/lib/analytics/track';
+import { PRODUCT, startTrial, type Period } from '@/features/paywall/purchases';
 import { BalancedText } from '@/ui/BalancedText';
 import { Icon } from '@/ui/Icon';
 import { Screen } from '@/ui/Screen';
@@ -42,6 +43,10 @@ export default function Paywall() {
   const first = session?.firstName?.trim() ?? '';
   const title = pw.title.replace('{n}', first ? inline.paywallName.replace('{n}', first) : '');
 
+  // Once per opening, not once per render: the funnel step is "saw the
+  // paywall", and a re-render is not a second view.
+  useEffect(() => track({ name: 'paywall_viewed' }), []);
+
   const close = () => (router.canGoBack() ? router.back() : router.replace('/settings'));
 
   const start = async () => {
@@ -49,7 +54,14 @@ export default function Paywall() {
     // the trial starts in the store's own sheet, and Pro arrives with the
     // receipt.
     const result = await startTrial(period);
-    if (result === 'started') close();
+    if (result === 'started') {
+      // Both, because DATA_MODEL asks for the trial and the purchase
+      // separately and the store reports one event: the trial is the start of
+      // the subscription, and `purchase` names which product it was.
+      track({ name: 'trial_started', period });
+      track({ name: 'purchase', product: PRODUCT[period] });
+      close();
+    }
   };
 
   const plans: { key: Period; name: string; sub: string; tag?: string }[] = [

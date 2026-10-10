@@ -268,24 +268,27 @@ five notifications. The first `preview` build is where a batch of small
 surprises arrives, and there is no way to shorten that discovery except to do
 it early.
 
-### 9.2 There is no analytics, and no table to put it in
-`DATA_MODEL.md` specifies an event taxonomy — `signin, setup_done,
-one_thing_set, task_created{type,via}, … purchase{product}, account_deleted`,
-phone and email SHA-256 hashed. **Nothing emits any of it, and the schema has
-no table for it.** `ADMIN.md` then asks for Total users, Active users, a
-seven-step funnel with drop percentages, and weekly retention cohorts. The
-third developer is building those screens now against a data source that does
-not exist. Someone has to decide: an events table in this Postgres, or a
-vendor — and if a vendor, it brings an SDK, which brings a privacy-manifest
-entry and a Data safety answer.
+### 9.2 There is no analytics, and no table to put it in — **built**
+All seventeen events now exist, emitted from the code and landing in an
+`analytics_event` table (migration `0003`). See BUILD-REVIEW §2.37 for the
+decisions. What is still open: the admin panel's own queries, and whether a
+vendor ever joins this — if one does, it brings an SDK, a privacy-manifest
+entry and a Data safety answer with it.
 
-### 9.3 The app promises a data download it cannot do
-The Privacy Policy copy says, in both languages: "Download or delete your data
-and account from Settings." There is no download anywhere in the app. The
-schema expects it — `privacy_request_type` is `('delete', 'export')` with
-`source` `('app', 'web')` and a 30-day deadline — and PDPL and GDPR both make
-portability a right, not a feature. Either the app raises an export request,
-or that sentence has to change in EN and AR.
+
+### 9.3 The app promised a data download it could not do — **built**
+The row was there all along — Settings → Privacy & data → "Download my data",
+with the toast SCREENS.md § 21–23 specifies — and the tap did nothing but
+show the toast. So the Privacy Policy's "Download or delete your data … from
+Settings", in both languages, rested on a promise with no record of ever
+having been made. A request now queues on the device and goes up as a
+`privacy_request` row of type `export`, which is what the admin panel counts
+its 30-day deadline from. BUILD-REVIEW §2.38.
+
+**The export itself is still a server job**, and still unwritten: something
+has to read every table for that user and email the result inside 24 hours.
+Nothing on a phone can do that.
+
 
 ### 9.4 Support has a back end and no front door
 `support_ticket` and `support_message` exist, and the admin panel has a

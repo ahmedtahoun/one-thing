@@ -19,6 +19,7 @@ import { Toast } from '@/ui/Toast';
 import { AppleMark, GoogleMark, LogoMark } from '@/design/BrandMarks';
 import { ink, space, status } from '@/design/tokens';
 import { useLanguage } from '@/i18n/LanguageProvider';
+import { track } from '@/lib/analytics/track';
 import { useSignUpDraft } from '@/lib/signup-draft';
 
 export default function SignIn() {
@@ -40,6 +41,10 @@ export default function SignIn() {
       return;
     }
     setShowError(false);
+    // The provider's own sheet is what will sit here once Apple and Google
+    // sign-in are real; today this is the whole of a successful sign-in, and
+    // the event belongs at the moment it succeeds either way.
+    track({ name: 'signin' });
     draft.begin({ provider, marketingOptIn: marketing });
     router.push('/setup');
   };

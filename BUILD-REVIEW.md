@@ -792,3 +792,79 @@ What changed on the device:
   despite the comment saying it was kept. Delete account clears the queue,
   so one account's consent is never sent as the next account's.
 - **Plan comes only from the server**, which the store webhooks will write.
+
+### 2.37 Analytics: seventeen events, one table, and no way to send a phone number
+`DATA_MODEL.md` § Analytics events lists the taxonomy and two rules —
+"Phone/email SHA-256 hashed; never send message text" — and nothing in the
+handoff says where the events go or who reads them. `ADMIN.md` then builds
+KPI cards, a seven-step funnel and weekly retention cohorts out of them. So
+the events were specified, demanded by another product, and implemented by
+nobody. Four decisions were needed:
+
+**Where they go.** An `analytics_event` table in the same Postgres
+(`0003_events.sql`), not a vendor. A vendor would mean an SDK on the device,
+a privacy-manifest entry, a Data safety answer and a second place user data
+lives — all before the first dashboard. The admin panel already reads this
+database through the service role, so a table it can `group by` is the
+shortest path to the screens that need it. If a vendor is wanted later, this
+table is the thing to replay into it.
+
+**The name is an enum, not text.** A typo in a client is then a rejected
+insert rather than a silent extra row in someone's funnel. Properties are
+`jsonb`, so `task_created`'s `{type, via}` stays queryable without a column
+per event.
+
+**No hashing, because there is nothing to hash.** The union in
+`src/lib/analytics/events.ts` is the whole surface, and no event in it carries
+a phone, an email or any free text. That is a stronger guarantee than hashing
+would have been: there is no field to put a message body in, and adding one
+fails a test that pins the six allowed property names. Hashing a value the
+app never sends would have been ceremony.
+
+**`account_deleted` is the server's to send.** By the time it happens the
+account's rows are gone and the session with them, so an insert from the
+device would either fail row-level security or resurrect a `user_id` the hard
+delete just removed. `delete_my_account()` records it instead, with no
+`user_id` — which is also how `privacy_request` already counted deletions
+without keeping who asked. Every other event's `user_id` is
+`on delete set null` for the same reason: the funnel keeps its shape, and the
+rows stop being personal data, so DATA_MODEL's hard delete stays a hard
+delete.
+
+Two smaller calls. Events ride along with whatever syncs next rather than
+triggering a sync each — a sync per tap is a sync per tap — while an export
+request syncs at once, because it carries a promise with a clock on it. And
+`task_done` is tracked in `toggleDone` and in the review's bulk close, not
+centrally in `persistTasks`, which would have been tidier and wrong: a task
+another device finished arrives through `applySync`, and that is not this
+device's event to report.
+
+The queue caps at 500 events, dropping the oldest. A device offline for a
+month must not grow without bound, and a count short by its oldest rows beats
+a queue that never drains.
+
+### 2.38 "Download my data" was a toast and nothing else
+The row is in the design — Settings → Privacy & data, with the toast "We'll
+email your data within 24 hours." The build showed the toast and kept no
+record, so the Privacy Policy's own sentence ("Download or delete your data
+and account from Settings", in both languages) rested on a request that had
+never been made. `privacy_request` was waiting for it the whole time:
+`type` is `('delete', 'export')`, `source` is `('app', 'web')`, and
+`deadline_at` defaults to 30 days out — the countdown ADMIN.md § 11 draws.
+
+The request now queues on the device and goes up as that row. It is
+deliberately not deduplicated: asking again tomorrow is a second request with
+its own deadline, and two rows an hour apart tell support more than one row
+would.
+
+Writing it turned up an integrity hole next door. `0001` gave
+`privacy_request` the same owner-only policy as every other table carrying a
+`user_id`, which let a user delete their own deletion or export request — the
+one row that proves a request was made, and the row the 30-day clock is
+counted from. `0003` revokes update and delete, as `admin_audit_log` already
+did: insert and read, nothing else. A test in `scripts/test-sync-db.ts` holds
+that line for both tables.
+
+The export itself — read every table for one user, email the result inside 24
+hours — is a server job, and is not written. Nothing on the device can do it,
+and nothing pretends to.

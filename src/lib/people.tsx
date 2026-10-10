@@ -7,6 +7,7 @@
  */
 import { createContext, useCallback, useContext, useMemo, type ReactNode } from 'react';
 
+import { track } from './analytics/track';
 import { newId } from './ids';
 import { displayName, type Contact, type FollowUp, type HistoryEntry, type Task } from './model-types';
 import { usePersisted } from './persisted';
@@ -136,7 +137,10 @@ export function PeopleProvider({ children }: { children: ReactNode }) {
   );
 
   const addFollowUp = useCallback<PeopleValue['addFollowUp']>(
-    (followUp) => setFollowUps((list) => [{ ...followUp, id: newId(), createdAt: new Date().toISOString() }, ...list]),
+    (followUp) => {
+      setFollowUps((list) => [{ ...followUp, id: newId(), createdAt: new Date().toISOString() }, ...list]);
+      track({ name: 'followup_created' });
+    },
     [setFollowUps]
   );
 

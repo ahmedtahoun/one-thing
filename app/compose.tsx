@@ -17,6 +17,7 @@ import { Redirect, router, useLocalSearchParams } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
 import * as MailComposer from 'expo-mail-composer';
 
+import { track } from '@/lib/analytics/track';
 import { EmailFields, PhoneField } from '@/features/compose/fields';
 import {
   emailState,
@@ -91,6 +92,13 @@ function ComposeTask({ task }: { task: Task }) {
   const askAfter = (delay: number) => timers.current.push(setTimeout(() => setAfterSend(true), delay));
 
   const type = task.type;
+
+  // The screen is keyed on the task, so a mount is an opening. The channel is
+  // the task's type narrowed to the three DATA_MODEL names a message can go
+  // out on; a reminder opened here counts as 'call', as it does below.
+  useEffect(() => {
+    track({ name: 'compose_opened', channel: type === 'email' || type === 'whatsapp' ? type : 'call' });
+  }, [type]);
   const colour = typeColour[type];
   const who = task.who ?? '';
   const name = displayName(who);
@@ -194,6 +202,7 @@ function ComposeTask({ task }: { task: Task }) {
   const answer = (index: number, label: string) => {
     const now = new Date();
     updateTask(task.id, { status: 'done', sentConfirmedAt: now.toISOString() });
+    track({ name: 'send_confirmed' });
     const days = FOLLOW_UP_DAYS[index];
     if (days !== undefined) {
       const nextAt = new Date(now);

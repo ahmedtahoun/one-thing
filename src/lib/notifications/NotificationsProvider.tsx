@@ -13,6 +13,7 @@ import { router } from 'expo-router';
 
 import { registerCategories, requestPermission, SNOOZE_MINUTES, sync, type NotificationPayload } from './scheduler';
 import { useLanguage } from '@/i18n/LanguageProvider';
+import { track } from '@/lib/analytics/track';
 import { usePeople } from '@/lib/people';
 import { usePrefs } from '@/lib/prefs';
 import { useTasks } from '@/lib/tasks';
@@ -88,6 +89,9 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
       const data = response.notification.request.content.data as NotificationPayload | undefined;
       if (!data) return;
       const action = response.actionIdentifier;
+      // Every notification the user came back through, whichever kind and
+      // whichever button — the funnel step is "a nudge brought them back".
+      track({ name: 'nudge_opened' });
 
       if (data.kind === 'task' || data.kind === 'task_repeat') {
         if (action === 'done') return void act.current.toggleDone(data.taskId);

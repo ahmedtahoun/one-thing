@@ -138,8 +138,11 @@ day", and that Reschedule in remind mode moves the reminder and not the task.
 On Quick capture, Brain dump, the Assistant and the Paywall
 (`scripts/smoke-capture.js`): that nothing is saved until it is confirmed, the
 Assistant's daily limit and the paywall it opens, and that starting the trial
-makes nobody Pro. A screenshot says a screen looks right; this says it behaves
-right.
+makes nobody Pro. On what the app records about itself
+(`scripts/smoke-analytics.js`): that the events reach the queue as the user
+moves, once each, carrying nothing but the properties DATA_MODEL names, and
+that "Download my data" leaves a request behind rather than only a toast. A
+screenshot says a screen looks right; this says it behaves right.
 
 One trap worth knowing: the prototype almost never sets `line-height`, so
 nearly all of its text takes the font's own metrics — and those are not a flat
