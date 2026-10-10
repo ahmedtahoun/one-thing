@@ -194,6 +194,68 @@ const PROBES = {
       save: { en: 'Save contact', ar: 'احفظ جهة الاتصال' },
     },
   },
+  priority: {
+    app: '/priority',
+    proto: '08',
+    state: { signedIn: true, firstRun: false },
+    labels: {
+      question: {
+        en: 'If you finish one thing today, which one makes it a good day?',
+        ar: 'لو خلّصت شي واحد بس اليوم، وش اللي بيخلّي يومك ناجح؟',
+      },
+      fromYourWeek: { en: 'From your week', ar: 'من أسبوعك' },
+      firstSuggestion: { en: 'Finish the investor proposal', ar: 'أخلّص عرض المستثمرين' },
+      cta: { en: 'Make it my One Thing', ar: 'خلّه شغلي الأساسي اليوم' },
+    },
+  },
+  event: {
+    app: '/new?type=meeting',
+    proto: '05',
+    state: { signedIn: true, firstRun: false, seedPeople: true },
+    labels: {
+      head: { en: 'New meeting', ar: 'اجتماع جديد' },
+      titleLabel: { en: 'Meeting about', ar: 'الاجتماع عن' },
+      where: { en: 'Where', ar: 'وين' },
+      link: { en: 'Link', ar: 'الرابط' },
+      who: { en: 'Who', ar: 'مع مين' },
+      day: { en: 'Day', ar: 'اليوم' },
+      time: { en: 'Time', ar: 'الوقت' },
+    },
+  },
+  focus: {
+    app: '/focus',
+    proto: '14',
+    state: { signedIn: true, firstRun: false, seedTasks: true, oneThing: true },
+    labels: {
+      lockedIn: { en: 'LOCKED IN', ar: 'في وضع التركيز' },
+      oneThing: { en: 'Finish the investor proposal', ar: 'أخلّص عرض المستثمرين' },
+      remaining: { en: 'remaining', ar: 'باقي' },
+      park: { en: 'Remembered something? Park it.', ar: 'تذكّرت شي؟ سجّله وارجع.' },
+    },
+  },
+  overwhelm: {
+    app: '/overwhelm',
+    proto: '15',
+    state: { signedIn: true, firstRun: false, seedTasks: true, oneThing: true },
+    labels: {
+      eyebrow: { en: 'TOO MUCH? LET’S SHRINK IT', ar: 'كثير عليك؟ نصغّرها' },
+      title: { en: 'Just the next tiny step.', ar: 'بس الخطوة الصغيرة الجاية.' },
+      step: { en: 'Open the proposal doc', ar: 'افتح ملف العرض' },
+      sprint: { en: 'Start a 5-min sprint', ar: 'ابدأ 5 دقايق بس' },
+    },
+  },
+  review: {
+    app: '/review',
+    proto: '21',
+    state: { signedIn: true, firstRun: false, seedTasks: true, oneThing: true },
+    labels: {
+      eyebrow: { en: 'EVENING REVIEW', ar: 'مراجعة المسا' },
+      title: { en: 'How did today go?', ar: 'كيف كان يومك؟' },
+      oneThingLabel: { en: 'Your One Thing', ar: 'شغلك الأساسي' },
+      promises: { en: 'Promises', ar: 'الالتزامات' },
+      closeDay: { en: 'Close the day', ar: 'سكّر اليوم' },
+    },
+  },
   'sign-in': {
     app: '/sign-in',
     proto: '01',
@@ -235,15 +297,29 @@ function staticServer(dir, { spa = false, fontDir = null } = {}) {
   });
 }
 
-/** Tops of each labelled element, relative to the screen's own top. */
+/**
+ * Tops of each labelled element, relative to the screen's own top.
+ *
+ * The tightest element wrapping the text is the one to measure — except when
+ * that element is a bare inline box. An inline run's rect is its glyph box,
+ * not a layout box: the prototype wraps some headings in a plain <span>, and
+ * for 22 px text that span reports ~2 pt above the line box it sits in. React
+ * Native renders no such wrapper, so comparing the two measured a difference
+ * that does not exist. Where an inline element carries exactly the same text
+ * as its parent, the parent is the layout box and the one to compare.
+ */
 const TOPS = ({ labels, scopeSelector }) => {
   const scope = scopeSelector ? document.querySelector(scopeSelector) : document.body;
   const origin = scope.getBoundingClientRect().top;
+  const sameText = (el) => (el.textContent || '').trim();
   const out = {};
   for (const [name, text] of Object.entries(labels)) {
     let best = null;
     scope.querySelectorAll('*').forEach((el) => {
-      if ((el.textContent || '').trim() !== text) return;
+      if (sameText(el) !== text) return;
+      const inlineDuplicate =
+        getComputedStyle(el).display === 'inline' && el.parentElement && sameText(el.parentElement) === text;
+      if (inlineDuplicate) return;
       const r = el.getBoundingClientRect();
       if (!best || r.height < best.getBoundingClientRect().height) best = el;
     });

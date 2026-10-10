@@ -57,6 +57,8 @@ const INLINE_en = {
   "draftSavedToast": "Okay — the draft is saved. Still on your list.",
   "showAll": "Show all",
   "restToTomorrow": "Rest → tomorrow",
+  "duplicateContact": "You already have {n} with these details.",
+  "endFocusEarly": "End the session early? {t} still left.",
   "goodEvening": "Good evening, ",
   "goodMorning": "Good morning, ",
   "nudgeDesc": {
@@ -78,7 +80,6 @@ const INLINE_en = {
     "email": "Save & write an email",
     "call": "Save & call"
   },
-  "duplicateContact": "You already have {n} with these details.",
   "addedToday": "Added today"
 };
 
@@ -134,6 +135,8 @@ const INLINE_ar: typeof INLINE_en = {
   "draftSavedToast": "تمام، المسودة محفوظة.",
   "showAll": "عرض الكل",
   "restToTomorrow": "الباقي لبكرة",
+  "duplicateContact": "عندك {n} محفوظ بنفس البيانات.",
+  "endFocusEarly": "تنهي الجلسة بدري؟ باقي {t}.",
   "goodEvening": "مساء الخير يا ",
   "goodMorning": "صباح الخير يا ",
   "nudgeDesc": {
@@ -155,7 +158,6 @@ const INLINE_ar: typeof INLINE_en = {
     "email": "احفظ واكتب إيميل",
     "call": "احفظ واتصل"
   },
-  "duplicateContact": "عندك {n} محفوظ بنفس البيانات.",
   "addedToday": "انضاف اليوم"
 };
 

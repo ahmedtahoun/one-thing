@@ -464,6 +464,101 @@ whether iOS's 64-notification limit behaves as assumed.
 with. Until then, treat the notification layer as written-but-unproven, and
 `npm run smoke` says nothing about it.
 
+### 2.27 The Morning priority eyebrow has a name baked into it
+`pr_k` is shipped as "GOOD MORNING, KHALID" — the demo user's name, inside the
+string, in both languages. SCREENS.md § 05 writes it "GOOD MORNING, {NAME}".
+
+It is composed from the greeting and the account instead
+(`inline.goodMorning` + the first name, uppercased), which reproduces the
+handoff's own string exactly for that user and works for everyone else. The
+prototype does the same thing a few lines away — `'GOOD MORNING, ' +
+first.toUpperCase()` — so the baked-in `pr_k` looks like a leftover.
+
+### 2.28 Focus: two prototype slips, and one timing disagreement
+- **The mic icon on "Park it" is invisible.** The prototype draws a white
+  circle and puts a white icon in it (`ic.mic` is `this.ic('mic', 22,
+  '#fff')`), so nothing shows. The circle's own `color` is ink, which is what
+  the icon was meant to inherit, so it is drawn in ink here.
+- **"{n} promises are safe until later" counts every open task**, not today's.
+  Followed as-is: during a session what is on your mind is the whole list, and
+  that is what the sentence answers.
+- **The screen dims after 4 s in SCREENS.md § 15 and 3.5 s in the
+  prototype.** Following the written 4, which is what `motion.focusIdleDim`
+  already carried. Half a second, but it is the kind of thing nobody notices
+  until they are asked to review it.
+
+### 2.29 The evening review collects decisions and throws them away
+SCREENS.md § 20 gives each open promise three answers — Kept · Tomorrow · ✕
+Not needed — plus a "Rest → tomorrow" bulk link, and says **"Nothing moves
+automatically."**
+
+In the prototype nothing moves at all: the marks go into `s.review`, and
+`closeDay` only sets `closed: true`. Press "Close the day" and every task is
+exactly where it was.
+
+Read as a prototype shortcut rather than a design. "Nothing moves
+automatically" means nothing moves *without being asked*, and the marks are
+the asking — so here "Close the day" applies them: Kept completes the task,
+Tomorrow moves it on a day, Not needed cancels it. Nothing happens until that
+button, which is the part the rule is actually about.
+
+Also: the prototype's "{a} of {b} promises kept" counts **every** task in the
+list, including the six on later days — 18 rather than today's 12. An evening
+review that counts next week's tasks is reporting on the wrong day, so this
+one counts today's.
+
+### 2.30 "Plan tomorrow →" does not exist in either language
+SCREENS.md § 20 ends the closed state with a "Plan tomorrow →" button. There
+is no such string in the handoff, and the prototype renders `t.pr_k + ' →'`
+there — the Morning priority eyebrow — which comes out as "GOOD MORNING,
+KHALID →".
+
+The button goes to Morning priority, which is plainly the intent. Its label is
+the nearest copy that exists in both languages, `t.tomorrow` ("Tomorrow" /
+"لبكرة") plus the arrow. **Please supply the real string**, like the three in
+§2.25.
+
+### 2.31 Reschedule has no screen number
+Swipe-left on a task, the clock on Up next, and the reminder sheet's "Pick a
+date & time" all open the same thing, and SCREENS.md never numbers it — § 07
+mentions its calendar in passing as part of the reminder sheet. It is built as
+its own route, `/reschedule`, because three screens open it and it has two
+modes: `move` changes when the task is due, `remind` sets a custom reminder
+and leaves the task alone. The title and the button say which.
+
+Its quick chips come from `rQuick`, whose day offsets are relative to the
+prototype's frozen 9 October — "Monday" is `+4`. They are applied relative to
+today instead, so "Monday" keeps its offset but not its name. Worth a look
+when the demo data is refreshed.
+
+### 2.32 The task store dropped every write but the last
+Not a handoff question — a bug in this build, found by the first behavioural
+test written against the evening review, and worth recording because the shape
+of it will come back.
+
+Every mutation read `tasks` from the closure and wrote the result:
+`persistTasks(tasks.map(…))`. Two calls in the same event therefore both
+started from the list as it was *before* either ran, and the second overwrote
+the first. So:
+
+- **The evening review applied one mark in three.** "Close the day" ran Kept,
+  then Tomorrow, then Not needed; only Not needed survived.
+- **A saved event lost itself.** The event form added the task and then wrote
+  its reminder instant; the second write mapped over the list without the new
+  task in it, and deleted it again.
+
+Both looked correct on screen, because the screen re-rendered from the one
+write that did land.
+
+The store now takes an updater — `persistTasks(current => …)` — so calls in
+the same event compose, and `addTask` works out a reminder's instant itself
+rather than leaving every caller to make a second write. `npm run smoke`
+covers both paths.
+
+The general lesson for this codebase: **anything that changes the task list
+more than once in a single handler must go through one updater**, or the
+earlier changes are silently lost.
+
 ## 5. Decisions taken
 
 Agreed with the product owner on 10 Oct 2026: React Native (Expo) for the app,

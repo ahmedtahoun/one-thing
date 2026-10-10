@@ -29,7 +29,7 @@ src/
   ui/                   primitives: Text, Button, Field, Chip, Checkbox, Toggle, Screen, Sheet, Toast
   features/<screen>/    components belonging to one screen
   i18n/                 language + writing direction
-  lib/                  stores (session, tasks, people, prefs), consent, account, Supabase client
+  lib/                  stores (session, tasks, people, prefs), notifications, Supabase client
   policy/               entitlements — the single place Free vs Pro is decided
 supabase/migrations/    schema
 scripts/                generators and the verification harness
@@ -128,8 +128,12 @@ without sending it, one accordion panel at a time, the stored preferences, the
 language switch, and what Delete account erases. On Compose
 (`scripts/smoke-compose.js`): what is opened (wa.me, `mailto:`, `tel:`) and
 with what, that a number given once is remembered, and that nothing is marked
-done until "Did you send it?" is answered. A screenshot says a screen
-looks right; this says it behaves right.
+done until "Did you send it?" is answered. On the day's own screens
+(`scripts/smoke-day.js`): what Morning priority saves, the event form's
+field table and what a saved event becomes, Overwhelm's one-step-at-a-time,
+the focus timer, that the evening review changes nothing until "Close the
+day", and that Reschedule in remind mode moves the reminder and not the task.
+A screenshot says a screen looks right; this says it behaves right.
 
 One trap worth knowing: the prototype almost never sets `line-height`, so
 nearly all of its text takes the font's own metrics — and those are not a flat
@@ -213,7 +217,7 @@ that is what the design was reviewed in. Re-run it before changing a colour.
 Built: design tokens, the generated content layer (copy, 33 icons, 198
 countries), the schema with row-level security on every table, the entitlements
 policy, the UI primitives, the task, people and preference stores, the glass
-tab bar, and screens 01–03, 06, 07, 10–14 and 21–23 — Sign in, Account setup,
+tab bar, the notification layer, and screens 01–03, 05–07, 09–16 and 20–23 — Sign in, Account setup,
 Legal, Today in full (header,
 first-run card, One Thing card, evening card, quick actions, Small promises
 with swipe-to-done and swipe-to-reschedule, and the empty state) and Tasks in
@@ -229,20 +233,25 @@ and "Did you send it?" with the follow-up it sets) and the contact profile
 (action tiles, the note that saves as it is typed, Coming up, and the dated
 history with its quick log) and the contact form (new and edit, the
 searchable country picker, the duplicate banner, "Save & message", and delete
-with Undo).
+with Undo), Morning priority, the event form in all four shapes (Visit,
+Meeting, Webinar, Course), Focus with its ring and its end-of-session
+notification, Overwhelm mode, the evening review, and Reschedule.
 
-Across 116 probes on those screens, in both languages, the worst element sits
-1.1 pt from the prototype against ACCEPTANCE.md's 2 pt bar, with two documented
-exceptions (`KNOWN_DEVIATIONS`). Pixel difference is 0.0–0.7 % on Today, Tasks,
-Follow-ups, Settings, the contact profile and the contact form; 2–3 % on Compose, whose Send button is drawn at 56 pt
-where the prototype squeezes it to 26 (BUILD-REVIEW.md §2.21); 1.0–2.6 % on Sign in and Account setup, where the
-consent checkbox's box model changes a line break (BUILD-REVIEW.md §2.11); and
-3–4 % on People, whose search field we draw at the 48 pt SCREENS.md gives where
-the prototype squeezes it to 24 (BUILD-REVIEW.md §2.19).
+Across 164 probes on those screens, in both languages, the worst element sits
+within 2 pt of the prototype — ACCEPTANCE.md's bar — with two documented
+exceptions (`KNOWN_DEVIATIONS`). Pixel difference is 0.0–1.1 % on Today,
+Tasks, Follow-ups, Settings, the contact profile and form, Focus, Overwhelm
+and the evening review; 2–3 % on Morning priority, the event form and
+Compose, whose Send button is drawn at 56 pt where the prototype squeezes it
+to 26 (BUILD-REVIEW.md §2.21); 1.0–2.6 % on Sign in and Account setup, where
+the consent checkbox's box model changes a line break (§2.11); and 3–4 % on
+People, whose search field is the 48 pt SCREENS.md gives where the prototype
+squeezes it to 24 (§2.19).
 
-Not built yet: screens 04, 05, 09, 15–20 and 24. (Screen 08 is the Tasks add
-sheet, which is built — SCREENS.md files it under § 07.) Several buttons on
-the built screens lead to them (the event form, Reschedule, the paywall) and land on the not-found route until they exist. Purchases, restore
+Not built yet: screens 04, 17–19 and 24. (Screen 08 is the Tasks add sheet,
+which is built — SCREENS.md files it under § 07; screen 04, onboarding, is
+dead in v1 — BUILD-REVIEW.md §2.9.) The mic orb's two
+gestures and the paywall still lead to routes that do not exist yet. Purchases, restore
 and the tip jar show their toasts but need the store accounts; Delete account
 erases the device but has no server to erase yet. Notifications are written
 and their rules tested, but never delivered on a real device. Real Apple and Google sign-in are stubbed pending

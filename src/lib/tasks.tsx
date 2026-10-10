@@ -18,6 +18,7 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { dateKey, type OneThing, type Task } from './model-types';
+import { remindAt } from './reminders';
 
 const TASKS_KEY = 'ot.tasks';
 const ONE_THING_KEY = 'ot.oneThing';
@@ -91,9 +92,19 @@ export function TasksProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const persistTasks = useCallback((next: Task[]) => {
-    setTasks(next);
-    AsyncStorage.setItem(TASKS_KEY, JSON.stringify(next)).catch(() => {});
+  /**
+   * Every mutation goes through here, and it takes an updater rather than a
+   * list so that two calls in the same event compose instead of the second
+   * overwriting the first. Reading `tasks` from the closure and writing the
+   * result looks fine and is not: add a task and then patch it, or apply
+   * three groups of review marks in a row, and only the last call survives.
+   */
+  const persistTasks = useCallback((update: (current: Task[]) => Task[]) => {
+    setTasks((current) => {
+      const next = update(current);
+      AsyncStorage.setItem(TASKS_KEY, JSON.stringify(next)).catch(() => {});
+      return next;
+    });
   }, []);
 
   const persistOneThing = useCallback((next: OneThing | null) => {
@@ -114,32 +125,37 @@ export function TasksProvider({ children }: { children: ReactNode }) {
         id: `t_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
         createdAt: new Date().toISOString(),
       };
-      persistTasks([...tasks, task]);
+      // A reminder's instant is derived from the task's own time, so it is
+      // worked out here rather than by every caller in a second write.
+      if (task.remind && task.dueAt && !task.remindAt) task.remindAt = remindAt(task);
+      persistTasks((current) => [...current, task]);
       return task;
     },
-    [tasks, persistTasks]
+    [persistTasks]
   );
 
   const updateTask = useCallback<TasksValue['updateTask']>(
     (id, patch) => {
-      persistTasks(tasks.map((t) => (t.id === id ? { ...t, ...patch } : t)));
+      persistTasks((current) => current.map((t) => (t.id === id ? { ...t, ...patch } : t)));
     },
-    [tasks, persistTasks]
+    [persistTasks]
   );
 
   const patchMany = useCallback<TasksValue['patchMany']>(
     (ids, patch) => {
       const set = new Set(ids);
-      persistTasks(tasks.map((t) => (set.has(t.id) ? { ...t, ...patch(t) } : t)));
+      persistTasks((current) => current.map((t) => (set.has(t.id) ? { ...t, ...patch(t) } : t)));
     },
-    [tasks, persistTasks]
+    [persistTasks]
   );
 
   const toggleDone = useCallback<TasksValue['toggleDone']>(
     (id) => {
-      const current = tasks.find((t) => t.id === id);
-      const next = current?.status === 'done' ? 'open' : 'done';
-      persistTasks(tasks.map((t) => (t.id === id ? { ...t, status: next } : t)));
+      // The caller needs to know which way it went — for the toast — so the
+      // decision is made from the list as it is read, and applied inside the
+      // updater against the list as it will be.
+      const next = tasks.find((t) => t.id === id)?.status === 'done' ? 'open' : 'done';
+      persistTasks((current) => current.map((t) => (t.id === id ? { ...t, status: next } : t)));
       return next;
     },
     [tasks, persistTasks]
@@ -197,7 +213,8 @@ export function TasksProvider({ children }: { children: ReactNode }) {
       toggleDone,
       snooze,
       cancel,
-      restore: persistTasks,
+        // Undo hands back a whole list, so it ignores what is current.
+      restore: (next: Task[]) => persistTasks(() => next),
       setOneThing,
       setOneThingDone,
       setFocusMinutes,

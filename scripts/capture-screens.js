@@ -77,6 +77,14 @@ const ROUTES = [
   { path: '/compose?id=t3', name: '13-compose-email', signedIn: true, firstRun: false, seedTasks: true, seedPeople: true },
   { path: '/compose?id=t2', name: '13-compose-call', signedIn: true, firstRun: false, seedTasks: true, seedPeople: true },
   { path: '/compose?id=t4', name: '13-compose-reminder', signedIn: true, firstRun: false, seedTasks: true, seedPeople: true },
+  { path: '/priority', name: '05-morning-priority', signedIn: true, firstRun: false },
+  { path: '/new?type=meeting', name: '09-new-event-meeting', signedIn: true, firstRun: false, seedPeople: true },
+  { path: '/new?type=visit', name: '09-new-event-visit', signedIn: true, firstRun: false, seedPeople: true },
+  { path: '/new?type=course', name: '09-new-event-course', signedIn: true, firstRun: false, seedPeople: true },
+  { path: '/focus', name: '15-focus-lock-in', signedIn: true, firstRun: false, seedTasks: true, oneThing: true },
+  { path: '/overwhelm', name: '16-overwhelm-mode', signedIn: true, firstRun: false, seedTasks: true, oneThing: true },
+  { path: '/review', name: '20-daily-review', signedIn: true, firstRun: false, seedTasks: true, oneThing: true },
+  { path: '/reschedule?id=t1', name: '07-reschedule', signedIn: true, firstRun: false, seedTasks: true },
 ];
 
 const MIME = {
