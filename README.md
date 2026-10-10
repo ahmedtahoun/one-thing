@@ -26,10 +26,10 @@ app/                    expo-router routes, one file per screen
 src/
   content/              copy, countries, seed data — all generated, never hand-edited
   design/               tokens, icon path data, brand marks
-  ui/                   primitives: Text, Button, Field, Chip, Checkbox, Screen, Toast
+  ui/                   primitives: Text, Button, Field, Chip, Checkbox, Toggle, Screen, Sheet, Toast
   features/<screen>/    components belonging to one screen
   i18n/                 language + writing direction
-  lib/                  session, consent, Supabase client
+  lib/                  stores (session, tasks, people, prefs), consent, account, Supabase client
   policy/               entitlements — the single place Free vs Pro is decided
 supabase/migrations/    schema
 scripts/                generators and the verification harness
@@ -86,7 +86,7 @@ npm run capture:prototype  # screenshots the handoff's prototype at 402 x 874
 npm run capture:app        # exports web, screenshots each route
 npm run compare            # pixel diff, writes .screens/diff/
 npm run drift              # per-element ±2 pt check; `-- tasks` for one screen
-npm run smoke              # drives Tasks in a browser
+npm run smoke              # drives Tasks, People, Follow-ups and Settings in a browser
 ```
 
 Each reads `design-handoff/`. To point at a different copy, set `HANDOFF=`.
@@ -110,11 +110,15 @@ other is dominated by glyph edges. The Arabic layout was mirrored twice for a
 while and both checks stayed green. **Look at the Arabic screenshots next to
 the prototype's**; nothing automated will do it for you.
 
-`npm run smoke` is the behavioural one: it drives the Tasks screen in a real
-browser and asserts what each action does to the stored tasks — the filters,
-the bulk reminder and its Undo, the reminder sheet, the pause before a ticked
-task moves group, "Move to tomorrow", and the empty state. A screenshot says a
-screen looks right; this says it behaves right.
+`npm run smoke` is the behavioural one: it drives the screens in a real
+browser and asserts what each action does to what is stored. On Tasks: the
+filters, the bulk reminder and its Undo, the reminder sheet, the pause before a
+ticked task moves group, "Move to tomorrow", and the empty state. On People,
+Follow-ups and Settings (`scripts/smoke-people.js`): search, starting a task
+from a contact, Got a reply with its Undo, Reopen, Nudge writing a draft
+without sending it, one accordion panel at a time, the stored preferences, the
+language switch, and what Delete account erases. A screenshot says a screen
+looks right; this says it behaves right.
 
 One trap worth knowing: the prototype almost never sets `line-height`, so
 nearly all of its text takes the font's own metrics — and those are not a flat
@@ -173,21 +177,31 @@ that is what the design was reviewed in. Re-run it before changing a colour.
 
 Built: design tokens, the generated content layer (copy, 33 icons, 198
 countries), the schema with row-level security on every table, the entitlements
-policy, the UI primitives, the task store, the glass tab bar, and screens
-01–03, 06 and 07 — Sign in, Account setup, Legal, Today in full (header,
+policy, the UI primitives, the task, people and preference stores, the glass
+tab bar, and screens 01–03, 06, 07, 10, 14 and 21–23 — Sign in, Account setup,
+Legal, Today in full (header,
 first-run card, One Thing card, evening card, quick actions, Small promises
 with swipe-to-done and swipe-to-reschedule, and the empty state) and Tasks in
 full (progress header, the bulk reminder hint, filter chips, the Up next card,
 all seven groups with their collapse and bulk actions, status pills, the add
-sheet and the reminder sheet).
+sheet and the reminder sheet), People (search, quick WhatsApp / email / call
+buttons), Follow-ups (the three segments, Got a reply with Undo, Reopen,
+Nudge) and Settings (the accordion, language switch, privacy toggles, the tip
+sheet and the delete-account sheet).
 
-Across 42 probes on those screens, in both languages, the worst element sits
-1 pt from the prototype against ACCEPTANCE.md's 2 pt bar, with one documented
-exception (`KNOWN_DEVIATIONS`). Pixel difference is 0.5–0.7 % on Today and
-Tasks, and 1.0–2.6 % on Sign in and Account setup, where the consent
-checkbox's box model changes a line break (BUILD-REVIEW.md §2.11).
+Across 76 probes on those screens, in both languages, the worst element sits
+1 pt from the prototype against ACCEPTANCE.md's 2 pt bar, with two documented
+exceptions (`KNOWN_DEVIATIONS`). Pixel difference is 0.0–0.7 % on Today, Tasks,
+Follow-ups and Settings; 1.0–2.6 % on Sign in and Account setup, where the
+consent checkbox's box model changes a line break (BUILD-REVIEW.md §2.11); and
+3–4 % on People, whose search field we draw at the 48 pt SCREENS.md gives where
+the prototype squeezes it to 24 (BUILD-REVIEW.md §2.19).
 
-Not built yet: screens 09–24. Real Apple and Google sign-in are stubbed pending
+Not built yet: screens 04, 05, 08, 09, 11–13, 15–20 and 24. Several buttons on
+the built screens lead to them (Compose, the contact profile and form, the
+paywall) and land on the not-found route until they exist. Purchases, restore
+and the tip jar show their toasts but need the store accounts; Delete account
+erases the device but has no server to erase yet. Real Apple and Google sign-in are stubbed pending
 developer accounts; `src/lib/session.tsx` holds the session on the device until
 then.
 

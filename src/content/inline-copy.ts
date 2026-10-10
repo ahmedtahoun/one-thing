@@ -7,7 +7,7 @@
  */
 
 const INLINE_en = {
-  "minSuffix": " min",
+  "minSuffixShort": " min",
   "on": "On",
   "onSuffix": " on",
   "notifications": "Notifications",
@@ -35,6 +35,7 @@ const INLINE_en = {
   "tmwPrefix": "Tmw ",
   "hourSuffix": "h ",
   "minuteSuffix": "m",
+  "minSuffix": " min",
   "overdue": "Overdue",
   "snoozed": "Snoozed",
   "contactDetailsOptional": "Contact details (optional)",
@@ -57,12 +58,25 @@ const INLINE_en = {
   "showAll": "Show all",
   "restToTomorrow": "Rest → tomorrow",
   "goodEvening": "Good evening, ",
-  "goodMorning": "Good morning, "
+  "goodMorning": "Good morning, ",
+  "nudgeDesc": {
+    "gentle": "One soft notification at the time you set. Snooze from the notification. Sound and vibration follow your settings below.",
+    "firm": "Notifies on time, then again every 10 minutes (up to 3 times) until you mark it done or snooze it.",
+    "quiet": "No sound or vibration. You’ll see a badge and the item in your list — nothing interrupts you."
+  },
+  "nudgeTitle": "Nudge: {what}",
+  "nudgeGoal": "Get a reply on {what}",
+  "nudgePoints": [
+    "Friendly, short",
+    "Ask for a date"
+  ],
+  "nudgeDraft": "Hi {n}, just checking in on {what}. Any update when you get a moment? Thanks!",
+  "draftReadyNote": "Draft ready · not sent yet"
 };
 
 // Declared as `typeof INLINE_en` so a missing Arabic string is a compile error.
 const INLINE_ar: typeof INLINE_en = {
-  "minSuffix": " دقيقة",
+  "minSuffixShort": " د",
   "on": "مفعّلة",
   "onSuffix": " مفعّلة",
   "notifications": "الإشعارات",
@@ -90,6 +104,7 @@ const INLINE_ar: typeof INLINE_en = {
   "tmwPrefix": "بكرة ",
   "hourSuffix": "س ",
   "minuteSuffix": "د",
+  "minSuffix": " دقيقة",
   "overdue": "متأخر",
   "snoozed": "مؤجّل",
   "contactDetailsOptional": "التواصل (اختياري)",
@@ -112,7 +127,20 @@ const INLINE_ar: typeof INLINE_en = {
   "showAll": "عرض الكل",
   "restToTomorrow": "الباقي لبكرة",
   "goodEvening": "مساء الخير يا ",
-  "goodMorning": "صباح الخير يا "
+  "goodMorning": "صباح الخير يا ",
+  "nudgeDesc": {
+    "gentle": "تنبيه خفيف واحد بالوقت اللي حددته. تقدر تأجّله من الإشعار.",
+    "firm": "ينبهك بالوقت، وبعدها كل ١٠ دقايق (لين ٣ مرات) لين تخلّصه أو تأجّله.",
+    "quiet": "بدون صوت ولا اهتزاز. بس علامة على التطبيق والمهمة بالقائمة."
+  },
+  "nudgeTitle": "متابعة: {what}",
+  "nudgeGoal": "تحصل رد على {what}",
+  "nudgePoints": [
+    "ودّي ومختصر",
+    "اطلب موعد"
+  ],
+  "nudgeDraft": "هلا {n}، حبيت أتطمّن بخصوص {what}. في أي جديد؟ شكراً لك!",
+  "draftReadyNote": "المسودة جاهزة · ما انرسلت"
 };
 
 export const INLINE = { en: INLINE_en, ar: INLINE_ar };

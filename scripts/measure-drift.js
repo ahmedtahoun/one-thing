@@ -16,7 +16,7 @@ const { chromium } = require('playwright');
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
-const { demoTasks, dateKey } = require('./demo-state');
+const { demoContacts, demoFollowUps, demoTasks, dateKey } = require('./demo-state');
 const { handoffDir } = require('./handoff.js');
 
 const ROOT = path.join(__dirname, '..');
@@ -31,6 +31,12 @@ const TOLERANCE_PT = 2;
  * `screen/lang/element`. Anything not listed here must stay inside the
  * tolerance — this is a short list on purpose.
  */
+const PEOPLE_SEARCH =
+  'SCREENS.md § 10 gives the People search field 48 pt. The prototype renders ' +
+  'it 24: it sits in a scrolling flex column whose content overflows, and ' +
+  'without `flex: none` it shrinks to its input. Everything below it moves up ' +
+  'by the difference. We follow the written 48 — BUILD-REVIEW.md §2.19.';
+
 const KNOWN_DEVIATIONS = {
   'sign-in/en/hero':
     "The prototype's consent checkbox measures 25 px (CSS content-box plus its " +
@@ -38,6 +44,12 @@ const KNOWN_DEVIATIONS = {
     'enough to wrap "…and Privacy / Policy." onto a second line there and not ' +
     'here. That extra line lifts the vertically-centred hero. We follow the ' +
     'written spec — BUILD-REVIEW.md §2.11.',
+  'people/en/recent': PEOPLE_SEARCH,
+  'people/en/firstRow': PEOPLE_SEARCH,
+  'people/en/secondRow': PEOPLE_SEARCH,
+  'people/ar/recent': PEOPLE_SEARCH,
+  'people/ar/firstRow': PEOPLE_SEARCH,
+  'people/ar/secondRow': PEOPLE_SEARCH,
   // sign-in/ar/hero was listed here too. Once the writing direction stopped
   // being applied twice and the type scale took the font's real metrics, the
   // Arabic hero came back inside tolerance on its own, so the entry is gone.
@@ -96,6 +108,46 @@ const PROBES = {
       tomorrow: { en: 'Tomorrow', ar: 'بكرة' },
     },
   },
+  settings: {
+    app: '/settings',
+    proto: '13',
+    state: { signedIn: true, firstRun: false },
+    labels: {
+      title: { en: 'Settings', ar: 'الإعدادات' },
+      name: { en: 'Khalid Al-Mansouri', ar: 'خالد المنصوري' },
+      pro: { en: 'Try Pro free for 7 days', ar: 'جرّب Pro مجاناً ٧ أيام' },
+      reminders: { en: 'Reminders', ar: 'التذكيرات' },
+      language: { en: 'Language', ar: 'اللغة' },
+      coffee: { en: 'Buy us a coffee', ar: 'اعزمنا على قهوة' },
+      restore: { en: 'Restore purchases', ar: 'استرجاع المشتريات' },
+      signOut: { en: 'Sign out', ar: 'تسجيل خروج' },
+    },
+  },
+  people: {
+    app: '/people',
+    proto: '11',
+    state: { signedIn: true, firstRun: false, seedPeople: true },
+    labels: {
+      title: { en: 'People', ar: 'الأشخاص' },
+      subtitle: { en: 'Everyone you’ve emailed, called or messaged.', ar: 'كل اللي راسلتهم أو كلمتهم قبل.' },
+      recent: { en: 'RECENT', ar: 'الأخيرين' },
+      firstRow: { en: 'Mohammed Al-Saadi', ar: 'محمد السعدي' },
+      secondRow: { en: 'Sara Haddad', ar: 'سارة حداد' },
+    },
+  },
+  followups: {
+    app: '/followups',
+    proto: '19',
+    state: { signedIn: true, firstRun: false, seedPeople: true },
+    // Not the title: "Follow-ups" is also the tab label, which the probe
+    // would pick instead, as the smaller element.
+    labels: {
+      summary: { en: '1 need a nudge · 2 waiting on a reply', ar: '1 يحتاجون متابعة · 2 ننتظر ردهم' },
+      who: { en: 'Noura', ar: 'نورة' },
+      what: { en: 'Logo final files', ar: 'ملفات الشعار النهائية' },
+      since: { en: '3 days, no reply', ar: '3 أيام بدون رد' },
+    },
+  },
   'sign-in': {
     app: '/sign-in',
     proto: '01',
@@ -109,8 +161,8 @@ const PROBES = {
 };
 
 const DEMO_SESSION = {
-  en: { userId: 'drift', name: 'Khalid Al-Mansouri', firstName: 'Khalid', jobTitle: 'Founder', authProvider: 'apple', plan: 'free' },
-  ar: { userId: 'drift', name: 'خالد المنصوري', firstName: 'خالد', jobTitle: 'مؤسس', authProvider: 'apple', plan: 'free' },
+  en: { userId: 'drift', name: 'Khalid Al-Mansouri', firstName: 'Khalid', jobTitle: 'Founder · Qahwa House', authProvider: 'apple', plan: 'free' },
+  ar: { userId: 'drift', name: 'خالد المنصوري', firstName: 'خالد', jobTitle: 'مؤسس · بيت القهوة', authProvider: 'apple', plan: 'free' },
 };
 const DEMO_ONE_THING = { en: 'Finish the investor proposal', ar: 'أخلّص عرض المستثمرين' };
 
@@ -168,11 +220,13 @@ async function measureApp(lang, screen, probe) {
 
   await page.goto(`http://127.0.0.1:${port}/`, { waitUntil: 'domcontentloaded' });
   await page.evaluate(
-    ({ session, tasks, oneThing }) => {
+    ({ session, tasks, oneThing, contacts, followUps }) => {
       const put = (k, v) => (v ? localStorage.setItem(k, JSON.stringify(v)) : localStorage.removeItem(k));
       put('ot.session', session);
       put('ot.tasks', tasks);
       put('ot.oneThing', oneThing);
+      put('ot.contacts', contacts);
+      put('ot.followups', followUps);
     },
     {
       session: probe.state.signedIn ? { ...DEMO_SESSION[lang], firstRun: probe.state.firstRun !== false } : null,
@@ -180,6 +234,8 @@ async function measureApp(lang, screen, probe) {
       oneThing: probe.state.oneThing
         ? { date: dateKey(new Date()), done: false, focusMinutes: 45, title: DEMO_ONE_THING[lang] }
         : null,
+      contacts: probe.state.seedPeople ? demoContacts(lang, new Date()) : null,
+      followUps: probe.state.seedPeople ? demoFollowUps(lang) : null,
     }
   );
   await page.goto(`http://127.0.0.1:${port}${probe.app}`, { waitUntil: 'networkidle' });

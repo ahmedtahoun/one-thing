@@ -259,6 +259,73 @@ harness seeds this data, and on 10 October 2026 the untranslated seed would put
 the prototype's "tomorrow" tasks into today's groups and make the two screens
 disagree for a reason that has nothing to do with the build.
 
+### 2.19 Settings, People and Follow-ups: where the build departs from the prototype
+All three screens sit within 1 pt of the prototype on every probe except the
+first item below. These are the places the build does not copy the
+prototype. Each was decided here, and each can be reversed in one place.
+
+- **People's search field is 48 pt, not the prototype's 24.** SCREENS.md § 10
+  says 48, and so does the prototype's own CSS (`height: 48px`). But the field
+  sits in a scrolling flex column whose content overflows, and without
+  `flex: none` it shrinks to the height of its input. The handoff's screenshot
+  shows the squashed field too. Settings' cards carry `flex: none` for exactly
+  this reason, so 48 is the intent, and 44 is the minimum tap target anyway.
+  Everything below the field sits 24 pt lower than in the prototype, listed in
+  `KNOWN_DEVIATIONS`.
+- **Arabic forward chevrons point left.** The prototype picks its *back*
+  icon for Arabic chevrons, then its icon helper mirrors every back icon in
+  Arabic a second time, so the rendered prototype's chevrons point right. The
+  handoff's own Arabic screenshot (`28-ar-settings.png`) shows them pointing
+  left. This is the double mirroring of §2.14 in miniature. Following the
+  screenshot.
+- **The Follow-ups channel badge is 20 pt, as SCREENS.md § 14 says.** The
+  prototype draws 20 plus two 2 px borders outside it (no `box-sizing`), so
+  24. Same call as the checkbox in §2.11.
+- **Settings shows only what the account holds.** With no job title, the
+  prototype falls back to its demo user's ("Founder · Qahwa House"), and with
+  no name to the initial "K". A real account without a job title shows no
+  role line.
+- **Initials come from the contact's own name.** The prototype's demo
+  contacts carry an English and an Arabic name, and People takes initials from
+  the English one in both languages ("MA" beside "محمد السعدي"). A real
+  contact has one name, so an Arabic name gives Arabic initials: "مس" for
+  محمد السعدي, and "ال" for a name that starts with the article. The
+  prototype's own Follow-ups does the same. **Decide** whether Arabic names
+  should take one letter, or skip "ال".
+- **"Remind me" on a waiting follow-up does what Nudge does.** In the
+  prototype both buttons call the same handler: write a follow-up task with
+  a draft and open Compose. SCREENS.md gives "Remind me" a grey style and a
+  bell but no behaviour of its own. Built as the prototype behaves. **Say if
+  it should schedule a reminder instead.**
+- **A task started from People or by Nudge is due now.** The prototype stamps
+  09:30, ten minutes after its frozen 09:20 clock, so on a real day it would
+  start out overdue.
+- **The "Follow-ups" tab label wraps in the prototype**, onto "Follow- / ups",
+  and does not in the app. This is the tab bar built with Today and is
+  unchanged here. The drift check probes Follow-ups by its other labels,
+  because a probe on "Follow-ups" lands on the tab label.
+
+What Settings cannot do yet, and shows as a toast: Restore purchases, Manage
+subscription (it also opens the store's subscriptions page on a device), the
+three coffee tips (consumable in-app purchases, never a payment link) and
+Download my data. Delete account erases everything on the device except the
+language and returns to Sign in. DATA_MODEL.md's server-side hard delete needs
+the backend, and `src/lib/account.ts` is where it goes.
+
+### 2.20 Two more places the copy lived, and a collision
+`scripts/extract-inline-copy.js` now also reads Settings' three reminder-style
+descriptions and the follow-up Nudge's task: its title, goal, talking points
+and draft. The task is built by concatenating copy around the follow-up's own
+fields, so it comes out as templates with `{what}` and `{n}`. Each has a
+pattern written for its line and fails if upstream rewrites it.
+
+Building Settings also turned up a fault in the extractor. Three lines share
+the English " min", but their Arabic differs. The collapsed Reminders row
+says " د"; relative times say " دقيقة". All three were named `minSuffix`, so
+whichever came last won, and Settings would have read "45 دقيقة" where the
+prototype has "45 د". The Reminders row now has its own name, and a name that
+comes back with different copy now fails the run.
+
 ## 5. Decisions taken
 
 Agreed with the product owner on 10 Oct 2026: React Native (Expo) for the app,

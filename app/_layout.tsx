@@ -12,6 +12,8 @@ import {
 } from '@expo-google-fonts/ibm-plex-sans-arabic';
 
 import { LanguageProvider } from '@/i18n/LanguageProvider';
+import { PeopleProvider } from '@/lib/people';
+import { PrefsProvider } from '@/lib/prefs';
 import { SessionProvider } from '@/lib/session';
 import { TasksProvider } from '@/lib/tasks';
 import { motion } from '@/design/tokens';
@@ -40,17 +42,21 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <SessionProvider>
         <LanguageProvider>
-          <TasksProvider>
-            <StatusBar style="dark" />
-            <Stack
-              screenOptions={{
-                headerShown: false,
-                animation: 'fade',
-                animationDuration: motion.screenChange,
-                contentStyle: { backgroundColor: '#FFFFFF' },
-              }}
-            />
-          </TasksProvider>
+          <PrefsProvider>
+            <TasksProvider>
+              <PeopleProvider>
+                <StatusBar style="dark" />
+                <Stack
+                  screenOptions={{
+                    headerShown: false,
+                    animation: 'fade',
+                    animationDuration: motion.screenChange,
+                    contentStyle: { backgroundColor: '#FFFFFF' },
+                  }}
+                />
+              </PeopleProvider>
+            </TasksProvider>
+          </PrefsProvider>
         </LanguageProvider>
       </SessionProvider>
     </SafeAreaProvider>

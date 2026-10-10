@@ -19,6 +19,7 @@ import { Text } from '@/ui/Text';
 import { ink, space } from '@/design/tokens';
 import { useDirection, useLanguage } from '@/i18n/LanguageProvider';
 import { recordConsent } from '@/lib/consent';
+import { usePrefs } from '@/lib/prefs';
 import { useSession } from '@/lib/session';
 import { useSignUpDraft } from '@/lib/signup-draft';
 
@@ -33,6 +34,7 @@ export default function Setup() {
   const su = acc.su;
   const { signIn } = useSession();
   const draft = useSignUpDraft();
+  const { setPrefs } = usePrefs();
 
   const [name, setName] = useState('');
   const [job, setJob] = useState('');
@@ -63,6 +65,8 @@ export default function Setup() {
     });
 
     if (d) {
+      // Settings' "Tips & offers" toggle starts where sign-in left it.
+      setPrefs({ marketing: d.marketingOptIn });
       try {
         await recordConsent(userId, d.consent);
       } catch {

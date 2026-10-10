@@ -56,6 +56,26 @@ export const surface = {
   onInkLine: '#3A3A38',
   /** Bottom-sheet grab handle. The add sheet uses `line` instead. */
   handle: '#DCDCD8',
+  /**
+   * A Settings channel toggle when off. The prototype draws these #DCDCD8
+   * but the Sound / Vibration / Tips toggles beside them `trackOff`; kept as
+   * drawn.
+   */
+  trackOffChannel: '#DCDCD8',
+  /** An open Settings accordion panel. */
+  accordionOpen: '#FAFAF8',
+  /** Hairline round a Follow-ups card. */
+  cardLine: '#ECEBE7',
+  /** Initials avatar on Follow-ups; row divider on People. */
+  avatar: '#F0EFEB',
+  /** Initials avatar on People. */
+  avatarPeople: '#EFEEE9',
+  /** The clear-search button inside a search field. */
+  clearButton: '#DCDBD6',
+  /** A segmented control's count badge when its segment is not selected. */
+  countIdle: '#E0DFDB',
+  /** The Settings language pill's track. */
+  langTrack: '#F1F1EE',
 } as const;
 
 export type TaskType =
@@ -119,9 +139,27 @@ export const status = {
   snoozeFg: '#714CA6',
   /** "in 40 min" on the Up next card, which sits on ink. */
   onInkUrgent: '#FB9890',
+  /** Closed pill and the empty-state circle on Follow-ups, `oklch(0.95 0.04 150)`. */
+  successBgSoft: '#DCF7E1',
+  /** The red count on Follow-ups' Nudge segment, `oklch(0.55 0.18 25)`. */
+  countBadge: '#C53637',
+  /** The trash tile on the delete-account sheet, `oklch(0.95 0.035 25)`. */
+  dangerTile: '#FFE6E3',
   /** Trial / info pill. */
   infoBg: '#D8EEFF',
   infoFg: '#004E90',
+} as const;
+
+/**
+ * The icon tiles on Settings rows. Each is its own oklch() pair in the
+ * prototype's setVals(), close to but not the same as the task-type colours.
+ */
+export const settingsTile = {
+  reminders: { bg: '#F2EAFF', fg: '#724AAB' },
+  notifications: { bg: '#FFE7D7', fg: '#A94700' },
+  channels: { bg: '#DCF7E1', fg: '#067132' },
+  privacy: { bg: '#DDF1FF', fg: '#00569F' },
+  coffee: { bg: '#FFEBD2', fg: '#934F00' },
 } as const;
 
 /** README § Radius. */

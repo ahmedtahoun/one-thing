@@ -11,7 +11,10 @@ const path = require('path');
 
 const SEED_FILE = path.join(__dirname, '..', 'src', 'content', 'seed.ts');
 const source = fs.readFileSync(SEED_FILE, 'utf8');
-const SEED_TASKS = JSON.parse(source.match(/export const SEED_TASKS = ([\s\S]*?);\nexport/)[1]);
+const seedArray = (name) => JSON.parse(source.match(new RegExp(`export const ${name} = ([\\s\\S]*?);\\nexport`))[1]);
+const SEED_TASKS = seedArray('SEED_TASKS');
+const SEED_CONTACTS = seedArray('SEED_CONTACTS');
+const SEED_FOLLOWUPS = seedArray('SEED_FOLLOWUPS');
 
 const REMIND = { at: 'at', 10: 'min_10', 30: 'min_30', 60: 'hour_1', morning: 'morning' };
 
@@ -68,4 +71,38 @@ function dateKey(d) {
   ].join('-');
 }
 
-module.exports = { demoTasks, dateKey };
+/** Mirrors demoContacts() in src/content/demo.ts. */
+function demoContacts(lang, base = new Date()) {
+  return SEED_CONTACTS.map((seed, i) => ({
+    id: `c${i + 1}`,
+    name: seed[lang],
+    role: seed.role[lang] || undefined,
+    dial: seed.dial || undefined,
+    phone: seed.phone || undefined,
+    email: seed.email || undefined,
+    lastLabel: seed.last[lang],
+    createdAt: base.toISOString(),
+  }));
+}
+
+/** Mirrors demoFollowUps() in src/content/demo.ts. */
+function demoFollowUps(lang) {
+  const contacts = demoContacts(lang);
+  return SEED_FOLLOWUPS.map((seed) => {
+    const copy = seed[lang];
+    const first = copy.who.split(' ·')[0].split(' ')[0];
+    const contact = contacts.find((c) => c.name.startsWith(first));
+    return {
+      id: seed.id,
+      contactId: contact ? contact.id : null,
+      channel: seed.ch,
+      who: copy.who,
+      what: copy.what,
+      status: seed.status,
+      since: copy.since,
+      nextAt: null,
+    };
+  });
+}
+
+module.exports = { demoTasks, demoContacts, demoFollowUps, dateKey };

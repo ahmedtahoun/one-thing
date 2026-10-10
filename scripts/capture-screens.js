@@ -15,7 +15,7 @@ const { chromium } = require('playwright');
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
-const { demoTasks, dateKey } = require('./demo-state');
+const { demoContacts, demoFollowUps, demoTasks, dateKey } = require('./demo-state');
 
 const ROOT = path.join(__dirname, '..');
 const DIST = path.join(ROOT, 'dist');
@@ -34,7 +34,8 @@ const DEMO_SESSION = {
     userId: 'capture',
     name: 'Khalid Al-Mansouri',
     firstName: 'Khalid',
-    jobTitle: 'Founder',
+    // The prototype's demo user's role, so Settings matches it line for line.
+    jobTitle: 'Founder · Qahwa House',
     authProvider: 'apple',
     plan: 'free',
     firstRun: true,
@@ -43,7 +44,7 @@ const DEMO_SESSION = {
     userId: 'capture',
     name: 'خالد المنصوري',
     firstName: 'خالد',
-    jobTitle: 'مؤسس',
+    jobTitle: 'مؤسس · بيت القهوة',
     authProvider: 'apple',
     plan: 'free',
     firstRun: true,
@@ -65,6 +66,10 @@ const ROUTES = [
   { path: '/today', name: '06-today', signedIn: true, firstRun: false, seedTasks: true, oneThing: true },
   { path: '/today', name: '06-today-empty', signedIn: true, firstRun: false },
   { path: '/tasks', name: '07-tasks', signedIn: true, firstRun: false, seedTasks: true, oneThing: true },
+  { path: '/people', name: '10-people', signedIn: true, firstRun: false, seedPeople: true },
+  { path: '/followups', name: '14-followups', signedIn: true, firstRun: false, seedPeople: true },
+  { path: '/followups', name: '14-followups-empty', signedIn: true, firstRun: false },
+  { path: '/settings', name: '21-settings', signedIn: true, firstRun: false },
 ];
 
 const MIME = {
@@ -131,7 +136,7 @@ function serve(dir) {
       // The session is read from AsyncStorage, which is localStorage on web.
       await page.goto(`http://127.0.0.1:${port}/`, { waitUntil: 'domcontentloaded' });
       await page.evaluate(
-        ({ session, tasks, oneThing }) => {
+        ({ session, tasks, oneThing, contacts, followUps }) => {
           const put = (key, value) => {
             if (value) window.localStorage.setItem(key, JSON.stringify(value));
             else window.localStorage.removeItem(key);
@@ -139,6 +144,8 @@ function serve(dir) {
           put('ot.session', session);
           put('ot.tasks', tasks);
           put('ot.oneThing', oneThing);
+          put('ot.contacts', contacts);
+          put('ot.followups', followUps);
         },
         {
           session: route.signedIn
@@ -148,6 +155,8 @@ function serve(dir) {
           oneThing: route.oneThing
             ? { date: dateKey(new Date()), done: false, focusMinutes: 45, title: DEMO_ONE_THING[lang] }
             : null,
+          contacts: route.seedPeople ? demoContacts(lang, new Date()) : null,
+          followUps: route.seedPeople ? demoFollowUps(lang) : null,
         }
       );
       await page.goto(`http://127.0.0.1:${port}${route.path}`, { waitUntil: 'networkidle' });

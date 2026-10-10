@@ -22,7 +22,7 @@ import { dateKey, type OneThing, type Task } from './model-types';
 const TASKS_KEY = 'ot.tasks';
 const ONE_THING_KEY = 'ot.oneThing';
 
-/** The focus length a new One Thing gets, until Settings says otherwise. */
+/** The focus length a One Thing gets when the caller does not pass Settings' own. */
 const DEFAULT_FOCUS_MINUTES = 45;
 
 type NewTask = Pick<Task, 'type' | 'title' | 'createdVia'> & Partial<Omit<Task, 'id' | 'createdAt'>>;
@@ -47,6 +47,10 @@ type TasksValue = {
   restore: (tasks: Task[]) => void;
   setOneThing: (title: string, focusMinutes?: number) => void;
   setOneThingDone: (done: boolean) => void;
+  /** Settings' default focus length also applies to today's One Thing. */
+  setFocusMinutes: (minutes: number) => void;
+  /** Everything gone, from memory and the device — Delete account. */
+  reset: () => void;
 };
 
 const TasksContext = createContext<TasksValue | null>(null);
@@ -169,6 +173,19 @@ export function TasksProvider({ children }: { children: ReactNode }) {
     [oneThing, persistOneThing]
   );
 
+  const setFocusMinutes = useCallback<TasksValue['setFocusMinutes']>(
+    (focusMinutes) => {
+      if (oneThing) persistOneThing({ ...oneThing, focusMinutes });
+    },
+    [oneThing, persistOneThing]
+  );
+
+  const reset = useCallback(() => {
+    setTasks([]);
+    setOneThingState(null);
+    AsyncStorage.multiRemove([TASKS_KEY, ONE_THING_KEY]).catch(() => {});
+  }, []);
+
   const value = useMemo<TasksValue>(
     () => ({
       tasks,
@@ -183,6 +200,8 @@ export function TasksProvider({ children }: { children: ReactNode }) {
       restore: persistTasks,
       setOneThing,
       setOneThingDone,
+      setFocusMinutes,
+      reset,
     }),
     [
       tasks,
@@ -197,6 +216,8 @@ export function TasksProvider({ children }: { children: ReactNode }) {
       persistTasks,
       setOneThing,
       setOneThingDone,
+      setFocusMinutes,
+      reset,
     ]
   );
 

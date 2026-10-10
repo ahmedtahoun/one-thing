@@ -38,5 +38,35 @@
     "name": "ar-tasks",
     "app": "ar-07-tasks.png",
     "proto": "ar-10-all-tasks.png"
+  },
+  {
+    "name": "en-people",
+    "app": "en-10-people.png",
+    "proto": "en-11-people-contacts.png"
+  },
+  {
+    "name": "en-followups",
+    "app": "en-14-followups.png",
+    "proto": "en-19-follow-ups.png"
+  },
+  {
+    "name": "en-settings",
+    "app": "en-21-settings.png",
+    "proto": "en-13-profile-settings.png"
+  },
+  {
+    "name": "ar-people",
+    "app": "ar-10-people.png",
+    "proto": "ar-11-people-contacts.png"
+  },
+  {
+    "name": "ar-followups",
+    "app": "ar-14-followups.png",
+    "proto": "ar-19-follow-ups.png"
+  },
+  {
+    "name": "ar-settings",
+    "app": "ar-21-settings.png",
+    "proto": "ar-13-profile-settings.png"
   }
 ]

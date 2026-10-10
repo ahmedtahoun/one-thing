@@ -21,6 +21,8 @@ export function Sheet({
   gap,
   children,
   testID,
+  handle = true,
+  dismissOnScrim = true,
 }: {
   open: boolean;
   onClose: () => void;
@@ -30,6 +32,13 @@ export function Sheet({
   gap: number;
   children: ReactNode;
   testID?: string;
+  /** The Settings sheets (delete account, tip) are drawn without one. */
+  handle?: boolean;
+  /**
+   * The delete-account sheet ignores a tap on the scrim, so the only ways out
+   * are its two buttons. Android's back button still closes it.
+   */
+  dismissOnScrim?: boolean;
 }) {
   const { dir } = useLanguage();
   if (!open) return null;
@@ -40,7 +49,7 @@ export function Sheet({
         <Pressable
           testID={testID ? `${testID}-scrim` : undefined}
           accessibilityRole="button"
-          onPress={onClose}
+          onPress={dismissOnScrim ? onClose : undefined}
           style={{ flex: 1, backgroundColor: `rgba(0,0,0,${scrimOpacity})` }}
         />
         <View
@@ -53,9 +62,11 @@ export function Sheet({
             ...padding,
           }}
         >
-          <View
-            style={{ width: 40, height: 5, borderRadius: 3, backgroundColor: handleColour, alignSelf: 'center' }}
-          />
+          {handle ? (
+            <View
+              style={{ width: 40, height: 5, borderRadius: 3, backgroundColor: handleColour, alignSelf: 'center' }}
+            />
+          ) : null}
           {children}
         </View>
       </View>

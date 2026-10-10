@@ -13,6 +13,9 @@
  * and " min" to be typed by hand. Anything matching either shape must now be
  * named below — as copy, or as explicitly not copy — or this script fails.
  *
+ * Two lines need patterns of their own — Settings' reminder-style
+ * descriptions and the follow-up Nudge's task — see the note above them.
+ *
  *   node scripts/extract-inline-copy.js <path to design_handoff_the_one_thing>
  */
 'use strict';
@@ -29,7 +32,9 @@ const OUT = path.join(__dirname, '..', 'src', 'content', 'inline-copy.ts');
  * (the '-18px' / '18px' layout offset) are deliberately absent.
  */
 const NAMES = {
-  "183: min": 'minSuffix',
+  // Settings' collapsed Reminders row abbreviates: " د", not the " دقيقة"
+  // that relative times use under the same English " min".
+  "183: min": 'minSuffixShort',
   '183:On': 'on',
   '183: on': 'onSuffix',
   '186:Notifications': 'notifications',
@@ -112,6 +117,20 @@ const NOT_COPY_LANG = {
 
 const lines = fs.readFileSync(SRC, 'utf8').split('\n');
 const found = {};
+
+/**
+ * Several lines share a name ("h " and "m" on two lines each). That is only
+ * right while they agree in both languages — " min" was once named once for
+ * three lines whose Arabic differs, and Settings would have shown the wrong
+ * one. So a name that comes back with different copy fails the run.
+ */
+function record(key, pair) {
+  const had = found[key];
+  if (had && (had.en !== pair.en || had.ar !== pair.ar)) {
+    throw new Error(`"${key}" names two different strings: ${JSON.stringify(had)} and ${JSON.stringify(pair)}`);
+  }
+  found[key] = pair;
+}
 const unnamed = [];
 
 lines.forEach((line, i) => {
@@ -124,7 +143,7 @@ lines.forEach((line, i) => {
       unnamed.push({ line: lineNo, en, ar });
       continue;
     }
-    found[key] = { en, ar };
+    record(key, { en, ar });
   }
 });
 
@@ -138,7 +157,7 @@ lines.forEach((line, i) => {
       unnamed.push({ line: lineNo, en: m[2], ar: m[1] });
       continue;
     }
-    found[name] = { en: m[2], ar: m[1] };
+    record(name, { en: m[2], ar: m[1] });
   }
 });
 
@@ -171,6 +190,70 @@ if (greetMatches.length !== 2) {
 const [arGreet, enGreet] = greetMatches;
 found.goodEvening = { ar: arGreet[1], en: enGreet[1] };
 found.goodMorning = { ar: arGreet[2], en: enGreet[2] };
+
+// Two more places keep copy inline in shapes neither pattern above reads:
+//
+//   - the reminder-style descriptions in Settings, an object literal keyed by
+//     language and then by style: `nudgeDesc: ({ en: { gentle: '…', … }, ar: … })`
+//   - the follow-up Nudge, which builds its task by concatenating copy around
+//     the follow-up's own fields: `'Nudge: ' + f.en.what`
+//
+// Each is matched by a pattern written for exactly that line, and the
+// concatenations become templates — `{what}` for the follow-up's subject and
+// `{n}` for the contact's first name. If upstream rewrites either line the
+// match fails and so does this script.
+const STR = "'((?:[^'\\\\]|\\\\.)*)'";
+const lineWith = (needle) => {
+  const line = lines.find((l) => l.includes(needle));
+  if (!line) throw new Error(`Line containing ${needle} not found in app-logic.js`);
+  return line;
+};
+const must = (line, pattern, what) => {
+  const m = line.match(pattern);
+  if (!m) throw new Error(`${what} has changed shape in app-logic.js`);
+  return m;
+};
+
+{
+  const line = lineWith('nudgeDesc:');
+  const m = must(line, /nudgeDesc: \(\{ en: \{([^}]*)\}, ar: \{([^}]*)\} \}\)/, 'nudgeDesc');
+  const styles = (body) =>
+    Object.fromEntries([...body.matchAll(new RegExp(`(\\w+): ${STR}`, 'g'))].map((x) => [x[1], x[2]]));
+  const enDesc = styles(m[1]);
+  const arDesc = styles(m[2]);
+  for (const k of ['gentle', 'firm', 'quiet']) {
+    if (!enDesc[k] || !arDesc[k]) throw new Error(`nudgeDesc is missing "${k}"`);
+  }
+  found.nudgeDesc = { en: enDesc, ar: arDesc };
+}
+
+{
+  const line = lineWith("title: 'Nudge: '");
+  const title = must(line, new RegExp(`en: \\{ title: ${STR} \\+ f\\.en\\.what, who: f\\.en\\.who \\}, ar: \\{ title: ${STR} \\+ f\\.ar\\.what`), 'Nudge title');
+  found.nudgeTitle = { en: `${title[1]}{what}`, ar: `${title[2]}{what}` };
+  const goal = must(line, new RegExp(`goal: \\{ en: ${STR} \\+ f\\.en\\.what\\.toLowerCase\\(\\), ar: ${STR} \\+ f\\.ar\\.what \\}`), 'Nudge goal');
+  found.nudgeGoal = { en: `${goal[1]}{what}`, ar: `${goal[2]}{what}` };
+  const points = must(line, new RegExp(`points: \\{ en: \\[${STR}, ${STR}\\], ar: \\[${STR}, ${STR}\\] \\}`), 'Nudge points');
+  found.nudgePoints = { en: [points[1], points[2]], ar: [points[3], points[4]] };
+}
+
+{
+  const line = lineWith("draft: { en: 'Hi '");
+  const d = must(
+    line,
+    new RegExp(
+      `draft: \\{ en: ${STR} \\+ fn \\+ ${STR} \\+ f\\.en\\.what\\.toLowerCase\\(\\) \\+ ${STR}, ar: ${STR} \\+ fa \\+ ${STR} \\+ f\\.ar\\.what \\+ ${STR} \\}`
+    ),
+    'Nudge draft'
+  );
+  found.nudgeDraft = { en: `${d[1]}{n}${d[2]}{what}${d[3]}`, ar: `${d[4]}{n}${d[5]}{what}${d[6]}` };
+}
+
+{
+  const line = lineWith('justNote: { en:');
+  const m = must(line, new RegExp(`justNote: \\{ en: ${STR}, ar: ${STR} \\}`), 'Nudge note');
+  found.draftReadyNote = { en: m[1], ar: m[2] };
+}
 
 const en = {};
 const ar = {};

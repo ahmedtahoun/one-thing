@@ -14,6 +14,7 @@ const A11Y_en = {
   settings: 'Settings',
   capture: 'Quick capture',
   brainDump: 'Brain dump',
+  clearSearch: 'Clear search',
 };
 
 const A11Y_ar: typeof A11Y_en = {
@@ -24,6 +25,7 @@ const A11Y_ar: typeof A11Y_en = {
   settings: 'الإعدادات',
   capture: 'التقاط سريع',
   brainDump: 'تفريغ الأفكار',
+  clearSearch: 'مسح البحث',
 };
 
 export const A11Y = { en: A11Y_en, ar: A11Y_ar };

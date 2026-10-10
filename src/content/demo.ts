@@ -9,9 +9,9 @@
  * and prefixes later days with "z". Here those become real instants relative
  * to the day the data is seeded.
  */
-import { SEED_TASKS } from './seed';
+import { SEED_CONTACTS, SEED_FOLLOWUPS, SEED_TASKS } from './seed';
 import type { Lang } from './strings';
-import type { RemindOffset, Task } from '@/lib/model-types';
+import { displayName, type Channel, type Contact, type FollowUp, type RemindOffset, type Task } from '@/lib/model-types';
 import type { TaskType } from '@/design/tokens';
 
 /** Maps the seed's reminder strings onto the app's enum. */
@@ -85,5 +85,43 @@ export function demoTasks(lang: Lang, base: Date = new Date()): Task[] {
         createdAt: base.toISOString(),
       },
     ];
+  });
+}
+
+/** The prototype's eight contacts, in its own order — most recent first. */
+export function demoContacts(lang: Lang, base: Date = new Date()): Contact[] {
+  return SEED_CONTACTS.map((seed, i) => ({
+    id: `c${i + 1}`,
+    name: seed[lang],
+    role: seed.role[lang] || undefined,
+    dial: seed.dial || undefined,
+    phone: seed.phone || undefined,
+    email: seed.email || undefined,
+    lastLabel: seed.last[lang],
+    createdAt: base.toISOString(),
+  }));
+}
+
+/**
+ * The prototype's three follow-ups. Each is joined to the demo contact whose
+ * name it starts with, where there is one ("Noura · Designer" is Noura
+ * Al-Harbi).
+ */
+export function demoFollowUps(lang: Lang): FollowUp[] {
+  const contacts = demoContacts(lang);
+  return SEED_FOLLOWUPS.map((seed) => {
+    const copy = seed[lang];
+    const first = displayName(copy.who).split(' ')[0] ?? '';
+    const contact = contacts.find((c) => c.name.startsWith(first));
+    return {
+      id: seed.id,
+      contactId: contact?.id ?? null,
+      channel: seed.ch as Channel,
+      who: copy.who,
+      what: copy.what,
+      status: seed.status as FollowUp['status'],
+      since: copy.since,
+      nextAt: null,
+    };
   });
 }

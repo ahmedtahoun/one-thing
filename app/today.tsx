@@ -24,6 +24,7 @@ import { type IconName } from '@/design/icon-paths';
 import { ink, space, surface, type TaskType } from '@/design/tokens';
 import { useDirection, useLanguage } from '@/i18n/LanguageProvider';
 import { dateKey, isOnDay, type Task } from '@/lib/model-types';
+import { usePrefs } from '@/lib/prefs';
 import { useSession } from '@/lib/session';
 import { useTasks } from '@/lib/tasks';
 
@@ -35,6 +36,7 @@ export default function Today() {
   const dir = useDirection();
   const { session, update } = useSession();
   const { tasks, oneThing, setOneThing, toggleDone, restore } = useTasks();
+  const { prefs } = usePrefs();
   const toast = useToast();
 
   const [now] = useState(() => new Date());
@@ -66,13 +68,13 @@ export default function Today() {
 
   const setFirstOneThing = useCallback(
     (title: string) => {
-      setOneThing(title);
+      setOneThing(title, prefs.focusMinutes);
       update({ firstRun: false });
       // Not destructive, so no Undo: the toast's job is to say that gentle
       // reminders are now on.
       toast.show(inline.firstRunToast, { undo: false });
     },
-    [setOneThing, update, toast, inline.firstRunToast]
+    [setOneThing, prefs.focusMinutes, update, toast, inline.firstRunToast]
   );
 
   const skipFirstRun = useCallback(() => {
