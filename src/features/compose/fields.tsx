@@ -6,11 +6,12 @@
  * (README § RTL). Suggestions from People appear only while something is
  * being typed and the field is not yet valid.
  */
-import { Pressable, ScrollView, TextInput, View } from 'react-native';
+import { Pressable, TextInput, View } from 'react-native';
 
+import { CountryButton, CountryList } from '@/ui/CountryPicker';
 import { Icon } from '@/ui/Icon';
 import { LTRText, Text } from '@/ui/Text';
-import { COUNTRIES, type Country } from '@/content/countries';
+import type { Country } from '@/content/countries';
 import { fontFamily, ink, status, surface, typeColour } from '@/design/tokens';
 import { useDirection, useLanguage } from '@/i18n/LanguageProvider';
 import { initials, type Contact } from '@/lib/model-types';
@@ -53,8 +54,7 @@ export function PhoneField({
   onChangePhone: (phone: string) => void;
   onPickContact: (contact: Contact) => void;
 }) {
-  const { t, lang } = useLanguage();
-  const country = COUNTRIES.find((c) => c.dial === dial) ?? COUNTRIES[0];
+  const { t } = useLanguage();
   const border =
     state === 'bad' ? status.invalid : state === 'ok' ? typeColour.whatsapp.fg : phone ? ink.base : surface.line;
   const message = state === 'bad' ? t.c_phoneErr : state === 'ok' ? t.savedNext : t.c_phoneAsk;
@@ -83,35 +83,12 @@ export function PhoneField({
             backgroundColor: surface.white,
           }}
         >
-          <Pressable
+          <CountryButton
             testID="compose-country"
+            dial={dial}
+            open={pickerOpen}
             onPress={onTogglePicker}
-            accessibilityRole="button"
-            accessibilityState={{ expanded: pickerOpen }}
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              gap: 6,
-              height: 40,
-              paddingLeft: 10,
-              paddingRight: 8,
-              borderRadius: 10,
-              backgroundColor: surface.brief,
-            }}
-          >
-            <Text size={20} lh={20}>
-              {country?.flag}
-            </Text>
-            <LTRText token="body" weight="500" tabular>
-              {country?.dial}
-            </LTRText>
-            {/* The prototype rotates its back chevron to point down, and in
-                Arabic mirrors it first, so it points up there. A down
-                chevron is the intent — BUILD-REVIEW.md §2.21. */}
-            <View style={{ opacity: 0.6 }}>
-              <Icon name="chev" size={16} strokeWidth={1.7} />
-            </View>
-          </Pressable>
+          />
           <TextInput
             testID="compose-phone"
             value={phone}
@@ -126,58 +103,7 @@ export function PhoneField({
         </View>
 
         {pickerOpen ? (
-          <View
-            testID="compose-country-list"
-            style={{
-              position: 'absolute',
-              top: 56,
-              left: 0,
-              right: 0,
-              zIndex: 30,
-              maxHeight: 260,
-              padding: 6,
-              borderWidth: 1,
-              borderColor: surface.line,
-              borderRadius: 16,
-              backgroundColor: surface.white,
-              shadowColor: '#000',
-              shadowOpacity: 0.14,
-              shadowRadius: 40,
-              shadowOffset: { width: 0, height: 16 },
-              elevation: 12,
-            }}
-          >
-            <ScrollView nestedScrollEnabled keyboardShouldPersistTaps="handled">
-              {COUNTRIES.map((c) => (
-                <Pressable
-                  key={c.iso}
-                  testID={`compose-country-${c.iso}`}
-                  onPress={() => onPickCountry(c)}
-                  accessibilityRole="button"
-                  style={{
-                    direction: 'ltr',
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    gap: 12,
-                    height: 44,
-                    paddingHorizontal: 10,
-                    borderRadius: 10,
-                    backgroundColor: c.dial === dial ? surface.brief : surface.white,
-                  }}
-                >
-                  <Text size={20} lh={20}>
-                    {c.flag}
-                  </Text>
-                  <Text token="body" style={{ flex: 1 }} numberOfLines={1}>
-                    {lang === 'ar' ? c.nameAr : c.nameEn}
-                  </Text>
-                  <LTRText token="bodyS" color={ink.s4} tabular>
-                    {c.dial}
-                  </LTRText>
-                </Pressable>
-              ))}
-            </ScrollView>
-          </View>
+          <CountryList testID="compose-countries" dial={dial} onPick={onPickCountry} maxHeight={260} />
         ) : null}
       </View>
       <Text token="micro" color={messageColour(state, typeColour.whatsapp.fg)} testID="compose-phone-msg">

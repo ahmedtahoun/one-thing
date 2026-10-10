@@ -14,8 +14,9 @@
  * named below — as copy, or as explicitly not copy — or this script fails.
  *
  * A few lines need patterns of their own — Settings' reminder-style
- * descriptions, the follow-up Nudge's task, and the follow-up Compose writes
- * after "Did you send it?" — see the notes above them.
+ * descriptions, the follow-up Nudge's task, the follow-up Compose writes
+ * after "Did you send it?", and the contact form's button labels, duplicate
+ * banner and "Added today" — see the notes above them.
  *
  *   node scripts/extract-inline-copy.js <path to design_handoff_the_one_thing>
  */
@@ -266,6 +267,34 @@ const must = (line, pattern, what) => {
     'Sent-today follow-up note'
   );
   found.sentFollowUp = { en: `${m[1]}{w}`, ar: `${m[2]}{w}` };
+}
+
+{
+  // The contact form's secondary button names the preferred channel:
+  // `(lang === 'ar' ? { whatsapp: '…', … } : { whatsapp: '…', … })[fm.pref]`.
+  const line = lineWith('fSaveTaskL:');
+  const m = must(line, /fSaveTaskL: \(lang === 'ar' \? \{([^}]*)\} : \{([^}]*)\}\)\[fm\.pref\]/, 'Save-and-message labels');
+  const byChannel = (body) =>
+    Object.fromEntries([...body.matchAll(new RegExp(`(\\w+): ${STR}`, 'g'))].map((x) => [x[1], x[2]]));
+  const arLabels = byChannel(m[1]);
+  const enLabels = byChannel(m[2]);
+  for (const k of ['whatsapp', 'email', 'call']) {
+    if (!enLabels[k] || !arLabels[k]) throw new Error(`Save-and-message label missing for "${k}"`);
+  }
+  found.saveAndStart = { en: enLabels, ar: arLabels };
+
+  // The duplicate-contact banner, built around the other contact's name.
+  const dupLine = lineWith("'You already have '");
+  const d = must(
+    dupLine,
+    new RegExp(`lang === 'ar' \\? ${STR} \\+ p\\.ar \\+ ${STR} : ${STR} \\+ p\\.en \\+ ${STR}`),
+    'Duplicate-contact message'
+  );
+  found.duplicateContact = { en: `${d[3]}{n}${d[4]}`, ar: `${d[1]}{n}${d[2]}` };
+
+  // A new contact's line on People until anything happens with them.
+  const added = must(lineWith("en: 'Added today'"), new RegExp(`\\{ en: ${STR}, ar: ${STR} \\}`), '"Added today"');
+  found.addedToday = { en: added[1], ar: added[2] };
 }
 
 const en = {};

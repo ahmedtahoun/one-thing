@@ -71,6 +71,8 @@ const ROUTES = [
   { path: '/followups', name: '14-followups-empty', signedIn: true, firstRun: false },
   { path: '/settings', name: '21-settings', signedIn: true, firstRun: false },
   { path: '/contact?id=c1', name: '11-contact', signedIn: true, firstRun: false, seedTasks: true, seedPeople: true },
+  { path: '/contact-edit', name: '12-contact-new', signedIn: true, firstRun: false, seedPeople: true },
+  { path: '/contact-edit?id=c2', name: '12-contact-edit', signedIn: true, firstRun: false, seedPeople: true },
   { path: '/compose?id=t1', name: '13-compose', signedIn: true, firstRun: false, seedTasks: true, seedPeople: true },
   { path: '/compose?id=t3', name: '13-compose-email', signedIn: true, firstRun: false, seedTasks: true, seedPeople: true },
   { path: '/compose?id=t2', name: '13-compose-call', signedIn: true, firstRun: false, seedTasks: true, seedPeople: true },

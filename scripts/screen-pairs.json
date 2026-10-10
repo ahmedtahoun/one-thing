@@ -88,5 +88,15 @@
     "name": "ar-contact",
     "app": "ar-11-contact.png",
     "proto": "ar-06-contact-profile.png"
+  },
+  {
+    "name": "en-contact-new",
+    "app": "en-12-contact-new.png",
+    "proto": "en-12-new-contact.png"
+  },
+  {
+    "name": "ar-contact-new",
+    "app": "ar-12-contact-new.png",
+    "proto": "ar-12-new-contact.png"
   }
 ]

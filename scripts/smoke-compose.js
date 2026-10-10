@@ -117,7 +117,7 @@ const SESSION = { userId: 'smoke', name: 'Khalid Al-Mansouri', firstName: 'Khali
   check('typing digits suggests people with them', await visible('compose-suggestion-c3'));
   await page.getByTestId('compose-country').click();
   await page.waitForTimeout(200);
-  await page.getByTestId('compose-country-AE').click();
+  await page.getByTestId('compose-countries-AE').click();
   await page.waitForTimeout(200);
   check('the country picker sets the dial code', (await text('compose-country')).includes('+971'));
   await page.getByTestId('compose-phone').fill('050 111 2222');

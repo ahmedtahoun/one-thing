@@ -10,6 +10,9 @@
  *   Profile:     opens from People; tiles dim and do nothing without a number
  *                or address; the note saves as it is typed; Coming up; the
  *                quick log; closed follow-ups join the history.
+ *   Form:        name required; email and phone checked when given; the
+ *                duplicate banner; the country search; new, edit, "Save &
+ *                message", and delete with confirm and Undo.
  *   Settings:    one accordion panel at a time; the reminder-style
  *                description follows the style; focus, channels and marketing
  *                are stored; language switches at once; the delete sheet only
@@ -218,6 +221,101 @@ const SESSION = { userId: 'smoke', name: 'Khalid Al-Mansouri', firstName: 'Khali
   check('Edit opens the contact form', page.url().endsWith('/contact-edit?id=c4'), page.url());
   await open('/contact?id=nobody');
   check('an unknown contact goes to People', page.url().endsWith('/people'), page.url());
+
+  // ------------------------------------------------------------------ Form
+  await seed();
+  await open('/people');
+  await page.getByTestId('people-new').click();
+  await page.waitForTimeout(600);
+  check('New opens an empty form', page.url().endsWith('/contact-edit') && (await text('contact-form-initials')) === '+');
+  const contactsBefore = (await read('ot.contacts')).length;
+  await page.getByTestId('contact-form-save').click();
+  await page.waitForTimeout(200);
+  check('no name: the error, and nothing saved', (await page.getByTestId('contact-form-name-error').isVisible()) && (await read('ot.contacts')).length === contactsBefore);
+
+  await page.getByTestId('contact-form-name').fill('Ahmed Rashid');
+  await page.waitForTimeout(150);
+  check('initials follow the name', (await text('contact-form-initials')) === 'AR');
+  check('…and the error goes', (await page.getByTestId('contact-form-name-error').count()) === 0);
+  await page.getByTestId('contact-form-phone').fill('123');
+  await page.getByTestId('contact-form-save').click();
+  await page.waitForTimeout(200);
+  check('a short number blocks saving', (await read('ot.contacts')).length === contactsBefore && page.url().endsWith('/contact-edit'));
+  await page.getByTestId('contact-form-phone').fill('55 999 0000');
+  await page.getByTestId('contact-form-email').fill('ahmed@');
+  await page.getByTestId('contact-form-save').click();
+  await page.waitForTimeout(200);
+  check('a half-typed email blocks saving', (await read('ot.contacts')).length === contactsBefore);
+
+  await page.getByTestId('contact-form-email').fill('sara@northwind.vc');
+  await page.waitForTimeout(150);
+  check('a known email raises the duplicate banner', (await text('contact-form-duplicate')).includes('You already have Sara Haddad with these details.'));
+  await page.getByTestId('contact-form-email').fill('ahmed@rashid.sa');
+  await page.waitForTimeout(150);
+  check('…which goes when it no longer matches', (await page.getByTestId('contact-form-duplicate').count()) === 0);
+
+  await page.getByTestId('contact-form-country').click();
+  await page.waitForTimeout(200);
+  await page.getByTestId('contact-form-countries-search').fill('emir');
+  await page.waitForTimeout(150);
+  check('the country list searches by name', await page.getByTestId('contact-form-countries-AE').isVisible());
+  await page.getByTestId('contact-form-countries-search').fill('971');
+  await page.waitForTimeout(150);
+  check('…and by dial code', await page.getByTestId('contact-form-countries-AE').isVisible());
+  await page.getByTestId('contact-form-countries-search').fill('zzz');
+  await page.waitForTimeout(150);
+  check('…and says when nothing matches', (await text('contact-form-countries')).includes('No country found'));
+  await page.getByTestId('contact-form-countries-search').fill('971');
+  await page.getByTestId('contact-form-countries-AE').click();
+  await page.waitForTimeout(150);
+  await page.getByTestId('contact-form-role').fill('Supplier');
+  await page.getByTestId('contact-form-save').click();
+  await page.waitForTimeout(600);
+  const added = (await read('ot.contacts'))[0];
+  check('Save adds them at the top of People', page.url().endsWith('/people') && added.name === 'Ahmed Rashid');
+  check('…with every field', added.role === 'Supplier' && added.dial === '+971' && added.phone === '55 999 0000' && added.email === 'ahmed@rashid.sa' && added.preferredChannel === 'whatsapp');
+  check('…as "Added today"', added.lastLabel === 'Added today');
+  check('…and says so', (await page.getByTestId('toast').innerText()) === 'Ahmed saved to People');
+
+  await page.getByTestId('people-search').fill('Ahmed');
+  await page.waitForTimeout(150);
+  await page.getByTestId(`person-${added.id}`).getByText('Ahmed Rashid').click();
+  await page.waitForTimeout(500);
+  await page.getByTestId('contact-edit').click();
+  await page.waitForTimeout(500);
+  check('Edit fills the form', (await page.getByTestId('contact-form-name').inputValue()) === 'Ahmed Rashid' && (await page.getByTestId('contact-form-role').inputValue()) === 'Supplier');
+  await page.getByTestId('contact-form-role').fill('Packaging supplier');
+  await page.getByTestId('contact-form-save-top').click();
+  await page.waitForTimeout(500);
+  const edited = await read('ot.contacts');
+  check('editing changes the contact, not the count', edited.length === contactsBefore + 1 && edited.find((c) => c.id === added.id).role === 'Packaging supplier');
+
+  await open('/contact-edit');
+  await page.getByTestId('contact-form-name').fill('Lina Barista');
+  await page.getByTestId('contact-form-email').fill('lina@cafe.sa');
+  await page.getByTestId('contact-form-pref-email').click();
+  await page.waitForTimeout(150);
+  check('the second button follows the channel', (await text('contact-form-save-start')).startsWith('Save & write an email'));
+  const formTasksBefore = (await read('ot.tasks')).length;
+  await page.getByTestId('contact-form-save-start').click();
+  await page.waitForTimeout(600);
+  const emailLina = (await read('ot.tasks')).slice(formTasksBefore)[0];
+  check('"Save & write an email" saves and opens Compose', emailLina && emailLina.title === 'Email Lina' && page.url().includes(`/compose?id=${emailLina.id}`));
+
+  await open('/contact-edit?id=c1');
+  page.once('dialog', (d) => d.dismiss());
+  await page.getByTestId('contact-form-delete').click();
+  await page.waitForTimeout(300);
+  check('declining the confirm deletes nothing', (await read('ot.contacts')).some((c) => c.id === 'c1'));
+  page.once('dialog', (d) => d.accept());
+  await page.getByTestId('contact-form-delete').click();
+  await page.waitForTimeout(500);
+  check('Delete removes the contact', !(await read('ot.contacts')).some((c) => c.id === 'c1') && page.url().endsWith('/people'));
+  check('…and their history', !(await read('ot.history')).some((h) => h.contactId === 'c1'));
+  await page.getByTestId('toast-undo').click();
+  await page.waitForTimeout(300);
+  check('Undo brings both back', (await read('ot.contacts')).some((c) => c.id === 'c1') && (await read('ot.history')).some((h) => h.contactId === 'c1'));
+  check('the new form has no Delete', await (async () => { await open('/contact-edit'); return (await page.getByTestId('contact-form-delete').count()) === 0; })());
 
   // -------------------------------------------------------------- Settings
   await seed();

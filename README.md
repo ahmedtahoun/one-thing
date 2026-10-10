@@ -115,7 +115,8 @@ browser and asserts what each action does to what is stored. On Tasks: the
 filters, the bulk reminder and its Undo, the reminder sheet, the pause before a
 ticked task moves group, "Move to tomorrow", and the empty state. On People,
 the contact profile, Follow-ups and Settings (`scripts/smoke-people.js`):
-search, starting a task from a contact, the profile's note and quick log, Got a reply with its Undo, Reopen, Nudge writing a draft
+search, starting a task from a contact, the profile's note and quick log,
+the contact form's checks, duplicate banner and delete with Undo, Got a reply with its Undo, Reopen, Nudge writing a draft
 without sending it, one accordion panel at a time, the stored preferences, the
 language switch, and what Delete account erases. On Compose
 (`scripts/smoke-compose.js`): what is opened (wa.me, `mailto:`, `tel:`) and
@@ -181,7 +182,7 @@ that is what the design was reviewed in. Re-run it before changing a colour.
 Built: design tokens, the generated content layer (copy, 33 icons, 198
 countries), the schema with row-level security on every table, the entitlements
 policy, the UI primitives, the task, people and preference stores, the glass
-tab bar, and screens 01–03, 06, 07, 10, 11, 13, 14 and 21–23 — Sign in, Account setup,
+tab bar, and screens 01–03, 06, 07, 10–14 and 21–23 — Sign in, Account setup,
 Legal, Today in full (header,
 first-run card, One Thing card, evening card, quick actions, Small promises
 with swipe-to-done and swipe-to-reschedule, and the empty state) and Tasks in
@@ -195,20 +196,21 @@ country picker, email To and Subject, suggestions from People, the brief with
 "Last time", the editable draft, handing off to WhatsApp, Mail or the phone,
 and "Did you send it?" with the follow-up it sets) and the contact profile
 (action tiles, the note that saves as it is typed, Coming up, and the dated
-history with its quick log).
+history with its quick log) and the contact form (new and edit, the
+searchable country picker, the duplicate banner, "Save & message", and delete
+with Undo).
 
-Across 106 probes on those screens, in both languages, the worst element sits
+Across 116 probes on those screens, in both languages, the worst element sits
 1.1 pt from the prototype against ACCEPTANCE.md's 2 pt bar, with two documented
 exceptions (`KNOWN_DEVIATIONS`). Pixel difference is 0.0–0.7 % on Today, Tasks,
-Follow-ups, Settings and the contact profile; 2–3 % on Compose, whose Send button is drawn at 56 pt
+Follow-ups, Settings, the contact profile and the contact form; 2–3 % on Compose, whose Send button is drawn at 56 pt
 where the prototype squeezes it to 26 (BUILD-REVIEW.md §2.21); 1.0–2.6 % on Sign in and Account setup, where the
 consent checkbox's box model changes a line break (BUILD-REVIEW.md §2.11); and
 3–4 % on People, whose search field we draw at the 48 pt SCREENS.md gives where
 the prototype squeezes it to 24 (BUILD-REVIEW.md §2.19).
 
-Not built yet: screens 04, 05, 08, 09, 12, 15–20 and 24. Several buttons on
-the built screens lead to them (the contact form, the event form, Reschedule,
-the paywall) and land on the not-found route until they exist. Purchases, restore
+Not built yet: screens 04, 05, 08, 09, 15–20 and 24. Several buttons on
+the built screens lead to them (the event form, Reschedule, the paywall) and land on the not-found route until they exist. Purchases, restore
 and the tip jar show their toasts but need the store accounts; Delete account
 erases the device but has no server to erase yet. Real Apple and Google sign-in are stubbed pending
 developer accounts; `src/lib/session.tsx` holds the session on the device until

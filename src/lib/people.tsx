@@ -47,6 +47,13 @@ type PeopleValue = {
   saveContact: (input: { id?: string; name: string; role?: string; lastLabel: string }, patch: Partial<Contact>) => string;
   addFollowUp: (followUp: FollowUp) => void;
   updateContact: (id: string, patch: Partial<Contact>) => void;
+  /** A new contact from the contact form, at the top of People. Returns it. */
+  addContact: (contact: Omit<Contact, 'id' | 'createdAt'>) => Contact;
+  /**
+   * Deletes a contact and their history ("Their history goes too"). Returns
+   * a function that puts both back, for the toast's Undo.
+   */
+  deleteContact: (id: string) => () => void;
   /** Quick log on the contact profile: a dated moment, newest first. */
   addHistory: (entry: Omit<HistoryEntry, 'id'>) => void;
   updateFollowUp: (id: string, patch: Partial<FollowUp>) => void;
@@ -87,6 +94,33 @@ export function PeopleProvider({ children }: { children: ReactNode }) {
     [setContacts]
   );
 
+  const addContact = useCallback<PeopleValue['addContact']>(
+    (input) => {
+      const contact: Contact = {
+        ...input,
+        id: `c_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+        createdAt: new Date().toISOString(),
+      };
+      setContacts((list) => [contact, ...list]);
+      return contact;
+    },
+    [setContacts]
+  );
+
+  const deleteContact = useCallback<PeopleValue['deleteContact']>(
+    (id) => {
+      const contactsBefore = contacts;
+      const historyBefore = history;
+      setContacts((list) => list.filter((c) => c.id !== id));
+      setHistory((list) => list.filter((h) => h.contactId !== id));
+      return () => {
+        setContacts(contactsBefore);
+        setHistory(historyBefore);
+      };
+    },
+    [contacts, history, setContacts, setHistory]
+  );
+
   const addHistory = useCallback<PeopleValue['addHistory']>(
     (entry) =>
       setHistory((list) => [{ ...entry, id: `h_${Date.now()}_${Math.random().toString(36).slice(2, 7)}` }, ...list]),
@@ -113,6 +147,8 @@ export function PeopleProvider({ children }: { children: ReactNode }) {
       saveContact,
       addFollowUp,
       updateContact,
+      addContact,
+      deleteContact,
       addHistory,
       updateFollowUp,
       restoreFollowUps: setFollowUps,
@@ -128,6 +164,8 @@ export function PeopleProvider({ children }: { children: ReactNode }) {
       saveContact,
       addFollowUp,
       updateContact,
+      addContact,
+      deleteContact,
       addHistory,
       updateFollowUp,
       setFollowUps,

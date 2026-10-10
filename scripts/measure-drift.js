@@ -182,6 +182,18 @@ const PROBES = {
       count: { en: '4 moments', ar: '4 لحظات' },
     },
   },
+  'contact-new': {
+    app: '/contact-edit',
+    proto: '12',
+    state: { signedIn: true, firstRun: false, seedPeople: true },
+    labels: {
+      title: { en: 'New contact', ar: 'شخص جديد' },
+      details: { en: 'Contact details (optional)', ar: 'التواصل (اختياري)' },
+      pref: { en: 'Usually reach them by', ar: 'عادةً تتواصل معه عن طريق' },
+      notes: { en: 'Notes for next time', ar: 'ملاحظات للمرة الجاية' },
+      save: { en: 'Save contact', ar: 'احفظ جهة الاتصال' },
+    },
+  },
   'sign-in': {
     app: '/sign-in',
     proto: '01',

@@ -72,7 +72,14 @@ const INLINE_en = {
   ],
   "nudgeDraft": "Hi {n}, just checking in on {what}. Any update when you get a moment? Thanks!",
   "draftReadyNote": "Draft ready · not sent yet",
-  "sentFollowUp": "Sent today · follow up {w}"
+  "sentFollowUp": "Sent today · follow up {w}",
+  "saveAndStart": {
+    "whatsapp": "Save & message on WhatsApp",
+    "email": "Save & write an email",
+    "call": "Save & call"
+  },
+  "duplicateContact": "You already have {n} with these details.",
+  "addedToday": "Added today"
 };
 
 // Declared as `typeof INLINE_en` so a missing Arabic string is a compile error.
@@ -142,7 +149,14 @@ const INLINE_ar: typeof INLINE_en = {
   ],
   "nudgeDraft": "هلا {n}، حبيت أتطمّن بخصوص {what}. في أي جديد؟ شكراً لك!",
   "draftReadyNote": "المسودة جاهزة · ما انرسلت",
-  "sentFollowUp": "أرسلتها اليوم · تابع {w}"
+  "sentFollowUp": "أرسلتها اليوم · تابع {w}",
+  "saveAndStart": {
+    "whatsapp": "احفظ وأرسل واتساب",
+    "email": "احفظ واكتب إيميل",
+    "call": "احفظ واتصل"
+  },
+  "duplicateContact": "عندك {n} محفوظ بنفس البيانات.",
+  "addedToday": "انضاف اليوم"
 };
 
 export const INLINE = { en: INLINE_en, ar: INLINE_ar };

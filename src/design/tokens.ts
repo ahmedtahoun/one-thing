@@ -129,6 +129,13 @@ export const status = {
   /** Duplicate-contact banner. */
   warnBg: '#FFECC9',
   warnFg: '#6F4100',
+  /**
+   * The duplicate-contact banner as the prototype draws it,
+   * `oklch(0.96 0.04 80)` / `oklch(0.4 0.09 70)` — a shade off README's
+   * warn-bg / warn-fg above, which nothing in the prototype uses.
+   */
+  duplicateBg: '#FFF0D4',
+  duplicateFg: '#663D00',
   /** "Remember for next time" note card. */
   noteBg: '#FDF5DF',
   noteFg: '#6F4F07',

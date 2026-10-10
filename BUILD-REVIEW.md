@@ -387,6 +387,36 @@ its frozen 9 October.
 - **The note and the quick log are stored** on the contact and in the
   history. In the prototype they last only until the page reloads.
 
+### 2.23 Contact form
+Every probe sits at 0 pt, with 0.1 % of pixels differing. That needed the
+name and role rows at 55 pt: the prototype's 54 pt inputs carry their 1 pt
+rule outside the box. Where the build goes beyond the prototype, it is to
+meet SCREENS.md § 12 or ACCEPTANCE.md:
+
+- **The country list can be searched.** ACCEPTANCE asks for "country picker
+  search", and SCREENS.md for "searchable list of all countries", but the
+  prototype's form list has no search row. The search row is the one the
+  prototype draws on its other picker (account setup), using the extracted
+  "Search country or code" / "No country found" copy. It matches names in
+  either language, and dial codes. Compose's picker stays as drawn, without
+  one.
+- **A phone number, if given, needs seven digits.** SCREENS.md says so; the
+  prototype never checks it. A short number blocks Save and, once Save has
+  been tried, marks the details card red, as the prototype does for a bad
+  email. Neither has a message of its own in the handoff. **Say if they
+  should.**
+- **Delete asks first and can be undone.** Its confirm is the prototype's
+  ("Delete this contact? Their history goes too."): the browser's own on the
+  web, a system alert on a phone. Deleting removes the contact and their
+  history, and the toast's Undo puts both back. The prototype's toast offers
+  Undo too, but its snapshot holds only tasks and follow-ups, so it cannot
+  restore the contact.
+- **Cancel, Save and Delete all go to People**, as in the prototype, even
+  when the form was opened from a profile. **Say if Cancel should go back to
+  the profile instead.**
+- **The notes are the contact's "Remember for next time"**: one field, the
+  same one the profile edits.
+
 ## 5. Decisions taken
 
 Agreed with the product owner on 10 Oct 2026: React Native (Expo) for the app,
