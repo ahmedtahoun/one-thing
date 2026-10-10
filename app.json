@@ -1,0 +1,52 @@
+{
+  "expo": {
+    "name": "The One Thing",
+    "slug": "the-one-thing",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "theonething",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "icon": "./assets/icon.png",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#FFFFFF"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "app.theonething.ios",
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "Used only while you're recording a note, so you can capture a task by speaking instead of typing.",
+        "NSSpeechRecognitionUsageDescription": "Used to turn the note you just spoke into a task. Nothing is recorded in the background.",
+        "CFBundleAllowMixedLocalizations": true
+      }
+    },
+    "android": {
+      "package": "app.theonething.android",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#FFFFFF"
+      },
+      "permissions": [
+        "RECORD_AUDIO",
+        "POST_NOTIFICATIONS",
+        "SCHEDULE_EXACT_ALARM"
+      ]
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static",
+      "favicon": "./assets/favicon.png"
+    },
+    "locales": {
+      "en": "./src/content/locale-en.json",
+      "ar": "./src/content/locale-ar.json"
+    },
+    "plugins": ["expo-router", "expo-font", "expo-localization"],
+    "extra": {
+      "router": {},
+      "eas": {}
+    }
+  }
+}

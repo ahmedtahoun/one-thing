@@ -83,6 +83,44 @@ changing both translations.
 "Reachable but first-run skips it… keep for Revisit setup in a future version."
 Build it unused, or leave it out?
 
+### 2.10 `app-content.js` is not the complete copy source
+README.md calls it "**All copy (EN+AR)** … extracted verbatim. Use as the
+string/icon source of truth." It is not: 22 English/Arabic pairs exist only
+inline in `source/app-logic.js` — the whole first-run card ("FIRST THING", its
+question, placeholder, Set, "Or pick one", "Later — just show me my day", its
+toast), both greetings, the notification rows and the country-picker strings.
+Anyone building from `app-content.js` alone would silently ship those in one
+language. `scripts/extract-inline-copy.js` pulls them out mechanically and
+fails loudly if the handoff is ever revised.
+
+### 2.11 The consent checkbox renders 25 px, not the 22 the spec states
+SCREENS.md § 01 says "Checkbox 22 × 22 radius 7". The prototype draws it as a
+22 px box *plus* two 1.5 px borders — 25 px — because the page has no
+`box-sizing: border-box`. React Native always measures borders inside the box,
+so it gives the spec's 22. The 3 px matters: it is exactly what makes the
+prototype wrap "…and Privacy / Policy." onto a second line where the build
+keeps it on one. **Following the written spec (22), not the prototype.** Say
+if you want the prototype's 25 instead and the wrap back.
+
+### 2.12 README's type scale and the prototype disagree
+Measured across all 21 screens (`npm run measure` → `scripts/measure-prototype-type.js`):
+
+| Token | README table | Prototype actual |
+|---|---|---|
+| body-s | 1.5 (21.0 pt) | 1.45 (20.3 pt) |
+| micro | 1.4 (16.8 pt) | 1.5 (18.0 pt) |
+
+Sub-pt differences, but they compound down a long screen — which is what
+ACCEPTANCE.md's "±2 pt" measures. **Following the prototype**, since the
+screenshots show the prototype and the acceptance check is written against
+them. The scale in `src/design/tokens.ts` carries the measured values.
+
+### 2.13 `text-wrap: balance` has no React Native equivalent
+README § Typography asks for balanced wrapping on big titles. CSS does it for
+free; React Native has nothing. `src/ui/BalancedText.tsx` emulates it by
+measuring and narrowing to the point just before a line is added. Raising it
+rather than quietly dropping it, as the handoff asks.
+
 ## 3. Things that must come from you (not buildable)
 
 - Apple Developer / App Store Connect and Google Play Console accounts; bundle
@@ -113,3 +151,24 @@ The "nothing is ever sent automatically" rule is the spine of this product and
 touches Compose, Follow-ups, the Assistant and notifications. It is also what
 keeps the app out of messaging-automation territory for review. I'll treat it as
 non-negotiable.
+
+## 5. Decisions taken
+
+Agreed with the product owner on 10 Oct 2026: React Native (Expo) for the app,
+Supabase for the backend, mobile app before admin panel and public pages, and
+the Claude API behind the backend for capture, brain dump and the assistant.
+
+Taken here, under the stated assumptions, and reversible in one file each:
+
+- **Pro gating** is permissive except the one documented limit (10 assistant
+  requests a day on Free). `src/policy/entitlements.ts` is the only place a
+  gate exists — see §2.1.
+- **Weekly recap** is off for everyone, so nothing routes to a screen that does
+  not exist — see §2.2.
+- **Account setup** is one screen with no phone field, following SCREENS.md,
+  the screenshot and the prototype's own render against the audit's prose —
+  see §2.7.
+- **Writing direction** is carried in React context and applied per layout
+  rather than through `I18nManager.forceRTL`, which only takes effect after an
+  app restart. Settings switches language with an inline pill, so it has to
+  apply immediately.

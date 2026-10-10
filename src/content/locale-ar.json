@@ -1,0 +1,5 @@
+{
+  "CFBundleDisplayName": "الشيء الواحد",
+  "NSMicrophoneUsageDescription": "نستخدمه فقط وأنت تسجّل ملاحظتك، عشان تضيف مهمة بصوتك بدل ما تكتبها.",
+  "NSSpeechRecognitionUsageDescription": "نستخدمه لتحويل الملاحظة اللي قلتها إلى مهمة. ما نسجّل شي في الخلفية."
+}

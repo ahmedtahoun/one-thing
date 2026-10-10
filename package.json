@@ -1,0 +1,51 @@
+{
+  "name": "the-one-thing",
+  "version": "1.0.0",
+  "main": "expo-router/entry",
+  "private": true,
+  "scripts": {
+    "start": "expo start",
+    "web": "expo start --web",
+    "export:web": "expo export --platform web",
+    "typecheck": "tsc --noEmit",
+    "verify:colours": "node scripts/verify-oklch.js scripts/oklch-colours.txt",
+    "capture:app": "expo export --platform web && node scripts/capture-screens.js",
+    "capture:prototype": "node scripts/capture-prototype.js",
+    "compare": "node scripts/compare-to-prototype.js .screens .screens-prototype scripts/screen-pairs.json",
+    "schema:check": "bash scripts/check-schema.sh",
+    "content:port": "node scripts/port-content.js",
+    "content:inline": "node scripts/extract-inline-copy.js",
+    "measure": "node scripts/measure-prototype-type.js"
+  },
+  "dependencies": {
+    "@expo-google-fonts/ibm-plex-sans-arabic": "^0.4.2",
+    "@react-native-async-storage/async-storage": "^2.2.0",
+    "@supabase/supabase-js": "^2.117.3",
+    "expo": "~57.0.27",
+    "expo-constants": "~57.0.21",
+    "expo-font": "~57.0.4",
+    "expo-haptics": "~57.0.3",
+    "expo-linking": "~57.0.12",
+    "expo-localization": "~57.0.2",
+    "expo-router": "~57.0.25",
+    "expo-splash-screen": "~57.0.9",
+    "expo-status-bar": "~57.0.1",
+    "expo-web-browser": "~57.0.3",
+    "react": "19.2.3",
+    "react-dom": "^19.2.3",
+    "react-native": "0.86.3",
+    "react-native-safe-area-context": "~5.7.0",
+    "react-native-screens": "~4.26.0",
+    "react-native-svg": "^15.15.4",
+    "react-native-web": "^0.21.4"
+  },
+  "devDependencies": {
+    "@babel/standalone": "^7.29.0",
+    "@types/react": "~19.2.2",
+    "pixelmatch": "^5.3.0",
+    "pngjs": "^7.0.0",
+    "prototype-react": "npm:react@^18.3.1",
+    "prototype-react-dom": "npm:react-dom@^18.3.1",
+    "typescript": "~6.0.3"
+  }
+}

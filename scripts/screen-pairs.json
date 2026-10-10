@@ -1,0 +1,6 @@
+[
+  { "name": "en-sign-in", "app": "en-01-sign-in.png", "proto": "en-01-sign-in.png" },
+  { "name": "ar-sign-in", "app": "ar-01-sign-in.png", "proto": "ar-01-sign-in.png" },
+  { "name": "en-setup", "app": "en-02-account-setup.png", "proto": "en-02-account-setup.png" },
+  { "name": "ar-setup", "app": "ar-02-account-setup.png", "proto": "ar-02-account-setup.png" }
+]
