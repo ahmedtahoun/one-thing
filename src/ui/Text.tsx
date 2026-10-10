@@ -5,13 +5,21 @@
 import { Text as RNText, type TextProps, type TextStyle } from 'react-native';
 
 import { useLanguage } from '@/i18n/LanguageProvider';
-import { fontFamily, ink, type as scale } from '@/design/tokens';
+import { fontFamily, ink, naturalLineHeight, type as scale } from '@/design/tokens';
 
 type Token = keyof typeof scale;
 
 export type AppTextProps = TextProps & {
   /** A token from the README type scale. Defaults to `body`. */
   token?: Token;
+  /** Overrides the token's size; the line height follows the font's metrics. */
+  size?: number;
+  /**
+   * An explicit line height, for the few elements where the prototype sets
+   * one. Leave it alone otherwise: the token already carries the font's own
+   * line height, which is what the prototype renders everywhere else.
+   */
+  lh?: number;
   /** Overrides the token's weight — e.g. a 15/500 list title. */
   weight?: '400' | '500' | '600' | '700';
   color?: string;
@@ -30,6 +38,8 @@ const FAMILY: Record<string, string> = {
 
 export function Text({
   token = 'body',
+  size,
+  lh,
   weight,
   color = ink.base,
   align,
@@ -40,14 +50,16 @@ export function Text({
   const { isRTL } = useLanguage();
   const t = scale[token];
   const w = weight ?? t.weight;
+  const fontSize = size ?? t.size;
+  const lineHeight = lh ?? (size === undefined ? t.lh : naturalLineHeight(size));
 
   return (
     <RNText
       style={[
         {
           fontFamily: FAMILY[w] ?? FAMILY['400'],
-          fontSize: t.size,
-          lineHeight: t.lh,
+          fontSize,
+          lineHeight,
           color,
           textAlign: align ?? (isRTL ? 'right' : 'left'),
           writingDirection: isRTL ? 'rtl' : 'ltr',

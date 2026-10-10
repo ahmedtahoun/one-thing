@@ -75,6 +75,7 @@ npm run capture:prototype -- <path to design_handoff_the_one_thing>
 npm run capture:app                                          # exports web, screenshots each route
 npm run compare                                              # pixel diff, writes .screens/diff/
 npm run drift -- <path to design_handoff_the_one_thing>       # per-element ±2 pt check
+npm run smoke                                                # drives Tasks in a browser
 ```
 
 `npm run drift` is the one that answers ACCEPTANCE.md. It renders the app and
@@ -91,11 +92,24 @@ the status bar and home indicator (drawn by the device frame in the prototype
 and by the OS in the app). Anti-aliasing is not counted. Add a screen to
 `scripts/screen-pairs.json` as you build it.
 
-One trap worth knowing: the prototype leaves `line-height` unset on many
-elements, and IBM Plex Sans Arabic's natural line height is **1.5** — tall,
-because of the Arabic glyphs. Use `NATURAL_LINE_HEIGHT` rather than guessing
-when matching a block the prototype did not style; getting it wrong compounds
-down the screen rather than showing up as one obvious gap.
+Neither check sees a horizontal flip — one measures vertical position, the
+other is dominated by glyph edges. The Arabic layout was mirrored twice for a
+while and both checks stayed green. **Look at the Arabic screenshots next to
+the prototype's**; nothing automated will do it for you.
+
+`npm run smoke` is the behavioural one: it drives the Tasks screen in a real
+browser and asserts what each action does to the stored tasks — the filters,
+the bulk reminder and its Undo, the reminder sheet, the pause before a ticked
+task moves group, "Move to tomorrow", and the empty state. A screenshot says a
+screen looks right; this says it behaves right.
+
+One trap worth knowing: the prototype almost never sets `line-height`, so
+nearly all of its text takes the font's own metrics — and those are not a flat
+1.5. `naturalLineHeight()` in `src/design/tokens.ts` is the real rule, checked
+against Chromium at every size in the scale, and every token but `display`
+already uses it. The few elements that do set a line height pass `lh` to
+`<Text>`. Getting this wrong compounds down a screen instead of showing up as
+one obvious gap: it was worth 21 pt and 12 % of the Tasks screen's pixels.
 
 Two notes on running the prototype locally: it loads React and Babel from
 unpkg and its font from Google Fonts, both of which may be blocked, so
@@ -113,18 +127,23 @@ that is what the design was reviewed in. Re-run it before changing a colour.
 
 ## Status
 
-Built: design tokens, the generated content layer (254 copy keys per language,
-33 icons, 198 countries), the schema with row-level security on every table,
-the entitlements policy, the UI primitives, the task store, the glass tab bar,
-and the first-run flow — Sign in, Account setup, Legal, and Today in full
-(header, first-run card, One Thing card, evening card, quick actions, Small
-promises with swipe-to-done and swipe-to-reschedule, and the empty state).
+Built: design tokens, the generated content layer (copy, 33 icons, 198
+countries), the schema with row-level security on every table, the entitlements
+policy, the UI primitives, the task store, the glass tab bar, and screens
+01–03, 06 and 07 — Sign in, Account setup, Legal, Today in full (header,
+first-run card, One Thing card, evening card, quick actions, Small promises
+with swipe-to-done and swipe-to-reschedule, and the empty state) and Tasks in
+full (progress header, the bulk reminder hint, filter chips, the Up next card,
+all seven groups with their collapse and bulk actions, status pills, the add
+sheet and the reminder sheet).
 
-Every probed element on Sign in and Today sits within 1.6 pt of the prototype
-in both languages, against ACCEPTANCE.md's 2 pt bar, with one documented
-exception (`KNOWN_DEVIATIONS`).
+Across 42 probes on those screens, in both languages, the worst element sits
+1 pt from the prototype against ACCEPTANCE.md's 2 pt bar, with one documented
+exception (`KNOWN_DEVIATIONS`). Pixel difference is 0.5–0.7 % on Today and
+Tasks, and 1.0–2.6 % on Sign in and Account setup, where the consent
+checkbox's box model changes a line break (BUILD-REVIEW.md §2.11).
 
-Not built yet: screens 07–24. Real Apple and Google sign-in are stubbed pending
+Not built yet: screens 09–24. Real Apple and Google sign-in are stubbed pending
 developer accounts; `src/lib/session.tsx` holds the session on the device until
 then.
 

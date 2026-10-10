@@ -57,8 +57,24 @@ endpoints, no sync/conflict model, and no offline behaviour. README only says
 signal; that needs deciding before the data layer is written, not after.
 
 ### 2.5 Reminder enum mismatch
-`Task.remind` is `(at|10|60|custom|null)`, but the event form offers **Day
-before** (`EVX.rems`). The enum needs `day_before`.
+`Task.remind` is `(at|10|60|custom|null)`. Three more values are in use:
+`30` and `morning` appear in the seed tasks, and the event form offers **Day
+before** (`EVX.rems`). So the documented enum is missing three of its five
+real values.
+
+Two follow-ons, found while building the reminder sheet:
+
+- **"Day before" is not stored as itself.** The prototype's event form saves it
+  as `remind: 'custom'` (`['10','60','custom',null][e.rem]`), so the offset is
+  lost the moment it is chosen and there is no short label for it anywhere.
+  The build keeps `day_before` as its own value — a notification scheduler
+  needs the offset, not a note that something was customised — and falls back
+  to the prototype's "custom" wording in the row's tiny label, since that is
+  the only label the handoff has for it.
+- **"Morning of" has no stated time.** The labels read "Morning of · 08:00" and
+  "8:00", and Settings puts quiet hours at 22:00–08:00, so it is read as
+  quiet-hours-end, 08:00 on the day. `day_before` takes the same 08:00 the day
+  before. Confirm, or give me the intended times.
 
 ### 2.6 The screenshots can't be used for pixel QA
 They are 924×540 device-frame captures; the phone content inside sits at roughly
@@ -85,13 +101,14 @@ Build it unused, or leave it out?
 
 ### 2.10 `app-content.js` is not the complete copy source
 README.md calls it "**All copy (EN+AR)** … extracted verbatim. Use as the
-string/icon source of truth." It is not: 22 English/Arabic pairs exist only
+string/icon source of truth." It is not: 51 English/Arabic pairs exist only
 inline in `source/app-logic.js` — the whole first-run card ("FIRST THING", its
 question, placeholder, Set, "Or pick one", "Later — just show me my day", its
 toast), both greetings, the notification rows and the country-picker strings.
 Anyone building from `app-content.js` alone would silently ship those in one
 language. `scripts/extract-inline-copy.js` pulls them out mechanically and
-fails loudly if the handoff is ever revised.
+fails loudly if the handoff is ever revised. I first found 22 of them; §2.16 is
+how the other 29 came to light.
 
 ### 2.11 The consent checkbox renders 25 px, not the 22 the spec states
 SCREENS.md § 01 says "Checkbox 22 × 22 radius 7". The prototype draws it as a
@@ -102,18 +119,35 @@ prototype wrap "…and Privacy / Policy." onto a second line where the build
 keeps it on one. **Following the written spec (22), not the prototype.** Say
 if you want the prototype's 25 instead and the wrap back.
 
-### 2.12 README's type scale and the prototype disagree
-Measured across all 21 screens (`npm run measure` → `scripts/measure-prototype-type.js`):
+### 2.12 README's line-height column describes the intent, not the artefact
+README § Typography gives a line height for every token — 1.45 for body, 1.4
+for micro, 1 for eyebrow and tab, 1.2 for h1. The prototype sets almost none
+of them: of roughly 300 sized elements in it, fewer than 30 declare a
+`line-height` at all. Everything else takes the font's own metrics.
 
-| Token | README table | Prototype actual |
+So the real rule is the font, and it is not a flat 1.5 either. IBM Plex Sans
+Arabic's typo metrics are ascender 1085 and descender −415 per 1000 em with no
+line gap; a browser rounds each to whole pixels and adds them:
+
+| Size | README | Font's own |
 |---|---|---|
-| body-s | 1.5 (21.0 pt) | 1.45 (20.3 pt) |
-| micro | 1.4 (16.8 pt) | 1.5 (18.0 pt) |
+| 10.5 (tab) | 10.5 | **15** |
+| 11 (eyebrow) | 11 | **17** |
+| 13 (caption) | 18.85 | **19** |
+| 15 (body) | 21.75 | **22** |
+| 17 (title) | 22.1 | **25** |
+| 28 (h1) | 33.6 | **42** |
 
-Sub-pt differences, but they compound down a long screen — which is what
-ACCEPTANCE.md's "±2 pt" measures. **Following the prototype**, since the
-screenshots show the prototype and the acceptance check is written against
-them. The scale in `src/design/tokens.ts` carries the measured values.
+`naturalLineHeight()` in `src/design/tokens.ts` is that formula, checked
+against Chromium at all seventeen sizes in the scale. Every token but
+`display` now takes it, and the handful of elements that do set a line height
+pass `lh` to `<Text>` and name what they are matching.
+
+This was worth chasing: treating an eyebrow as 1.0 left it 6 pt short, and the
+error compounds. Before the fix the Tasks screen differed from the prototype
+by 12.5 % of its pixels and up to 21 pt of drift; after it, 0.47 % and 1 pt.
+**Following the prototype**, since the screenshots show the prototype and
+ACCEPTANCE.md's ±2 pt is written against them.
 
 ### 2.13 `text-wrap: balance` has no React Native equivalent
 README § Typography asks for balanced wrapping on big titles. CSS does it for
@@ -152,11 +186,78 @@ touches Compose, Follow-ups, the Assistant and notifications. It is also what
 keeps the app out of messaging-automation territory for review. I'll treat it as
 non-negotiable.
 
-### 2.14 The tab bar must not be mirrored twice
-Worth recording because it is easy to reintroduce: the bar is laid out with
-`row-reverse` in Arabic, which already puts the first tab on the right.
-Reversing the tab arrays as well mirrors it a second time and leaves Tasks
-where Today should be. One mirror, not two.
+### 2.14 Arabic must be mirrored exactly once
+This started as a note about the tab bar and turned out to be the whole app's
+problem, so it is worth stating as a rule.
+
+Set the writing direction once, on each root a screen owns, and lay everything
+inside out with a plain `row`. Yoga and CSS both run a `row` from the writing
+direction's start edge, and both resolve `paddingStart` / `paddingEnd` and a
+column's `flex-start` / `flex-end` the same way. Adding `row-reverse` on top of
+that mirrors a second time and puts the row back where it started.
+
+The first version did exactly that: `Screen` set `direction: 'rtl'` *and* every
+row asked for `row-reverse`. The Arabic screens came out mirrored — the Today
+greeting on the left with its buttons on the right, the check circle on the
+wrong side of every task row — while the quick-action grid, which used a plain
+`row`, was right. A pixel diff did not shout about it (2.9 % on Today, mostly
+white space), and the drift check could not see it at all, because that
+measures vertical position. **It took putting the Arabic screenshots side by
+side.** Worth remembering: neither automated check catches a horizontal flip.
+
+Fixing it took Arabic Today from 2.87 % of pixels differing to 0.57 %.
+
+`useDirection().row` is now always `'row'`, kept as a helper so a row that
+should follow the writing direction still says so, with the rule written at its
+definition. Mirroring a *glyph* is separate and still explicit (`scaleX` on the
+back chevron); gestures convert the other way, physical to logical.
+
+### 2.15 The reminder sheet draws a hairline inside its bottom corner
+Every option row in the prototype's reminder sheet carries a bottom border,
+including the last one, inside a container with `border-radius: 16px` and
+`overflow: hidden`. The last border therefore shows as a hairline just above
+the rounded edge. Recreated as-is rather than tidied — say if you want it
+dropped.
+
+### 2.16 The handoff's own inline copy was only half readable
+§2.10 recorded that `app-content.js` is not the complete copy source and that
+22 EN/AR pairs live in `app-logic.js`. There are more than that: the extractor
+only matched one of the two shapes the file uses (`ar ? '…' : '…'`), and missed
+every `lang === 'ar' ? '…' : '…'` — another 29 pairs, including "Overdue",
+"Snoozed", "See all", "Tmw " and the " min" / "h " / "m" suffixes on every
+relative time.
+
+I had typed several of those by hand, which is the thing mechanical
+transcription exists to prevent. `scripts/extract-inline-copy.js` now reads
+both shapes, and every pair must be named — as copy, or in an explicit
+not-copy list with a reason (locale ids, icon names, demo names, a layout
+offset). A new one upstream fails the script rather than being dropped.
+
+51 pairs now come out, against 22 before.
+
+### 2.17 One status colour in the tokens came from the admin panel
+`#6C44A4` was in the token file as the Snoozed pill. It is `oklch(0.48 0.15
+300)`, which appears only in `source/admin-logic.js` — it is the admin panel's
+reminder colour. The app's Snoozed pill is `oklch(0.5 0.14 300)` = `#714CA6`.
+Corrected. Flagging it because the two source files use the same palette with
+different values, and the app is what we are building.
+
+Also added: `#B02A2D` for the Overdue pill. README gives danger-fg as a range,
+`oklch(0.5–0.55 0.17 25)`, and the prototype spends the darker end on that pill
+and the lighter one on the Now line — so both ends are tokens now.
+
+### 2.18 The demo day is pinned to October 2026
+The prototype's seed data is written against `BASE = new Date(2026, 9, 9)` and
+its later tasks carry absolute dates — `z2026-10-10` for tomorrow, `z2026-10-13`
+for the following Monday. Run it on any other day and its "Tomorrow" group is
+wrong.
+
+`src/content/demo.ts` reads those as offsets from that base and re-applies them
+to whatever today is, so the demo keeps its shape — twelve today, three
+tomorrow, three later — on any date. It matters beyond tidiness: the comparison
+harness seeds this data, and on 10 October 2026 the untranslated seed would put
+the prototype's "tomorrow" tasks into today's groups and make the two screens
+disagree for a reason that has nothing to do with the build.
 
 ## 5. Decisions taken
 

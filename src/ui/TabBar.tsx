@@ -45,11 +45,7 @@ export function TabBar({
   /** Hold the orb for 450 ms. */
   onBrainDump: () => void;
 }) {
-  const { t, isRTL } = useLanguage();
-
-  // `row-reverse` already puts the first child on the right in Arabic, so the
-  // pairs must NOT also be swapped — doing both mirrors the bar twice and
-  // leaves Tasks where Today should be.
+  const { t, dir } = useLanguage();
 
   return (
     <>
@@ -67,6 +63,10 @@ export function TabBar({
           right: 16,
           bottom: 24,
           height: 64,
+          // The bar sits outside <Screen>, so it carries the writing
+          // direction itself. With that set, the row below mirrors on its
+          // own and the tab order must not also be reversed.
+          direction: dir,
           borderRadius: 32,
           overflow: 'visible',
           borderWidth: 1,
@@ -92,7 +92,7 @@ export function TabBar({
         <View
           style={{
             flex: 1,
-            flexDirection: isRTL ? 'row-reverse' : 'row',
+            flexDirection: 'row',
             alignItems: 'center',
             paddingHorizontal: 6,
           }}

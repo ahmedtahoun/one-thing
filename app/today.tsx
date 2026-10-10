@@ -21,7 +21,7 @@ import { TabBar } from '@/ui/TabBar';
 import { Text } from '@/ui/Text';
 import { Toast, useToast } from '@/ui/Toast';
 import { type IconName } from '@/design/icon-paths';
-import { ink, NATURAL_LINE_HEIGHT, space, surface, type TaskType } from '@/design/tokens';
+import { ink, space, surface, type TaskType } from '@/design/tokens';
 import { useDirection, useLanguage } from '@/i18n/LanguageProvider';
 import { dateKey, isOnDay, type Task } from '@/lib/model-types';
 import { useSession } from '@/lib/session';
@@ -111,15 +111,10 @@ export default function Today() {
           <View style={{ gap: 2, flexShrink: 1 }}>
             {/* Neither header line is given a line-height in the prototype,
                 so both take the font's natural 1.5. */}
-            <Text token="caption" color={ink.s4} style={{ lineHeight: 13 * NATURAL_LINE_HEIGHT }}>
+            <Text token="caption" color={ink.s4}>
               {dateLabel}
             </Text>
-            <Text
-              token="title"
-              style={{ fontSize: 21, lineHeight: 21 * NATURAL_LINE_HEIGHT }}
-              numberOfLines={1}
-              testID="today-greeting"
-            >
+            <Text token="title" size={21} numberOfLines={1} testID="today-greeting">
               {greeting}
             </Text>
           </View>

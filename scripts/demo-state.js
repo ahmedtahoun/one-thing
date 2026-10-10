@@ -15,6 +15,9 @@ const SEED_TASKS = JSON.parse(source.match(/export const SEED_TASKS = ([\s\S]*?)
 
 const REMIND = { at: 'at', 10: 'min_10', 30: 'min_30', 60: 'hour_1', morning: 'morning' };
 
+/** The day the prototype's demo data is written against. See src/content/demo.ts. */
+const PROTOTYPE_BASE = Date.UTC(2026, 9, 9);
+
 function dueAtFor(time, base) {
   const later = time.startsWith('z');
   const raw = later ? time.slice(1) : time;
@@ -23,7 +26,7 @@ function dueAtFor(time, base) {
   const d = new Date(base);
   if (later) {
     const [y, mo, day] = m[1].split('-').map(Number);
-    d.setFullYear(y, mo - 1, day);
+    d.setDate(d.getDate() + (Date.UTC(y, mo - 1, day) - PROTOTYPE_BASE) / 86400000);
     d.setHours(+m[2], +m[3], 0, 0);
   } else {
     d.setHours(+m[1], +m[2], 0, 0);

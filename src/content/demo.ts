@@ -25,7 +25,15 @@ const REMIND: Record<string, RemindOffset> = {
 
 type SeedTask = (typeof SEED_TASKS)[number];
 
-/** "z2026-10-13 10:00" marks a task on a later day; plain "10:00" is today. */
+/**
+ * The day the prototype's demo data is written against — `BASE` in its own
+ * source. Its later days are absolute ("z2026-10-13"), so they are read as an
+ * offset from this and re-applied to `base`. Without that the demo would rot:
+ * run it on 2026-10-10 and the seed's "tomorrow" tasks land on today.
+ */
+const PROTOTYPE_BASE = Date.UTC(2026, 9, 9);
+
+/** "z2026-10-1310:00" marks a task on a later day; plain "10:00" is today. */
 function dueAtFor(time: string, base: Date): string | null {
   const later = time.startsWith('z');
   const raw = later ? time.slice(1) : time;
@@ -36,7 +44,8 @@ function dueAtFor(time: string, base: Date): string | null {
   const d = new Date(base);
   if (later) {
     const [y, m, day] = (match[1] as string).split('-').map(Number);
-    d.setFullYear(y as number, (m as number) - 1, day as number);
+    const offsetDays = (Date.UTC(y as number, (m as number) - 1, day as number) - PROTOTYPE_BASE) / 86400000;
+    d.setDate(d.getDate() + offsetDays);
     d.setHours(Number(match[2]), Number(match[3]), 0, 0);
   } else {
     d.setHours(Number(match[1]), Number(match[2]), 0, 0);

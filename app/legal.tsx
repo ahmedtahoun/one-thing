@@ -43,7 +43,7 @@ export default function Legal() {
             <Text token="body" weight="600">
               {heading}
             </Text>
-            <Text token="bodyS" color={ink.s2} style={{ lineHeight: 22 }}>
+            <Text token="bodyS" color={ink.s2} lh={22.4}>
               {body}
             </Text>
           </View>

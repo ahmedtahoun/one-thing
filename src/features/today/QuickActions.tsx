@@ -37,38 +37,42 @@ export function QuickActions({ onPress }: { onPress: (type: TaskType) => void })
       <Text token="eyebrow" color={ink.s4}>
         {t.q_k}
       </Text>
-      {ROWS.map((row, rowIndex) => (
-        <View key={rowIndex} style={{ flexDirection: 'row', gap: space.gridGap }}>
-          {row.map((type) => {
-            const colour = typeColour[type];
-            const label = type === 'reminder' ? t.q_rem : t.types[type];
-            return (
-              <Pressable
-                key={type}
-                testID={`quick-action-${type}`}
-                onPress={() => onPress(type)}
-                accessibilityRole="button"
-                accessibilityLabel={label}
-                style={({ pressed }) => ({
-                  flex: 1,
-                  height: 76,
-                  borderRadius: radius.card,
-                  backgroundColor: colour.bg,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 7,
-                  opacity: pressed ? 0.85 : 1,
-                })}
-              >
-                <Icon name={TYPE_ICON[type]} size={22} color={colour.fg} strokeWidth={1.9} />
-                <Text token="micro" weight="600" color={colour.fg} align="center" numberOfLines={1}>
-                  {label}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
-      ))}
+      {/* The grid's own gap is 8 in both axes; the 10 above separates it
+          from the eyebrow. */}
+      <View style={{ gap: space.gridGap }}>
+        {ROWS.map((row, rowIndex) => (
+          <View key={rowIndex} style={{ flexDirection: 'row', gap: space.gridGap }}>
+            {row.map((type) => {
+              const colour = typeColour[type];
+              const label = type === 'reminder' ? t.q_rem : t.types[type];
+              return (
+                <Pressable
+                  key={type}
+                  testID={`quick-action-${type}`}
+                  onPress={() => onPress(type)}
+                  accessibilityRole="button"
+                  accessibilityLabel={label}
+                  style={({ pressed }) => ({
+                    flex: 1,
+                    height: 76,
+                    borderRadius: radius.card,
+                    backgroundColor: colour.bg,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 7,
+                    opacity: pressed ? 0.85 : 1,
+                  })}
+                >
+                  <Icon name={TYPE_ICON[type]} size={22} color={colour.fg} strokeWidth={1.9} />
+                  <Text token="micro" weight="600" color={colour.fg} align="center" numberOfLines={1}>
+                    {label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        ))}
+      </View>
     </View>
   );
 }

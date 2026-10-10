@@ -52,7 +52,7 @@ export function OneThingCard({
         </Pressable>
       </View>
 
-      <BalancedText token="h1" testID="one-thing-title" style={{ letterSpacing: -0.28 }}>
+      <BalancedText token="h1" lh={33.6} testID="one-thing-title" style={{ letterSpacing: -0.28 }}>
         {title}
       </BalancedText>
 

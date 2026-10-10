@@ -35,6 +35,12 @@ type TasksValue = {
   updateTask: (id: string, patch: Partial<Task>) => void;
   /** Check-off and un-check. Returns the status it moved to. */
   toggleDone: (id: string) => 'open' | 'done';
+  /**
+   * Applies a patch to several tasks at once — the bulk actions on Tasks
+   * ("Add reminders to these", "Move to tomorrow"). The patch is a function
+   * so it can depend on the task, e.g. keeping its time while changing day.
+   */
+  patchMany: (ids: string[], patch: (task: Task) => Partial<Task>) => void;
   snooze: (id: string, until: string) => void;
   cancel: (id: string) => void;
   /** Replaces the whole list — used by Undo, which restores a snapshot. */
@@ -117,6 +123,14 @@ export function TasksProvider({ children }: { children: ReactNode }) {
     [tasks, persistTasks]
   );
 
+  const patchMany = useCallback<TasksValue['patchMany']>(
+    (ids, patch) => {
+      const set = new Set(ids);
+      persistTasks(tasks.map((t) => (set.has(t.id) ? { ...t, ...patch(t) } : t)));
+    },
+    [tasks, persistTasks]
+  );
+
   const toggleDone = useCallback<TasksValue['toggleDone']>(
     (id) => {
       const current = tasks.find((t) => t.id === id);
@@ -162,6 +176,7 @@ export function TasksProvider({ children }: { children: ReactNode }) {
       ready,
       addTask,
       updateTask,
+      patchMany,
       toggleDone,
       snooze,
       cancel,
@@ -169,7 +184,20 @@ export function TasksProvider({ children }: { children: ReactNode }) {
       setOneThing,
       setOneThingDone,
     }),
-    [tasks, oneThing, ready, addTask, updateTask, toggleDone, snooze, cancel, persistTasks, setOneThing, setOneThingDone]
+    [
+      tasks,
+      oneThing,
+      ready,
+      addTask,
+      updateTask,
+      patchMany,
+      toggleDone,
+      snooze,
+      cancel,
+      persistTasks,
+      setOneThing,
+      setOneThingDone,
+    ]
   );
 
   return <TasksContext.Provider value={value}>{children}</TasksContext.Provider>;

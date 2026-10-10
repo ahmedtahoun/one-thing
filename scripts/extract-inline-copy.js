@@ -2,9 +2,16 @@
  * Extracts the copy that lives only in the handoff's source/app-logic.js.
  *
  * README.md calls source/app-content.js the single source of truth for
- * strings, but it is not complete: 21 EN/AR pairs are written inline in
- * app-logic.js (the first-run card, greetings, the notifications rows and the
- * country picker). This pulls them out verbatim so no string is ever retyped.
+ * strings, but it is not complete: dozens of EN/AR pairs are written inline in
+ * app-logic.js. This pulls them out verbatim so no string is ever retyped.
+ *
+ * They come in two shapes, and both have to be read:
+ *   `ar ? '…' : '…'`            — a local boolean (the first-run card, greetings)
+ *   `lang === 'ar' ? '…' : '…'` — the comparison written out (status pills,
+ *                                 relative times, the contact form)
+ * Only the first shape was read at first, which left strings like "Overdue"
+ * and " min" to be typed by hand. Anything matching either shape must now be
+ * named below — as copy, or as explicitly not copy — or this script fails.
  *
  *   node scripts/extract-inline-copy.js <path to design_handoff_the_one_thing>
  */
@@ -45,6 +52,63 @@ const NAMES = {
 
 const PAIR = /ar \? '((?:[^'\\]|\\.)*)' : '((?:[^'\\]|\\.)*)'/g;
 
+/** The written-out form. Same capture order: Arabic first, then English. */
+const PAIR_LANG = /lang === 'ar' \? '((?:[^'\\]|\\.)*)' : '((?:[^'\\]|\\.)*)'/g;
+
+/** Names for the pairs in the written-out form, keyed the same way. */
+const NAMES_LANG = {
+  '76:Last time': 'lastTime',
+  '230:What do you do? (optional)': 'rolePlaceholder',
+  '247:See all': 'seeAllShort',
+  '314:Mail': 'mailAppName',
+  '329:Not needed': 'notNeeded',
+  '365:Tmw ': 'tmwPrefix',
+  '388:h ': 'hourSuffix',
+  '388:m': 'minuteSuffix',
+  '388: min': 'minSuffix',
+  '499:Overdue': 'overdue',
+  '499:Snoozed': 'snoozed',
+  '542:h ': 'hourSuffix',
+  '542:m': 'minuteSuffix',
+  '542: min': 'minSuffix',
+  '574:Contact details (optional)': 'contactDetailsOptional',
+  '575:Save contact': 'saveContact',
+  '576:Opens WhatsApp with a draft — you hit send': 'opensWhatsApp',
+  '576:Opens Mail with a draft — you hit send': 'opensMail',
+  '576:Opens your phone app': 'opensPhone',
+  '577:Delete contact': 'deleteContact',
+  '578:Delete this contact? Their history goes too.': 'deleteContactConfirm',
+  '578:Contact deleted': 'toastContactDeleted',
+  '580:Open': 'openLink',
+  '613:From yesterday': 'fromYesterday',
+  '632:Where do you talk to people?': 'channelsQuestion',
+  '632:I write the draft. You send it from the app you already use.': 'channelsNote',
+  '652:Resume · ': 'resumePrefix',
+  '652: left': 'resumeSuffix',
+  '671:Calling…': 'calling',
+  '672:No, I didn’t send it yet': 'notSentYet',
+  '672:Okay — the draft is saved. Still on your list.': 'draftSavedToast',
+  '700:Show all': 'showAll',
+  '702:Rest → tomorrow': 'restToTomorrow',
+};
+
+/**
+ * Pairs in that shape which are not copy, with why. Listed rather than
+ * pattern-matched so a new one upstream has to be looked at.
+ */
+const NOT_COPY_LANG = {
+  '67:Khalid': "the demo user's first name — demo data, not UI copy",
+  '83:en-GB': 'a locale identifier',
+  '180:chevR': 'an icon name (the chevron mirrors in Arabic)',
+  '190:18px': 'a layout offset',
+  '246:Khalid': "the demo user's first name again",
+  '267:Mohammed Al-Saadi': 'a demo contact name',
+  '267:Sara': 'a demo contact name',
+  '614:Tmw 09:00': "a demo-state label, set by the prototype's own demo tools",
+  '622:ltr': 'a writing-direction value',
+  '636:18px': 'a layout offset',
+};
+
 const lines = fs.readFileSync(SRC, 'utf8').split('\n');
 const found = {};
 const unnamed = [];
@@ -63,7 +127,21 @@ lines.forEach((line, i) => {
   }
 });
 
-const missing = Object.values(NAMES).filter((k) => !(k in found));
+lines.forEach((line, i) => {
+  const lineNo = i + 1;
+  for (const m of line.matchAll(PAIR_LANG)) {
+    const key = `${lineNo}:${m[2]}`;
+    if (key in NOT_COPY_LANG) continue;
+    const name = NAMES_LANG[key];
+    if (!name) {
+      unnamed.push({ line: lineNo, en: m[2], ar: m[1] });
+      continue;
+    }
+    found[name] = { en: m[2], ar: m[1] };
+  }
+});
+
+const missing = [...Object.values(NAMES), ...Object.values(NAMES_LANG)].filter((k) => !(k in found));
 if (missing.length) {
   throw new Error('Expected pairs not found in app-logic.js: ' + missing.join(', '));
 }

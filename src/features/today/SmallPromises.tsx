@@ -30,12 +30,12 @@ export function SmallPromises({
   onSeeAll: () => void;
   onBrainDump: () => void;
 }) {
-  const { t, isRTL } = useLanguage();
+  const { t, inline } = useLanguage();
   const dir = useDirection();
 
   // Today's link is a plain "See all"; the counted "See all {n} tasks" is the
   // Tasks screen's own button (app-logic.js: seeAllL vs moreLabel).
-  const seeAllLabel = isRTL ? 'الكل' : 'See all';
+  const seeAllLabel = inline.seeAllShort;
 
   const visible = tasks.slice(0, VISIBLE_ROWS);
   // The divider sits above the first task still to come.

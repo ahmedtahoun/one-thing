@@ -8,6 +8,7 @@
 import { useState } from 'react';
 import { Pressable, TextInput, View } from 'react-native';
 
+import { BalancedText } from '@/ui/BalancedText';
 import { Text } from '@/ui/Text';
 import { ONE_THING_SUGGESTIONS } from '@/content/seed';
 import { fontFamily, ink, radius, surface } from '@/design/tokens';
@@ -44,9 +45,11 @@ export function FirstRunCard({
       <Text token="eyebrow" color={ink.s6}>
         {inline.firstRunEyebrow}
       </Text>
-      <Text token="h2" color={surface.white}>
+      {/* The question is one of the few places the prototype sets a
+          line-height (1.2), and it balances its wrap. */}
+      <BalancedText token="h2" lh={31.2} color={surface.white}>
         {inline.firstRunQuestion}
-      </Text>
+      </BalancedText>
 
       <View
         style={{
@@ -133,7 +136,7 @@ export function FirstRunCard({
         onPress={onLater}
         accessibilityRole="button"
         hitSlop={8}
-        style={{ alignSelf: dir.isRTL ? 'flex-end' : 'flex-start', paddingVertical: 4 }}
+        style={{ alignSelf: 'flex-start', paddingVertical: 4 }}
       >
         <Text token="caption" color={ink.s6}>
           {inline.firstRunLater}

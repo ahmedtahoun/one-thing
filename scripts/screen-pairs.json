@@ -1,8 +1,42 @@
 [
-  { "name": "en-sign-in", "app": "en-01-sign-in.png", "proto": "en-01-sign-in.png" },
-  { "name": "ar-sign-in", "app": "ar-01-sign-in.png", "proto": "ar-01-sign-in.png" },
-  { "name": "en-setup", "app": "en-02-account-setup.png", "proto": "en-02-account-setup.png" },
-  { "name": "ar-setup", "app": "ar-02-account-setup.png", "proto": "ar-02-account-setup.png" },
-  { "name": "en-today", "app": "en-06-today.png", "proto": "en-09-today.png" },
-  { "name": "ar-today", "app": "ar-06-today.png", "proto": "ar-09-today.png" }
+  {
+    "name": "en-sign-in",
+    "app": "en-01-sign-in.png",
+    "proto": "en-01-sign-in.png"
+  },
+  {
+    "name": "ar-sign-in",
+    "app": "ar-01-sign-in.png",
+    "proto": "ar-01-sign-in.png"
+  },
+  {
+    "name": "en-setup",
+    "app": "en-02-account-setup.png",
+    "proto": "en-02-account-setup.png"
+  },
+  {
+    "name": "ar-setup",
+    "app": "ar-02-account-setup.png",
+    "proto": "ar-02-account-setup.png"
+  },
+  {
+    "name": "en-today",
+    "app": "en-06-today.png",
+    "proto": "en-09-today.png"
+  },
+  {
+    "name": "ar-today",
+    "app": "ar-06-today.png",
+    "proto": "ar-09-today.png"
+  },
+  {
+    "name": "en-tasks",
+    "app": "en-07-tasks.png",
+    "proto": "en-10-all-tasks.png"
+  },
+  {
+    "name": "ar-tasks",
+    "app": "ar-07-tasks.png",
+    "proto": "ar-10-all-tasks.png"
+  }
 ]

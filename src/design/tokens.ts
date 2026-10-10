@@ -23,6 +23,12 @@ export const ink = {
   s5: '#8A8A86',
   /** Disabled text, chevrons. Non-essential hints only — fails 4.5:1 on white. */
   s6: '#A8A8A3',
+  /** Faintest marks: an empty reminder bell, the sign-in consent checkbox. */
+  s7: '#C9C9C5',
+  /** Secondary text on an ink card — "10:00 · Mohammed" under an Up next title. */
+  onInk: '#B8B8B3',
+  /** A completed task's title, and an inactive tab label. */
+  muted: '#9A9A96',
   /** Disabled primary-button background. */
   disabledBtn: '#B5B5B0',
 } as const;
@@ -42,8 +48,14 @@ export const surface = {
   trackOff: '#D6D6D2',
   /** Cards, screen bg. */
   white: '#FFFFFF',
-  /** Sign-in consent checkbox border when unchecked. SCREENS § 01. */
+  /** Sign-in consent checkbox border when unchecked. SCREENS § 01. Same grey as ink.s7. */
   checkbox: '#C9C9C5',
+  /** Progress-bar track — Tasks header. */
+  progressTrack: '#ECEBE7',
+  /** Hairline border on an ink card: outlined chips, the Up next side buttons. */
+  onInkLine: '#3A3A38',
+  /** Bottom-sheet grab handle. The add sheet uses `line` instead. */
+  handle: '#DCDCD8',
 } as const;
 
 export type TaskType =
@@ -91,8 +103,22 @@ export const status = {
   noteFg: '#6F4F07',
   /** Paywall "Save 40%" tag. */
   saveTag: '#298646',
-  /** Snoozed pill. */
-  snoozeFg: '#6C44A4',
+  /**
+   * Overdue pill text. README gives danger-fg as a range,
+   * `oklch(0.5–0.55 0.17 25)`; the prototype spends the darker end on this
+   * pill and the lighter one on the Now line, so both are tokens.
+   */
+  overdueFg: '#B02A2D',
+  /**
+   * Snoozed pill text, `oklch(0.5 0.14 300)`.
+   *
+   * This was previously #6C44A4. That value is `oklch(0.48 0.15 300)`, which
+   * only ever appears in source/admin-logic.js — it is the admin panel's
+   * reminder colour, not the app's Snoozed pill.
+   */
+  snoozeFg: '#714CA6',
+  /** "in 40 min" on the Up next card, which sits on ink. */
+  onInkUrgent: '#FB9890',
   /** Trial / info pill. */
   infoBg: '#D8EEFF',
   infoFg: '#004E90',
@@ -132,54 +158,64 @@ export const space = {
 } as const;
 
 /**
+ * What `line-height: normal` comes to for IBM Plex Sans Arabic at a given
+ * size — and what the prototype therefore renders wherever it leaves
+ * line-height unset, which is nearly everywhere.
+ *
+ * The font's hhea and OS/2 typo metrics are ascender 1085 and descender −415
+ * over 1000 units per em, with no line gap. A browser rounds each to whole
+ * pixels and adds them, so the ratio is only exactly 1.5 at sizes where both
+ * land on integers: 11 pt comes to 17 (1.545), 13 to 19 (1.462), 15 to 22
+ * (1.467), 10.5 to 15 (1.429). The formula below was checked against
+ * Chromium at every size in the scale and matched all seventeen.
+ *
+ * That is why the ratio matters: assuming a flat 1.5 — or README's own
+ * figures — is wrong by up to half a point a line, which compounds down a
+ * long screen and is exactly what ACCEPTANCE.md's ±2 pt is measuring.
+ */
+const ASCENDER = 1.085;
+const DESCENDER = 0.415;
+
+export function naturalLineHeight(size: number): number {
+  return Math.round(ASCENDER * size) + Math.round(DESCENDER * size);
+}
+
+/** The nominal ratio the metrics give. Use `naturalLineHeight()` to lay out. */
+export const NATURAL_LINE_HEIGHT = 1.5;
+
+/**
  * Type scale.
  *
  * Sizes are pt (== px at 1x). `lh` is an absolute line height, because React
  * Native's lineHeight is absolute rather than a multiplier.
  *
- * The values are the ones the prototype actually computes, measured by
- * `scripts/measure-prototype-type.js`, not the ratios in README.md's table —
- * the two disagree in three places and the screenshots show the prototype:
- *   body-s  README 1.5 (21.0) -> prototype 1.45 (20.3)
- *   caption README 1.45 (18.85) -> prototype 1.45 (18.85), agrees
- *   micro   README 1.4 (16.8) -> prototype 1.5 (18.0)
- * A 0.7 pt difference compounds down a long screen, which is what
- * ACCEPTANCE.md's "±2 pt" is measuring. Individual screens may still override
- * `lineHeight` where the prototype does; the comparison harness will say so.
+ * Every token but `display` takes its natural line height, because that is
+ * what the prototype renders: of roughly 300 sized elements in it, fewer than
+ * 30 set a line-height at all. README.md's Line-height column (1.45 for body,
+ * 1.4 for micro, 1 for eyebrow and tab, 1.2 for h1) describes the intent, not
+ * the artefact the screenshots and ACCEPTANCE.md come from — see
+ * BUILD-REVIEW.md §2.16. `display` is the exception: every hero in the
+ * prototype sets 1.15 explicitly.
+ *
+ * Where a particular element does set a line-height — a few 15 pt paragraphs
+ * at 1.5, some headings at 1.2 — the screen passes `lh` to <Text> and says
+ * which element it is matching.
  */
 export const type = {
   display: { size: 32, weight: '600', lh: 36.8, tracking: -0.32 },
-  h1: { size: 28, weight: '600', lh: 33.6 },
-  h2: { size: 26, weight: '600', lh: 31.2 },
-  h3: { size: 22, weight: '600', lh: 28.6 },
-  /** The prototype leaves 17 px unstyled for line-height, so it is natural. */
-  title: { size: 17, weight: '600', lh: 25.5 },
-  bodyL: { size: 16, weight: '400', lh: 24 },
-  body: { size: 15, weight: '400', lh: 22.5 },
-  bodyS: { size: 14, weight: '400', lh: 20.3 },
-  caption: { size: 13, weight: '400', lh: 18.85 },
-  micro: { size: 12, weight: '400', lh: 18 },
-  /**
-   * UPPERCASE, letter-spacing .14em. The prototype sets no line-height on
-   * eyebrows or tab labels, so both take the font's own metrics — see
-   * NATURAL_LINE_HEIGHT below. Using the font size itself left every eyebrow
-   * 5 pt short, which compounded down the screen.
-   */
-  eyebrow: { size: 11, weight: '600', lh: 16.5, tracking: 1.54 },
-  tab: { size: 10.5, weight: '500', lh: 15.75, tracking: 0.105 },
+  h1: { size: 28, weight: '600', lh: naturalLineHeight(28) },
+  h2: { size: 26, weight: '600', lh: naturalLineHeight(26) },
+  h3: { size: 22, weight: '600', lh: naturalLineHeight(22) },
+  title: { size: 17, weight: '600', lh: naturalLineHeight(17) },
+  bodyL: { size: 16, weight: '400', lh: naturalLineHeight(16) },
+  body: { size: 15, weight: '400', lh: naturalLineHeight(15) },
+  bodyS: { size: 14, weight: '400', lh: naturalLineHeight(14) },
+  caption: { size: 13, weight: '400', lh: naturalLineHeight(13) },
+  micro: { size: 12, weight: '400', lh: naturalLineHeight(12) },
+  /** UPPERCASE, letter-spacing .14em. */
+  eyebrow: { size: 11, weight: '600', lh: naturalLineHeight(11), tracking: 1.54 },
+  tab: { size: 10.5, weight: '500', lh: naturalLineHeight(10.5), tracking: 0.105 },
 } as const;
-
-/**
- * What `line-height: normal` resolves to for IBM Plex Sans Arabic: its hhea
- * and OS/2 typo metrics are ascender 1085, descender -415, lineGap 0 over 1000
- * units per em — exactly 1.5. The ratio is this high because the Arabic glyphs
- * need the room.
- *
- * Wherever the prototype leaves line-height unset, the rendered height is
- * `fontSize * NATURAL_LINE_HEIGHT`. Use it rather than guessing when a screen
- * needs to match a block the prototype did not style.
- */
-export const NATURAL_LINE_HEIGHT = 1.5;
 
 /** The font family the whole app ships in, EN and AR alike. README § Typography. */
 export const fontFamily = 'IBMPlexSansArabic';
@@ -200,6 +236,11 @@ export const motion = {
   toastDismiss: 4000,
   /** Press-and-hold on the mic orb before Brain dump opens. */
   micHold: 450,
+  /**
+   * How long a just-ticked task stays where it was, faded, before it moves
+   * into "Done today" — so the list does not jump under the finger.
+   */
+  doneRowLinger: 1100,
   /** Focus screen dims its UI after this long with no touch. */
   focusIdleDim: 4000,
   easing: [0.2, 0.8, 0.2, 1] as const,

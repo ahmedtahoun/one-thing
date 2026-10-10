@@ -6,6 +6,7 @@ import { View } from 'react-native';
 
 import { Button } from '@/ui/Button';
 import { Icon } from '@/ui/Icon';
+import { BalancedText } from '@/ui/BalancedText';
 import { Text } from '@/ui/Text';
 import { ink, radius, surface } from '@/design/tokens';
 import { useDirection, useLanguage } from '@/i18n/LanguageProvider';
@@ -43,9 +44,10 @@ export function EveningCard({
         </Text>
       </View>
 
-      <Text token="h1" color={surface.white}>
+      {/* 28 / 1.2, balanced — same treatment as the One Thing title. */}
+      <BalancedText token="h1" lh={33.6} color={surface.white}>
         {t.ev_t}
-      </Text>
+      </BalancedText>
 
       <View style={{ gap: 4 }}>
         <Text token="bodyS" color="#C9C9C5">

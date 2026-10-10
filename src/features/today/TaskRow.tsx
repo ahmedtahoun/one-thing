@@ -14,6 +14,7 @@ import { LTRText, Text } from '@/ui/Text';
 import { TYPE_ICON } from '@/design/icon-paths';
 import { ink, radius, status, surface, typeColour } from '@/design/tokens';
 import { useDirection, useLanguage } from '@/i18n/LanguageProvider';
+import type { InlineCopy } from '@/content/inline-copy';
 import { minutesUntil, timeLabel, type Task } from '@/lib/model-types';
 
 /** How far a swipe must travel before it commits. */
@@ -36,7 +37,7 @@ export function TaskRow({
   onOpen: () => void;
   onReschedule: () => void;
 }) {
-  const { t, isRTL } = useLanguage();
+  const { t, inline, isRTL } = useLanguage();
   const dir = useDirection();
   const colour = typeColour[task.type];
   const done = task.status === 'done';
@@ -88,7 +89,7 @@ export function TaskRow({
   const minutes = minutesUntil(task);
   const relative =
     showRelative && minutes !== null && minutes > 0
-      ? t.relIn.replace('{m}', formatGap(minutes, isRTL))
+      ? t.relIn.replace('{m}', formatGap(minutes, inline))
       : '';
 
   return (
@@ -212,11 +213,14 @@ export function TaskRow({
   );
 }
 
-/** "40 min", or "1h 20m" once it is over an hour, matching the prototype. */
-function formatGap(minutes: number, isRTL: boolean): string {
-  if (minutes < 60) return `${minutes}${isRTL ? ' دقيقة' : ' min'}`;
+/**
+ * "40 min", or "1h 20m" once it is over an hour, matching the prototype.
+ * The suffixes are the handoff's own, ported by scripts/extract-inline-copy.js.
+ */
+export function formatGap(minutes: number, inline: InlineCopy): string {
+  if (minutes < 60) return `${minutes}${inline.minSuffix}`;
   const hours = Math.floor(minutes / 60);
   const rest = minutes % 60;
-  const h = `${hours}${isRTL ? 'س ' : 'h '}`;
-  return rest ? `${h}${rest}${isRTL ? 'د' : 'm'}` : h.trim();
+  const h = `${hours}${inline.hourSuffix}`;
+  return rest ? `${h}${rest}${inline.minuteSuffix}` : h.trim();
 }

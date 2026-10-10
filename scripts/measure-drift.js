@@ -37,7 +37,9 @@ const KNOWN_DEVIATIONS = {
     'enough to wrap "…and Privacy / Policy." onto a second line there and not ' +
     'here. That extra line lifts the vertically-centred hero. We follow the ' +
     'written spec — BUILD-REVIEW.md §2.11.',
-  'sign-in/ar/hero': 'Same cause as sign-in/en/hero — BUILD-REVIEW.md §2.11.',
+  // sign-in/ar/hero was listed here too. Once the writing direction stopped
+  // being applied twice and the type scale took the font's real metrics, the
+  // Arabic hero came back inside tolerance on its own, so the entry is gone.
 };
 
 const FONT_DIR = path.join(ROOT, 'node_modules/@expo-google-fonts/ibm-plex-sans-arabic');
@@ -74,6 +76,23 @@ const PROBES = {
       quickActions: { en: 'QUICK ACTIONS', ar: 'إجراءات سريعة' },
       smallPromises: { en: 'Small promises', ar: 'التزاماتك الصغيرة' },
       firstRow: { en: 'Follow up on price quote', ar: 'متابعة عرض السعر' },
+    },
+  },
+  tasks: {
+    app: '/tasks',
+    proto: '10',
+    state: { signedIn: true, firstRun: false, seedTasks: true, oneThing: true },
+    labels: {
+      title: { en: 'Tasks', ar: 'المهام' },
+      progress: { en: '2 of 12 done today', ar: '2 من 12 تمّت اليوم' },
+      upNextEyebrow: { en: 'UP NEXT', ar: 'الجاي' },
+      upNextTitle: { en: 'Follow up on price quote', ar: 'متابعة عرض السعر' },
+      upNextAction: { en: 'Open WhatsApp draft', ar: 'افتح مسودة الواتساب' },
+      morning: { en: 'This morning', ar: 'الصبح' },
+      afternoon: { en: 'This afternoon', ar: 'الظهر والعصر' },
+      firstAfternoonRow: { en: 'Confirm Friday catering order', ar: 'تأكيد طلب ضيافة الجمعة' },
+      evening: { en: 'This evening', ar: 'المسا' },
+      tomorrow: { en: 'Tomorrow', ar: 'بكرة' },
     },
   },
   'sign-in': {
@@ -245,6 +264,7 @@ async function measurePrototype(lang, probe, designDir) {
   }
 
   const key = (r) => `${r.screen}/${r.lang}/${r.element}`;
+  const measured = results.filter((r) => r.drift !== null);
   const unresolved = results.filter((r) => r.drift === null);
   const over = results.filter((r) => r.drift !== null && Math.abs(r.drift) > TOLERANCE_PT);
   const failing = over.filter((r) => !(key(r) in KNOWN_DEVIATIONS));
@@ -257,9 +277,21 @@ async function measurePrototype(lang, probe, designDir) {
       {
         tolerancePt: TOLERANCE_PT,
         probes: results.length,
-        worstDrift: results.reduce(
-          (m, r) => (r.drift === null || key(r) in KNOWN_DEVIATIONS ? m : Math.max(m, Math.abs(r.drift))),
+        worstDrift: measured.reduce(
+          (m, r) => (key(r) in KNOWN_DEVIATIONS ? m : Math.max(m, Math.abs(r.drift))),
           0
+        ),
+        // The five furthest out, so a drift creeping up on the tolerance is
+        // visible before it crosses it.
+        worst: [...measured]
+          .filter((r) => !(key(r) in KNOWN_DEVIATIONS))
+          .sort((a, b) => Math.abs(b.drift) - Math.abs(a.drift))
+          .slice(0, 5)
+          .map((r) => `${key(r)} ${r.drift > 0 ? '+' : ''}${r.drift}`),
+        // A deviation we no longer need is a claim that has stopped being
+        // true, so it is reported rather than left in the file.
+        staleDeviations: Object.keys(KNOWN_DEVIATIONS).filter(
+          (k) => !over.some((r) => key(r) === k)
         ),
         failing,
         accepted,

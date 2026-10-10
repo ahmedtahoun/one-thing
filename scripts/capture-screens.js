@@ -64,6 +64,7 @@ const ROUTES = [
   { path: '/today', name: '06-today-first-run', signedIn: true },
   { path: '/today', name: '06-today', signedIn: true, firstRun: false, seedTasks: true, oneThing: true },
   { path: '/today', name: '06-today-empty', signedIn: true, firstRun: false },
+  { path: '/tasks', name: '07-tasks', signedIn: true, firstRun: false, seedTasks: true, oneThing: true },
 ];
 
 const MIME = {

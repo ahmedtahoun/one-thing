@@ -85,7 +85,7 @@ export default function Setup() {
         accessibilityRole="button"
         accessibilityLabel={a11y.back}
         hitSlop={12}
-        style={{ paddingVertical: 6, alignSelf: dir.isRTL ? 'flex-end' : 'flex-start' }}
+        style={{ paddingVertical: 6, alignSelf: 'flex-start' }}
       >
         <Icon name="back" size={24} strokeWidth={2} />
       </Pressable>
@@ -94,7 +94,7 @@ export default function Setup() {
         <Text token="bodyS" color={ink.s4}>
           {su.hello[0]}
         </Text>
-        <Text token="h1" style={{ fontSize: 30, lineHeight: 36 }}>
+        <Text token="h1" size={30} lh={36}>
           {su.q[0]}
         </Text>
         <Text token="body" color={ink.s3}>

@@ -63,7 +63,7 @@ export function useToast() {
 /** Renders the active toast. Mount once per screen that can raise one. */
 export function Toast() {
   const state = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
-  const { t } = useLanguage();
+  const { t, dir: writingDirection } = useLanguage();
   const dir = useDirection();
   const anim = useRef(new Animated.Value(0)).current;
 
@@ -87,6 +87,8 @@ export function Toast() {
         right: 20,
         bottom: 110,
         alignItems: 'center',
+        // Outside <Screen>, so it carries the writing direction itself.
+        direction: writingDirection,
         opacity: anim,
         transform: [{ translateY: anim.interpolate({ inputRange: [0, 1], outputRange: [12, 0] }) }],
       }}

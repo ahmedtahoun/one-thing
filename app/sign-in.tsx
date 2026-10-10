@@ -57,7 +57,9 @@ export default function SignIn() {
 
       <View style={{ gap: 12 }}>
         <Checkbox testID="consent-terms" checked={terms} onToggle={() => setTerms((v) => !v)}>
-          <Text token="bodyS" color={ink.s2}>
+          {/* Both consent rows set 1.45 in the prototype rather than taking
+              the font's own line height. */}
+          <Text token="bodyS" lh={20.3} color={ink.s2}>
             {si.terms1}{' '}
             <Text
               token="bodyS"
@@ -89,8 +91,8 @@ export default function SignIn() {
         </Checkbox>
 
         <Checkbox testID="consent-marketing" checked={marketing} onToggle={() => setMarketing((v) => !v)}>
-          <Text token="bodyS" color={ink.s2}>
-            {si.mkt} <Text token="bodyS" color={ink.s5}>{si.opt}</Text>
+          <Text token="bodyS" lh={20.3} color={ink.s2}>
+            {si.mkt} <Text token="bodyS" lh={20.3} color={ink.s5}>{si.opt}</Text>
           </Text>
         </Checkbox>
 

@@ -16,7 +16,8 @@
     "content:port": "node scripts/port-content.js",
     "content:inline": "node scripts/extract-inline-copy.js",
     "measure": "node scripts/measure-prototype-type.js",
-    "drift": "node scripts/measure-drift.js"
+    "drift": "node scripts/measure-drift.js",
+    "smoke": "node scripts/smoke-tasks.js"
   },
   "dependencies": {
     "@expo-google-fonts/ibm-plex-sans-arabic": "^0.4.2",

@@ -98,21 +98,29 @@ export function useLanguage(): LanguageValue {
 /**
  * Layout helpers for the active direction.
  *
- * `row` mirrors a horizontal stack, `start`/`end` give the leading and trailing
- * physical sides, and `flip` negates a horizontal offset. Chevrons and back
- * arrows mirror; phone numbers, times, prices and links do not — wrap those in
- * `<LTR>` instead (see src/ui/LTR.tsx).
+ * The writing direction is set once, on each root a screen owns — `Screen`,
+ * `Sheet`, `TabBar`, `Toast` — and everything inside resolves against it.
+ * Yoga and CSS both lay out `flexDirection: 'row'` from the writing
+ * direction's own start edge, and both resolve `paddingStart` / `paddingEnd`
+ * and a column's `flex-start` / `flex-end` the same way. So inside a root
+ * that sets `direction`, a row must stay `'row'`: writing `'row-reverse'` as
+ * well mirrors it twice and puts it back the way it started.
+ *
+ * `row` is kept as a helper so a row that should follow the writing direction
+ * says so, and so there is one place to explain this.
+ *
+ * Mirroring a *glyph* is different and still has to be asked for — a back
+ * chevron is flipped with `scaleX`, see app/legal.tsx. Gestures convert the
+ * other way, from a physical drag to a logical one: see TaskRow.
  */
 export function useDirection() {
   const { isRTL } = useLanguage();
   return useMemo(
     () => ({
       isRTL,
-      row: (isRTL ? 'row-reverse' : 'row') as 'row' | 'row-reverse',
+      /** Always 'row'. See above — the direction on the root does the work. */
+      row: 'row' as const,
       textAlign: (isRTL ? 'right' : 'left') as 'right' | 'left',
-      start: isRTL ? ('right' as const) : ('left' as const),
-      end: isRTL ? ('left' as const) : ('right' as const),
-      flip: (n: number) => (isRTL ? -n : n),
       /** Degrees to rotate a right-pointing chevron so it points forward. */
       forwardChevron: isRTL ? 180 : 0,
     }),
