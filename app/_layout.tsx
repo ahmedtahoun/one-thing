@@ -12,6 +12,7 @@ import {
 } from '@expo-google-fonts/ibm-plex-sans-arabic';
 
 import { LanguageProvider } from '@/i18n/LanguageProvider';
+import { NotificationsProvider } from '@/lib/notifications/NotificationsProvider';
 import { PeopleProvider } from '@/lib/people';
 import { PrefsProvider } from '@/lib/prefs';
 import { SessionProvider } from '@/lib/session';
@@ -45,15 +46,19 @@ export default function RootLayout() {
           <PrefsProvider>
             <TasksProvider>
               <PeopleProvider>
-                <StatusBar style="dark" />
-                <Stack
-                  screenOptions={{
-                    headerShown: false,
-                    animation: 'fade',
-                    animationDuration: motion.screenChange,
-                    contentStyle: { backgroundColor: '#FFFFFF' },
-                  }}
-                />
+                {/* Below the stores it reads, so it can keep the OS's
+                    pending reminders in step with them. */}
+                <NotificationsProvider>
+                  <StatusBar style="dark" />
+                  <Stack
+                    screenOptions={{
+                      headerShown: false,
+                      animation: 'fade',
+                      animationDuration: motion.screenChange,
+                      contentStyle: { backgroundColor: '#FFFFFF' },
+                    }}
+                  />
+                </NotificationsProvider>
               </PeopleProvider>
             </TasksProvider>
           </PrefsProvider>

@@ -64,3 +64,13 @@ const results = pairs.map(({ app, proto, name }) => {
 });
 
 console.log(JSON.stringify(results, null, 2));
+
+// The percentage is advisory — it is dominated by glyph antialiasing, so any
+// threshold would be arbitrary. A missing or mismatched capture is not: it
+// means a screen listed in screen-pairs.json was never rendered, and silently
+// passing that would make the whole comparison worthless.
+const broken = results.filter((r) => r.error);
+if (broken.length) {
+  console.error('\nCould not compare:\n' + broken.map((r) => `  ${r.name}: ${r.error}`).join('\n'));
+  process.exit(1);
+}

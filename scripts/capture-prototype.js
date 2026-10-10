@@ -11,7 +11,7 @@
  *   node scripts/capture-prototype.js <path to design_handoff_the_one_thing> [outDir]
  */
 'use strict';
-const { chromium } = require('playwright');
+const { launch: launchChromium } = require('./browser.js');
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
@@ -73,7 +73,7 @@ const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.jsx': 'text/jav
     ([weight, file]) => `@font-face{font-family:'IBM Plex Sans Arabic';font-style:normal;font-weight:${weight};font-display:block;src:url(http://127.0.0.1:${port}/__font/${file}) format('truetype');}`
   ).join('\n');
 
-  const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome' });
+  const browser = await launchChromium();
   const ctx = await browser.newContext({ viewport: { width: 1400, height: 1100 }, deviceScaleFactor: 2 });
 
   await ctx.route(/unpkg\.com/, (route) => {

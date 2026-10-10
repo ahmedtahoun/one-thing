@@ -10,7 +10,7 @@
  *   node scripts/smoke-tasks.js
  */
 'use strict';
-const { chromium } = require('playwright');
+const { launch: launchChromium } = require('./browser.js');
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
@@ -31,7 +31,7 @@ const check = (name, ok, detail='') => checks.push({ name, ok: !!ok, detail });
 (async () => {
   await new Promise(r=>srv.listen(0,'127.0.0.1',r));
   const port = srv.address().port;
-  const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome' });
+  const browser = await launchChromium();
   const ctx = await browser.newContext({ viewport: { width: 402, height: 874 }, deviceScaleFactor: 2, locale: 'en-GB' });
   const page = await ctx.newPage();
   const errors = [];

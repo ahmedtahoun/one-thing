@@ -1,0 +1,77 @@
+# What has to be true before anything merges.
+#
+# Split in two because the costs differ by an order of magnitude: `checks`
+# finishes in under a minute and catches most mistakes, while `fidelity`
+# renders both the app and the design prototype in a real browser and is
+# worth several minutes. Both run on every push and pull request, because the
+# fidelity harness is the one thing standing between this build and a slow
+# drift away from the design — see README § Verification.
+name: Checks
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: Types and colours
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Typecheck
+        run: npm run typecheck
+      - name: OKLCH colours match Chromium
+        run: npm run verify:colours
+
+  fidelity:
+    name: Fidelity and behaviour
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+
+      - name: Screenshot the design prototype
+        run: npm run capture:prototype
+      - name: Export and screenshot the app
+        run: npm run capture:app
+
+      # Reported, not enforced: the number is dominated by glyph antialiasing,
+      # so a threshold here would either be too loose to mean anything or too
+      # tight to survive a font-rendering change on the runner.
+      - name: Pixel difference per screen
+        run: npm run compare
+
+      # This one does gate. It is the check ACCEPTANCE.md actually asks for:
+      # every probed element within 2 pt of where the prototype puts it.
+      - name: Element drift within 2 pt
+        run: npm run drift
+
+      - name: Behaviour
+        run: npm run smoke
+
+      - name: Keep the screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: screens
+          path: |
+            .screens/
+            .screens-prototype/
+          retention-days: 14
+          if-no-files-found: ignore

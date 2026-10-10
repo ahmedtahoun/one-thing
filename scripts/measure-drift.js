@@ -12,7 +12,7 @@
  * Add to PROBES as screens are built.
  */
 'use strict';
-const { chromium } = require('playwright');
+const { launch: launchChromium } = require('./browser.js');
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
@@ -257,7 +257,7 @@ async function measureApp(lang, screen, probe) {
   await new Promise((r) => server.listen(0, '127.0.0.1', r));
   const port = server.address().port;
 
-  const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome' });
+  const browser = await launchChromium();
   const ctx = await browser.newContext({ viewport: FRAME, deviceScaleFactor: 2, locale: lang === 'ar' ? 'ar-SA' : 'en-GB' });
   const page = await ctx.newPage();
   const frozen = new Date();
@@ -305,7 +305,7 @@ async function measurePrototype(lang, probe, designDir) {
     ([w, f]) => `@font-face{font-family:'IBM Plex Sans Arabic';font-weight:${w};font-display:block;src:url(http://127.0.0.1:${port}/__font/${f}) format('truetype');}`
   ).join('\n');
 
-  const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome' });
+  const browser = await launchChromium();
   const ctx = await browser.newContext({ viewport: { width: 1400, height: 1100 }, deviceScaleFactor: 2 });
   await ctx.route(/unpkg\.com/, (r) => {
     const local = CDN[r.request().url().replace('https://unpkg.com/', '')];

@@ -11,7 +11,7 @@
  *   node scripts/capture-screens.js [outDir]
  */
 'use strict';
-const { chromium } = require('playwright');
+const { launch: launchChromium } = require('./browser.js');
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
@@ -115,9 +115,7 @@ function serve(dir) {
   await new Promise((r) => server.listen(0, '127.0.0.1', r));
   const port = server.address().port;
 
-  const browser = await chromium.launch({
-    executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome',
-  });
+  const browser = await launchChromium();
   const results = [];
 
   for (const lang of ['en', 'ar']) {

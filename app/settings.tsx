@@ -33,6 +33,7 @@ import type { Lang } from '@/content/strings';
 import { useAccount } from '@/lib/account';
 import { POLICY_VERSION, recordConsent } from '@/lib/consent';
 import type { Channel, NudgeStyle, Prefs } from '@/lib/model-types';
+import { useNotifications } from '@/lib/notifications/NotificationsProvider';
 import { usePrefs } from '@/lib/prefs';
 import { useSession } from '@/lib/session';
 import { useTasks } from '@/lib/tasks';
@@ -59,6 +60,7 @@ export default function Settings() {
   const dir = useDirection();
   const { session } = useSession();
   const { prefs, setPrefs } = usePrefs();
+  const { allowed, ask } = useNotifications();
   const { setFocusMinutes } = useTasks();
   const { signOut, deleteAccount } = useAccount();
   const toast = useToast();
@@ -98,7 +100,13 @@ export default function Settings() {
     setFocusMinutes(minutes);
   };
 
-  const openPhoneSettings = () => {
+  /**
+   * SCREENS.md § 21–23 says this row "opens OS settings". It asks first when
+   * the OS will still show its own prompt — being sent to Settings before
+   * ever being asked is a dead end — and otherwise does what the spec says.
+   */
+  const openPhoneSettings = async () => {
+    if (allowed !== true && (await ask())) return;
     toast.show(inline.openingSettings, { undo: false });
     if (Platform.OS !== 'web') Linking.openSettings().catch(() => {});
   };
@@ -282,7 +290,11 @@ export default function Settings() {
             testID="settings-notifications"
             tile={<RowTile icon="phone" {...settingsTile.notifications} />}
             label={inline.notifications}
-            value={inline.on}
+            // SCREENS.md § 21–23 shows this row's value as "On". The handoff
+            // has no wording for the other case, so when the user has
+            // actually refused, the row carries no value rather than
+            // claiming one — BUILD-REVIEW.md §2.25.
+            value={allowed === false ? '' : inline.on}
             open={open === 'notifications'}
             onToggle={() => toggle('notifications')}
           />
@@ -307,9 +319,13 @@ export default function Settings() {
                     {inline.managedInSettings}
                   </Text>
                 </View>
-                <Text token="caption" weight="600" color={status.successFg}>
-                  {inline.notificationsOn}
-                </Text>
+                {/* The handoff has no "Off" string, so the green "On" is
+                    simply absent once the user has refused. */}
+                {allowed !== false ? (
+                  <Text token="caption" weight="600" color={status.successFg}>
+                    {inline.notificationsOn}
+                  </Text>
+                ) : null}
                 <ForwardChevron />
               </Pressable>
               <ToggleRow

@@ -2,13 +2,13 @@
 // paints for the same oklch() string, because that is what the design
 // prototype was reviewed in. Usage: node scripts/verify-oklch.js <list.txt>
 'use strict';
-const { chromium } = require('playwright');
+const { launch: launchChromium } = require('./browser.js');
 const fs = require('fs');
 const { oklchStringToHex } = require('./oklch.js');
 
 (async () => {
   const colours = fs.readFileSync(process.argv[2], 'utf8').split('\n').map((s) => s.trim()).filter(Boolean);
-  const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome' });
+  const browser = await launchChromium();
   const page = await browser.newPage();
   await page.setContent('<div id="probe"></div>');
 

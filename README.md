@@ -80,6 +80,7 @@ same size and diff them.
 
 ```sh
 npm run typecheck
+npm test                   # the rules that do not need a device
 npm run verify:colours     # OKLCH -> sRGB, against Chromium
 npm run schema:check       # applies migrations to a scratch Postgres
 npm run capture:prototype  # screenshots the handoff's prototype at 402 x 874
@@ -90,6 +91,12 @@ npm run smoke              # drives Tasks, People, Follow-ups, Settings and Comp
 ```
 
 Each reads `design-handoff/`. To point at a different copy, set `HANDOFF=`.
+They render in Chromium — `npx playwright install chromium` once, or set
+`CHROMIUM_PATH` to a binary you already have.
+
+All of this runs on every push; see `.github/workflows/checks.yml`. The drift
+check gates, the pixel diff is reported but only fails when a screen listed in
+`screen-pairs.json` was never captured.
 
 `npm run drift` is the one that answers ACCEPTANCE.md. It renders the app and
 the prototype side by side, finds the same labelled elements in both, and
@@ -165,9 +172,33 @@ and the layout was mirrored twice for a while with both of them green.
 Before pushing:
 
 ```sh
-npm run typecheck && npm run verify:colours && npm run smoke
+npm run typecheck && npm test && npm run smoke
 npm run capture:app && npm run compare && npm run drift
 ```
+
+CI runs the same set, so a push tells you anyway — but a round trip through
+Actions is slower than running it here.
+
+## Notifications
+
+`src/lib/notifications/` implements SCREENS.md § Notifications. It is local,
+not pushed: every trigger is something the device already knows, so none of it
+waits on a server.
+
+- `plan.ts` decides **what fires and when** — the per-offset reminder, the
+  Firm style's three repeats, a follow-up coming due, the 18:30 evening
+  nudge, and whether each may make a sound. Pure, so it is the part that can
+  be tested: `npm test`.
+- `scheduler.ts` hands that plan to the OS and nothing more. It syncs only the
+  difference, so editing one task does not re-schedule the other sixty.
+- `copy.ts` is what each notification says. Three of the five rows have no
+  Arabic in the handoff and carry stand-ins — BUILD-REVIEW.md §2.25.
+- `NotificationsProvider.tsx` re-syncs whenever tasks, follow-ups or settings
+  change, and acts on Done / Snooze / Open.
+
+**Delivery is unproven.** The rules are tested; the permission prompt, the
+action buttons and the lock-screen snooze need a device and an Apple Developer
+account — BUILD-REVIEW.md §2.26.
 
 ## Colour
 
@@ -209,10 +240,12 @@ consent checkbox's box model changes a line break (BUILD-REVIEW.md §2.11); and
 3–4 % on People, whose search field we draw at the 48 pt SCREENS.md gives where
 the prototype squeezes it to 24 (BUILD-REVIEW.md §2.19).
 
-Not built yet: screens 04, 05, 08, 09, 15–20 and 24. Several buttons on
+Not built yet: screens 04, 05, 09, 15–20 and 24. (Screen 08 is the Tasks add
+sheet, which is built — SCREENS.md files it under § 07.) Several buttons on
 the built screens lead to them (the event form, Reschedule, the paywall) and land on the not-found route until they exist. Purchases, restore
 and the tip jar show their toasts but need the store accounts; Delete account
-erases the device but has no server to erase yet. Real Apple and Google sign-in are stubbed pending
+erases the device but has no server to erase yet. Notifications are written
+and their rules tested, but never delivered on a real device. Real Apple and Google sign-in are stubbed pending
 developer accounts; `src/lib/session.tsx` holds the session on the device until
 then.
 

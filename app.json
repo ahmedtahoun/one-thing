@@ -43,7 +43,7 @@
       "en": "./src/content/locale-en.json",
       "ar": "./src/content/locale-ar.json"
     },
-    "plugins": ["expo-router", "expo-font", "expo-localization"],
+    "plugins": ["expo-router", "expo-font", "expo-localization", "expo-notifications"],
     "extra": {
       "router": {},
       "eas": {}

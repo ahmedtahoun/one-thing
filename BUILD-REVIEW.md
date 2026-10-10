@@ -417,6 +417,53 @@ meet SCREENS.md § 12 or ACCEPTANCE.md:
 - **The notes are the contact's "Remember for next time"**: one field, the
   same one the profile edits.
 
+### 2.24 Quiet hours: what "respect" means is not stated
+SCREENS.md § Notifications ends "Respect Quiet hours and the Quiet style
+(badge only)". The Quiet *style* is spelled out in § 21–23 — no sound, no
+vibration, badge and list only. Quiet *hours* are not: a reminder that falls
+due at 03:00 could fire silently, or be held until 08:00.
+
+The build **fires on time, silently**, for two reasons. A held reminder would
+arrive after the thing it was for, which is the one failure this app exists to
+prevent; and the handoff's own "Morning of" offset already fires at 08:00,
+which is exactly quiet-hours-end — so the design has a way of saying "wait
+until morning" and does not use it here. Say if you want the other behaviour.
+
+### 2.25 Three of the five notifications have no Arabic
+SCREENS.md § Notifications gives the wording for each row, in English only.
+Two of the five can be composed from copy that exists in both languages: the
+task reminder is `{Type} · {title}` / `{who}`, and the Firm repeat is the same
+again. The other three have nothing:
+
+| Row | SCREENS.md | What is shipped instead |
+|---|---|---|
+| Follow-up due | "{who} hasn't replied" | "Needs a nudge" / "يحتاج متابعة" (the status the Follow-ups screen already shows for that state), with the person as the body |
+| Evening | "Close the day?" | "Close the day" / "سكّر يومك" + "Takes a minute" — Today's own card, minus the question mark |
+| Focus end | "Focus session done" | "Focus session · 45 min" / "جلسة تركيز · 45 دقيقة" + "Close the day" |
+
+These are stand-ins, not translations: `src/lib/notifications/copy.ts` is the
+one file to change when the real strings arrive. **Please supply all three in
+both languages** — a notification is often the only part of the app someone
+reads that day.
+
+There is also no wording for notifications being **off**. The design's
+Settings row shows its value as "On" and never considers the other case, so
+the build shows that value until the user actually refuses, and then shows
+none rather than inventing an "Off". Same for the green "On" badge inside the
+section.
+
+### 2.26 Notification delivery is unverified
+The rules are tested — 20 cases in `src/lib/notifications/plan.test.ts` cover
+the offsets, the Firm repeats, quiet hours wrapping midnight, the follow-up
+and evening rows, and the pending cap. What cannot be tested in this
+environment is delivery: the permission prompt, the Done / Snooze / Open
+buttons, whether a snooze from the lock screen really moves the task, and
+whether iOS's 64-notification limit behaves as assumed.
+
+**That needs a device**, once there is an Apple Developer account to build
+with. Until then, treat the notification layer as written-but-unproven, and
+`npm run smoke` says nothing about it.
+
 ## 5. Decisions taken
 
 Agreed with the product owner on 10 Oct 2026: React Native (Expo) for the app,

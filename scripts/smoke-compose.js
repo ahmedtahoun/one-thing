@@ -7,7 +7,7 @@
  *   node scripts/smoke-compose.js
  */
 'use strict';
-const { chromium } = require('playwright');
+const { launch: launchChromium } = require('./browser.js');
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
@@ -41,7 +41,7 @@ const SESSION = { userId: 'smoke', name: 'Khalid Al-Mansouri', firstName: 'Khali
   });
   await new Promise((r) => srv.listen(0, '127.0.0.1', r));
   const base = `http://127.0.0.1:${srv.address().port}`;
-  const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome' });
+  const browser = await launchChromium();
   const ctx = await browser.newContext({ viewport: { width: 402, height: 874 }, deviceScaleFactor: 2, locale: 'en-GB' });
   // Every URL the app hands off to (wa.me, mailto:, tel:) is recorded rather
   // than opened.
