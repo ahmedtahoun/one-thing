@@ -9,6 +9,7 @@
     "export:web": "expo export --platform web",
     "typecheck": "tsc --noEmit",
     "test": "tsx --test \"src/**/*.test.ts\"",
+    "test:db": "tsx --test scripts/test-sync-db.ts",
     "verify:colours": "node scripts/verify-oklch.js scripts/oklch-colours.txt",
     "capture:app": "expo export --platform web && node scripts/capture-screens.js",
     "capture:prototype": "node scripts/capture-prototype.js",

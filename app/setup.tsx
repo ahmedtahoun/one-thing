@@ -67,12 +67,8 @@ export default function Setup() {
     if (d) {
       // Settings' "Tips & offers" toggle starts where sign-in left it.
       setPrefs({ marketing: d.marketingOptIn });
-      try {
-        await recordConsent(userId, d.consent);
-      } catch {
-        // Consent must not be lost: it stays in the draft so a later sync can
-        // retry. The account is already created, so the user is not blocked.
-      }
+      // Kept on the device until the sync has written it (src/lib/consent.ts).
+      await recordConsent(d.consent);
       draft.clear();
     }
 

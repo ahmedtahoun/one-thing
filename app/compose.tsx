@@ -200,7 +200,6 @@ function ComposeTask({ task }: { task: Task }) {
       nextAt.setDate(nextAt.getDate() + days);
       const channel: Channel = type === 'email' || type === 'whatsapp' ? type : 'call';
       addFollowUp({
-        id: `f_${Date.now()}`,
         contactId: contact?.id ?? task.contactIds[0] ?? null,
         taskId: task.id,
         channel,
