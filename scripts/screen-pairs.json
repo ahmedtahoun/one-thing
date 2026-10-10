@@ -98,5 +98,45 @@
     "name": "ar-contact-new",
     "app": "ar-12-contact-new.png",
     "proto": "ar-12-new-contact.png"
+  },
+  {
+    "name": "en-capture",
+    "app": "en-17-capture.png",
+    "proto": "en-16-quick-capture.png"
+  },
+  {
+    "name": "en-brain-dump",
+    "app": "en-18-brain-dump.png",
+    "proto": "en-17-brain-dump.png"
+  },
+  {
+    "name": "en-assistant",
+    "app": "en-19-assistant.png",
+    "proto": "en-20-assistant-chat.png"
+  },
+  {
+    "name": "en-paywall",
+    "app": "en-24-paywall.png",
+    "proto": "en-04-go-pro-paywall.png"
+  },
+  {
+    "name": "ar-capture",
+    "app": "ar-17-capture.png",
+    "proto": "ar-16-quick-capture.png"
+  },
+  {
+    "name": "ar-brain-dump",
+    "app": "ar-18-brain-dump.png",
+    "proto": "ar-17-brain-dump.png"
+  },
+  {
+    "name": "ar-assistant",
+    "app": "ar-19-assistant.png",
+    "proto": "ar-20-assistant-chat.png"
+  },
+  {
+    "name": "ar-paywall",
+    "app": "ar-24-paywall.png",
+    "proto": "ar-04-go-pro-paywall.png"
   }
 ]

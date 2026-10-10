@@ -77,6 +77,12 @@ const ROUTES = [
   { path: '/compose?id=t3', name: '13-compose-email', signedIn: true, firstRun: false, seedTasks: true, seedPeople: true },
   { path: '/compose?id=t2', name: '13-compose-call', signedIn: true, firstRun: false, seedTasks: true, seedPeople: true },
   { path: '/compose?id=t4', name: '13-compose-reminder', signedIn: true, firstRun: false, seedTasks: true, seedPeople: true },
+  { path: '/capture', name: '17-capture', signedIn: true, firstRun: false },
+  { path: '/brain-dump', name: '18-brain-dump', signedIn: true, firstRun: false },
+  { path: '/assistant', name: '19-assistant', signedIn: true, firstRun: false, seedTasks: true, seedPeople: true, oneThing: true },
+  // Nameless, as the prototype's demo account is; the name is shown in 24-paywall-named.
+  { path: '/paywall', name: '24-paywall', signedIn: true, firstRun: false, session: { firstName: '' } },
+  { path: '/paywall', name: '24-paywall-named', signedIn: true, firstRun: false },
 ];
 
 const MIME = {
@@ -155,7 +161,7 @@ function serve(dir) {
         },
         {
           session: route.signedIn
-            ? { ...DEMO_SESSION[lang], firstRun: route.firstRun !== false }
+            ? { ...DEMO_SESSION[lang], firstRun: route.firstRun !== false, ...route.session }
             : null,
           tasks: route.seedTasks ? demoTasks(lang, new Date()) : null,
           oneThing: route.oneThing

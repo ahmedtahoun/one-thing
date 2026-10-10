@@ -251,3 +251,29 @@ then.
 
 See `BUILD-REVIEW.md` for what the handoff leaves open and what has to come
 from the product owner before a store build is possible.
+
+## Free text and the paywall
+
+Screens 17–19 and 24 are built: Quick capture, Brain dump, the Assistant and
+the Paywall. All four sit within 0 pt of the prototype on every probe, and
+differ by 0.03–0.78 % of pixels. `scripts/smoke-capture.js` (part of
+`npm run smoke`) drives them; BUILD-REVIEW.md §2.27–2.28 has what was decided.
+
+- **One seam for free text.** `src/lib/parse/` is the contract the three
+  screens use — text in, `{type, title, who, contactId, when}` out. The
+  implementation behind it is on-device rules (`local.ts`, tested against the
+  handoff's sample sentences); `index.ts` is the one place the backend call
+  replaces them. Nothing is saved on parsing: a proposal waits for "Save &
+  back to focus", "Save {n}" or "Looks right".
+- **The Free plan's 10 Assistant requests a day** are counted on the device
+  (`src/lib/assistant-meter.ts`); whether one more is allowed is
+  `canUseAssistant()` in `src/policy/entitlements.ts`. The eleventh opens the
+  paywall.
+- **Speech** goes through `src/lib/speech.ts`: the platform's recogniser where
+  there is one, typing where there is not (§2.28).
+- **Purchases** go through `src/features/paywall/purchases.ts`, which answers
+  "unavailable" until the store accounts exist. Starting the trial makes
+  nobody Pro.
+
+The Status section above predates these four screens and still lists them as
+not built; it is left as it was so the parallel branches merge cleanly.

@@ -1,0 +1,67 @@
+/**
+ * The pill input with a round send button — Quick capture's "or type it" and
+ * the Assistant's message bar, which the prototype draws identically.
+ *
+ * The prototype's input has no `min-width: 0`, so it overflows its row and
+ * squeezes the 50 × 50 button into a 30-wide oval. The button is drawn at the
+ * 50 its own style asks for, and the input takes what is left —
+ * BUILD-REVIEW.md §2.27. The input is 52 tall: 50 plus its 1 pt border, which
+ * the prototype's content-box adds.
+ */
+import { forwardRef } from 'react';
+import { Pressable, TextInput, View } from 'react-native';
+
+import { Icon } from '@/ui/Icon';
+import { fontFamily, ink, surface } from '@/design/tokens';
+import { useDirection } from '@/i18n/LanguageProvider';
+
+export const SendRow = forwardRef<
+  TextInput,
+  {
+    value: string;
+    onChange: (text: string) => void;
+    onSend: () => void;
+    placeholder: string;
+    sendLabel: string;
+    testID: string;
+  }
+>(function SendRow({ value, onChange, onSend, placeholder, sendLabel, testID }, ref) {
+  const dir = useDirection();
+  return (
+    <View style={{ flexDirection: dir.row, gap: 8 }}>
+      <TextInput
+        ref={ref}
+        testID={`${testID}-input`}
+        value={value}
+        onChangeText={onChange}
+        onSubmitEditing={onSend}
+        returnKeyType="send"
+        placeholder={placeholder}
+        placeholderTextColor={ink.s5}
+        style={{
+          flex: 1,
+          minWidth: 0,
+          height: 52,
+          borderWidth: 1,
+          borderColor: surface.line,
+          borderRadius: 25,
+          paddingHorizontal: 18,
+          fontFamily: `${fontFamily}_400Regular`,
+          fontSize: 15,
+          color: ink.base,
+          writingDirection: dir.isRTL ? 'rtl' : 'ltr',
+          textAlign: dir.textAlign,
+        }}
+      />
+      <Pressable
+        testID={`${testID}-send`}
+        onPress={onSend}
+        accessibilityRole="button"
+        accessibilityLabel={sendLabel}
+        style={{ width: 50, height: 50, borderRadius: 25, backgroundColor: ink.base, alignItems: 'center', justifyContent: 'center' }}
+      >
+        <Icon name="send" size={18} color={surface.white} strokeWidth={1.7} />
+      </Pressable>
+    </View>
+  );
+});

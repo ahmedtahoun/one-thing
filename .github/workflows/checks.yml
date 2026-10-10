@@ -35,6 +35,10 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - name: Typecheck
         run: npm run typecheck
+      # The rules that need no device: notifications, the parser, the
+      # assistant meter, the paywall's required wording.
+      - name: Unit tests
+        run: npm test
       - name: OKLCH colours match Chromium
         run: npm run verify:colours
 

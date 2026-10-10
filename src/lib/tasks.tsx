@@ -32,6 +32,11 @@ type TasksValue = {
   oneThing: OneThing | null;
   ready: boolean;
   addTask: (task: NewTask) => Task;
+  /**
+   * Several at once — Brain dump's "Save {n}". Calling addTask in a loop
+   * would keep only the last: each call builds on the list as it was rendered.
+   */
+  addTasks: (tasks: NewTask[]) => Task[];
   updateTask: (id: string, patch: Partial<Task>) => void;
   /** Check-off and un-check. Returns the status it moved to. */
   toggleDone: (id: string) => 'open' | 'done';
@@ -102,9 +107,9 @@ export function TasksProvider({ children }: { children: ReactNode }) {
     else AsyncStorage.removeItem(ONE_THING_KEY).catch(() => {});
   }, []);
 
-  const addTask = useCallback<TasksValue['addTask']>(
-    (input) => {
-      const task: Task = {
+  const addTasks = useCallback<TasksValue['addTasks']>(
+    (inputs) => {
+      const added = inputs.map<Task>((input) => ({
         contactIds: [],
         dueAt: null,
         remind: null,
@@ -113,12 +118,14 @@ export function TasksProvider({ children }: { children: ReactNode }) {
         ...input,
         id: `t_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
         createdAt: new Date().toISOString(),
-      };
-      persistTasks([...tasks, task]);
-      return task;
+      }));
+      persistTasks([...tasks, ...added]);
+      return added;
     },
     [tasks, persistTasks]
   );
+
+  const addTask = useCallback<TasksValue['addTask']>((input) => addTasks([input])[0] as Task, [addTasks]);
 
   const updateTask = useCallback<TasksValue['updateTask']>(
     (id, patch) => {
@@ -192,6 +199,7 @@ export function TasksProvider({ children }: { children: ReactNode }) {
       oneThing,
       ready,
       addTask,
+      addTasks,
       updateTask,
       patchMany,
       toggleDone,
@@ -208,6 +216,7 @@ export function TasksProvider({ children }: { children: ReactNode }) {
       oneThing,
       ready,
       addTask,
+      addTasks,
       updateTask,
       patchMany,
       toggleDone,
