@@ -13,6 +13,7 @@ import {
 
 import { LanguageProvider } from '@/i18n/LanguageProvider';
 import { SessionProvider } from '@/lib/session';
+import { TasksProvider } from '@/lib/tasks';
 import { motion } from '@/design/tokens';
 
 SplashScreen.preventAutoHideAsync().catch(() => {
@@ -39,15 +40,17 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <SessionProvider>
         <LanguageProvider>
-          <StatusBar style="dark" />
-          <Stack
-            screenOptions={{
-              headerShown: false,
-              animation: 'fade',
-              animationDuration: motion.screenChange,
-              contentStyle: { backgroundColor: '#FFFFFF' },
-            }}
-          />
+          <TasksProvider>
+            <StatusBar style="dark" />
+            <Stack
+              screenOptions={{
+                headerShown: false,
+                animation: 'fade',
+                animationDuration: motion.screenChange,
+                contentStyle: { backgroundColor: '#FFFFFF' },
+              }}
+            />
+          </TasksProvider>
         </LanguageProvider>
       </SessionProvider>
     </SafeAreaProvider>

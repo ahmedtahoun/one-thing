@@ -15,6 +15,7 @@ const { chromium } = require('playwright');
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const { demoTasks, dateKey } = require('./demo-state');
 
 const ROOT = path.join(__dirname, '..');
 const DIST = path.join(ROOT, 'dist');
@@ -29,13 +30,30 @@ const FRAME = { width: 402, height: 874 };
  * prototype's own demo user.
  */
 const DEMO_SESSION = {
-  userId: 'capture',
-  name: 'Khalid Al-Mansouri',
-  firstName: 'Khalid',
-  jobTitle: 'Founder',
-  authProvider: 'apple',
-  plan: 'free',
-  firstRun: true,
+  en: {
+    userId: 'capture',
+    name: 'Khalid Al-Mansouri',
+    firstName: 'Khalid',
+    jobTitle: 'Founder',
+    authProvider: 'apple',
+    plan: 'free',
+    firstRun: true,
+  },
+  ar: {
+    userId: 'capture',
+    name: 'خالد المنصوري',
+    firstName: 'خالد',
+    jobTitle: 'مؤسس',
+    authProvider: 'apple',
+    plan: 'free',
+    firstRun: true,
+  },
+};
+
+/** The One Thing the prototype's demo day is built around. */
+const DEMO_ONE_THING = {
+  en: 'Finish the investor proposal',
+  ar: 'أخلّص عرض المستثمرين',
 };
 
 const ROUTES = [
@@ -43,8 +61,9 @@ const ROUTES = [
   { path: '/setup', name: '02-account-setup' },
   { path: '/legal?tab=terms', name: '03-legal-terms' },
   { path: '/legal?tab=privacy', name: '03-legal-privacy' },
-  { path: '/today', name: '06-today-first-run', session: DEMO_SESSION },
-  { path: '/today', name: '06-today', session: { ...DEMO_SESSION, firstRun: false } },
+  { path: '/today', name: '06-today-first-run', signedIn: true },
+  { path: '/today', name: '06-today', signedIn: true, firstRun: false, seedTasks: true, oneThing: true },
+  { path: '/today', name: '06-today-empty', signedIn: true, firstRun: false },
 ];
 
 const MIME = {
@@ -95,6 +114,11 @@ function serve(dir) {
       locale: lang === 'ar' ? 'ar-SA' : 'en-GB',
     });
     const page = await ctx.newPage();
+    // The prototype's demo clock reads 09:20, and a moving clock would make
+    // "in 40 min" and the Now divider differ on every run.
+    const frozen = new Date();
+    frozen.setHours(9, 20, 0, 0);
+    await page.clock.setFixedTime(frozen);
     const errors = [];
     page.on('pageerror', (e) => errors.push(e.message));
     page.on('console', (m) => {
@@ -105,10 +129,26 @@ function serve(dir) {
       const before = errors.length;
       // The session is read from AsyncStorage, which is localStorage on web.
       await page.goto(`http://127.0.0.1:${port}/`, { waitUntil: 'domcontentloaded' });
-      await page.evaluate((session) => {
-        if (session) window.localStorage.setItem('ot.session', JSON.stringify(session));
-        else window.localStorage.removeItem('ot.session');
-      }, route.session ?? null);
+      await page.evaluate(
+        ({ session, tasks, oneThing }) => {
+          const put = (key, value) => {
+            if (value) window.localStorage.setItem(key, JSON.stringify(value));
+            else window.localStorage.removeItem(key);
+          };
+          put('ot.session', session);
+          put('ot.tasks', tasks);
+          put('ot.oneThing', oneThing);
+        },
+        {
+          session: route.signedIn
+            ? { ...DEMO_SESSION[lang], firstRun: route.firstRun !== false }
+            : null,
+          tasks: route.seedTasks ? demoTasks(lang, new Date()) : null,
+          oneThing: route.oneThing
+            ? { date: dateKey(new Date()), done: false, focusMinutes: 45, title: DEMO_ONE_THING[lang] }
+            : null,
+        }
+      );
       await page.goto(`http://127.0.0.1:${port}${route.path}`, { waitUntil: 'networkidle' });
       // Fonts and the first paint of the React tree.
       await page.waitForTimeout(900);

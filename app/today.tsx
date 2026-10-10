@@ -1,41 +1,45 @@
 /**
  * 06 · Today — the home screen. SCREENS.md § 06.
  *
- * Built so far: header, the first-run card, the One Thing card and the
- * quick-action grid. The "Small promises" list, the evening variant and the
- * glass tab bar arrive with the task store and the tab layout.
+ * Container is 8 / 20 / 150 with a 24 pt gap between sections, matching the
+ * prototype. Which card leads depends on the time and whether this is a first
+ * run: evening shows "Close the day", a first run asks for the One Thing, and
+ * otherwise the One Thing card leads.
  */
 import { useCallback, useMemo, useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { router } from 'expo-router';
 
+import { EveningCard } from '@/features/today/EveningCard';
 import { FirstRunCard } from '@/features/today/FirstRunCard';
 import { OneThingCard } from '@/features/today/OneThingCard';
 import { QuickActions } from '@/features/today/QuickActions';
+import { SmallPromises } from '@/features/today/SmallPromises';
 import { Icon } from '@/ui/Icon';
 import { Screen } from '@/ui/Screen';
+import { TabBar } from '@/ui/TabBar';
 import { Text } from '@/ui/Text';
 import { Toast, useToast } from '@/ui/Toast';
-import { ink, space, surface, type TaskType } from '@/design/tokens';
+import { type IconName } from '@/design/icon-paths';
+import { ink, NATURAL_LINE_HEIGHT, space, surface, type TaskType } from '@/design/tokens';
 import { useDirection, useLanguage } from '@/i18n/LanguageProvider';
+import { dateKey, isOnDay, type Task } from '@/lib/model-types';
 import { useSession } from '@/lib/session';
+import { useTasks } from '@/lib/tasks';
 
 /** Evening starts at 18:00 — the point the card flips to "Close the day". */
 const EVENING_HOUR = 18;
 
 export default function Today() {
-  const { t, inline, lang } = useLanguage();
+  const { t, inline, a11y, lang } = useLanguage();
   const dir = useDirection();
   const { session, update } = useSession();
+  const { tasks, oneThing, setOneThing, toggleDone, restore } = useTasks();
   const toast = useToast();
 
-  const [oneThing, setOneThing] = useState<string | null>(null);
-  const [oneThingDone] = useState(false);
-
-  const now = new Date();
+  const [now] = useState(() => new Date());
   const isEvening = now.getHours() >= EVENING_HOUR;
   const firstName = session?.firstName ?? '';
-
   const greeting = (isEvening ? inline.goodEvening : inline.goodMorning) + firstName;
 
   // "Thursday, 9 October" — weekday, comma, day, month, as the design shows.
@@ -47,66 +51,96 @@ export default function Today() {
     return `${weekday}, ${dayMonth}`;
   }, [lang, now]);
 
+  // Done last, then by time — so what is still to come stays at the top.
+  const todaysTasks = useMemo(() => {
+    const today = dateKey(now);
+    return tasks
+      .filter((task) => isOnDay(task, today) && task.status !== 'cancelled')
+      .sort((a, b) => {
+        const done = Number(a.status === 'done') - Number(b.status === 'done');
+        return done !== 0 ? done : (a.dueAt ?? '').localeCompare(b.dueAt ?? '');
+      });
+  }, [tasks, now]);
+
+  const openCount = todaysTasks.filter((task) => task.status !== 'done').length;
+
   const setFirstOneThing = useCallback(
     (title: string) => {
       setOneThing(title);
       update({ firstRun: false });
-      // No Undo: setting the One Thing is not destructive, and the toast's
-      // job here is to explain that gentle reminders are now on.
+      // Not destructive, so no Undo: the toast's job is to say that gentle
+      // reminders are now on.
       toast.show(inline.firstRunToast, { undo: false });
     },
-    [update, toast, inline.firstRunToast]
+    [setOneThing, update, toast, inline.firstRunToast]
   );
 
   const skipFirstRun = useCallback(() => {
     update({ firstRun: false });
   }, [update]);
 
+  const onToggle = useCallback(
+    (task: Task) => {
+      const before = tasks;
+      const next = toggleDone(task.id);
+      // Checking something off is undoable for the length of the toast.
+      if (next === 'done') toast.show(t.toastDone, { undo: () => restore(before) });
+    },
+    [tasks, toggleDone, toast, t.toastDone, restore]
+  );
+
   const onQuickAction = useCallback((type: TaskType) => {
     // Call / Email / WhatsApp pick a contact first; Remind captures; the four
-    // event types open the event form. Those screens land in the next step.
+    // event types open the event form. Those screens land next.
     router.push(`/new?type=${type}`);
   }, []);
 
   const showFirstRun = Boolean(session?.firstRun) && !isEvening;
+  const showOneThing = !showFirstRun && !isEvening && oneThing !== null;
 
   return (
     <>
-      <Screen scroll paddingBottom={space.tabBarInset} style={{ backgroundColor: surface.white }}>
-        <View
-          style={{
-            flexDirection: dir.row,
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            paddingTop: 8,
-            paddingBottom: 24,
-          }}
-        >
-          <View style={{ gap: 2 }}>
-            <Text token="caption" color={ink.s4}>
+      <Screen
+        scroll
+        paddingTop={8}
+        paddingBottom={space.tabBarInset}
+        style={{ gap: 24 }}
+        background={surface.white}
+      >
+        <View style={{ flexDirection: dir.row, justifyContent: 'space-between', alignItems: 'center' }}>
+          <View style={{ gap: 2, flexShrink: 1 }}>
+            {/* Neither header line is given a line-height in the prototype,
+                so both take the font's natural 1.5. */}
+            <Text token="caption" color={ink.s4} style={{ lineHeight: 13 * NATURAL_LINE_HEIGHT }}>
               {dateLabel}
             </Text>
-            <Text token="title" style={{ fontSize: 21, lineHeight: 27 }} testID="today-greeting">
+            <Text
+              token="title"
+              style={{ fontSize: 21, lineHeight: 21 * NATURAL_LINE_HEIGHT }}
+              numberOfLines={1}
+              testID="today-greeting"
+            >
               {greeting}
             </Text>
           </View>
 
-          <View style={{ flexDirection: dir.row, gap: 8 }}>
-            <HeaderCircle icon="spark" onPress={() => router.push('/assistant')} label="Assistant" />
-            <HeaderCircle icon="moon" onPress={() => router.push('/review')} label="Daily review" />
+          <View style={{ flexDirection: dir.row, gap: 6 }}>
+            <HeaderCircle icon="spark" label={a11y.assistant} onPress={() => router.push('/assistant')} />
+            <HeaderCircle icon="moon" label={a11y.dailyReview} onPress={() => router.push('/review')} />
             <Pressable
               testID="today-avatar"
               onPress={() => router.push('/settings')}
               accessibilityRole="button"
-              accessibilityLabel="Settings"
-              style={{
+              accessibilityLabel={a11y.settings}
+              style={({ pressed }) => ({
                 width: 44,
                 height: 44,
                 borderRadius: 22,
                 backgroundColor: ink.base,
                 alignItems: 'center',
                 justifyContent: 'center',
-              }}
+                transform: [{ scale: pressed ? 0.94 : 1 }],
+              })}
             >
               <Text token="body" weight="600" color={surface.white}>
                 {firstName.charAt(0).toUpperCase()}
@@ -115,30 +149,45 @@ export default function Today() {
           </View>
         </View>
 
-        <View style={{ gap: 24 }}>
-          {showFirstRun ? (
-            <FirstRunCard onSet={setFirstOneThing} onLater={skipFirstRun} />
-          ) : oneThing ? (
-            <OneThingCard
-              title={oneThing}
-              focusMinutes={45}
-              done={oneThingDone}
-              onEdit={() => router.push('/priority')}
-              onLockIn={() => router.push('/focus')}
-              onShrink={() => router.push('/overwhelm')}
-            />
-          ) : null}
+        {isEvening ? (
+          <EveningCard
+            oneThingLine={oneThing ? `${oneThing.title} — ${oneThing.done ? t.doneToday : t.notYet}` : ''}
+            keptLine={t.tk_sum
+              .replace('{a}', String(openCount))
+              .replace('{b}', String(todaysTasks.length - openCount))}
+            onReview={() => router.push('/review')}
+          />
+        ) : showFirstRun ? (
+          <FirstRunCard onSet={setFirstOneThing} onLater={skipFirstRun} />
+        ) : showOneThing && oneThing ? (
+          <OneThingCard
+            title={oneThing.title}
+            focusMinutes={oneThing.focusMinutes}
+            done={oneThing.done}
+            onEdit={() => router.push('/priority')}
+            onLockIn={() => router.push('/focus')}
+            onShrink={() => router.push('/overwhelm')}
+          />
+        ) : null}
 
-          <QuickActions onPress={onQuickAction} />
+        <QuickActions onPress={onQuickAction} />
 
-          <View style={{ gap: 4 }}>
-            <Text token="title">{t.next}</Text>
-            <Text token="micro" color={ink.s4}>
-              {t.nextNote}
-            </Text>
-          </View>
-        </View>
+        <SmallPromises
+          tasks={todaysTasks}
+          onToggle={onToggle}
+          onOpen={(task) => router.push(`/compose?id=${task.id}`)}
+          onReschedule={(task) => router.push(`/reschedule?id=${task.id}`)}
+          onSeeAll={() => router.push('/tasks')}
+          onBrainDump={() => router.push('/brain-dump')}
+        />
       </Screen>
+
+      <TabBar
+        active="today"
+        onSelect={(key) => router.push(`/${key === 'today' ? 'today' : key}`)}
+        onCapture={() => router.push('/capture')}
+        onBrainDump={() => router.push('/brain-dump')}
+      />
       <Toast />
     </>
   );
@@ -150,7 +199,7 @@ function HeaderCircle({
   onPress,
   label,
 }: {
-  icon: string;
+  icon: IconName;
   onPress: () => void;
   label: string;
 }) {

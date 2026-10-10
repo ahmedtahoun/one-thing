@@ -152,6 +152,12 @@ touches Compose, Follow-ups, the Assistant and notifications. It is also what
 keeps the app out of messaging-automation territory for review. I'll treat it as
 non-negotiable.
 
+### 2.14 The tab bar must not be mirrored twice
+Worth recording because it is easy to reintroduce: the bar is laid out with
+`row-reverse` in Arabic, which already puts the first tab on the right.
+Reversing the tab arrays as well mirrors it a second time and leaves Tasks
+where Today should be. One mirror, not two.
+
 ## 5. Decisions taken
 
 Agreed with the product owner on 10 Oct 2026: React Native (Expo) for the app,

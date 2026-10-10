@@ -33,7 +33,7 @@ export function QuickActions({ onPress }: { onPress: (type: TaskType) => void })
   const { t } = useLanguage();
 
   return (
-    <View style={{ gap: space.gridGap }}>
+    <View style={{ gap: 10 }}>
       <Text token="eyebrow" color={ink.s4}>
         {t.q_k}
       </Text>
@@ -56,7 +56,7 @@ export function QuickActions({ onPress }: { onPress: (type: TaskType) => void })
                   backgroundColor: colour.bg,
                   alignItems: 'center',
                   justifyContent: 'center',
-                  gap: 6,
+                  gap: 7,
                   opacity: pressed ? 0.85 : 1,
                 })}
               >

@@ -152,16 +152,34 @@ export const type = {
   h1: { size: 28, weight: '600', lh: 33.6 },
   h2: { size: 26, weight: '600', lh: 31.2 },
   h3: { size: 22, weight: '600', lh: 28.6 },
-  title: { size: 17, weight: '600', lh: 22.1 },
+  /** The prototype leaves 17 px unstyled for line-height, so it is natural. */
+  title: { size: 17, weight: '600', lh: 25.5 },
   bodyL: { size: 16, weight: '400', lh: 24 },
   body: { size: 15, weight: '400', lh: 22.5 },
   bodyS: { size: 14, weight: '400', lh: 20.3 },
   caption: { size: 13, weight: '400', lh: 18.85 },
   micro: { size: 12, weight: '400', lh: 18 },
-  /** UPPERCASE, letter-spacing .14em. */
-  eyebrow: { size: 11, weight: '600', lh: 11, tracking: 1.54 },
-  tab: { size: 10.5, weight: '500', lh: 11, tracking: 0.105 },
+  /**
+   * UPPERCASE, letter-spacing .14em. The prototype sets no line-height on
+   * eyebrows or tab labels, so both take the font's own metrics — see
+   * NATURAL_LINE_HEIGHT below. Using the font size itself left every eyebrow
+   * 5 pt short, which compounded down the screen.
+   */
+  eyebrow: { size: 11, weight: '600', lh: 16.5, tracking: 1.54 },
+  tab: { size: 10.5, weight: '500', lh: 15.75, tracking: 0.105 },
 } as const;
+
+/**
+ * What `line-height: normal` resolves to for IBM Plex Sans Arabic: its hhea
+ * and OS/2 typo metrics are ascender 1085, descender -415, lineGap 0 over 1000
+ * units per em — exactly 1.5. The ratio is this high because the Arabic glyphs
+ * need the room.
+ *
+ * Wherever the prototype leaves line-height unset, the rendered height is
+ * `fontSize * NATURAL_LINE_HEIGHT`. Use it rather than guessing when a screen
+ * needs to match a block the prototype did not style.
+ */
+export const NATURAL_LINE_HEIGHT = 1.5;
 
 /** The font family the whole app ships in, EN and AR alike. README § Typography. */
 export const fontFamily = 'IBMPlexSansArabic';

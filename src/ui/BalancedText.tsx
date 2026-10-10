@@ -6,14 +6,21 @@
  * without it a hero title breaks as "Your day, under / control." where the
  * design reads "Your day, / under control."
  *
- * The emulation is the same idea CSS uses: keep the line count the text
+ * On web the real thing is available, so it is used directly. Everywhere else
+ * the emulation is the same idea CSS uses: keep the line count the text
  * naturally takes, then narrow the box as far as it can go without adding a
  * line. The result is lines of roughly equal length. Measurement happens in
  * two passes, so the first frame renders unbalanced and settles immediately
  * after — which is why it is only used on headings, never on body copy.
  */
 import { useCallback, useRef, useState } from 'react';
-import { View, type LayoutChangeEvent, type NativeSyntheticEvent, type TextLayoutEventData } from 'react-native';
+import {
+  Platform,
+  View,
+  type LayoutChangeEvent,
+  type NativeSyntheticEvent,
+  type TextLayoutEventData,
+} from 'react-native';
 
 import { Text, type AppTextProps } from './Text';
 
@@ -24,6 +31,19 @@ const MIN_WIDTH_RATIO = 0.55;
 const STEP_RATIO = 0.04;
 
 export function BalancedText({ children, ...textProps }: AppTextProps) {
+  // react-native-web renders to real CSS, and it does not implement
+  // onTextLayout — so the measuring path would silently do nothing there.
+  if (Platform.OS === 'web') {
+    return (
+      <Text {...textProps} style={[{ textWrap: 'balance' } as object, textProps.style]}>
+        {children}
+      </Text>
+    );
+  }
+  return <MeasuredBalancedText {...textProps}>{children}</MeasuredBalancedText>;
+}
+
+function MeasuredBalancedText({ children, ...textProps }: AppTextProps) {
   const [fullWidth, setFullWidth] = useState<number | null>(null);
   const [maxWidth, setMaxWidth] = useState<number | null>(null);
 

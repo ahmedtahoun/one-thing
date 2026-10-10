@@ -4,6 +4,7 @@
  */
 import { Pressable, View } from 'react-native';
 
+import { BalancedText } from '@/ui/BalancedText';
 import { Button } from '@/ui/Button';
 import { Icon } from '@/ui/Icon';
 import { Text } from '@/ui/Text';
@@ -29,7 +30,17 @@ export function OneThingCard({
   const dir = useDirection();
 
   return (
-    <View style={{ backgroundColor: surface.fill, borderRadius: radius.oneThing, padding: 22, gap: 14 }}>
+    <View
+      testID="one-thing-card"
+      style={{
+        backgroundColor: surface.fill,
+        borderRadius: radius.oneThing,
+        paddingTop: 24,
+        paddingHorizontal: 22,
+        paddingBottom: 20,
+        gap: 16,
+      }}
+    >
       <View style={{ flexDirection: dir.row, justifyContent: 'space-between', alignItems: 'center' }}>
         <Text token="eyebrow" color={ink.s4}>
           {t.h_k}
@@ -41,42 +52,55 @@ export function OneThingCard({
         </Pressable>
       </View>
 
-      <Text token="h1" testID="one-thing-title">
+      <BalancedText token="h1" testID="one-thing-title" style={{ letterSpacing: -0.28 }}>
         {title}
-      </Text>
+      </BalancedText>
 
       {done ? (
         <View
           testID="one-thing-done"
           style={{
-            alignSelf: dir.isRTL ? 'flex-end' : 'flex-start',
             flexDirection: dir.row,
             alignItems: 'center',
-            gap: 6,
+            gap: 8,
             backgroundColor: surface.white,
-            borderRadius: radius.pill,
+            borderRadius: radius.small,
             paddingHorizontal: 14,
-            paddingVertical: 9,
+            paddingVertical: 12,
           }}
         >
-          <Icon name="check" size={14} strokeWidth={2.4} />
-          <Text token="caption" weight="600">
+          <Icon name="check" size={16} strokeWidth={2.4} />
+          <Text token="bodyS" weight="500">
             {t.doneToday}
           </Text>
         </View>
       ) : (
         <>
-          <View style={{ flexDirection: dir.row, alignItems: 'center', gap: 7 }}>
-            <Icon name="clock" size={15} color={ink.s4} strokeWidth={1.8} />
-            <Text token="caption" color={ink.s4}>
+          <View style={{ flexDirection: dir.row, alignItems: 'center', gap: 6 }}>
+            <Icon name="clock" size={16} color={ink.s3} strokeWidth={1.8} />
+            <Text token="bodyS" color={ink.s3}>
               {t.focusMeta.replace('{n}', String(focusMinutes))}
             </Text>
           </View>
 
-          <Button testID="lock-in" label={t.lockin} onPress={onLockIn} style={{ height: 54 }} />
+          <Button testID="lock-in" label={t.lockin} onPress={onLockIn} style={{ height: 54, borderRadius: 27 }} />
 
-          <Pressable testID="shrink-it" onPress={onShrink} accessibilityRole="button" hitSlop={8}>
-            <Text token="caption" color={ink.s4} align="center">
+          <Pressable
+            testID="shrink-it"
+            onPress={onShrink}
+            accessibilityRole="button"
+            style={{
+              alignSelf: 'center',
+              // The prototype grows the tap target with padding and pulls it
+              // back with negative margins, so the link keeps its 44 pt target
+              // without adding height to the card.
+              paddingVertical: 10,
+              paddingHorizontal: 8,
+              marginTop: -6,
+              marginBottom: -10,
+            }}
+          >
+            <Text token="caption" color={ink.s3} align="center">
               {t.stuckLink}
             </Text>
           </Pressable>

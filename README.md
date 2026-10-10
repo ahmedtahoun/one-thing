@@ -74,12 +74,28 @@ npm run schema:check                                         # applies migration
 npm run capture:prototype -- <path to design_handoff_the_one_thing>
 npm run capture:app                                          # exports web, screenshots each route
 npm run compare                                              # pixel diff, writes .screens/diff/
+npm run drift -- <path to design_handoff_the_one_thing>       # per-element ±2 pt check
 ```
+
+`npm run drift` is the one that answers ACCEPTANCE.md. It renders the app and
+the prototype side by side, finds the same labelled elements in both, and
+reports how far apart they sit — so a failure names the element and the number
+of points, which is what you fix. A pixel diff only tells you how much of a
+screen differs, and that number is dominated by glyph edges. Drifts that are
+deliberate live in `KNOWN_DEVIATIONS` in the script, each with its reason;
+everything else has to stay inside 2 pt. Add probes to `PROBES` as screens are
+built.
 
 `npm run compare` reports the share of differing pixels per screen, ignoring
 the status bar and home indicator (drawn by the device frame in the prototype
 and by the OS in the app). Anti-aliasing is not counted. Add a screen to
 `scripts/screen-pairs.json` as you build it.
+
+One trap worth knowing: the prototype leaves `line-height` unset on many
+elements, and IBM Plex Sans Arabic's natural line height is **1.5** — tall,
+because of the Arabic glyphs. Use `NATURAL_LINE_HEIGHT` rather than guessing
+when matching a block the prototype did not style; getting it wrong compounds
+down the screen rather than showing up as one obvious gap.
 
 Two notes on running the prototype locally: it loads React and Babel from
 unpkg and its font from Google Fonts, both of which may be blocked, so
@@ -99,12 +115,18 @@ that is what the design was reviewed in. Re-run it before changing a colour.
 
 Built: design tokens, the generated content layer (254 copy keys per language,
 33 icons, 198 countries), the schema with row-level security on every table,
-the entitlements policy, the UI primitives, and the first-run flow — Sign in,
-Account setup, Legal, and Today's header, first-run card and quick actions.
+the entitlements policy, the UI primitives, the task store, the glass tab bar,
+and the first-run flow — Sign in, Account setup, Legal, and Today in full
+(header, first-run card, One Thing card, evening card, quick actions, Small
+promises with swipe-to-done and swipe-to-reschedule, and the empty state).
 
-Not built yet: the task store and the rest of Today, the tab bar, and screens
-07–24. Real Apple and Google sign-in are stubbed pending developer accounts;
-`src/lib/session.tsx` holds the session on the device until then.
+Every probed element on Sign in and Today sits within 1.6 pt of the prototype
+in both languages, against ACCEPTANCE.md's 2 pt bar, with one documented
+exception (`KNOWN_DEVIATIONS`).
+
+Not built yet: screens 07–24. Real Apple and Google sign-in are stubbed pending
+developer accounts; `src/lib/session.tsx` holds the session on the device until
+then.
 
 See `BUILD-REVIEW.md` for what the handoff leaves open and what has to come
 from the product owner before a store build is possible.

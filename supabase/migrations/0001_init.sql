@@ -22,9 +22,12 @@ create type task_type as enum (
 );
 create type task_status as enum ('open', 'done', 'snoozed', 'cancelled');
 
--- DATA_MODEL.md lists (at|10|60|custom|null). The event form also offers
--- "Day before" (EVX.rems), so day_before is added here — BUILD-REVIEW.md §2.5.
-create type remind_offset as enum ('at', 'min_10', 'hour_1', 'day_before', 'custom');
+-- DATA_MODEL.md lists (at|10|60|custom|null), but three more are used
+-- elsewhere in the handoff: the event form offers "Day before" (EVX.rems), and
+-- the seed tasks carry 30 and morning. All five are here — BUILD-REVIEW.md §2.5.
+create type remind_offset as enum (
+  'at', 'min_10', 'min_30', 'hour_1', 'day_before', 'morning', 'custom'
+);
 
 create type created_via as enum ('quick', 'capture', 'dump', 'assistant', 'event_form', 'followup');
 create type history_kind as enum ('note', 'call', 'meeting', 'visit', 'email', 'whatsapp', 'followup_closed');

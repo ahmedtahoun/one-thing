@@ -15,16 +15,19 @@
     "schema:check": "bash scripts/check-schema.sh",
     "content:port": "node scripts/port-content.js",
     "content:inline": "node scripts/extract-inline-copy.js",
-    "measure": "node scripts/measure-prototype-type.js"
+    "measure": "node scripts/measure-prototype-type.js",
+    "drift": "node scripts/measure-drift.js"
   },
   "dependencies": {
     "@expo-google-fonts/ibm-plex-sans-arabic": "^0.4.2",
     "@react-native-async-storage/async-storage": "^2.2.0",
     "@supabase/supabase-js": "^2.117.3",
     "expo": "~57.0.27",
+    "expo-blur": "~57.0.3",
     "expo-constants": "~57.0.21",
     "expo-font": "~57.0.4",
     "expo-haptics": "~57.0.3",
+    "expo-linear-gradient": "~57.0.2",
     "expo-linking": "~57.0.12",
     "expo-localization": "~57.0.2",
     "expo-router": "~57.0.25",

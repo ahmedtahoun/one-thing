@@ -2,5 +2,7 @@
   { "name": "en-sign-in", "app": "en-01-sign-in.png", "proto": "en-01-sign-in.png" },
   { "name": "ar-sign-in", "app": "ar-01-sign-in.png", "proto": "ar-01-sign-in.png" },
   { "name": "en-setup", "app": "en-02-account-setup.png", "proto": "en-02-account-setup.png" },
-  { "name": "ar-setup", "app": "ar-02-account-setup.png", "proto": "ar-02-account-setup.png" }
+  { "name": "ar-setup", "app": "ar-02-account-setup.png", "proto": "ar-02-account-setup.png" },
+  { "name": "en-today", "app": "en-06-today.png", "proto": "en-09-today.png" },
+  { "name": "ar-today", "app": "ar-06-today.png", "proto": "ar-09-today.png" }
 ]

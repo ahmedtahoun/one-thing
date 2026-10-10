@@ -30,7 +30,17 @@ export function FirstRunCard({
   };
 
   return (
-    <View style={{ backgroundColor: ink.base, borderRadius: radius.oneThing, padding: 22, paddingTop: 24, gap: 16 }}>
+    <View
+      testID="first-run-card"
+      style={{
+        backgroundColor: ink.base,
+        borderRadius: radius.oneThing,
+        paddingTop: 24,
+        paddingHorizontal: 22,
+        paddingBottom: 22,
+        gap: 16,
+      }}
+    >
       <Text token="eyebrow" color={ink.s6}>
         {inline.firstRunEyebrow}
       </Text>
@@ -44,8 +54,8 @@ export function FirstRunCard({
           alignItems: 'center',
           backgroundColor: '#1F1F1E',
           borderRadius: radius.cardTight,
-          paddingHorizontal: 14,
-          gap: 10,
+          padding: 6,
+          gap: 8,
         }}
       >
         <TextInput
@@ -61,23 +71,36 @@ export function FirstRunCard({
             // intrinsic width pushes the Set button off the card.
             flex: 1,
             minWidth: 0,
-            height: 52,
+            height: 44,
+            paddingHorizontal: 10,
             color: surface.white,
             fontSize: 16,
             fontFamily: `${fontFamily}_400Regular`,
             textAlign: dir.textAlign,
           }}
         />
-        <Pressable testID="first-run-set" onPress={submit} accessibilityRole="button" hitSlop={10}>
-          {/* White once there is text to submit, muted while empty. */}
-          <Text token="body" weight="600" color={filled ? surface.white : ink.s4}>
+        <Pressable
+          testID="first-run-set"
+          onPress={submit}
+          accessibilityRole="button"
+          style={{
+            height: 44,
+            paddingHorizontal: 16,
+            borderRadius: radius.small,
+            alignItems: 'center',
+            justifyContent: 'center',
+            // White once there is something to submit, muted while empty.
+            backgroundColor: filled ? surface.white : ink.s4,
+          }}
+        >
+          <Text token="body" weight="600" color={ink.base}>
             {inline.firstRunSet}
           </Text>
         </Pressable>
       </View>
 
       <View style={{ gap: 10 }}>
-        <Text token="caption" color={ink.s6}>
+        <Text token="micro" color={ink.s6}>
           {inline.firstRunOrPick}
         </Text>
         <View style={{ flexDirection: dir.row, flexWrap: 'wrap', gap: 8 }}>
@@ -105,8 +128,14 @@ export function FirstRunCard({
         </View>
       </View>
 
-      <Pressable testID="first-run-later" onPress={onLater} accessibilityRole="button" hitSlop={8}>
-        <Text token="caption" color={ink.s6} style={{ textDecorationLine: 'underline' }}>
+      <Pressable
+        testID="first-run-later"
+        onPress={onLater}
+        accessibilityRole="button"
+        hitSlop={8}
+        style={{ alignSelf: dir.isRTL ? 'flex-end' : 'flex-start', paddingVertical: 4 }}
+      >
+        <Text token="caption" color={ink.s6}>
           {inline.firstRunLater}
         </Text>
       </Pressable>
