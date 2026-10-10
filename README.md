@@ -105,7 +105,8 @@ of points, which is what you fix. A pixel diff only tells you how much of a
 screen differs, and that number is dominated by glyph edges. Drifts that are
 deliberate live in `KNOWN_DEVIATIONS` in the script, each with its reason;
 everything else has to stay inside 2 pt. Add probes to `PROBES` as screens are
-built.
+built. Read the note above `TOPS` before changing how it measures — the
+prototype's inline spans look like noise and are not (BUILD-REVIEW.md §2.33).
 
 `npm run compare` reports the share of differing pixels per screen, ignoring
 the status bar and home indicator (drawn by the device frame in the prototype

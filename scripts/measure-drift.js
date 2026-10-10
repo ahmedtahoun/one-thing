@@ -37,6 +37,17 @@ const PEOPLE_SEARCH =
   'without `flex: none` it shrinks to its input. Everything below it moves up ' +
   'by the difference. We follow the written 48 — BUILD-REVIEW.md §2.19.';
 
+/**
+ * Measured, not guessed: the title's layout box is at 126 in both, and the
+ * prototype's inline span reports 131 because a 22 pt glyph box is taller
+ * than the 28.6 line box it sits in. Nothing is out of place.
+ */
+const FOCUS_TITLE =
+  "The Focus title is 22 pt on a 1.3 line-height, so the prototype's inline " +
+  'span reports its glyph box about 5 pt above the line box. Both sides lay ' +
+  'the title out at exactly 126 — this is the measurement, not the screen. ' +
+  'See the note on TOPS below.';
+
 const KNOWN_DEVIATIONS = {
   'sign-in/en/hero':
     "The prototype's consent checkbox measures 25 px (CSS content-box plus its " +
@@ -44,6 +55,8 @@ const KNOWN_DEVIATIONS = {
     'enough to wrap "…and Privacy / Policy." onto a second line there and not ' +
     'here. That extra line lifts the vertically-centred hero. We follow the ' +
     'written spec — BUILD-REVIEW.md §2.11.',
+  'focus/en/oneThing': FOCUS_TITLE,
+  'focus/ar/oneThing': FOCUS_TITLE,
   'people/en/recent': PEOPLE_SEARCH,
   'people/en/firstRow': PEOPLE_SEARCH,
   'people/en/secondRow': PEOPLE_SEARCH,
@@ -300,13 +313,20 @@ function staticServer(dir, { spa = false, fontDir = null } = {}) {
 /**
  * Tops of each labelled element, relative to the screen's own top.
  *
- * The tightest element wrapping the text is the one to measure — except when
- * that element is a bare inline box. An inline run's rect is its glyph box,
- * not a layout box: the prototype wraps some headings in a plain <span>, and
- * for 22 px text that span reports ~2 pt above the line box it sits in. React
- * Native renders no such wrapper, so comparing the two measured a difference
- * that does not exist. Where an inline element carries exactly the same text
- * as its parent, the parent is the layout box and the one to compare.
+ * The tightest element wrapping the text is the one to measure, on both
+ * sides. The prototype's template wraps every interpolation in an inline
+ * <span>, and React Native renders its own box around the same text, so the
+ * two line up: text box against text box.
+ *
+ * Do not be tempted to skip that span. It looks like noise — an inline run's
+ * rect is a glyph box rather than a layout box — but it is what every button
+ * label in the prototype measures as, and dropping it falls back to the
+ * button, which is 15 pt taller. Tried once; it turned 2 failures into 16,
+ * across five screens nobody had touched.
+ *
+ * The cost is that where a glyph box overflows its line box — large text on a
+ * tight line-height — the two sides differ by a point or two for no layout
+ * reason. That is what KNOWN_DEVIATIONS is for.
  */
 const TOPS = ({ labels, scopeSelector }) => {
   const scope = scopeSelector ? document.querySelector(scopeSelector) : document.body;
@@ -317,9 +337,6 @@ const TOPS = ({ labels, scopeSelector }) => {
     let best = null;
     scope.querySelectorAll('*').forEach((el) => {
       if (sameText(el) !== text) return;
-      const inlineDuplicate =
-        getComputedStyle(el).display === 'inline' && el.parentElement && sameText(el.parentElement) === text;
-      if (inlineDuplicate) return;
       const r = el.getBoundingClientRect();
       if (!best || r.height < best.getBoundingClientRect().height) best = el;
     });
@@ -481,8 +498,11 @@ async function measurePrototype(lang, probe, designDir) {
           .map((r) => `${key(r)} ${r.drift > 0 ? '+' : ''}${r.drift}`),
         // A deviation we no longer need is a claim that has stopped being
         // true, so it is reported rather than left in the file.
+        // Only for screens this run actually measured — narrowing to one
+        // screen would otherwise report every other screen's deviation as
+        // stale.
         staleDeviations: Object.keys(KNOWN_DEVIATIONS).filter(
-          (k) => !over.some((r) => key(r) === k)
+          (k) => measured.some((r) => r.screen === k.split('/')[0]) && !over.some((r) => key(r) === k)
         ),
         failing,
         accepted,

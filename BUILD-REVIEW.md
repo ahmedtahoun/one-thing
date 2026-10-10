@@ -559,6 +559,24 @@ The general lesson for this codebase: **anything that changes the task list
 more than once in a single handler must go through one updater**, or the
 earlier changes are silently lost.
 
+### 2.33 One measurement that is not a layout error
+The drift check compares the tightest box around each labelled piece of text
+on both sides. The prototype's template wraps every interpolation in an inline
+`<span>`, React Native renders its own box around the same text, and those two
+line up — text box against text box, which is why the numbers have been
+trustworthy.
+
+The Focus title is the exception. At 22 pt on a 1.3 line-height its glyph box
+is taller than the line box it sits in, so the prototype's span reports about
+5 pt above where the text is actually laid out. **Both sides put the title at
+exactly 126** — the layout agrees; only the measurement does not. It is in
+`KNOWN_DEVIATIONS` with that reason rather than papered over.
+
+Recorded because the obvious fix is wrong. Skipping the prototype's inline
+span looks like removing noise and instead falls back to the enclosing
+button, which is 15 pt taller — every button label on every screen. Tried
+once: two failures became sixteen, across five screens nobody had touched.
+
 ## 5. Decisions taken
 
 Agreed with the product owner on 10 Oct 2026: React Native (Expo) for the app,
