@@ -78,5 +78,15 @@
     "name": "ar-compose",
     "app": "ar-13-compose.png",
     "proto": "ar-18-compose-send.png"
+  },
+  {
+    "name": "en-contact",
+    "app": "en-11-contact.png",
+    "proto": "en-06-contact-profile.png"
+  },
+  {
+    "name": "ar-contact",
+    "app": "ar-11-contact.png",
+    "proto": "ar-06-contact-profile.png"
   }
 ]

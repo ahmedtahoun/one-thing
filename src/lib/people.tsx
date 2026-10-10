@@ -46,6 +46,9 @@ type PeopleValue = {
    */
   saveContact: (input: { id?: string; name: string; role?: string; lastLabel: string }, patch: Partial<Contact>) => string;
   addFollowUp: (followUp: FollowUp) => void;
+  updateContact: (id: string, patch: Partial<Contact>) => void;
+  /** Quick log on the contact profile: a dated moment, newest first. */
+  addHistory: (entry: Omit<HistoryEntry, 'id'>) => void;
   updateFollowUp: (id: string, patch: Partial<FollowUp>) => void;
   /** Replaces the whole list — used by Undo, which restores a snapshot. */
   restoreFollowUps: (followUps: FollowUp[]) => void;
@@ -56,7 +59,7 @@ const PeopleContext = createContext<PeopleValue | null>(null);
 
 export function PeopleProvider({ children }: { children: ReactNode }) {
   const [contacts, setContacts, contactsReady, resetContacts] = usePersisted<Contact[]>(CONTACTS_KEY, []);
-  const [history, , historyReady, resetHistory] = usePersisted<HistoryEntry[]>(HISTORY_KEY, []);
+  const [history, setHistory, historyReady, resetHistory] = usePersisted<HistoryEntry[]>(HISTORY_KEY, []);
   const [followUps, setFollowUps, followUpsReady, resetFollowUps] = usePersisted<FollowUp[]>(FOLLOWUPS_KEY, []);
 
   const updateFollowUp = useCallback<PeopleValue['updateFollowUp']>(
@@ -79,6 +82,17 @@ export function PeopleProvider({ children }: { children: ReactNode }) {
     [setContacts]
   );
 
+  const updateContact = useCallback<PeopleValue['updateContact']>(
+    (id, patch) => setContacts((list) => list.map((c) => (c.id === id ? { ...c, ...patch } : c))),
+    [setContacts]
+  );
+
+  const addHistory = useCallback<PeopleValue['addHistory']>(
+    (entry) =>
+      setHistory((list) => [{ ...entry, id: `h_${Date.now()}_${Math.random().toString(36).slice(2, 7)}` }, ...list]),
+    [setHistory]
+  );
+
   const addFollowUp = useCallback<PeopleValue['addFollowUp']>(
     (followUp) => setFollowUps((list) => [followUp, ...list]),
     [setFollowUps]
@@ -98,6 +112,8 @@ export function PeopleProvider({ children }: { children: ReactNode }) {
       ready: contactsReady && followUpsReady && historyReady,
       saveContact,
       addFollowUp,
+      updateContact,
+      addHistory,
       updateFollowUp,
       restoreFollowUps: setFollowUps,
       reset,
@@ -111,6 +127,8 @@ export function PeopleProvider({ children }: { children: ReactNode }) {
       historyReady,
       saveContact,
       addFollowUp,
+      updateContact,
+      addHistory,
       updateFollowUp,
       setFollowUps,
       reset,

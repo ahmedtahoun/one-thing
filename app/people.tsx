@@ -6,11 +6,12 @@
  * the contact profile; its three round buttons start a WhatsApp, email or
  * call task with that person and open Compose — nothing is sent from here.
  */
-import { useCallback, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Pressable, TextInput, View } from 'react-native';
 import { router } from 'expo-router';
 
 import { matchContact } from '@/features/people/search';
+import { useStartTask } from '@/features/people/start-task';
 import { Icon } from '@/ui/Icon';
 import { Screen } from '@/ui/Screen';
 import { TabBar } from '@/ui/TabBar';
@@ -21,7 +22,6 @@ import { fontFamily, ink, surface, typeColour } from '@/design/tokens';
 import { useDirection, useLanguage } from '@/i18n/LanguageProvider';
 import { initials, type Channel, type Contact } from '@/lib/model-types';
 import { usePeople } from '@/lib/people';
-import { useTasks } from '@/lib/tasks';
 
 /** Bottom padding under the tab bar, as on Tasks. */
 const BOTTOM_INSET = 120;
@@ -30,32 +30,12 @@ export default function People() {
   const { t, a11y } = useLanguage();
   const dir = useDirection();
   const { contacts } = usePeople();
-  const { addTask } = useTasks();
   const [query, setQuery] = useState('');
 
   const list = useMemo(() => contacts.filter((c) => matchContact(c, query)), [contacts, query]);
   const searching = query.trim().length > 0;
 
-  /**
-   * Starts a message or call with this person and opens Compose on it. The
-   * prototype stamps these 09:30 — ten minutes after its frozen 09:20 clock
-   * — so here they are due now.
-   */
-  const start = useCallback(
-    (contact: Contact, type: Channel) => {
-      const first = contact.name.split(' ')[0] ?? contact.name;
-      const task = addTask({
-        type,
-        title: t.newMsg[type].replace('{n}', first),
-        who: contact.role ? `${contact.name} · ${contact.role}` : contact.name,
-        contactIds: [contact.id],
-        dueAt: new Date().toISOString(),
-        createdVia: 'quick',
-      });
-      router.push(`/compose?id=${task.id}`);
-    },
-    [addTask, t.newMsg]
-  );
+  const start = useStartTask();
 
   return (
     <>

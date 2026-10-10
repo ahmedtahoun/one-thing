@@ -107,6 +107,13 @@ export const typeColour: Record<TaskType, { fg: string; bg: string }> = {
   course: { fg: '#697B1A', bg: '#EBF2D9' },
 };
 
+/**
+ * A note in contact history — the kind the task types have no colour for.
+ * The prototype's fallback in profVals(): `oklch(0.5 0.09 80)` on
+ * `oklch(0.96 0.035 90)`.
+ */
+export const noteColour = { fg: '#7E5D1D', bg: '#FBF1D8' } as const;
+
 /** Status colours. README § Colour — status. */
 export const status = {
   /** Delete-account button / text. */

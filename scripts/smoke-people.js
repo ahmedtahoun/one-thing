@@ -7,6 +7,9 @@
  *   Follow-ups:  the counts; Got a reply closes with Undo; Reopen; Nudge
  *                writes a follow-up task with its draft, opens Compose, and
  *                never sends.
+ *   Profile:     opens from People; tiles dim and do nothing without a number
+ *                or address; the note saves as it is typed; Coming up; the
+ *                quick log; closed follow-ups join the history.
  *   Settings:    one accordion panel at a time; the reminder-style
  *                description follows the style; focus, channels and marketing
  *                are stored; language switches at once; the delete sheet only
@@ -21,7 +24,7 @@ const { chromium } = require('playwright');
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
-const { demoContacts, demoFollowUps, demoTasks } = require('./demo-state.js');
+const { demoContacts, demoFollowUps, demoHistory, demoTasks } = require('./demo-state.js');
 
 const ROOT = path.join(__dirname, '..');
 const DIST = path.join(ROOT, 'dist');
@@ -72,6 +75,7 @@ const SESSION = { userId: 'smoke', name: 'Khalid Al-Mansouri', firstName: 'Khali
       'ot.tasks': demoTasks('en', new Date()),
       'ot.contacts': demoContacts('en', new Date()),
       'ot.followups': demoFollowUps('en'),
+      'ot.history': demoHistory('en', new Date()),
     });
   };
   const open = async (route) => {
@@ -159,6 +163,61 @@ const SESSION = { userId: 'smoke', name: 'Khalid Al-Mansouri', firstName: 'Khali
   await open('/followups');
   check('the card then says the draft is ready', (await page.getByTestId('followup-f2').innerText()).includes('Draft ready · not sent yet'));
   check('…and the follow-up stays open', (await read('ot.followups')).find((f) => f.id === 'f2').status === 'due');
+
+  // --------------------------------------------------------------- Profile
+  await seed();
+  await open('/people');
+  await page.getByTestId('person-c1').getByText('Mohammed Al-Saadi').click();
+  await page.waitForTimeout(600);
+  check('a People row opens the profile', page.url().endsWith('/contact?id=c1'), page.url());
+  check('…with their name', (await text('contact-name')) === 'Mohammed Al-Saadi');
+
+  const taskCount = (await read('ot.tasks')).length;
+  await page.getByTestId('contact-action-whatsapp').click({ force: true });
+  await page.getByTestId('contact-action-call').click({ force: true });
+  await page.waitForTimeout(300);
+  check('no number: WhatsApp and Call do nothing', (await read('ot.tasks')).length === taskCount && page.url().endsWith('/contact?id=c1'));
+
+  await page.getByTestId('contact-note').fill('Prefers mornings');
+  await page.waitForTimeout(200);
+  check('the note saves as it is typed', (await read('ot.contacts')).find((c) => c.id === 'c1').rememberNote === 'Prefers mornings');
+  await open('/contact?id=c1');
+  check('…and is there next time', (await page.getByTestId('contact-note').inputValue()) === 'Prefers mornings');
+
+  check('Coming up lists their open task', await page.getByTestId('contact-next-t1').isVisible());
+  check('History counts four moments', (await text('contact-history-count')) === '4 moments');
+
+  await page.getByTestId('contact-log').click();
+  await page.waitForTimeout(200);
+  check('an empty log adds nothing', (await read('ot.history')).length === demoHistory('en').length);
+  await page.getByTestId('contact-log-kind-call').click();
+  await page.getByTestId('contact-log-text').fill('Called about delivery');
+  await page.getByTestId('contact-log').click();
+  await page.waitForTimeout(300);
+  const logged = (await read('ot.history'))[0];
+  check('the quick log adds a dated moment', logged.contactId === 'c1' && logged.kind === 'call' && logged.text === 'Called about delivery');
+  check('…which the count includes', (await text('contact-history-count')) === '5 moments');
+  check('…shown under Today, as a call at the time', (await page.getByTestId(`moment-${logged.id}`).innerText()).includes('Call · 09:20'));
+  check('…and the field clears', (await page.getByTestId('contact-log-text').inputValue()) === '');
+
+  await page.getByTestId('contact-action-email').click();
+  await page.waitForTimeout(500);
+  const emailTask = (await read('ot.tasks')).slice(taskCount)[0];
+  check('Email starts a task with them and opens Compose', emailTask && emailTask.title === 'Email Mohammed' && page.url().includes(`/compose?id=${emailTask.id}`));
+
+  await page.evaluate(() => {
+    const list = JSON.parse(localStorage.getItem('ot.followups'));
+    list.find((f) => f.id === 'f2').status = 'done';
+    localStorage.setItem('ot.followups', JSON.stringify(list));
+  });
+  await open('/contact?id=c4');
+  check('a closed follow-up joins their history', (await page.locator('body').innerText()).includes('Logo final files ✓'));
+
+  await page.getByTestId('contact-edit').click();
+  await page.waitForTimeout(400);
+  check('Edit opens the contact form', page.url().endsWith('/contact-edit?id=c4'), page.url());
+  await open('/contact?id=nobody');
+  check('an unknown contact goes to People', page.url().endsWith('/people'), page.url());
 
   // -------------------------------------------------------------- Settings
   await seed();

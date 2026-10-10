@@ -166,6 +166,22 @@ const PROBES = {
       draftLabel: { en: 'Draft', ar: 'المسودة' },
     },
   },
+  contact: {
+    app: '/contact?id=c1',
+    proto: '06',
+    state: { signedIn: true, firstRun: false, seedTasks: true, seedPeople: true },
+    // Not the day headings: the demo history is dated from today, and the
+    // prototype's from its frozen 9 October.
+    labels: {
+      name: { en: 'Mohammed Al-Saadi', ar: 'محمد السعدي' },
+      role: { en: 'Client', ar: 'عميل' },
+      email: { en: 'mohammed@alsaadi-trading.com', ar: 'mohammed@alsaadi-trading.com' },
+      remember: { en: 'Remember for next time', ar: 'تذكّر للمرة الجاية' },
+      nextTask: { en: 'Follow up on price quote', ar: 'متابعة عرض السعر' },
+      history: { en: 'History', ar: 'السجل' },
+      count: { en: '4 moments', ar: '4 لحظات' },
+    },
+  },
   'sign-in': {
     app: '/sign-in',
     proto: '01',

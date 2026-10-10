@@ -366,6 +366,27 @@ most of it the first item below.
   The history store and its demo data are new here. The contact profile (11)
   will write to them.
 
+### 2.22 Contact profile
+Every probe sits at 0 pt. The pixel difference, 0.05 %, is the history's day
+headings: the demo history is dated back from today, and the prototype's from
+its frozen 9 October.
+
+- **The back button here is 34 pt, not Settings' 40.** It is the same
+  button, but in the prototype this one is `display: flex`, which takes the
+  icon out of the line box. Matched, not tidied.
+- **The action tiles are inert without a number or address.** People's round
+  buttons stay tappable when dimmed and Compose then asks for the number;
+  these tiles do nothing. That is how the prototype has it, and it is kept.
+  **Say if the two should behave alike.**
+- **Meeting goes to the event form with the attendee filled in**
+  (`/new?type=meeting&contact=…`). That form (09) is not built yet.
+- **Closed follow-ups are read into the history, not copied into it.** DATA_MODEL
+  has a `followup_closed` history kind. The prototype derives these moments
+  from the follow-ups instead, with a tick and no time, so reopening a
+  follow-up takes its moment away again. Built the same way.
+- **The note and the quick log are stored** on the contact and in the
+  history. In the prototype they last only until the page reloads.
+
 ## 5. Decisions taken
 
 Agreed with the product owner on 10 Oct 2026: React Native (Expo) for the app,
