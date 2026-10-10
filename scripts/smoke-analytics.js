@@ -82,6 +82,53 @@ const ONE_THING = { en: 'Finish the investor proposal', ar: 'أخلّص عرض �
   const queue = async () => (await read('ot.analyticsQueue')) || [];
   const names = async () => (await queue()).map((e) => e.name);
 
+  // -------------------------------------------------------- 01 first run
+  // The sign-in screen had no behavioural coverage at all before real Apple
+  // and Google sign-in went in, and on web both report "wrong-platform", so
+  // what runs here is the local fallback — which is the part most likely to
+  // be broken by wiring the real flows up.
+  const fresh = async () => {
+    await page.goto(`${base}/`, { waitUntil: 'domcontentloaded' });
+    await page.evaluate(() => localStorage.clear());
+    await open('/sign-in');
+  };
+
+  await fresh();
+  // expo-router keeps the previous screen mounted through a transition, and
+  // the harness's clock is frozen, so wait for the button itself rather than
+  // for the page: `open` returning is not the screen being ready.
+  const apple = page.getByTestId('sign-in-apple');
+  await apple.waitFor({ state: 'visible' });
+  await apple.click();
+  await page.waitForTimeout(400);
+  check('signing in without accepting the Terms is refused', (await page.getByTestId('consent-error').count()) === 1);
+  check('and goes nowhere', page.url().endsWith('/sign-in'), page.url());
+  check('and records nothing', !(await names()).includes('signin'));
+
+  // The whole consent row is the checkbox, and the middle of it is the
+  // "Terms of Service" link — clicking the centre opens Legal, which is the
+  // design, not a bug. Tick the 22 x 22 box at the start of the row.
+  await page.getByTestId('consent-terms').click({ position: { x: 11, y: 11 } });
+  await page.waitForTimeout(250);
+  check('ticking the box does not open Legal', page.url().endsWith('/sign-in'), page.url());
+  await apple.click();
+  await page.waitForTimeout(900);
+  check('accepting the Terms and signing in reaches Account setup', page.url().endsWith('/setup'), page.url());
+  check('and records signin once', (await names()).filter((n) => n === 'signin').length === 1);
+
+  await page.getByTestId('setup-name').fill('Khalid Al-Mansouri');
+  await page.waitForTimeout(250);
+  await page.getByTestId('setup-cta').click();
+  await page.waitForTimeout(900);
+  const session = await read('ot.session');
+  check('finishing setup creates the session', session?.firstName === 'Khalid', JSON.stringify(session));
+  check('with the provider that was tapped', session?.authProvider === 'apple');
+  check('and lands on Today', page.url().endsWith('/today'), page.url());
+  check('and records setup_done', (await names()).includes('setup_done'));
+  const consent = (await read('ot.consentQueue')) || [];
+  check('consent is queued for the server, terms granted', consent.some((c) => c.kind === 'terms_privacy' && c.granted === true));
+  check('and marketing recorded separately, unticked', consent.some((c) => c.kind === 'marketing' && c.granted === false), JSON.stringify(consent));
+
   // ------------------------------------------------------------ the events
   await seed('en', { oneThing: false });
   await open('/priority');

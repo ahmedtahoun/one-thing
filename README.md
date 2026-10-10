@@ -275,12 +275,17 @@ not happen (§2.34). The parser is on-device rules until the backend carries
 the Claude API call (§2.34), and speech uses a browser's own recogniser where
 there is one and typing everywhere else (§2.35). Sync and Delete account's
 server half need a Supabase project and real sign-in (§2.36). Notifications are written
-and their rules tested, but never delivered on a real device. Real Apple and Google sign-in are stubbed pending
-developer accounts; `src/lib/session.tsx` holds the session on the device until
-then.
+and their rules tested, but never delivered on a real device. Real Apple and
+Google sign-in are written and have never run: they need the client IDs and a
+build on a device, and until then `src/lib/auth/availability.ts` says why and
+the screen falls back to the local session in `src/lib/session.tsx` (§2.39).
+The app records the analytics events DATA_MODEL specifies, and "Download my
+data" leaves a request behind (§2.37–§2.38); the export job that answers it is
+server work and is not written.
 
 See `BUILD-REVIEW.md` for what the handoff leaves open and what has to come
-from the product owner before a store build is possible.
+from the product owner before a store build is possible, and `RELEASE.md` for
+the path from here to a build in review.
 
 ## Free text and the paywall
 

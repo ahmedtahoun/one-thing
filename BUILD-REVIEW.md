@@ -868,3 +868,66 @@ that line for both tables.
 The export itself — read every table for one user, email the result inside 24
 hours — is a server job, and is not written. Nothing on the device can do it,
 and nothing pretends to.
+
+### 2.39 Real Apple and Google sign-in, and the two states the design never drew
+The sign-in screen recorded which button was tapped and opened Account setup;
+`src/lib/session.tsx` then held the whole account on the device. Meanwhile the
+sync layer waits on `db.auth.getSession()`, so several thousand tested lines
+did nothing. This is the keystone, and it is now written. It has still never
+run: both flows need a real build, the client IDs, and the providers
+configured in Supabase (RELEASE.md § 2–3).
+
+**Which modules.** `expo-apple-authentication` for Apple, and
+`@react-native-google-signin/google-signin` for Google. I started with
+`expo-auth-session`'s Google provider, which would have worked on web too —
+tempting, since the whole verification harness is web — and then found its
+`GoogleAuthRequestConfig` carries an `@deprecated` tag pointing at the native
+module. Building a brand-new integration on a deprecated API to gain test
+coverage we cannot trust anyway was the wrong trade, so it came back out.
+`expo-crypto` went in and came out with it: it was there for a nonce that
+neither provider's documented flow uses.
+
+**No nonce.** Supabase's own native examples pass the identity token to
+`signInWithIdToken` without one, and Apple's token is already bound to the
+bundle ID. Inventing a nonce protocol that the provider and Supabase were not
+documented to agree on, in code nobody can run yet, would be the worst kind of
+guess: invisible until it fails on a device.
+
+**Anything but `ready` falls back to the local session.**
+`src/lib/auth/availability.ts` decides, before a native module is touched,
+whether a provider can really sign anyone in: no backend, no client IDs, or
+the wrong platform. Web is always "wrong platform", so the harness keeps
+rendering the first-run flow exactly as before, and a build without a Supabase
+project keeps working for whoever is testing the UI. It is the same shape dev 2
+used for the backend itself, and it is tested, which the native calls cannot be.
+
+**Two states the handoff has no copy for.** A cancelled sign-in and a failed
+one. Apple and Google both show their own sheet and their own error before
+returning, so the screen does nothing on either rather than inventing a
+message — SCREENS.md § 01 has no error state but the Terms one. If a
+"couldn't sign you in" line is wanted, it needs copy in both languages; it is
+on the list with the other four missing strings.
+
+**Apple says the name once.** `fullName` and the real email come back on the
+*first* authorisation and never again, so they are carried through the sign-up
+draft and prefill Account setup's name field — still editable, because Apple's
+spelling of someone's name is not always the one they use. The email is stored
+as given, relay address and all (RELEASE.md § 9.8).
+
+**`app.config.js`, not more `app.json`.** Google's iOS side needs a URL scheme
+built from the reversed iOS client ID, and there is no honest placeholder for
+it: a made-up scheme builds and then fails on a device. So the config became a
+function that adds the plugin only once `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID` is
+set, with `app.json` still the readable base Expo passes in. `usesAppleSignIn`
+is turned on there too, since adding the capability later means a new
+provisioning profile.
+
+**What this turned up in the tests.** The first-run flow had no behavioural
+coverage at all — sign-in and setup were only ever screenshot-compared — so
+`scripts/smoke-analytics.js` now drives it. Writing that found nothing wrong
+with the app and one thing worth knowing: the consent row is a single
+pressable whose *centre* is the "Terms of Service" link, so a click aimed at
+the middle of the row opens Legal rather than ticking the box. That is the
+design — the links are meant to be reachable — but it is worth knowing that
+the box itself is the 22 × 22 at the start of the row, and that is where the
+test aims.

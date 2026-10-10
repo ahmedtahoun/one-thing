@@ -20,6 +20,7 @@ import { AppleMark, GoogleMark, LogoMark } from '@/design/BrandMarks';
 import { ink, space, status } from '@/design/tokens';
 import { useLanguage } from '@/i18n/LanguageProvider';
 import { track } from '@/lib/analytics/track';
+import { authEnvironment, availability, signInWith, type ProviderProfile } from '@/lib/auth';
 import { useSignUpDraft } from '@/lib/signup-draft';
 
 export default function SignIn() {
@@ -30,23 +31,42 @@ export default function SignIn() {
   const [terms, setTerms] = useState(false);
   const [marketing, setMarketing] = useState(false);
   const [showError, setShowError] = useState(false);
+  const [busy, setBusy] = useState<'apple' | 'google' | null>(null);
+
+  /** What setup needs, and the event, once the user really is signed in. */
+  const proceed = (provider: 'apple' | 'google', profile?: ProviderProfile) => {
+    track({ name: 'signin' });
+    draft.begin({ provider, marketingOptIn: marketing, profile });
+    router.push('/setup');
+  };
 
   /**
    * Both buttons stay pressable while Terms are unticked — they only look
    * disabled. Tapping one is how the user is told why nothing happened.
    */
-  const start = (provider: 'apple' | 'google') => {
+  const start = async (provider: 'apple' | 'google') => {
     if (!terms) {
       setShowError(true);
       return;
     }
     setShowError(false);
-    // The provider's own sheet is what will sit here once Apple and Google
-    // sign-in are real; today this is the whole of a successful sign-in, and
-    // the event belongs at the moment it succeeds either way.
-    track({ name: 'signin' });
-    draft.begin({ provider, marketingOptIn: marketing });
-    router.push('/setup');
+    if (busy) return;
+
+    // Without a backend, the client IDs, or a real build, there is no
+    // provider sheet to show: the app signs in locally exactly as it has all
+    // along, which is also what keeps the web harness working.
+    // src/lib/auth/availability.ts says which it is.
+    if (availability(provider, authEnvironment()) !== 'ready') return proceed(provider);
+
+    setBusy(provider);
+    const outcome = await signInWith(provider);
+    setBusy(null);
+
+    // A cancel is the user's answer, not an error, and a failure has already
+    // been explained by Apple's or Google's own sheet — the design has no
+    // state for either, so neither invents one. BUILD-REVIEW §2.39.
+    if (outcome.kind !== 'signed-in') return;
+    proceed(provider, outcome.profile);
   };
 
   return (
@@ -116,7 +136,7 @@ export default function SignIn() {
             label={si.apple}
             dimmed={!terms}
             icon={<AppleMark />}
-            onPress={() => start('apple')}
+            onPress={() => void start('apple')}
           />
           <Button
             testID="sign-in-google"
@@ -124,7 +144,7 @@ export default function SignIn() {
             variant="outline"
             dimmed={!terms}
             icon={<GoogleMark />}
-            onPress={() => start('google')}
+            onPress={() => void start('google')}
           />
           <Text token="micro" color={ink.s5} align="center">
             {si.note}

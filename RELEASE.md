@@ -118,17 +118,18 @@ All 21 screens are now built, the sync engine is written and tested, and
 server-side deletion is in place. What is left is almost entirely the wiring
 that needs your two accounts.
 
-**Real sign-in is the keystone.** `src/lib/sync/SyncProvider.tsx` waits on a
-Supabase auth session (`db.auth.getSession()`), and `app/sign-in.tsx` never
-creates one — it records the chosen provider and hands to `/setup`, which
-opens a session held only on the device. So the whole sync layer, several
-thousand tested lines of it, is dormant until Apple and Google sign-in are
-real. Do this one first; most of the rest follows from it.
+**Real sign-in is written, and has never run.** Both flows end at
+`signInWithIdToken`, which is what wakes the sync layer. What is missing is
+only configuration: the Google client IDs in `.env` (see `.env.example`), and
+Apple's Services ID and key in the Supabase dashboard. Until all of it is in
+place `src/lib/auth/availability.ts` reports why, and the screen falls back to
+the local session the app has always used — so this costs nothing while you
+set the accounts up. BUILD-REVIEW §2.39.
 
 | Work | Where it lands | Blocked on |
 |---|---|---|
 | Supabase project, apply `supabase/migrations/0001_init.sql` and `0002_sync.sql`, fill `.env` | `.env` (see `.env.example`); `npm run schema:check` applies both to a throwaway Postgres first | §1.3 region decision |
-| Real Apple + Google sign-in replacing the stub | `app/sign-in.tsx`, then `supabase.auth.signInWithIdToken`. Needs `expo-apple-authentication` and a Google sign-in module | Apple §2.4, Google §3.4 |
+| ~~Real Apple + Google sign-in~~ — written, unrun | `src/lib/auth/`, wired into `app/sign-in.tsx`. Needs the client IDs and a build on a device | Apple §2.3, Google §3.2–3.3 |
 | Purchases | `src/features/paywall/purchases.ts` answers `'unavailable'` on purpose, so nobody becomes Pro on a purchase that never happened. Plan must come from the store receipt via the backend (App Store Server Notifications / Play RTDN), not from the client | §2.5 / §3.5 |
 | Restore purchases, Manage subscription, the tip jar | `app/settings.tsx` ~495 and ~555 show their toasts and nothing else | store products |
 | The assistant / capture parsing | `src/lib/parse/local.ts` is a real local parser with the 10/day Free meter (`assistant-meter.ts`); a hosted model would replace or back it | an AI provider, if you want one |
@@ -322,13 +323,14 @@ keys I had put in `eas.json`, because they do nothing without that package and
 would have read as if updates were configured. Adding OTA updates later is
 easy; deciding now whether you want them is the point.
 
-### 9.8 Sign in with Apple will hand you relay addresses
+### 9.8 Sign in with Apple will hand you relay addresses — **partly handled**
 Apple's Hide My Email gives you `…@privaterelay.appleid.com`, and the real
 address only on first authorisation, once. This app stores `email` on
 `app_user`, shows it in Settings, and Compose mails contacts — not the user —
-so the blast radius is small, but nothing in the code or the plan
-acknowledges relay addresses, and "sign in with Google, then Apple" creates
-two accounts for one person with no merge path.
+so the blast radius is small. The relay address is now captured and stored as
+given, on the first authorisation, which is the only time Apple offers it
+(BUILD-REVIEW §2.39). What is still open: "sign in with Google, then Apple"
+creates two accounts for one person, and there is no merge path.
 
 ### 9.9 Smaller, but real
 - **Focus sessions never leave the device.** `focus_session` is in the schema
