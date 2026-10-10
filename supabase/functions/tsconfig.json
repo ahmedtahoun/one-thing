@@ -1,0 +1,16 @@
+{
+  "// ": "Type-checks the edge functions with Node's TypeScript (npm run typecheck:functions). Deno runs them; deno-shim.d.ts stands in for the two Deno globals they use, and the bare imports resolve through deno.json there and node_modules here.",
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "noEmit": true,
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "skipLibCheck": true,
+    "types": ["node"]
+  },
+  "include": ["**/*.ts"]
+}

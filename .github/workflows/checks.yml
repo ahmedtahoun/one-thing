@@ -35,13 +35,17 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - name: Typecheck
         run: npm run typecheck
+      # The edge functions, under Node's TypeScript with a Deno shim.
+      - name: Typecheck the edge functions
+        run: npm run typecheck:functions
       # The rules that need no device: notifications, the parser, the
       # assistant meter, the paywall's required wording.
       - name: Unit tests
         run: npm test
-      # The sync engine against a throwaway Postgres with both migrations and
-      # their row-level security. The runner image ships the server binaries.
-      - name: Sync against Postgres
+      # The sync engine and the Assistant's meter against a throwaway Postgres
+      # with every migration and its row-level security. The runner image
+      # ships the server binaries.
+      - name: Sync and the meter against Postgres
         run: npm run test:db
       - name: OKLCH colours match Chromium
         run: npm run verify:colours

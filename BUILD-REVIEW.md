@@ -906,3 +906,78 @@ wording). Demo mode behaves as the prototype does.
    on the server and in the browser alike.
 5. **Two task kinds borrow colours.** The prototype colours six kinds; the
    app has eight, so Webinar uses Meeting's colours and Course uses Remind's.
+
+### 2.38 The Assistant backend
+Quick capture, Brain dump and the Assistant now read notes with Claude,
+through the `assist` edge function, whenever there is a Supabase project
+and a signed-in session. Until then — which is every build so far — the
+on-device rules answer, as before. The screens are unchanged.
+
+**How it works** (`supabase/functions/assist/`)
+- **One request, one structured answer.** The function asks Claude for JSON
+  in a fixed schema: one task, a list of tasks, or the Assistant's
+  task / plan / follow-ups. There is no shape that carries free text, so
+  the Assistant still cannot say anything the design did not write.
+- **Checked twice.** Every answer is read through one shared contract
+  (`supabase/functions/_shared/assist-contract.ts`), on the server and
+  again in the app. A contact ID that is not one of the person's own is
+  dropped.
+- **The person's text is data.** Their note and their contact names are
+  fenced in tags and marked as their own data, never instructions.
+- **Model:** Claude Opus 5.5 at low effort; reading a note is light work.
+  Server-side fallback (`fallbacks: "default"`) is on, so a request Claude
+  declines is retried on Anthropic's recommended fallback model rather than
+  coming back empty. If the model is changed, the prompt and the effort
+  should be re-checked with `scripts/try-assist.ts`.
+- **The meter is the server's** (`0005_assist.sql`). Free users get 10
+  Assistant requests a day, counted in their own time zone; Pro and trial
+  have no limit. The functions that count can be called only by the edge
+  function's service role, for the user it has verified. A user's own
+  session can read its count but not change it, so it cannot give itself
+  requests back. A request that produces no answer is refunded.
+- **Falling back.** The app keeps its own count too, so the eleventh
+  request opens the paywall without a round trip. If the server says
+  "limit" first (another device used the requests), the Assistant does
+  exactly what the eleventh request does. Any other failure — no project,
+  not signed in, offline, Claude unavailable — falls back to the on-device
+  rules without a word, since a proposal is always shown for confirmation
+  first.
+
+**Not yet run against Claude.** There was no API key in this environment.
+Everything around the call is tested:
+- the contract, the handler and the client, with stand-ins (`npm test`);
+- the meter in Postgres (`npm run test:db`);
+- the function code, type-checked against the real SDK.
+
+Two pieces have not run at all:
+- **`index.ts`**, the thin Deno entry that connects all of this to Supabase:
+  checking the token, the two database clients, CORS. It runs only on
+  Supabase. Reading it again found one bug, fixed: it checked the user
+  without passing their token.
+- **The prompt itself.** `scripts/try-assist.ts` runs
+the real function code on the handoff's sample sentences in both languages,
+including the out-of-scope question. A run is 14 requests, about 20 cents,
+so it is not in CI.
+
+**Decisions for the product owner**
+1. **A guard on Quick capture and Brain dump.** Both are open on every plan
+   (§2.34). The server still stops one account at 200 a day, to cap the
+   Claude bill. Nobody is told; past it, the on-device rules answer. Change
+   the number in `0005_assist.sql` and the contract together; a test checks
+   they agree.
+2. **The day turns over in the person's own time zone.** Someone who keeps
+   changing their phone's zone could stretch a day's allowance a little.
+   Counting in one fixed zone would stop that, but the limit would then
+   reset in the middle of some people's day.
+3. **Cost.** Every note sent from these screens is a Claude request. On
+   Claude Opus 5.5 ($4 in / $20 out per million tokens) a note is about
+   800 tokens in and a few hundred out, counting its reasoning: roughly one
+   to two cents each.
+   - A Free user at the Assistant limit, plus ten captures a day, costs
+     about 20–40 cents a day.
+   - Pro is $2.99 a month and has no Assistant limit.
+   - Claude Haiku 5.5 would cost a small fraction of that. Whether its
+     reading is good enough should be measured, not assumed:
+     `scripts/try-assist.ts` with the model changed in `claude.ts`.
+
+   This decision is yours; the code uses Opus 5.5 until you say otherwise.
