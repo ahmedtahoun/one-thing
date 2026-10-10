@@ -245,7 +245,8 @@ Tasks, Follow-ups, Settings, the contact profile and form, Focus, Overwhelm
 and the evening review; 2–3 % on Morning priority, the event form and
 Compose, whose Send button is drawn at 56 pt where the prototype squeezes it
 to 26 (BUILD-REVIEW.md §2.21); 1.0–2.6 % on Sign in and Account setup, where
-the consent checkbox's box model changes a line break (§2.11); and 3–4 % on
+the prototype's missing `box-sizing` makes every bordered box 2–3 pt taller
+than its stated height (§2.11); and 3–4 % on
 People, whose search field is the 48 pt SCREENS.md gives where the prototype
 squeezes it to 24 (§2.19).
 

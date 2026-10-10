@@ -110,7 +110,7 @@ language. `scripts/extract-inline-copy.js` pulls them out mechanically and
 fails loudly if the handoff is ever revised. I first found 22 of them; §2.16 is
 how the other 29 came to light.
 
-### 2.11 The consent checkbox renders 25 px, not the 22 the spec states
+### 2.11 Every bordered box in the prototype is bigger than its stated size
 SCREENS.md § 01 says "Checkbox 22 × 22 radius 7". The prototype draws it as a
 22 px box *plus* two 1.5 px borders — 25 px — because the page has no
 `box-sizing: border-box`. React Native always measures borders inside the box,
@@ -118,6 +118,19 @@ so it gives the spec's 22. The 3 px matters: it is exactly what makes the
 prototype wrap "…and Privacy / Policy." onto a second line where the build
 keeps it on one. **Following the written spec (22), not the prototype.** Say
 if you want the prototype's 25 instead and the wrap back.
+
+This is not one element. The page has no `box-sizing: border-box` anywhere, so
+**every** box whose height is stated alongside a border renders that much
+taller: the Morning priority input is 54 in SCREENS.md § 05 and 56 in the
+prototype, and the same goes for the 52 pt form fields and the 56 pt title
+field on the event form. React Native always measures borders inside the box,
+so it gives the written number.
+
+The gap is 2–3 pt per element and it is why a few probes sit at the tolerance
+line rather than at zero. The written sizes are being followed throughout. If
+you would rather match the prototype exactly, it is one change — add the
+border to each stated height — but then the spec's numbers stop describing
+the build, so it needs to be your call.
 
 ### 2.12 README's line-height column describes the intent, not the artefact
 README § Typography gives a line height for every token — 1.45 for body, 1.4
