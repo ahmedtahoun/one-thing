@@ -5,10 +5,14 @@
  * strings, but it is not complete: dozens of EN/AR pairs are written inline in
  * app-logic.js. This pulls them out verbatim so no string is ever retyped.
  *
- * They come in two shapes, and both have to be read:
+ * They come in three shapes, and all of them have to be read:
  *   `ar ? '…' : '…'`            — a local boolean (the first-run card, greetings)
  *   `lang === 'ar' ? '…' : '…'` — the comparison written out (status pills,
  *                                 relative times, the contact form)
+ *   `lang === 'ar' ? '…' + x + '…' : '…' + x + '…'`
+ *                               — a sentence built around a value, which
+ *                                 comes out as one string with `{t}` where
+ *                                 the value goes
  * Only the first shape was read at first, which left strings like "Overdue"
  * and " min" to be typed by hand. Anything matching either shape must now be
  * named below — as copy, or as explicitly not copy — or this script fails.
@@ -64,6 +68,20 @@ const PAIR = /ar \? '((?:[^'\\]|\\.)*)' : '((?:[^'\\]|\\.)*)'/g;
 /** The written-out form. Same capture order: Arabic first, then English. */
 const PAIR_LANG = /lang === 'ar' \? '((?:[^'\\]|\\.)*)' : '((?:[^'\\]|\\.)*)'/g;
 
+/**
+ * Pairs built by concatenating around a value. Listed one by one rather than
+ * pattern-matched, because the shapes vary and a wrong guess here would
+ * silently mangle a sentence. The key is the line and the English prefix;
+ * both halves come out as a single string with `{t}` in the middle.
+ */
+const CONCATENATED = {
+  '580:You already have ': { name: 'duplicateContact', placeholder: '{n}' },
+  '653:End the session early? ': { name: 'endFocusEarly', placeholder: '{t}' },
+};
+
+const PAIR_CONCAT =
+  /lang === 'ar' \? '((?:[^'\\]|\\.)*)' \+ [^:]+? \+ '((?:[^'\\]|\\.)*)' : '((?:[^'\\]|\\.)*)' \+ [^:]+? \+ '((?:[^'\\]|\\.)*)'/g;
+
 /** Names for the pairs in the written-out form, keyed the same way. */
 const NAMES_LANG = {
   '76:Last time': 'lastTime',
@@ -80,6 +98,8 @@ const NAMES_LANG = {
   '542:h ': 'hourSuffix',
   '542:m': 'minuteSuffix',
   '542: min': 'minSuffix',
+  '652:Resume · ': 'resumePrefix',
+  '652: left': 'resumeSuffix',
   '574:Contact details (optional)': 'contactDetailsOptional',
   '575:Save contact': 'saveContact',
   '576:Opens WhatsApp with a draft — you hit send': 'opensWhatsApp',
@@ -92,8 +112,6 @@ const NAMES_LANG = {
   '613:From yesterday': 'fromYesterday',
   '632:Where do you talk to people?': 'channelsQuestion',
   '632:I write the draft. You send it from the app you already use.': 'channelsNote',
-  '652:Resume · ': 'resumePrefix',
-  '652: left': 'resumeSuffix',
   '671:Calling…': 'calling',
   '672:No, I didn’t send it yet': 'notSentYet',
   '672:Okay — the draft is saved. Still on your list.': 'draftSavedToast',
@@ -164,7 +182,24 @@ lines.forEach((line, i) => {
   }
 });
 
-const missing = [...Object.values(NAMES), ...Object.values(NAMES_LANG)].filter((k) => !(k in found));
+lines.forEach((line, i) => {
+  const lineNo = i + 1;
+  for (const m of line.matchAll(PAIR_CONCAT)) {
+    const entry = CONCATENATED[`${lineNo}:${m[3]}`];
+    if (!entry) {
+      unnamed.push({ line: lineNo, en: m[3] + '{t}' + m[4], ar: m[1] + '{t}' + m[2] });
+      continue;
+    }
+    const { name, placeholder } = entry;
+    found[name] = { en: `${m[3]}${placeholder}${m[4]}`, ar: `${m[1]}${placeholder}${m[2]}` };
+  }
+});
+
+const missing = [
+  ...Object.values(NAMES),
+  ...Object.values(NAMES_LANG),
+  ...Object.values(CONCATENATED).map((entry) => entry.name),
+].filter((k) => !(k in found));
 if (missing.length) {
   throw new Error('Expected pairs not found in app-logic.js: ' + missing.join(', '));
 }
@@ -284,14 +319,9 @@ const must = (line, pattern, what) => {
   }
   found.saveAndStart = { en: enLabels, ar: arLabels };
 
-  // The duplicate-contact banner, built around the other contact's name.
-  const dupLine = lineWith("'You already have '");
-  const d = must(
-    dupLine,
-    new RegExp(`lang === 'ar' \\? ${STR} \\+ p\\.ar \\+ ${STR} : ${STR} \\+ p\\.en \\+ ${STR}`),
-    'Duplicate-contact message'
-  );
-  found.duplicateContact = { en: `${d[3]}{n}${d[4]}`, ar: `${d[1]}{n}${d[2]}` };
+  // The duplicate-contact banner used to be read by a rule of its own here.
+  // It is a sentence built around a value like any other, so it is in
+  // CONCATENATED now and comes out with the same {n} it always had.
 
   // A new contact's line on People until anything happens with them.
   const added = must(lineWith("en: 'Added today'"), new RegExp(`\\{ en: ${STR}, ar: ${STR} \\}`), '"Added today"');

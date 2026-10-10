@@ -110,7 +110,7 @@ language. `scripts/extract-inline-copy.js` pulls them out mechanically and
 fails loudly if the handoff is ever revised. I first found 22 of them; §2.16 is
 how the other 29 came to light.
 
-### 2.11 The consent checkbox renders 25 px, not the 22 the spec states
+### 2.11 Every bordered box in the prototype is bigger than its stated size
 SCREENS.md § 01 says "Checkbox 22 × 22 radius 7". The prototype draws it as a
 22 px box *plus* two 1.5 px borders — 25 px — because the page has no
 `box-sizing: border-box`. React Native always measures borders inside the box,
@@ -118,6 +118,19 @@ so it gives the spec's 22. The 3 px matters: it is exactly what makes the
 prototype wrap "…and Privacy / Policy." onto a second line where the build
 keeps it on one. **Following the written spec (22), not the prototype.** Say
 if you want the prototype's 25 instead and the wrap back.
+
+This is not one element. The page has no `box-sizing: border-box` anywhere, so
+**every** box whose height is stated alongside a border renders that much
+taller: the Morning priority input is 54 in SCREENS.md § 05 and 56 in the
+prototype, and the same goes for the 52 pt form fields and the 56 pt title
+field on the event form. React Native always measures borders inside the box,
+so it gives the written number.
+
+The gap is 2–3 pt per element and it is why a few probes sit at the tolerance
+line rather than at zero. The written sizes are being followed throughout. If
+you would rather match the prototype exactly, it is one change — add the
+border to each stated height — but then the spec's numbers stop describing
+the build, so it needs to be your call.
 
 ### 2.12 README's line-height column describes the intent, not the artefact
 README § Typography gives a line height for every token — 1.45 for body, 1.4
@@ -464,6 +477,119 @@ whether iOS's 64-notification limit behaves as assumed.
 with. Until then, treat the notification layer as written-but-unproven, and
 `npm run smoke` says nothing about it.
 
+### 2.27 The Morning priority eyebrow has a name baked into it
+`pr_k` is shipped as "GOOD MORNING, KHALID" — the demo user's name, inside the
+string, in both languages. SCREENS.md § 05 writes it "GOOD MORNING, {NAME}".
+
+It is composed from the greeting and the account instead
+(`inline.goodMorning` + the first name, uppercased), which reproduces the
+handoff's own string exactly for that user and works for everyone else. The
+prototype does the same thing a few lines away — `'GOOD MORNING, ' +
+first.toUpperCase()` — so the baked-in `pr_k` looks like a leftover.
+
+### 2.28 Focus: two prototype slips, and one timing disagreement
+- **The mic icon on "Park it" is invisible.** The prototype draws a white
+  circle and puts a white icon in it (`ic.mic` is `this.ic('mic', 22,
+  '#fff')`), so nothing shows. The circle's own `color` is ink, which is what
+  the icon was meant to inherit, so it is drawn in ink here.
+- **"{n} promises are safe until later" counts every open task**, not today's.
+  Followed as-is: during a session what is on your mind is the whole list, and
+  that is what the sentence answers.
+- **The screen dims after 4 s in SCREENS.md § 15 and 3.5 s in the
+  prototype.** Following the written 4, which is what `motion.focusIdleDim`
+  already carried. Half a second, but it is the kind of thing nobody notices
+  until they are asked to review it.
+
+### 2.29 The evening review collects decisions and throws them away
+SCREENS.md § 20 gives each open promise three answers — Kept · Tomorrow · ✕
+Not needed — plus a "Rest → tomorrow" bulk link, and says **"Nothing moves
+automatically."**
+
+In the prototype nothing moves at all: the marks go into `s.review`, and
+`closeDay` only sets `closed: true`. Press "Close the day" and every task is
+exactly where it was.
+
+Read as a prototype shortcut rather than a design. "Nothing moves
+automatically" means nothing moves *without being asked*, and the marks are
+the asking — so here "Close the day" applies them: Kept completes the task,
+Tomorrow moves it on a day, Not needed cancels it. Nothing happens until that
+button, which is the part the rule is actually about.
+
+Also: the prototype's "{a} of {b} promises kept" counts **every** task in the
+list, including the six on later days — 18 rather than today's 12. An evening
+review that counts next week's tasks is reporting on the wrong day, so this
+one counts today's.
+
+### 2.30 "Plan tomorrow →" does not exist in either language
+SCREENS.md § 20 ends the closed state with a "Plan tomorrow →" button. There
+is no such string in the handoff, and the prototype renders `t.pr_k + ' →'`
+there — the Morning priority eyebrow — which comes out as "GOOD MORNING,
+KHALID →".
+
+The button goes to Morning priority, which is plainly the intent. Its label is
+the nearest copy that exists in both languages, `t.tomorrow` ("Tomorrow" /
+"لبكرة") plus the arrow. **Please supply the real string**, like the three in
+§2.25.
+
+### 2.31 Reschedule has no screen number
+Swipe-left on a task, the clock on Up next, and the reminder sheet's "Pick a
+date & time" all open the same thing, and SCREENS.md never numbers it — § 07
+mentions its calendar in passing as part of the reminder sheet. It is built as
+its own route, `/reschedule`, because three screens open it and it has two
+modes: `move` changes when the task is due, `remind` sets a custom reminder
+and leaves the task alone. The title and the button say which.
+
+Its quick chips come from `rQuick`, whose day offsets are relative to the
+prototype's frozen 9 October — "Monday" is `+4`. They are applied relative to
+today instead, so "Monday" keeps its offset but not its name. Worth a look
+when the demo data is refreshed.
+
+### 2.32 The task store dropped every write but the last
+Not a handoff question — a bug in this build, found by the first behavioural
+test written against the evening review, and worth recording because the shape
+of it will come back.
+
+Every mutation read `tasks` from the closure and wrote the result:
+`persistTasks(tasks.map(…))`. Two calls in the same event therefore both
+started from the list as it was *before* either ran, and the second overwrote
+the first. So:
+
+- **The evening review applied one mark in three.** "Close the day" ran Kept,
+  then Tomorrow, then Not needed; only Not needed survived.
+- **A saved event lost itself.** The event form added the task and then wrote
+  its reminder instant; the second write mapped over the list without the new
+  task in it, and deleted it again.
+
+Both looked correct on screen, because the screen re-rendered from the one
+write that did land.
+
+The store now takes an updater — `persistTasks(current => …)` — so calls in
+the same event compose, and `addTask` works out a reminder's instant itself
+rather than leaving every caller to make a second write. `npm run smoke`
+covers both paths.
+
+The general lesson for this codebase: **anything that changes the task list
+more than once in a single handler must go through one updater**, or the
+earlier changes are silently lost.
+
+### 2.33 One measurement that is not a layout error
+The drift check compares the tightest box around each labelled piece of text
+on both sides. The prototype's template wraps every interpolation in an inline
+`<span>`, React Native renders its own box around the same text, and those two
+line up — text box against text box, which is why the numbers have been
+trustworthy.
+
+The Focus title is the exception. At 22 pt on a 1.3 line-height its glyph box
+is taller than the line box it sits in, so the prototype's span reports about
+5 pt above where the text is actually laid out. **Both sides put the title at
+exactly 126** — the layout agrees; only the measurement does not. It is in
+`KNOWN_DEVIATIONS` with that reason rather than papered over.
+
+Recorded because the obvious fix is wrong. Skipping the prototype's inline
+span looks like removing noise and instead falls back to the enclosing
+button, which is 15 pt taller — every button label on every screen. Tried
+once: two failures became sixteen, across five screens nobody had touched.
+
 ## 5. Decisions taken
 
 Agreed with the product owner on 10 Oct 2026: React Native (Expo) for the app,
@@ -485,7 +611,7 @@ Taken here, under the stated assumptions, and reversible in one file each:
   app restart. Settings switches language with an inline pill, so it has to
   apply immediately.
 
-### 2.27 Quick capture, Brain dump, the Assistant and the Paywall
+### 2.34 Quick capture, Brain dump, the Assistant and the Paywall
 Every probe on the four screens sits at 0 pt, in both languages. Pixel
 difference is 0.03–0.78 %.
 
@@ -552,7 +678,7 @@ than shown.
   same space.
 - **Brain dump only sorts what was written.** With an empty box the prototype
   sorts its own sample paragraph, and "Talk instead" fills that sample in.
-  Here an empty box sorts nothing, talking adds what was heard (§2.28), and
+  Here an empty box sorts nothing, talking adds what was heard (§2.35), and
   "Save 0" saves nothing and does not say "0 things saved".
 - **Starting the trial does nothing yet.** In the prototype it makes the
   person Pro and says "Welcome to Pro 🎉". With no store accounts there is no
@@ -571,7 +697,7 @@ than shown.
 - **The plan puts the One Thing at 09:00**, as the prototype does whatever
   the time ("Your One Thing goes first, while your head is fresh").
 
-### 2.28 Speech-to-text has not been chosen
+### 2.35 Speech-to-text has not been chosen
 Quick capture's mic and Brain dump's "Talk instead" only pretend in the
 prototype: each produces its own sample sentence after a delay. There is no
 recogniser in this build. Two decisions are needed: on-device recognition,

@@ -10,7 +10,7 @@
  * (src/lib/parse/types.ts).
  *
  * Each message sent spends one of the Free plan's 10 a day. The eleventh opens
- * the paywall instead of sending — BUILD-REVIEW.md §2.27.
+ * the paywall instead of sending — BUILD-REVIEW.md §2.34.
  */
 import { useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
@@ -104,7 +104,7 @@ export default function Assistant() {
   const waiting = followUps.filter((f) => followUpStatus(f, now) === 'waiting').length;
   // botFu is the prototype's demo sentence ("Three threads are open. Noura
   // is the oldest — 3 days."); the Follow-ups summary says the same thing
-  // from real counts — BUILD-REVIEW.md §2.27.
+  // from real counts — BUILD-REVIEW.md §2.34.
   const followUpLine = nudge + waiting === 0 ? fux.sum0 : fux.sum.replace('{a}', String(nudge)).replace('{b}', String(waiting));
 
   return (

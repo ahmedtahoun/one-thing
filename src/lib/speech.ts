@@ -5,7 +5,7 @@
  * own sample sentence. There is no recogniser in this build yet — that is a
  * decision still to make (on-device recognition, or the audio sent to the
  * backend with the text request) and it needs the microphone and speech
- * permission strings (DATA_MODEL § Integrations). BUILD-REVIEW.md §2.28.
+ * permission strings (DATA_MODEL § Integrations). BUILD-REVIEW.md §2.35.
  *
  * Until then: where the platform has one built in — a browser with the Web
  * Speech API — it is used; everywhere else `startListening` returns null and

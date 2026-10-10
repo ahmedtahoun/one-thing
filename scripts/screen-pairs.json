@@ -100,6 +100,56 @@
     "proto": "ar-12-new-contact.png"
   },
   {
+    "name": "en-priority",
+    "app": "en-05-morning-priority.png",
+    "proto": "en-08-morning-priority.png"
+  },
+  {
+    "name": "en-event",
+    "app": "en-09-new-event-meeting.png",
+    "proto": "en-05-new-meeting-visit.png"
+  },
+  {
+    "name": "en-focus",
+    "app": "en-15-focus-lock-in.png",
+    "proto": "en-14-lock-in.png"
+  },
+  {
+    "name": "en-overwhelm",
+    "app": "en-16-overwhelm-mode.png",
+    "proto": "en-15-overwhelm-mode.png"
+  },
+  {
+    "name": "en-review",
+    "app": "en-20-daily-review.png",
+    "proto": "en-21-daily-review.png"
+  },
+  {
+    "name": "ar-priority",
+    "app": "ar-05-morning-priority.png",
+    "proto": "ar-08-morning-priority.png"
+  },
+  {
+    "name": "ar-event",
+    "app": "ar-09-new-event-meeting.png",
+    "proto": "ar-05-new-meeting-visit.png"
+  },
+  {
+    "name": "ar-focus",
+    "app": "ar-15-focus-lock-in.png",
+    "proto": "ar-14-lock-in.png"
+  },
+  {
+    "name": "ar-overwhelm",
+    "app": "ar-16-overwhelm-mode.png",
+    "proto": "ar-15-overwhelm-mode.png"
+  },
+  {
+    "name": "ar-review",
+    "app": "ar-20-daily-review.png",
+    "proto": "ar-21-daily-review.png"
+  },
+  {
     "name": "en-capture",
     "app": "en-17-capture.png",
     "proto": "en-16-quick-capture.png"

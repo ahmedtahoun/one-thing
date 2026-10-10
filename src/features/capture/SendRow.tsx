@@ -5,7 +5,7 @@
  * The prototype's input has no `min-width: 0`, so it overflows its row and
  * squeezes the 50 × 50 button into a 30-wide oval. The button is drawn at the
  * 50 its own style asks for, and the input takes what is left —
- * BUILD-REVIEW.md §2.27. The input is 52 tall: 50 plus its 1 pt border, which
+ * BUILD-REVIEW.md §2.34. The input is 52 tall: 50 plus its 1 pt border, which
  * the prototype's content-box adds.
  */
 import { forwardRef } from 'react';

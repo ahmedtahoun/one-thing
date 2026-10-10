@@ -8,7 +8,7 @@
  *
  * All six features are listed as designed, Weekly recap included, though no
  * recap exists (BUILD-REVIEW.md §2.2): the product owner has kept the line
- * for now, to be designed or dropped before submission (§2.27). Nothing here
+ * for now, to be designed or dropped before submission (§2.34). Nothing here
  * routes to it — `can(plan, 'weeklyRecap')` is false for everyone.
  */
 import { useState } from 'react';

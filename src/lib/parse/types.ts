@@ -31,7 +31,7 @@ export type ParsedTask = {
  * contacts, reminders and follow-ups only (SCREENS.md § 19), so the only
  * things it can say are the handoff's own lines around these structured
  * results. Anything else a person asks is offered back as a task to keep or
- * ignore — BUILD-REVIEW.md §2.27.
+ * ignore — BUILD-REVIEW.md §2.34.
  */
 export type AssistantIntent =
   | { kind: 'task'; task: ParsedTask }

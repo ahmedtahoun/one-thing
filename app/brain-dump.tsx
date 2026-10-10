@@ -32,7 +32,7 @@ export default function BrainDump() {
   const { t, a11y, lang } = useLanguage();
   const dir = useDirection();
   const { contacts } = usePeople();
-  const { addTasks } = useTasks();
+  const { addTask } = useTasks();
   const toast = useToast();
 
   const [text, setText] = useState('');
@@ -47,7 +47,7 @@ export default function BrainDump() {
   /**
    * "Talk instead". The prototype fills in its own sample paragraph; here
    * what is heard is added to what is already written. With no recogniser on
-   * the device, it puts the cursor in the box instead — BUILD-REVIEW.md §2.28.
+   * the device, it puts the cursor in the box instead — BUILD-REVIEW.md §2.35.
    */
   const talk = () => {
     if (listening) return stopRef.current?.();
@@ -70,7 +70,7 @@ export default function BrainDump() {
 
   const save = () => {
     if (!items || kept === 0) return;
-    addTasks(items.filter((i) => i.keep).map((i) => taskFromParsed(i, 'dump')));
+    for (const item of items) if (item.keep) addTask(taskFromParsed(item, 'dump'));
     router.dismissTo('/today');
     toast.show(t.toastDump.replace('{n}', String(kept)), { undo: false });
   };
@@ -147,7 +147,7 @@ export default function BrainDump() {
               }}
             >
               {/* The prototype passes its white mic here, invisible on the
-                  white button; drawn in ink — BUILD-REVIEW.md §2.27. */}
+                  white button; drawn in ink — BUILD-REVIEW.md §2.34. */}
               <Icon name="mic" size={22} strokeWidth={1.9} />
               <Text token="bodyS">{listening ? t.tapStop : t.d_fill}</Text>
             </Pressable>
