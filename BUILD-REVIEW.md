@@ -610,3 +610,103 @@ Taken here, under the stated assumptions, and reversible in one file each:
   rather than through `I18nManager.forceRTL`, which only takes effect after an
   app restart. Settings switches language with an inline pill, so it has to
   apply immediately.
+
+### 2.34 Quick capture, Brain dump, the Assistant and the Paywall
+Every probe on the four screens sits at 0 pt, in both languages. Pixel
+difference is 0.03–0.78 %.
+
+**Decided by the product owner, 10 Oct 2026**, in answer to §2.1 and §2.2:
+
+- **Free loses only the assistant meter**: 10 Assistant requests a day, and
+  every other paid feature stays open. `src/policy/entitlements.ts` is
+  unchanged; the meter that uses it is new (`src/lib/assistant-meter.ts`).
+  Every message sent to the Assistant spends one, chips included. Capture and
+  Brain dump spend none. The server will enforce the same count when there is
+  one; the device's copy is what lets the Assistant answer without a round
+  trip.
+- **Weekly recap stays on the paywall**, all six features as designed. It must
+  be designed, or the line removed, **before store submission**: selling a
+  feature that does not exist is a review risk. Nothing routes to a recap;
+  `can(plan, 'weeklyRecap')` is still false for everyone.
+
+**Free text.** `parse()` in app-logic.js is a stub. It knows two names,
+reads the first number as an hour, and cuts titles at 46 characters. It
+was not copied. `src/lib/parse/` is the seam: one contract (`TextParser`,
+text in, `{type, title, who, contactId, when}` out), one on-device
+implementation that is good enough to build against, and `index.ts`, the one
+place the backend call goes. The local rules start from the prototype's
+keywords, 17:00 default and brain-dump splitting, and match people from
+People rather than two hard-coded names. 17 tests hold them to the
+handoff's own sample sentences in both languages. Because the local
+parser does better, a card does not always read as the prototype's would.
+"Remind me tomorrow at 10 to send Mohammed the price quote" is captured as
+"Send Mohammed the price quote and follow up", tomorrow at 10:00, not as
+the whole sentence cut at 46 characters.
+
+**The Assistant's scope** is tasks, contacts, reminders and follow-ups, and it
+cannot say anything else. Its replies are typed: a task card, the day's plan,
+or the follow-up count, each with the handoff's own line above it. There is
+no type for a free-text answer. A question outside that scope ("What is the
+capital of France?") comes back the way the prototype handles any sentence:
+as a task card the person can keep or ignore. The handoff has **no line for
+"I can only help with tasks"**. Supply one if a refusal should be said rather
+than shown.
+
+**Where the build departs from the prototype**:
+
+- **"Who am I waiting on?" answers with the real count.** `botFu` is the
+  prototype's demo sentence, "Three threads are open. Noura is the oldest —
+  3 days.", true only of its seed data. The reply uses the Follow-ups
+  screen's own summary instead ("1 need a nudge · 2 waiting on a reply"),
+  which says the same thing from the person's follow-ups.
+- **The eleventh request on Free opens the paywall.** There is no designed
+  state for reaching the limit. The message is not sent and not counted, and
+  stays in the box. The paywall's first line explains the limit ("Free plan:
+  10 requests a day."). **Say if a line in the chat should come first**; it
+  would need copy.
+- **Quick capture confirms with "Save & back to focus"**, not SCREENS.md's
+  "Looks right" / "Edit". The prototype shows what was heard in an editable
+  box, the parsed card under it (updating as the text is edited), and that
+  one button. Its render is followed.
+- **Send buttons are 50 × 50**, as their own style says. Capture's and the
+  Assistant's text fields have no `min-width: 0`, so the prototype's row
+  overflows and squeezes the button into a 30-wide oval. This is the same
+  flex-shrink artefact as §2.19 and §2.21. The fields are 52 tall (50 plus
+  the border the content-box adds).
+- **"Talk instead" has a visible mic.** The prototype passes its white mic
+  icon to a white button, so it renders invisible. It is drawn in ink, in the
+  same space.
+- **Brain dump only sorts what was written.** With an empty box the prototype
+  sorts its own sample paragraph, and "Talk instead" fills that sample in.
+  Here an empty box sorts nothing, talking adds what was heard (§2.35), and
+  "Save 0" saves nothing and does not say "0 things saved".
+- **Starting the trial does nothing yet.** In the prototype it makes the
+  person Pro and says "Welcome to Pro 🎉". With no store accounts there is no
+  product to buy (§3), so `src/features/paywall/purchases.ts` answers
+  "unavailable", the plan stays Free, and nothing is claimed. When the stores
+  exist, their own sheet takes over and Pro arrives with the receipt. Restore
+  behaves as in Settings: with no store, "No previous purchases found." is
+  the true answer. **The same care is owed in Settings**: its tip jar thanks
+  the person ("Thank you so much ☕") for a purchase that never happened. That
+  screen is not part of this change, so it is noted here rather than edited.
+- **The paywall is measured without a name.** Its title takes the first name
+  (", Khalid" / " يا خالد"), and the prototype's demo account has none, so
+  with one the Arabic title wraps to a third line. The drift probe and the
+  compared screenshot use a nameless session. A named one is captured as
+  `24-paywall-named`.
+- **The plan puts the One Thing at 09:00**, as the prototype does whatever
+  the time ("Your One Thing goes first, while your head is fresh").
+
+### 2.35 Speech-to-text has not been chosen
+Quick capture's mic and Brain dump's "Talk instead" only pretend in the
+prototype: each produces its own sample sentence after a delay. There is no
+recogniser in this build. Two decisions are needed: on-device recognition,
+or the audio sent to the backend with the text request; and the permission
+strings both stores require (`NSMicrophoneUsageDescription`,
+`NSSpeechRecognitionUsageDescription`, `RECORD_AUDIO` — DATA_MODEL
+§ Integrations).
+
+Until then, `src/lib/speech.ts` uses the platform's own recogniser where there
+is one, which is a browser with the Web Speech API. Everywhere else the mic
+puts the cursor in the text field, since both screens already accept typing.
+Nothing that was not said is ever shown as heard.

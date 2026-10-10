@@ -19,8 +19,9 @@
  *
  * A few lines need patterns of their own — Settings' reminder-style
  * descriptions, the follow-up Nudge's task, the follow-up Compose writes
- * after "Did you send it?", and the contact form's button labels, duplicate
- * banner and "Added today" — see the notes above them.
+ * after "Did you send it?", the contact form's button labels, duplicate
+ * banner and "Added today", and the paywall title's name — see the notes
+ * above them.
  *
  *   node scripts/extract-inline-copy.js <path to design_handoff_the_one_thing>
  */
@@ -325,6 +326,18 @@ const must = (line, pattern, what) => {
   // A new contact's line on People until anything happens with them.
   const added = must(lineWith("en: 'Added today'"), new RegExp(`\\{ en: ${STR}, ar: ${STR} \\}`), '"Added today"');
   found.addedToday = { en: added[1], ar: added[2] };
+}
+
+{
+  // The paywall title's `{n}` takes the first name with its own joiner —
+  // ", Khalid" in English, " يا خالد" in Arabic — built by concatenation:
+  // `(lang === 'ar' ? ' يا ' + first : ', ' + first)`.
+  const m = must(
+    lineWith('pwTitle:'),
+    new RegExp(`first \\? \\(lang === 'ar' \\? ${STR} \\+ first : ${STR} \\+ first\\) : ''`),
+    'Paywall title name'
+  );
+  found.paywallName = { en: `${m[2]}{n}`, ar: `${m[1]}{n}` };
 }
 
 const en = {};
