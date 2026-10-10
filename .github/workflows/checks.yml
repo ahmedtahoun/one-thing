@@ -12,6 +12,10 @@ on:
   push:
     branches: ['**']
   pull_request:
+  # A push made with a GitHub App token does not raise a `push` event, so a
+  # branch pushed from an agent session gets no run until someone opens a pull
+  # request. This is the button that starts one by hand in the meantime.
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
