@@ -248,6 +248,104 @@ neither has ever run on hardware.
 
 ---
 
+---
+
+## 9. What this plan does not cover
+
+Written by auditing the repo against the handoff rather than against the plan,
+because a plan can only miss what nobody has looked for. In order of what
+would hurt most.
+
+### 9.1 Nothing has ever run on a phone
+Every one of the 202 drift probes, 30 pixel comparisons and 193 behavioural
+checks runs `react-native-web` in Chromium. That is a real check — it caught
+the Arabic double-mirror and the line-height error — but it is not the
+platform you are shipping. Unverified on hardware: native RTL layout (iOS and
+Android resolve `direction: 'rtl'` in their own layout engines, not CSS's),
+IBM Plex Sans Arabic loading through `expo-font`, `expo-blur` on the tab bar,
+shadows, safe areas on a notched device, every keyboard interaction, and all
+five notifications. The first `preview` build is where a batch of small
+surprises arrives, and there is no way to shorten that discovery except to do
+it early.
+
+### 9.2 There is no analytics, and no table to put it in
+`DATA_MODEL.md` specifies an event taxonomy — `signin, setup_done,
+one_thing_set, task_created{type,via}, … purchase{product}, account_deleted`,
+phone and email SHA-256 hashed. **Nothing emits any of it, and the schema has
+no table for it.** `ADMIN.md` then asks for Total users, Active users, a
+seven-step funnel with drop percentages, and weekly retention cohorts. The
+third developer is building those screens now against a data source that does
+not exist. Someone has to decide: an events table in this Postgres, or a
+vendor — and if a vendor, it brings an SDK, which brings a privacy-manifest
+entry and a Data safety answer.
+
+### 9.3 The app promises a data download it cannot do
+The Privacy Policy copy says, in both languages: "Download or delete your data
+and account from Settings." There is no download anywhere in the app. The
+schema expects it — `privacy_request_type` is `('delete', 'export')` with
+`source` `('app', 'web')` and a 30-day deadline — and PDPL and GDPR both make
+portability a right, not a feature. Either the app raises an export request,
+or that sentence has to change in EN and AR.
+
+### 9.4 Support has a back end and no front door
+`support_ticket` and `support_message` exist, and the admin panel has a
+support inbox. The app has no Help or Contact screen at all (BUILD-REVIEW
+§2.3, still open), so no ticket can ever arrive. Apple also requires a
+**Support URL** in App Store Connect, which makes this a fourth public page
+on the website nobody owns yet — or an in-app screen, which is the better
+answer and is not designed.
+
+### 9.5 Weekly recap is sold on a paywall that is now live
+The paywall ships and lists Weekly recap as a Pro feature. It does not exist
+in any screen, and the Pro gating matrix is still undefined (§2.1), so Free
+currently gets everything except the assistant's 10-a-day limit. Advertising
+a feature the app does not have is both a metadata problem at review and a
+refund problem after it. Design it or take it off the card.
+
+### 9.6 The assistant has no server, and its limit is on the wrong side
+`.env.example` reserves `ANTHROPIC_API_KEY` for "the backend that fronts the
+assistant", and there is no backend. The key cannot ship in the app — anyone
+can read it out of the bundle — so this needs a Supabase Edge Function or
+similar. The same host is needed for the store webhooks (App Store Server
+Notifications / Play RTDN) that move a user's `plan`. And the Free limit of 10
+requests a day lives in `src/lib/assistant-meter.ts`, on the device, where a
+reinstall resets it; when the assistant costs money per call, the meter has to
+move server-side.
+
+### 9.7 Every fix will be a full store review
+`expo-updates` is not installed, so there is no over-the-air channel: a typo
+in Arabic copy means a new binary and another review. I removed the `channel`
+keys I had put in `eas.json`, because they do nothing without that package and
+would have read as if updates were configured. Adding OTA updates later is
+easy; deciding now whether you want them is the point.
+
+### 9.8 Sign in with Apple will hand you relay addresses
+Apple's Hide My Email gives you `…@privaterelay.appleid.com`, and the real
+address only on first authorisation, once. This app stores `email` on
+`app_user`, shows it in Settings, and Compose mails contacts — not the user —
+so the blast radius is small, but nothing in the code or the plan
+acknowledges relay addresses, and "sign in with Google, then Apple" creates
+two accounts for one person with no merge path.
+
+### 9.9 Smaller, but real
+- **Focus sessions never leave the device.** `focus_session` is in the schema
+  and not in the sync engine's `COLUMNS`, so a new phone starts with no focus
+  history. The daily total survives, because `one_thing.focus_minutes` syncs.
+  The evening review's decisions are the same story (§2.29).
+- **No crash or error reporting.** You will ship blind to anything the
+  harness cannot see, which after §9.1 is a lot.
+- **Supabase tier.** A free project pauses after inactivity, which is not a
+  thing a live app survives. Budget the Pro tier, and set backups with it.
+- **Store listing assets beyond screenshots** — Play's 512 icon and
+  1024×500 feature graphic, both stores' descriptions and keywords, all in
+  Arabic as well as English. Nobody has written the Arabic listing copy.
+- **The Android adaptive icon foreground is 512×512** where Expo wants
+  1024×1024. It builds; it will look slightly soft next to a sharp one.
+- **The repo's default branch is still my working branch.** `main` is the
+  trunk now — Settings → Branches, and I have no tool for it.
+
+---
+
 ## What is actually left
 
 With both accounts already shipping-ready and Play's tester gate behind us,
@@ -263,3 +361,8 @@ the calendar-time risks are gone and what remains is work:
    been tested in a browser and in Postgres.
 
 Of those, only (1) and the domain in §7 are waiting on you. The rest is ours.
+
+What §9 adds to that list, in the order I would take it: get a `preview` build
+onto a real phone (§9.1), decide analytics before the admin panel is built
+around nothing (§9.2), and settle Weekly recap and the gating matrix (§9.5)
+before the paywall is in front of a paying customer.
