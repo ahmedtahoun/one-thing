@@ -1,0 +1,22 @@
+/* The prototype's page styles (Admin Panel.dc.html, <helmet>). */
+body {
+  margin: 0;
+  background: #f6f6f3;
+  -webkit-font-smoothing: antialiased;
+}
+a {
+  color: #0b0b0b;
+}
+a:hover {
+  color: #555;
+}
+input,
+button,
+select,
+textarea {
+  font-family: inherit;
+}
+/* The prototype's `style-hover` on table rows. */
+.row-hover:hover {
+  background: #faf9f6 !important;
+}

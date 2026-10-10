@@ -129,6 +129,10 @@ export type Profile = {
   email?: string;
   language: 'en' | 'ar';
   platform: 'ios' | 'android' | null;
+  /** "1.0.0 (iOS 19.1)", for the admin panel's Troubleshoot checks. */
+  appVersion?: string | null;
+  /** Whether the OS will deliver notifications; null where it cannot be asked. */
+  notificationsAllowed?: boolean | null;
 };
 
 // ------------------------------------------------------------- columns ----
@@ -389,7 +393,7 @@ export function profileToRow(profile: Profile): ProfileRow {
   };
 }
 
-export function profileFromRow(row: ProfileRow): Omit<Profile, 'language' | 'platform'> {
+export function profileFromRow(row: ProfileRow): Omit<Profile, 'language' | 'platform' | 'appVersion' | 'notificationsAllowed'> {
   return {
     name: row.name,
     firstName: row.first_name,
