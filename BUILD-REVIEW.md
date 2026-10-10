@@ -773,10 +773,9 @@ Decisions that need the product owner:
 4. **A new device takes the server's settings and name**, not its own
    defaults. A name typed again during Account setup on a second device is
    therefore replaced by the one on the server.
-5. **Tips are writable by the user.** `tip` has the owner-only policy like
-   every other table, so a user could insert a tip they never paid for. It
-   should be written only by the store webhook, like `subscription`. This is
-   not changed here because nothing reads it yet.
+5. ~~**Tips are writable by the user.**~~ Fixed in
+   `0003_tips_from_the_store.sql`: like `subscription`, a tip is now written
+   only by the store webhooks, and its owner can only read it.
 
 What changed on the device:
 - **New rows get UUIDs** (`src/lib/ids.ts`), because the keys are uuid

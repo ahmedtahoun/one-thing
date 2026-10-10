@@ -262,12 +262,14 @@ describe('sync against Postgres', () => {
     );
   });
 
-  it('lets nobody make themselves Pro', () => {
+  it('lets nobody make themselves Pro, or record a tip they did not pay for', () => {
     assert.throws(() => asUser(A, `update public.app_user set plan = 'pro' where id = '${A}'`), /permission denied/);
     assert.throws(() => asUser(A, `update public.app_user set suspended = false where id = '${A}'`), /permission denied/);
     assert.throws(() => asUser(A, `update public.app_user set apple_sub = 'someone' where id = '${A}'`), /permission denied/);
     assert.throws(() => asUser(A, `insert into public.subscription (user_id, store, product_id, period, status, started_at)
       values ('${A}', 'app_store', 'pro.yearly', 'yearly', 'active', now())`), /row-level security/);
+    // Nor record a tip the store never sold.
+    assert.throws(() => asUser(A, `insert into public.tip (user_id, store, product_id) values ('${A}', 'app_store', 'tip_large')`), /row-level security/);
     // The fields the user does own still update.
     asUser(A, `update public.app_user set job_title = 'Founder' where id = '${A}'`);
   });
