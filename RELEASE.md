@@ -5,9 +5,10 @@ order the steps actually unblock each other. Every item says who it belongs to.
 Nothing here is a design change; where a step needs a decision that cannot be
 reversed later, it is marked **irreversible**.
 
-The build today is 14 screens, the notification layer, the content layer in
-both languages, and the verification harness. What it does *not* have is every
-piece that touches a store or a server: real sign-in, purchases, and a backend.
+The build today is every screen in the handoff bar the dead one, in both
+languages, with the notification layer, the sync engine and the verification
+harness behind them. What it does *not* have is every piece that touches a
+store or a live server: real sign-in, purchases, and a Supabase project.
 Those are the three things the accounts unlock.
 
 ---
@@ -118,22 +119,28 @@ decides what the Privacy Policy has to say.
 
 ## 4. The code that still has to be written
 
-Each of these is blocked on the accounts above, which is why none of it exists
-yet. In rough dependency order:
+All 21 screens are now built, the sync engine is written and tested, and
+server-side deletion is in place. What is left is almost entirely the wiring
+that needs your two accounts.
+
+**Real sign-in is the keystone.** `src/lib/sync/SyncProvider.tsx` waits on a
+Supabase auth session (`db.auth.getSession()`), and `app/sign-in.tsx` never
+creates one — it records the chosen provider and hands to `/setup`, which
+opens a session held only on the device. So the whole sync layer, several
+thousand tested lines of it, is dormant until Apple and Google sign-in are
+real. Do this one first; most of the rest follows from it.
 
 | Work | Where it lands | Blocked on |
 |---|---|---|
-| Supabase project + apply `supabase/migrations/0001_init.sql`, fill `.env` | `.env` (see `.env.example`) | §1.3 region decision |
-| Real Apple + Google sign-in replacing the stub | `app/sign-in.tsx` hands to `/setup` with a local session; `src/lib/session.tsx` is the whole store today. Needs `expo-apple-authentication` + Google sign-in, then `supabase.auth.signInWithIdToken` | Apple §2.4, Google §3.4 |
-| Sync: tasks, people, follow-ups, prefs read and write the server, not just `AsyncStorage` | `src/lib/tasks.tsx`, `people`, `prefs` | backend |
-| Server-side account deletion | `src/lib/account.ts` wipes the device and says in its own comment that the server call belongs there | backend |
-| The paywall (screen 24) and purchases | route does not exist; `src/policy/entitlements.ts` is ready for it | dev 2 has screen 24; purchases need §2.5 / §3.5 |
+| Supabase project, apply `supabase/migrations/0001_init.sql` and `0002_sync.sql`, fill `.env` | `.env` (see `.env.example`); `npm run schema:check` applies both to a throwaway Postgres first | §1.3 region decision |
+| Real Apple + Google sign-in replacing the stub | `app/sign-in.tsx`, then `supabase.auth.signInWithIdToken`. Needs `expo-apple-authentication` and a Google sign-in module | Apple §2.4, Google §3.4 |
+| Purchases | `src/features/paywall/purchases.ts` answers `'unavailable'` on purpose, so nobody becomes Pro on a purchase that never happened. Plan must come from the store receipt via the backend (App Store Server Notifications / Play RTDN), not from the client | §2.5 / §3.5 |
 | Restore purchases, Manage subscription, the tip jar | `app/settings.tsx` ~495 and ~555 show their toasts and nothing else | store products |
-| The assistant / capture parsing | regex stub today; needs a model key and the 10/day Free meter | an AI provider |
+| The assistant / capture parsing | `src/lib/parse/local.ts` is a real local parser with the 10/day Free meter (`assistant-meter.ts`); a hosted model would replace or back it | an AI provider, if you want one |
 | Notification delivery on a real device | rules are written and unit-tested; never once delivered (BUILD-REVIEW §2.26) | a build on hardware |
+| Store webhooks → `plan` | nothing exists; the admin panel also assumes it | backend + store products |
 
-**Screens 17, 18, 19 and 24 are developer 2's.** 24 is the paywall, so the
-purchase flow cannot be finished before that screen lands.
+Not in this repo at all: the admin panel (13 screens) and the public website.
 
 ## 5. Two config fixes already applied
 
@@ -199,8 +206,10 @@ still serving its 14 days.
 ## 8. Review risks specific to this app
 
 1. **Account deletion.** Apple 5.1.1(v): an app with account creation must
-   offer in-app deletion. The sheet exists and today it only wipes the device.
-   Once there is a server, it must delete there too, or this is a rejection.
+   offer in-app deletion. This is now handled — `src/lib/account.ts` deletes
+   the server rows first, keeps the deletion pending if the server cannot be
+   reached, and finishes it on the next launch that can. Worth testing on a
+   real build, because it is the single rejection reason easiest to trip.
 2. **Sign in with Apple parity.** Because the app offers Google sign-in, Apple
    requires Sign in with Apple as an equivalent option. The design already
    puts it first with equal prominence — keep it that way; it is a store rule,
@@ -209,11 +218,14 @@ still serving its 14 days.
    Mail or the dialler and the user presses send. Keep it that way. An app
    that sends messages on a user's behalf is a different review conversation
    and this one stays well clear of it.
-4. **The microphone permission is declared but unused.** `app.json` asks for
-   `RECORD_AUDIO` and ships two iOS purpose strings, and there is no recorder
-   in the codebase — the mic orb opens Quick capture. Either voice capture
-   ships in v1 or those three declarations come out before submitting. A
-   permission you never exercise invites a reviewer question you cannot answer.
+4. **The microphone permission is declared but never exercised on a device.**
+   `app.json` asks for `RECORD_AUDIO` and ships two iOS purpose strings.
+   `src/lib/speech.ts` uses the Web Speech API where the platform has one —
+   so dictation works on web and nowhere else, and both screens fall back to
+   typing. Which recogniser to use is still an open decision (BUILD-REVIEW
+   §2.35). Either it ships in v1 or those three declarations come out before
+   submitting: a permission you never exercise invites a reviewer question you
+   cannot answer, and on Android `RECORD_AUDIO` is one Play asks about.
 5. **`SCHEDULE_EXACT_ALARM`.** Also declared, and Play treats exact-alarm
    access as justify-or-remove. I read the module rather than guessing:
    `expo-notifications` calls `setExactAndAllowWhileIdle` when the permission
