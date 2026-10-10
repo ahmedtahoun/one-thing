@@ -17,6 +17,7 @@ import {
 } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+import { newId } from './ids';
 import { dateKey, type OneThing, type Task } from './model-types';
 import { remindAt } from './reminders';
 
@@ -52,6 +53,11 @@ type TasksValue = {
   setFocusMinutes: (minutes: number) => void;
   /** Everything gone, from memory and the device — Delete account. */
   reset: () => void;
+  /**
+   * For the sync engine only: applies what a sync decided against the lists
+   * as they are now, which may have moved on while it ran.
+   */
+  applySync: (update: { tasks?: (current: Task[]) => Task[]; oneThing?: (current: OneThing | null) => OneThing | null }) => void;
 };
 
 const TasksContext = createContext<TasksValue | null>(null);
@@ -102,15 +108,20 @@ export function TasksProvider({ children }: { children: ReactNode }) {
   const persistTasks = useCallback((update: (current: Task[]) => Task[]) => {
     setTasks((current) => {
       const next = update(current);
+      if (next === current) return current;
       AsyncStorage.setItem(TASKS_KEY, JSON.stringify(next)).catch(() => {});
       return next;
     });
   }, []);
 
-  const persistOneThing = useCallback((next: OneThing | null) => {
-    setOneThingState(next);
-    if (next) AsyncStorage.setItem(ONE_THING_KEY, JSON.stringify(next)).catch(() => {});
-    else AsyncStorage.removeItem(ONE_THING_KEY).catch(() => {});
+  const persistOneThing = useCallback((next: OneThing | null | ((current: OneThing | null) => OneThing | null)) => {
+    setOneThingState((current) => {
+      const resolved = typeof next === 'function' ? next(current) : next;
+      if (resolved === current) return current;
+      if (resolved) AsyncStorage.setItem(ONE_THING_KEY, JSON.stringify(resolved)).catch(() => {});
+      else AsyncStorage.removeItem(ONE_THING_KEY).catch(() => {});
+      return resolved;
+    });
   }, []);
 
   const addTask = useCallback<TasksValue['addTask']>(
@@ -122,7 +133,7 @@ export function TasksProvider({ children }: { children: ReactNode }) {
         status: 'open',
         points: [],
         ...input,
-        id: `t_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+        id: newId(),
         createdAt: new Date().toISOString(),
       };
       // A reminder's instant is derived from the task's own time, so it is
@@ -202,6 +213,14 @@ export function TasksProvider({ children }: { children: ReactNode }) {
     AsyncStorage.multiRemove([TASKS_KEY, ONE_THING_KEY]).catch(() => {});
   }, []);
 
+  const applySync = useCallback<TasksValue['applySync']>(
+    ({ tasks: nextTasks, oneThing: nextOne }) => {
+      if (nextTasks) persistTasks(nextTasks);
+      if (nextOne) persistOneThing(nextOne);
+    },
+    [persistTasks, persistOneThing]
+  );
+
   const value = useMemo<TasksValue>(
     () => ({
       tasks,
@@ -219,6 +238,7 @@ export function TasksProvider({ children }: { children: ReactNode }) {
       setOneThingDone,
       setFocusMinutes,
       reset,
+      applySync,
     }),
     [
       tasks,
@@ -235,6 +255,7 @@ export function TasksProvider({ children }: { children: ReactNode }) {
       setOneThingDone,
       setFocusMinutes,
       reset,
+      applySync,
     ]
   );
 

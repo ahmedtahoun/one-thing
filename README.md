@@ -81,6 +81,7 @@ same size and diff them.
 ```sh
 npm run typecheck
 npm test                   # the rules that do not need a device
+npm run test:db            # sync against a throwaway Postgres, with row-level security
 npm run verify:colours     # OKLCH -> sRGB, against Chromium
 npm run schema:check       # applies migrations to a scratch Postgres
 npm run capture:prototype  # screenshots the handoff's prototype at 402 x 874
@@ -245,6 +246,8 @@ notification, Overwhelm mode, the evening review, Reschedule, Quick capture
 (typed or spoken, with the parsed card), Brain dump (sorted into separate
 things, each kept or dropped), the Assistant (task cards, the day's plan, the
 follow-up count, and the Free plan's 10 requests a day), and the Paywall.
+Sync with the server is built and tested against Postgres, but it stays off
+until real sign-in exists (see Sync below).
 
 Across 202 probes on those screens, in both languages, the worst element sits
 within 2 pt of the prototype — ACCEPTANCE.md's bar — with two documented
@@ -267,8 +270,8 @@ starting the trial changes nothing and makes nobody Pro, Restore truthfully
 finds nothing, and the tip jar still says thank you for a purchase that did
 not happen (§2.34). The parser is on-device rules until the backend carries
 the Claude API call (§2.34), and speech uses a browser's own recogniser where
-there is one and typing everywhere else (§2.35). Delete account
-erases the device but has no server to erase yet. Notifications are written
+there is one and typing everywhere else (§2.35). Sync and Delete account's
+server half need a Supabase project and real sign-in (§2.36). Notifications are written
 and their rules tested, but never delivered on a real device. Real Apple and Google sign-in are stubbed pending
 developer accounts; `src/lib/session.tsx` holds the session on the device until
 then.
@@ -299,3 +302,26 @@ differ by 0.03–0.78 % of pixels. `scripts/smoke-capture.js` (part of
   "unavailable" until the store accounts exist. Starting the trial makes
   nobody Pro.
 
+## Sync
+
+`src/lib/sync/` keeps the device's stores in step with Supabase. The stores
+remain what every screen reads and writes, so nothing waits on the network;
+the sync runs underneath them. BUILD-REVIEW.md §2.36 has the reasoning and
+what is still open.
+
+- `reconcile.ts` is the merge. Each list is compared three ways: the device,
+  the server, and what the server held after this device's last sync. Changes
+  and deletions go both ways, and an edit beats a deletion.
+- `engine.ts` runs one sync against any `Remote`; `rows.ts` maps the app's
+  objects to rows and back.
+- `remote.ts` is the Supabase `Remote`. `SyncProvider.tsx` decides when to
+  sync, and handles signing out and deleting the account.
+- `npm test` runs the engine with two devices against an in-memory server.
+  `npm run test:db` runs it against a real Postgres with both migrations
+  and row-level security. It checks that every row fits the schema, that
+  users cannot see or write each other's rows, that nobody can make
+  themselves Pro, and that deleting the account removes every row.
+
+**Dormant until real sign-in exists.** A sync needs a Supabase session, and
+sign-in is still the local stub, so today the app runs on the device alone,
+as before.

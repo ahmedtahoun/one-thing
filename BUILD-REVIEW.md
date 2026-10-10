@@ -710,3 +710,81 @@ Until then, `src/lib/speech.ts` uses the platform's own recogniser where there
 is one, which is a browser with the Web Speech API. Everywhere else the mic
 puts the cursor in the text field, since both screens already accept typing.
 Nothing that was not said is ever shown as heard.
+
+### 2.36 Syncing with the server
+The stores (tasks, the One Thing, contacts, history, follow-ups, settings,
+the profile) now sync with the Supabase schema. Screens still read and write
+only the device's stores, so nothing waits on the network and the app works
+offline. `src/lib/sync/SyncProvider.tsx` runs a sync 2 seconds after a
+change, when the app comes back to the foreground, every 5 minutes while it
+is open, and when consent is recorded.
+
+**It is dormant in every build so far.** A sync needs a Supabase session.
+Sign-in is still the local stub (§3), so nothing ever makes one, and the
+provider does nothing. It is tested against Postgres with the real migrations
+and row-level security (`npm run test:db`), but **not against a hosted
+Supabase project**, which does not exist yet. The PostgREST adapter
+(`src/lib/sync/remote.ts`) has not made a real request. When sign-in calls
+`supabase().auth.signInWithIdToken`, sync starts by itself.
+
+How it decides (`src/lib/sync/reconcile.ts`). Each list is compared three
+ways: the device, the server, and what the server held when this device
+last finished a sync. A change made on one side only goes to the other. A
+deletion travels both ways. When both sides changed the same row, the device
+syncing now wins. An edit beats a deletion. Whole tables are read each time:
+the schema keeps no edit times, and one person's data is small. The cost is
+reading everything on each sync. If that ever matters, the fix is an
+`updated_at` column with a trigger, and tombstones for deletes.
+
+What the schema needed (`supabase/migrations/0002_sync.sql`):
+- **Columns the app keeps and DATA_MODEL left out:** the task's "who" line,
+  the contact's last-interaction line and when they were last contacted (the
+  order of People), and the follow-up card's who / since text and its
+  creation time.
+- **Follow-ups outlive their contact.** On the device, deleting a contact
+  removes their history but not the follow-ups. 0001's cascade would have
+  deleted them on the server, so `contact_id` is now nullable and set to
+  null. `next_at` is nullable too, as the app allows.
+- **Users could make themselves Pro.** Row-level security limits which rows
+  a user can write, not which columns, so under 0001 any signed-in user could
+  set their own `plan`, clear `suspended`, or claim another account's Apple
+  or Google subject. Those columns are now writable only by the service role.
+  The test proves it.
+- **`delete_my_account()`** deletes the auth user, and every row cascades
+  from it. It records a completed, anonymous privacy request, so the admin
+  panel can count deletions without knowing who asked.
+
+Decisions that need the product owner:
+1. **Sign-out while offline loses what was not yet synced.** Sign-out tries
+   a last sync, then clears the device, because the data is on the server
+   and the next person to sign in must not inherit it. If that last sync
+   cannot reach the server, changes made since the previous sync are lost.
+   The design has no "you have unsynced changes" warning. One is needed, or
+   sign-out should wait for a connection.
+2. **A failed account deletion is retried silently.** If the server cannot
+   be reached, the device is wiped as asked, and the server-side deletion is
+   remembered and finished on the next launch that has a connection. The
+   design has no "could not delete" state, and DATA_MODEL allows 30 days.
+   Store subscriptions are not cancelled by deleting the account. Apple
+   expects the app to say so, and the delete sheet does not.
+3. **On a true conflict, the device that syncs last wins.** This is rare for
+   one person's data, but possible with a phone and a tablet both edited
+   offline. Field-level merging would cost an edit time per field.
+4. **A new device takes the server's settings and name**, not its own
+   defaults. A name typed again during Account setup on a second device is
+   therefore replaced by the one on the server.
+5. **Tips are writable by the user.** `tip` has the owner-only policy like
+   every other table, so a user could insert a tip they never paid for. It
+   should be written only by the store webhook, like `subscription`. This is
+   not changed here because nothing reads it yet.
+
+What changed on the device:
+- **New rows get UUIDs** (`src/lib/ids.ts`), because the keys are uuid
+  columns.
+- **Rows from before sync are given UUIDs on the first sync**, with every
+  reference moved with them (`src/lib/sync/adopt.ts`).
+- **Consent waits in a queue** on the device until a sync has written it
+  (`src/lib/consent.ts`). Before this, a failed write at sign-up was dropped
+  despite the comment saying it was kept. Delete account clears the queue,
+  so one account's consent is never sent as the next account's.
+- **Plan comes only from the server**, which the store webhooks will write.
