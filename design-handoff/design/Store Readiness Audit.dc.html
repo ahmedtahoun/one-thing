@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet><link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&amp;display=swap" rel="stylesheet"><style>body{margin:0;background:#f6f6f3;-webkit-font-smoothing:antialiased}a{color:#0b0b0b}a:hover{color:#555}</style></helmet>
+<div style="max-width:860px;margin:0 auto;padding:48px 24px 80px;font-family:'IBM Plex Sans Arabic',system-ui,sans-serif;color:#0b0b0b;display:flex;flex-direction:column;gap:36px">
+<header style="display:flex;flex-direction:column;gap:10px">
+<div style="font-size:12px;letter-spacing:.14em;color:#6b6b68">THE ONE THING · v5 · 10 OCT 2026</div>
+<h1 style="margin:0;font-size:36px;line-height:1.15;font-weight:600;text-wrap:balance">Feature, test &amp; store-review audit</h1>
+<p style="margin:0;font-size:16px;line-height:1.6;color:#55554f;max-width:640px;text-wrap:pretty">Every screen of the prototype was clicked through in English and Arabic, then checked against the App Store Review Guidelines and Google Play policies. Fixes marked <b>Fixed</b> are already in <a href="The%20One%20Thing%20v5.dc.html">The One Thing v5</a>. Items marked <b>Dev</b> or <b>Store</b> can’t be solved in design — they’re for the build or the store listing.</p>
+<div style="display:flex;flex-wrap:wrap;gap:10px;padding-top:6px">
+<div style="background:#fff;border-radius:16px;padding:14px 18px;display:flex;flex-direction:column;gap:2px"><span style="font-size:24px;font-weight:600">21 / 21</span><span style="font-size:13px;color:#6b6b68">screens render, 0 errors</span></div>
+<div style="background:#fff;border-radius:16px;padding:14px 18px;display:flex;flex-direction:column;gap:2px"><span style="font-size:24px;font-weight:600">7 / 7</span><span style="font-size:13px;color:#6b6b68">key flows pass</span></div>
+<div style="background:#fff;border-radius:16px;padding:14px 18px;display:flex;flex-direction:column;gap:2px"><span style="font-size:24px;font-weight:600">1</span><span style="font-size:13px;color:#6b6b68">rejection risk removed</span></div>
+<div style="background:#fff;border-radius:16px;padding:14px 18px;display:flex;flex-direction:column;gap:2px"><span style="font-size:24px;font-weight:600">9</span><span style="font-size:13px;color:#6b6b68">to-dos for build &amp; listing</span></div>
+</div>
+</header>
+
+<section style="display:flex;flex-direction:column;gap:14px">
+<h2 style="margin:0;font-size:22px;font-weight:600">1 · Feature audit</h2>
+<div style="background:#fff;border-radius:18px;overflow:hidden">
+<sc-for list="{{ features }}" as="f" hint-placeholder-count="10"><div style="display:grid;grid-template-columns:minmax(0,180px) minmax(0,1fr) auto;gap:16px;align-items:start;padding:14px 18px;border-bottom:1px solid #efefec"><div style="font-size:14px;font-weight:600">{{ f.area }}</div><div style="font-size:14px;line-height:1.5;color:#3a3a37;text-wrap:pretty">{{ f.what }}</div><span style="font-size:12px;font-weight:600;padding:4px 10px;border-radius:999px;background:{{ f.bg }};color:{{ f.fg }};white-space:nowrap">{{ f.st }}</span></div></sc-for>
+</div>
+</section>
+
+<section style="display:flex;flex-direction:column;gap:14px">
+<h2 style="margin:0;font-size:22px;font-weight:600">2 · Test run</h2>
+<p style="margin:0;font-size:14px;line-height:1.6;color:#55554f">Automated pass inside the prototype: opened all 21 screens, looked for console errors and broken text (<code>undefined</code>, <code>NaN</code>, empty holes), then ran the flows below. Arabic was checked for leftover English — only brand names (Google Meet, Teams, emails) remain, which is correct.</p>
+<div style="background:#fff;border-radius:18px;overflow:hidden">
+<sc-for list="{{ tests }}" as="t" hint-placeholder-count="7"><div style="display:flex;gap:14px;align-items:center;padding:12px 18px;border-bottom:1px solid #efefec"><span style="width:22px;height:22px;border-radius:50%;background:oklch(0.93 0.06 150);color:oklch(0.4 0.12 150);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex:none">✓</span><span style="font-size:14px;flex:1">{{ t }}</span></div></sc-for>
+</div>
+</section>
+
+<section style="display:flex;flex-direction:column;gap:14px">
+<h2 style="margin:0;font-size:22px;font-weight:600">3 · Apple App Store review</h2>
+<div style="background:#fff;border-radius:18px;overflow:hidden">
+<sc-for list="{{ apple }}" as="r" hint-placeholder-count="10"><div style="display:flex;flex-direction:column;gap:6px;padding:14px 18px;border-bottom:1px solid #efefec"><div style="display:flex;gap:10px;align-items:baseline;flex-wrap:wrap"><span style="font-size:12px;font-weight:600;color:#6b6b68;font-variant-numeric:tabular-nums">{{ r.g }}</span><span style="font-size:14px;font-weight:600;flex:1">{{ r.t }}</span><span style="font-size:12px;font-weight:600;padding:4px 10px;border-radius:999px;background:{{ r.bg }};color:{{ r.fg }}">{{ r.st }}</span></div><div style="font-size:14px;line-height:1.55;color:#3a3a37;text-wrap:pretty">{{ r.d }}</div></div></sc-for>
+</div>
+</section>
+
+<section style="display:flex;flex-direction:column;gap:14px">
+<h2 style="margin:0;font-size:22px;font-weight:600">4 · Google Play review</h2>
+<div style="background:#fff;border-radius:18px;overflow:hidden">
+<sc-for list="{{ google }}" as="r" hint-placeholder-count="8"><div style="display:flex;flex-direction:column;gap:6px;padding:14px 18px;border-bottom:1px solid #efefec"><div style="display:flex;gap:10px;align-items:baseline;flex-wrap:wrap"><span style="font-size:14px;font-weight:600;flex:1">{{ r.t }}</span><span style="font-size:12px;font-weight:600;padding:4px 10px;border-radius:999px;background:{{ r.bg }};color:{{ r.fg }}">{{ r.st }}</span></div><div style="font-size:14px;line-height:1.55;color:#3a3a37;text-wrap:pretty">{{ r.d }}</div></div></sc-for>
+</div>
+</section>
+
+<section style="display:flex;flex-direction:column;gap:14px">
+<h2 style="margin:0;font-size:22px;font-weight:600">5 · Before you submit</h2>
+<div style="background:#0b0b0b;color:#fff;border-radius:20px;padding:22px 24px;display:flex;flex-direction:column;gap:12px">
+<sc-for list="{{ todo }}" as="t" hint-placeholder-count="9"><div style="display:flex;gap:12px;align-items:flex-start;font-size:14px;line-height:1.55"><span style="width:18px;height:18px;border-radius:5px;border:1.5px solid #6b6b68;flex:none;margin-top:2px"></span><span>{{ t }}</span></div></sc-for>
+</div>
+</section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+const S = { ok: ['Pass', 'oklch(0.94 0.05 150)', 'oklch(0.4 0.12 150)'], fix: ['Fixed', 'oklch(0.94 0.04 250)', 'oklch(0.42 0.13 250)'], dev: ['Dev', 'oklch(0.95 0.05 80)', 'oklch(0.42 0.1 70)'], store: ['Store', 'oklch(0.95 0.035 300)', 'oklch(0.45 0.13 300)'] };
+const row = (st, o) => ({ ...o, st: S[st][0], bg: S[st][1], fg: S[st][2] });
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      features: [
+        ['Sign in & setup', 'Apple + Google sign-in, required Terms/Privacy consent, optional marketing opt-in, name → phone (all countries) → job title.', 'ok'],
+        ['Today', 'One Thing leads; 8 quick actions; 2 next promises + See all; greeting uses the user’s name.', 'ok'],
+        ['Tasks', 'Add sheet with 8 types, scrollable filters, Overdue tag, reminder-per-task, “Add reminders to these” only touches tasks with none and can be undone.', 'ok'],
+        ['Visit / Meeting / Webinar / Course', 'Each has its own fields (location + Maps, platform + link, host, lesson + study days + progress) and saves as a task with reminder.', 'ok'],
+        ['People & contact profile', 'Profile with quick actions, “Remember for next time”, coming up, dated history and quick log. Duplicate warning and delete contact.', 'ok'],
+        ['Compose', 'Draft is prepared in-app; the user sends from WhatsApp/Mail; it’s only marked done after “Did you send it?” — “Not sent yet” keeps it open.', 'ok'],
+        ['Follow-ups', 'Nudge / Waiting / Closed tabs. Nudge opens a draft — nothing is sent automatically.', 'ok'],
+        ['Focus & overwhelm', 'Resume shows time left; ending early asks first. Overwhelm mode kept simple on purpose.', 'ok'],
+        ['Evening review', 'Per item: Kept / Tomorrow / Not needed. Nothing moves automatically.', 'ok'],
+        ['Settings', 'Reminder style explained, notifications (permission, sound, vibration), channels, language, privacy & data, restore/manage subscription, sign out, delete account.', 'ok'],
+        ['Pro plan', 'One plan: $2.99/mo billed yearly or $4.99 monthly, 7-day trial, Restore, Terms + Privacy.', 'ok'],
+        ['Buy us a coffee', 'Was an external PayPal link — changed to optional in-app tips ($0.99 / $2.99 / $4.99) through App Store / Google Play.', 'fix'],
+      ].map(([area, what, st]) => row(st, { area, what })),
+      tests: ['All 21 screens open with no console errors or broken text', 'Sign-in is blocked until Terms & Privacy are accepted', 'Delete account opens a confirmation, explains what’s erased, returns to sign-in', 'Paywall shows price, period, trial, Restore, Terms and Privacy', 'Arabic: Settings, Paywall, Follow-ups, Tasks, Profile, Meeting form fully translated', 'Saving a meeting adds it to Tasks with its reminder', 'Screen-change error (componentDidUpdate) found and fixed — persistence and transitions work again'],
+      apple: [
+        ['4.8', 'Sign in with Apple', 'Offered alongside Google, same size and prominence, shown first.', 'ok'],
+        ['5.1.1(v)', 'Account deletion in the app', 'Settings → Delete account, with clear confirmation. Mentions that subscriptions must be cancelled in the store.', 'ok'],
+        ['5.1.1(i)', 'Privacy policy in the app', 'Linked from sign-in, Settings and the paywall. Now also covers children and a “not a medical device” statement.', 'fix'],
+        ['5.1.1(ii)', 'Only ask for data you need', 'Phone and job title are optional and skippable; contact phone/email optional.', 'ok'],
+        ['3.1.2', 'Subscription disclosure', 'Paywall fine print now says when payment is charged, that it auto-renews unless cancelled 24 h before the period ends, and where to manage it.', 'fix'],
+        ['3.1.1', 'Tips must use In-App Purchase', 'An external PayPal “coffee” link is a common rejection. Replaced with consumable IAP tips that unlock nothing.', 'fix'],
+        ['3.1.1', 'Restore purchases', 'On the paywall and in Settings.', 'fix'],
+        ['5.1.2', 'Marketing consent', 'Separate, unticked, optional. If you add ad tracking later you’ll also need the App Tracking Transparency prompt.', 'ok'],
+        ['1.4.1 / 2.3.1', 'Health claims', 'Don’t call it an ADHD treatment in the name, screenshots or description. “Built for busy, scattered minds” is safe; “treats ADHD” is not.', 'store'],
+        ['5.1.1', 'Permission prompts', 'Microphone (voice capture) and notifications need clear purpose strings in the build, e.g. “Used only while you’re recording a note.”', 'dev'],
+        ['2.1', 'App review access', 'Give reviewers a demo account or make sure Sign in with Apple works in the review build; seed sample data so the app isn’t empty.', 'store'],
+      ].map(([g, t, d, st]) => row(st, { g, t, d })),
+      google: [
+        ['Account deletion (in app + on the web)', 'In-app flow exists. Play also needs a web link — now referenced as theonething.app/delete; that page must exist.', 'fix'],
+        ['Data safety form', 'Declare: name, email, phone, job title, contacts you add, notes, app activity, crash logs. Encrypted in transit; deletion available.', 'store'],
+        ['Play Billing for digital goods', 'Pro subscription and coffee tips go through Google Play Billing.', 'fix'],
+        ['Subscription paywall', 'Price, trial length, billing period and how to cancel are visible before purchase.', 'ok'],
+        ['Prominent disclosure', 'The sign-in screen explains what’s collected and why before consent.', 'ok'],
+        ['Sign in with Google branding', 'White button, coloured G mark, “Continue with Google” — matches Google’s guidelines.', 'ok'],
+        ['Notifications (Android 13+)', 'Ask for POST_NOTIFICATIONS at a meaningful moment (after first task), not on launch.', 'dev'],
+        ['Health apps declaration', 'If the listing mentions ADHD, fill the Health apps declaration as a non-medical productivity app.', 'store'],
+      ].map(([t, d, st]) => row(st, { t, d })),
+      todo: ['Host the Privacy Policy, Terms and theonething.app/delete pages on your website (store listings need public URLs)', 'Have a lawyer review the Terms and Privacy text (Saudi PDPL + GDPR if you have EU users)', 'Create the IAP products: Pro monthly $4.99, Pro yearly $35.88 with 7-day trial, and 3 consumable tips', 'Add microphone and notification purpose strings in the iOS and Android builds', 'Fill Apple’s privacy “nutrition label” and Google’s Data safety form using section 4', 'Prepare a reviewer demo account with sample tasks and contacts', 'Keep “ADHD” out of medical claims in the name, subtitle and screenshots', 'Add the support email and support URL to both listings', 'Run the build through TestFlight and Play internal testing before submission'],
+    };
+  }
+}
+</script>
+</body>
+</html>

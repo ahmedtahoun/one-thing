@@ -17,8 +17,9 @@
 const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
+const { handoffDir } = require('./handoff.js');
 
-const HANDOFF = process.argv[2];
+const HANDOFF = handoffDir(process.argv[2]);
 const SRC = path.join(HANDOFF, 'source', 'app-content.js');
 const OUT = path.join(__dirname, '..', 'src', 'content');
 

@@ -5,10 +5,10 @@ priority; the app keeps every small promise — calls, emails, WhatsApps,
 meetings, follow-ups — visible, drafted and reminded, without competing with
 that priority.
 
-Built from `design_handoff_the_one_thing`, whose rule is **recreate exactly**:
-no changes to layout, colours, copy, flows or behaviour. Where a platform
-cannot do what the design does, it is raised rather than redesigned — see
-`BUILD-REVIEW.md`.
+Built from the design handoff in `design-handoff/`, whose rule is **recreate
+exactly**: no changes to layout, colours, copy, flows or behaviour. Where a
+platform cannot do what the design does, it is raised rather than redesigned —
+see `BUILD-REVIEW.md`.
 
 ## Stack
 
@@ -33,7 +33,18 @@ src/
   policy/               entitlements — the single place Free vs Pro is decided
 supabase/migrations/    schema
 scripts/                generators and the verification harness
+design-handoff/         the design handoff, verbatim — read-only
 ```
+
+`design-handoff/` is the designer's package committed as-is: the spec
+(`README.md`, `SCREENS.md`, `DATA_MODEL.md`, `ACCEPTANCE.md`, `ADMIN.md`), the
+working prototype (`design/The One Thing v5.dc.html`), its copy and logic
+(`source/`), and a screenshot of all 24 screens in both languages. The
+generators and the comparison harness read it, so a fresh clone can run both
+without anyone hunting for the original zip. Never edit it by hand. If the
+designer revises it, replace the folder wholesale and re-run the two
+`content:` commands below — a diff in `src/content/` is then the list of
+strings that changed.
 
 ## Getting started
 
@@ -52,8 +63,8 @@ enough to click through every screen.
 Copy is transcribed mechanically from the handoff so no string is ever retyped.
 
 ```sh
-npm run content:port   -- <path to design_handoff_the_one_thing>   # strings, icons, countries, seed
-npm run content:inline -- <path to design_handoff_the_one_thing>   # copy that only exists in app-logic.js
+npm run content:port     # strings, icons, countries, seed data
+npm run content:inline   # the copy that exists only in app-logic.js
 ```
 
 Both write into `src/content/`. Each language block is emitted as
@@ -69,14 +80,16 @@ same size and diff them.
 
 ```sh
 npm run typecheck
-npm run verify:colours                                       # OKLCH -> sRGB, against Chromium
-npm run schema:check                                         # applies migrations to a scratch Postgres
-npm run capture:prototype -- <path to design_handoff_the_one_thing>
-npm run capture:app                                          # exports web, screenshots each route
-npm run compare                                              # pixel diff, writes .screens/diff/
-npm run drift -- <path to design_handoff_the_one_thing>       # per-element ±2 pt check
-npm run smoke                                                # drives Tasks in a browser
+npm run verify:colours     # OKLCH -> sRGB, against Chromium
+npm run schema:check       # applies migrations to a scratch Postgres
+npm run capture:prototype  # screenshots the handoff's prototype at 402 x 874
+npm run capture:app        # exports web, screenshots each route
+npm run compare            # pixel diff, writes .screens/diff/
+npm run drift              # per-element ±2 pt check; `-- tasks` for one screen
+npm run smoke              # drives Tasks in a browser
 ```
+
+Each reads `design-handoff/`. To point at a different copy, set `HANDOFF=`.
 
 `npm run drift` is the one that answers ACCEPTANCE.md. It renders the app and
 the prototype side by side, finds the same labelled elements in both, and
@@ -116,6 +129,37 @@ unpkg and its font from Google Fonts, both of which may be blocked, so
 `capture-prototype.js` serves all three from `node_modules` — the font
 especially, because a fallback typeface changes every line break and makes the
 comparison meaningless.
+
+## Working on this with someone else
+
+Four things are worth agreeing on before anyone touches a screen.
+
+**The handoff decides, and where it contradicts itself the prototype's render
+wins.** The written spec and the prototype disagree in a dozen places; each one
+is in `BUILD-REVIEW.md` with which was followed and why. Add to that file
+rather than deciding quietly — the whole point is that the product owner can
+see what was chosen on their behalf.
+
+**Never retype a string.** Every piece of copy comes out of the handoff through
+`scripts/port-content.js` or `scripts/extract-inline-copy.js`. If a string you
+need is missing, extend the extractor; don't type it into a component. The
+generated files emit each Arabic block as `const X_ar: typeof X_en`, so a
+missing translation is a compile error rather than a blank label in production.
+
+**Finish a screen by extending the harness, not just the app.** Add its pair to
+`scripts/screen-pairs.json` and its probes to `PROBES` in
+`scripts/measure-drift.js`, then run the checks below. A screen with no probes
+is unverified, however good it looks.
+
+**Look at the Arabic.** Both automated checks are blind to a horizontal flip,
+and the layout was mirrored twice for a while with both of them green.
+
+Before pushing:
+
+```sh
+npm run typecheck && npm run verify:colours && npm run smoke
+npm run capture:app && npm run compare && npm run drift
+```
 
 ## Colour
 

@@ -14,9 +14,10 @@ const { chromium } = require('playwright');
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const { handoffDir } = require('./handoff.js');
 
 const ROOT = path.join(__dirname, '..');
-const DESIGN = path.join(process.argv[2], 'design');
+const DESIGN = path.join(handoffDir(process.argv[2]), 'design');
 const FONT_DIR = path.join(ROOT, 'node_modules/@expo-google-fonts/ibm-plex-sans-arabic');
 const FACES = [
   ['400', '400Regular/IBMPlexSansArabic_400Regular.ttf'],

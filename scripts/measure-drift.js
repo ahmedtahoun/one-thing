@@ -6,7 +6,7 @@
  * edges; this says where the layout is wrong and by how much, which is what
  * you fix. Run it after `npm run capture:prototype`.
  *
- *   node scripts/measure-drift.js <path to design_handoff_the_one_thing> [screen]
+ *   node scripts/measure-drift.js [screen] [--handoff <path>]
  *
  * Each screen lists the exact text of elements to probe, in both languages.
  * Add to PROBES as screens are built.
@@ -17,6 +17,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const { demoTasks, dateKey } = require('./demo-state');
+const { handoffDir } = require('./handoff.js');
 
 const ROOT = path.join(__dirname, '..');
 const DIST = path.join(ROOT, 'dist');
@@ -239,8 +240,18 @@ async function measurePrototype(lang, probe, designDir) {
 }
 
 (async () => {
-  const designDir = path.join(process.argv[2], 'design');
-  const only = process.argv[3];
+  // The handoff is in the repo, so the only argument worth typing is the
+  // screen to narrow to: `npm run drift -- tasks`. A different copy of the
+  // handoff goes in HANDOFF= or after --handoff.
+  const args = process.argv.slice(2);
+  const flag = args.indexOf('--handoff');
+  const explicit = flag === -1 ? undefined : args[flag + 1];
+  if (flag !== -1) args.splice(flag, 2);
+  const designDir = path.join(handoffDir(explicit), 'design');
+  const only = args[0];
+  if (only && !(only in PROBES)) {
+    throw new Error(`No probes for "${only}". Screens: ${Object.keys(PROBES).join(', ')}`);
+  }
   const results = [];
 
   for (const [screen, probe] of Object.entries(PROBES)) {

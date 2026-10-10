@@ -18,8 +18,9 @@
 'use strict';
 const fs = require('fs');
 const path = require('path');
+const { handoffDir } = require('./handoff.js');
 
-const SRC = path.join(process.argv[2], 'source', 'app-logic.js');
+const SRC = path.join(handoffDir(process.argv[2]), 'source', 'app-logic.js');
 const OUT = path.join(__dirname, '..', 'src', 'content', 'inline-copy.ts');
 
 /**

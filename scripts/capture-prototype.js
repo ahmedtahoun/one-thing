@@ -15,9 +15,10 @@ const { chromium } = require('playwright');
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const { handoffDir } = require('./handoff.js');
 
 const ROOT = path.join(__dirname, '..');
-const HANDOFF = process.argv[2];
+const HANDOFF = handoffDir(process.argv[2]);
 const DESIGN = path.join(HANDOFF, 'design');
 const OUT = process.argv[3] || path.join(ROOT, '.screens-prototype');
 const PAGE = 'The One Thing v5.dc.html';
