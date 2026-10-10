@@ -7,6 +7,7 @@
  */
 import { createContext, useCallback, useContext, useMemo, type ReactNode } from 'react';
 
+import { newId } from './ids';
 import { displayName, type Contact, type FollowUp, type HistoryEntry, type Task } from './model-types';
 import { usePersisted } from './persisted';
 
@@ -45,7 +46,7 @@ type PeopleValue = {
    * top of People. Returns the contact's id.
    */
   saveContact: (input: { id?: string; name: string; role?: string; lastLabel: string }, patch: Partial<Contact>) => string;
-  addFollowUp: (followUp: FollowUp) => void;
+  addFollowUp: (followUp: Omit<FollowUp, 'id' | 'createdAt'>) => void;
   updateContact: (id: string, patch: Partial<Contact>) => void;
   /** A new contact from the contact form, at the top of People. Returns it. */
   addContact: (contact: Omit<Contact, 'id' | 'createdAt'>) => Contact;
@@ -60,6 +61,12 @@ type PeopleValue = {
   /** Replaces the whole list — used by Undo, which restores a snapshot. */
   restoreFollowUps: (followUps: FollowUp[]) => void;
   reset: () => void;
+  /** For the sync engine only — see the task store's own. */
+  applySync: (update: {
+    contacts?: (current: Contact[]) => Contact[];
+    history?: (current: HistoryEntry[]) => HistoryEntry[];
+    followUps?: (current: FollowUp[]) => FollowUp[];
+  }) => void;
 };
 
 const PeopleContext = createContext<PeopleValue | null>(null);
@@ -76,15 +83,16 @@ export function PeopleProvider({ children }: { children: ReactNode }) {
 
   const saveContact = useCallback<PeopleValue['saveContact']>(
     ({ id, name, role, lastLabel }, patch) => {
-      const newId = id ?? `c_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+      const contactId = id ?? newId();
+      const touchedAt = new Date().toISOString();
       setContacts((list) => {
         const current = id ? list.find((c) => c.id === id) : undefined;
         const next: Contact = current
-          ? { ...current, ...patch, lastLabel }
-          : { id: newId, name, role: role || undefined, ...patch, lastLabel, createdAt: new Date().toISOString() };
+          ? { ...current, ...patch, lastLabel, touchedAt }
+          : { id: contactId, name, role: role || undefined, ...patch, lastLabel, touchedAt, createdAt: touchedAt };
         return [next, ...list.filter((c) => c.id !== next.id)];
       });
-      return newId;
+      return contactId;
     },
     [setContacts]
   );
@@ -98,7 +106,7 @@ export function PeopleProvider({ children }: { children: ReactNode }) {
     (input) => {
       const contact: Contact = {
         ...input,
-        id: `c_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+        id: newId(),
         createdAt: new Date().toISOString(),
       };
       setContacts((list) => [contact, ...list]);
@@ -123,12 +131,12 @@ export function PeopleProvider({ children }: { children: ReactNode }) {
 
   const addHistory = useCallback<PeopleValue['addHistory']>(
     (entry) =>
-      setHistory((list) => [{ ...entry, id: `h_${Date.now()}_${Math.random().toString(36).slice(2, 7)}` }, ...list]),
+      setHistory((list) => [{ ...entry, id: newId() }, ...list]),
     [setHistory]
   );
 
   const addFollowUp = useCallback<PeopleValue['addFollowUp']>(
-    (followUp) => setFollowUps((list) => [followUp, ...list]),
+    (followUp) => setFollowUps((list) => [{ ...followUp, id: newId(), createdAt: new Date().toISOString() }, ...list]),
     [setFollowUps]
   );
 
@@ -137,6 +145,15 @@ export function PeopleProvider({ children }: { children: ReactNode }) {
     resetFollowUps();
     resetHistory();
   }, [resetContacts, resetFollowUps, resetHistory]);
+
+  const applySync = useCallback<PeopleValue['applySync']>(
+    (update) => {
+      if (update.contacts) setContacts(update.contacts);
+      if (update.history) setHistory(update.history);
+      if (update.followUps) setFollowUps(update.followUps);
+    },
+    [setContacts, setHistory, setFollowUps]
+  );
 
   const value = useMemo<PeopleValue>(
     () => ({
@@ -153,6 +170,7 @@ export function PeopleProvider({ children }: { children: ReactNode }) {
       updateFollowUp,
       restoreFollowUps: setFollowUps,
       reset,
+      applySync,
     }),
     [
       contacts,
@@ -170,6 +188,7 @@ export function PeopleProvider({ children }: { children: ReactNode }) {
       updateFollowUp,
       setFollowUps,
       reset,
+      applySync,
     ]
   );
   return <PeopleContext.Provider value={value}>{children}</PeopleContext.Provider>;

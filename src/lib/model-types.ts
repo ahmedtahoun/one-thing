@@ -118,6 +118,12 @@ export type Contact = {
    * latest History row instead.
    */
   lastLabel?: string;
+  /**
+   * When a message last went out to them, which is what moves a contact to
+   * the top of People. Every device orders by this (or createdAt) after a
+   * sync, so the list reads the same everywhere.
+   */
+  touchedAt?: string;
   createdAt: string;
 };
 
@@ -154,6 +160,8 @@ export type FollowUp = {
    */
   lastAction?: 'nudged' | 'closed' | null;
   lastActionAt?: string | null;
+  /** Follow-ups list newest first; this keeps that order across devices. */
+  createdAt?: string;
 };
 
 /**

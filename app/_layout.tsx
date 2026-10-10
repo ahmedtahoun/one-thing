@@ -16,6 +16,7 @@ import { NotificationsProvider } from '@/lib/notifications/NotificationsProvider
 import { PeopleProvider } from '@/lib/people';
 import { PrefsProvider } from '@/lib/prefs';
 import { SessionProvider } from '@/lib/session';
+import { SyncProvider } from '@/lib/sync/SyncProvider';
 import { TasksProvider } from '@/lib/tasks';
 import { motion } from '@/design/tokens';
 
@@ -46,19 +47,23 @@ export default function RootLayout() {
           <PrefsProvider>
             <TasksProvider>
               <PeopleProvider>
-                {/* Below the stores it reads, so it can keep the OS's
-                    pending reminders in step with them. */}
-                <NotificationsProvider>
-                  <StatusBar style="dark" />
-                  <Stack
-                    screenOptions={{
-                      headerShown: false,
-                      animation: 'fade',
-                      animationDuration: motion.screenChange,
-                      contentStyle: { backgroundColor: '#FFFFFF' },
-                    }}
-                  />
-                </NotificationsProvider>
+                {/* Below the stores, which it keeps in step with the
+                    server. Idle until there is a backend session. */}
+                <SyncProvider>
+                  {/* Below the stores it reads, so it can keep the OS's
+                      pending reminders in step with them. */}
+                  <NotificationsProvider>
+                    <StatusBar style="dark" />
+                    <Stack
+                      screenOptions={{
+                        headerShown: false,
+                        animation: 'fade',
+                        animationDuration: motion.screenChange,
+                        contentStyle: { backgroundColor: '#FFFFFF' },
+                      }}
+                    />
+                  </NotificationsProvider>
+                </SyncProvider>
               </PeopleProvider>
             </TasksProvider>
           </PrefsProvider>

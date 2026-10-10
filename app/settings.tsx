@@ -84,13 +84,11 @@ export default function Settings() {
       setPrefs({ marketing: granted });
       // A separate consent row, with its own timestamp and version, every
       // time it changes — ACCEPTANCE § First run, DATA_MODEL § Consent.
-      if (session) {
-        recordConsent(session.userId, [
-          { kind: 'marketing', granted, version: POLICY_VERSION, at: new Date().toISOString(), source: 'settings' },
-        ]).catch(() => {});
-      }
+      recordConsent([
+        { kind: 'marketing', granted, version: POLICY_VERSION, at: new Date().toISOString(), source: 'settings' },
+      ]).catch(() => {});
     },
-    [setPrefs, session]
+    [setPrefs]
   );
 
   const pickFocus = (minutes: Prefs['focusMinutes']) => {

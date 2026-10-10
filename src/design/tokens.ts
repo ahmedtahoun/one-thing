@@ -304,3 +304,16 @@ export const motion = {
   easing: [0.2, 0.8, 0.2, 1] as const,
   popEasing: [0.3, 1.5, 0.5, 1] as const,
 } as const;
+
+/**
+ * The paywall's six feature tiles, in the order the copy lists them. Each is
+ * its own oklch() pair in the prototype's setVals() (`featCol` / `featFg`).
+ */
+export const paywallFeature = [
+  { bg: '#F2EAFF', fg: '#8059BB' },
+  { bg: '#DDF1FF', fg: '#116BB5' },
+  { bg: '#DCF7E1', fg: '#1D7D3E' },
+  { bg: '#FFE7D7', fg: '#B45000' },
+  { bg: '#D4F6F8', fg: '#007C84' },
+  { bg: '#F9EED1', fg: '#846400' },
+] as const;

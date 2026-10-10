@@ -38,6 +38,7 @@ export function usePersisted<T>(key: string, initial: T) {
     (next: T | ((current: T) => T)) => {
       setValue((current) => {
         const resolved = typeof next === 'function' ? (next as (c: T) => T)(current) : next;
+        if (resolved === current) return current;
         AsyncStorage.setItem(key, JSON.stringify(resolved)).catch(() => {});
         return resolved;
       });

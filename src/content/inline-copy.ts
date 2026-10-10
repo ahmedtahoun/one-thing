@@ -80,7 +80,8 @@ const INLINE_en = {
     "email": "Save & write an email",
     "call": "Save & call"
   },
-  "addedToday": "Added today"
+  "addedToday": "Added today",
+  "paywallName": ", {n}"
 };
 
 // Declared as `typeof INLINE_en` so a missing Arabic string is a compile error.
@@ -158,7 +159,8 @@ const INLINE_ar: typeof INLINE_en = {
     "email": "احفظ واكتب إيميل",
     "call": "احفظ واتصل"
   },
-  "addedToday": "انضاف اليوم"
+  "addedToday": "انضاف اليوم",
+  "paywallName": " يا {n}"
 };
 
 export const INLINE = { en: INLINE_en, ar: INLINE_ar };

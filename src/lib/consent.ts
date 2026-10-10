@@ -6,7 +6,7 @@
  * by ACCEPTANCE § First run ("Marketing checkbox unticked by default, stored
  * separately with timestamp").
  */
-import { supabase } from './supabase';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 /**
  * Bump this whenever the Terms or Privacy text changes, so a consent row
@@ -35,23 +35,50 @@ export function consentRecordsAtSignIn(marketingOptIn: boolean): ConsentRecord[]
 }
 
 /**
- * Writes consent rows. Returns the records so a caller can queue them when
- * there is no backend yet; consent must never be silently dropped.
+ * Consent waits on the device until the sync engine has written it
+ * (src/lib/sync/). Writing straight to the server would lose it whenever
+ * there is no connection — or no account on the server yet, as at sign-up —
+ * and consent must never be silently dropped. The queue is only ever
+ * appended to here and trimmed from the front by the sync, so a record made
+ * while a sync is running waits for the next one.
  */
-export async function recordConsent(userId: string, records: ConsentRecord[]): Promise<ConsentRecord[]> {
-  const db = supabase();
-  if (!db) return records;
+const QUEUE_KEY = 'ot.consentQueue';
 
-  const { error } = await db.from('consent').insert(
-    records.map((r) => ({
-      user_id: userId,
-      kind: r.kind,
-      granted: r.granted,
-      version: r.version,
-      granted_at: r.at,
-      source: r.source,
-    }))
-  );
-  if (error) throw error;
-  return records;
+let listener: (() => void) | null = null;
+
+/** The sync engine registers here to hear that there is consent to send. */
+export function onConsentQueued(fn: (() => void) | null) {
+  listener = fn;
+}
+
+export async function readConsentQueue(): Promise<ConsentRecord[]> {
+  try {
+    const raw = await AsyncStorage.getItem(QUEUE_KEY);
+    return raw ? (JSON.parse(raw) as ConsentRecord[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+/** Drops the first `count` records, once the server has them. */
+export async function dropSentConsent(count: number): Promise<void> {
+  if (count === 0) return;
+  const rest = (await readConsentQueue()).slice(count);
+  if (rest.length > 0) await AsyncStorage.setItem(QUEUE_KEY, JSON.stringify(rest));
+  else await AsyncStorage.removeItem(QUEUE_KEY);
+}
+
+/**
+ * Forgets consent not yet sent — Delete account only. It belongs to the
+ * account being deleted, and must not be sent as the next account's.
+ */
+export async function clearConsentQueue(): Promise<void> {
+  await AsyncStorage.removeItem(QUEUE_KEY);
+}
+
+/** Records consent: kept on the device now, on the server at the next sync. */
+export async function recordConsent(records: ConsentRecord[]): Promise<void> {
+  const queue = await readConsentQueue();
+  await AsyncStorage.setItem(QUEUE_KEY, JSON.stringify([...queue, ...records]));
+  listener?.();
 }

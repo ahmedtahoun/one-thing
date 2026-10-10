@@ -85,6 +85,12 @@ const ROUTES = [
   { path: '/overwhelm', name: '16-overwhelm-mode', signedIn: true, firstRun: false, seedTasks: true, oneThing: true },
   { path: '/review', name: '20-daily-review', signedIn: true, firstRun: false, seedTasks: true, oneThing: true },
   { path: '/reschedule?id=t1', name: '07-reschedule', signedIn: true, firstRun: false, seedTasks: true },
+  { path: '/capture', name: '17-capture', signedIn: true, firstRun: false },
+  { path: '/brain-dump', name: '18-brain-dump', signedIn: true, firstRun: false },
+  { path: '/assistant', name: '19-assistant', signedIn: true, firstRun: false, seedTasks: true, seedPeople: true, oneThing: true },
+  // Nameless, as the prototype's demo account is; the name is shown in 24-paywall-named.
+  { path: '/paywall', name: '24-paywall', signedIn: true, firstRun: false, session: { firstName: '' } },
+  { path: '/paywall', name: '24-paywall-named', signedIn: true, firstRun: false },
 ];
 
 const MIME = {
@@ -163,7 +169,7 @@ function serve(dir) {
         },
         {
           session: route.signedIn
-            ? { ...DEMO_SESSION[lang], firstRun: route.firstRun !== false }
+            ? { ...DEMO_SESSION[lang], firstRun: route.firstRun !== false, ...route.session }
             : null,
           tasks: route.seedTasks ? demoTasks(lang, new Date()) : null,
           oneThing: route.oneThing

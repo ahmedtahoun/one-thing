@@ -614,3 +614,181 @@ Taken here, under the stated assumptions, and reversible in one file each:
   rather than through `I18nManager.forceRTL`, which only takes effect after an
   app restart. Settings switches language with an inline pill, so it has to
   apply immediately.
+
+### 2.34 Quick capture, Brain dump, the Assistant and the Paywall
+Every probe on the four screens sits at 0 pt, in both languages. Pixel
+difference is 0.03–0.78 %.
+
+**Decided by the product owner, 10 Oct 2026**, in answer to §2.1 and §2.2:
+
+- **Free loses only the assistant meter**: 10 Assistant requests a day, and
+  every other paid feature stays open. `src/policy/entitlements.ts` is
+  unchanged; the meter that uses it is new (`src/lib/assistant-meter.ts`).
+  Every message sent to the Assistant spends one, chips included. Capture and
+  Brain dump spend none. The server will enforce the same count when there is
+  one; the device's copy is what lets the Assistant answer without a round
+  trip.
+- **Weekly recap stays on the paywall**, all six features as designed. It must
+  be designed, or the line removed, **before store submission**: selling a
+  feature that does not exist is a review risk. Nothing routes to a recap;
+  `can(plan, 'weeklyRecap')` is still false for everyone.
+
+**Free text.** `parse()` in app-logic.js is a stub. It knows two names,
+reads the first number as an hour, and cuts titles at 46 characters. It
+was not copied. `src/lib/parse/` is the seam: one contract (`TextParser`,
+text in, `{type, title, who, contactId, when}` out), one on-device
+implementation that is good enough to build against, and `index.ts`, the one
+place the backend call goes. The local rules start from the prototype's
+keywords, 17:00 default and brain-dump splitting, and match people from
+People rather than two hard-coded names. 17 tests hold them to the
+handoff's own sample sentences in both languages. Because the local
+parser does better, a card does not always read as the prototype's would.
+"Remind me tomorrow at 10 to send Mohammed the price quote" is captured as
+"Send Mohammed the price quote and follow up", tomorrow at 10:00, not as
+the whole sentence cut at 46 characters.
+
+**The Assistant's scope** is tasks, contacts, reminders and follow-ups, and it
+cannot say anything else. Its replies are typed: a task card, the day's plan,
+or the follow-up count, each with the handoff's own line above it. There is
+no type for a free-text answer. A question outside that scope ("What is the
+capital of France?") comes back the way the prototype handles any sentence:
+as a task card the person can keep or ignore. The handoff has **no line for
+"I can only help with tasks"**. Supply one if a refusal should be said rather
+than shown.
+
+**Where the build departs from the prototype**:
+
+- **"Who am I waiting on?" answers with the real count.** `botFu` is the
+  prototype's demo sentence, "Three threads are open. Noura is the oldest —
+  3 days.", true only of its seed data. The reply uses the Follow-ups
+  screen's own summary instead ("1 need a nudge · 2 waiting on a reply"),
+  which says the same thing from the person's follow-ups.
+- **The eleventh request on Free opens the paywall.** There is no designed
+  state for reaching the limit. The message is not sent and not counted, and
+  stays in the box. The paywall's first line explains the limit ("Free plan:
+  10 requests a day."). **Say if a line in the chat should come first**; it
+  would need copy.
+- **Quick capture confirms with "Save & back to focus"**, not SCREENS.md's
+  "Looks right" / "Edit". The prototype shows what was heard in an editable
+  box, the parsed card under it (updating as the text is edited), and that
+  one button. Its render is followed.
+- **Send buttons are 50 × 50**, as their own style says. Capture's and the
+  Assistant's text fields have no `min-width: 0`, so the prototype's row
+  overflows and squeezes the button into a 30-wide oval. This is the same
+  flex-shrink artefact as §2.19 and §2.21. The fields are 52 tall (50 plus
+  the border the content-box adds).
+- **"Talk instead" has a visible mic.** The prototype passes its white mic
+  icon to a white button, so it renders invisible. It is drawn in ink, in the
+  same space.
+- **Brain dump only sorts what was written.** With an empty box the prototype
+  sorts its own sample paragraph, and "Talk instead" fills that sample in.
+  Here an empty box sorts nothing, talking adds what was heard (§2.35), and
+  "Save 0" saves nothing and does not say "0 things saved".
+- **Starting the trial does nothing yet.** In the prototype it makes the
+  person Pro and says "Welcome to Pro 🎉". With no store accounts there is no
+  product to buy (§3), so `src/features/paywall/purchases.ts` answers
+  "unavailable", the plan stays Free, and nothing is claimed. When the stores
+  exist, their own sheet takes over and Pro arrives with the receipt. Restore
+  behaves as in Settings: with no store, "No previous purchases found." is
+  the true answer. **The same care is owed in Settings**: its tip jar thanks
+  the person ("Thank you so much ☕") for a purchase that never happened. That
+  screen is not part of this change, so it is noted here rather than edited.
+- **The paywall is measured without a name.** Its title takes the first name
+  (", Khalid" / " يا خالد"), and the prototype's demo account has none, so
+  with one the Arabic title wraps to a third line. The drift probe and the
+  compared screenshot use a nameless session. A named one is captured as
+  `24-paywall-named`.
+- **The plan puts the One Thing at 09:00**, as the prototype does whatever
+  the time ("Your One Thing goes first, while your head is fresh").
+
+### 2.35 Speech-to-text has not been chosen
+Quick capture's mic and Brain dump's "Talk instead" only pretend in the
+prototype: each produces its own sample sentence after a delay. There is no
+recogniser in this build. Two decisions are needed: on-device recognition,
+or the audio sent to the backend with the text request; and the permission
+strings both stores require (`NSMicrophoneUsageDescription`,
+`NSSpeechRecognitionUsageDescription`, `RECORD_AUDIO` — DATA_MODEL
+§ Integrations).
+
+Until then, `src/lib/speech.ts` uses the platform's own recogniser where there
+is one, which is a browser with the Web Speech API. Everywhere else the mic
+puts the cursor in the text field, since both screens already accept typing.
+Nothing that was not said is ever shown as heard.
+
+### 2.36 Syncing with the server
+The stores (tasks, the One Thing, contacts, history, follow-ups, settings,
+the profile) now sync with the Supabase schema. Screens still read and write
+only the device's stores, so nothing waits on the network and the app works
+offline. `src/lib/sync/SyncProvider.tsx` runs a sync 2 seconds after a
+change, when the app comes back to the foreground, every 5 minutes while it
+is open, and when consent is recorded.
+
+**It is dormant in every build so far.** A sync needs a Supabase session.
+Sign-in is still the local stub (§3), so nothing ever makes one, and the
+provider does nothing. It is tested against Postgres with the real migrations
+and row-level security (`npm run test:db`), but **not against a hosted
+Supabase project**, which does not exist yet. The PostgREST adapter
+(`src/lib/sync/remote.ts`) has not made a real request. When sign-in calls
+`supabase().auth.signInWithIdToken`, sync starts by itself.
+
+How it decides (`src/lib/sync/reconcile.ts`). Each list is compared three
+ways: the device, the server, and what the server held when this device
+last finished a sync. A change made on one side only goes to the other. A
+deletion travels both ways. When both sides changed the same row, the device
+syncing now wins. An edit beats a deletion. Whole tables are read each time:
+the schema keeps no edit times, and one person's data is small. The cost is
+reading everything on each sync. If that ever matters, the fix is an
+`updated_at` column with a trigger, and tombstones for deletes.
+
+What the schema needed (`supabase/migrations/0002_sync.sql`):
+- **Columns the app keeps and DATA_MODEL left out:** the task's "who" line,
+  the contact's last-interaction line and when they were last contacted (the
+  order of People), and the follow-up card's who / since text and its
+  creation time.
+- **Follow-ups outlive their contact.** On the device, deleting a contact
+  removes their history but not the follow-ups. 0001's cascade would have
+  deleted them on the server, so `contact_id` is now nullable and set to
+  null. `next_at` is nullable too, as the app allows.
+- **Users could make themselves Pro.** Row-level security limits which rows
+  a user can write, not which columns, so under 0001 any signed-in user could
+  set their own `plan`, clear `suspended`, or claim another account's Apple
+  or Google subject. Those columns are now writable only by the service role.
+  The test proves it.
+- **`delete_my_account()`** deletes the auth user, and every row cascades
+  from it. It records a completed, anonymous privacy request, so the admin
+  panel can count deletions without knowing who asked.
+
+Decisions that need the product owner:
+1. **Sign-out while offline loses what was not yet synced.** Sign-out tries
+   a last sync, then clears the device, because the data is on the server
+   and the next person to sign in must not inherit it. If that last sync
+   cannot reach the server, changes made since the previous sync are lost.
+   The design has no "you have unsynced changes" warning. One is needed, or
+   sign-out should wait for a connection.
+2. **A failed account deletion is retried silently.** If the server cannot
+   be reached, the device is wiped as asked, and the server-side deletion is
+   remembered and finished on the next launch that has a connection. The
+   design has no "could not delete" state, and DATA_MODEL allows 30 days.
+   Store subscriptions are not cancelled by deleting the account. Apple
+   expects the app to say so, and the delete sheet does not.
+3. **On a true conflict, the device that syncs last wins.** This is rare for
+   one person's data, but possible with a phone and a tablet both edited
+   offline. Field-level merging would cost an edit time per field.
+4. **A new device takes the server's settings and name**, not its own
+   defaults. A name typed again during Account setup on a second device is
+   therefore replaced by the one on the server.
+5. **Tips are writable by the user.** `tip` has the owner-only policy like
+   every other table, so a user could insert a tip they never paid for. It
+   should be written only by the store webhook, like `subscription`. This is
+   not changed here because nothing reads it yet.
+
+What changed on the device:
+- **New rows get UUIDs** (`src/lib/ids.ts`), because the keys are uuid
+  columns.
+- **Rows from before sync are given UUIDs on the first sync**, with every
+  reference moved with them (`src/lib/sync/adopt.ts`).
+- **Consent waits in a queue** on the device until a sync has written it
+  (`src/lib/consent.ts`). Before this, a failed write at sign-up was dropped
+  despite the comment saying it was kept. Delete account clears the queue,
+  so one account's consent is never sent as the next account's.
+- **Plan comes only from the server**, which the store webhooks will write.

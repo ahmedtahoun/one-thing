@@ -15,6 +15,8 @@ const A11Y_en = {
   capture: 'Quick capture',
   brainDump: 'Brain dump',
   clearSearch: 'Clear search',
+  send: 'Send',
+  speak: 'Speak',
 };
 
 const A11Y_ar: typeof A11Y_en = {
@@ -26,6 +28,8 @@ const A11Y_ar: typeof A11Y_en = {
   capture: 'التقاط سريع',
   brainDump: 'تفريغ الأفكار',
   clearSearch: 'مسح البحث',
+  send: 'إرسال',
+  speak: 'تكلّم',
 };
 
 export const A11Y = { en: A11Y_en, ar: A11Y_ar };

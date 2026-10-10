@@ -279,6 +279,64 @@ const PROBES = {
       google: { en: 'Continue with Google', ar: 'المتابعة مع Google' },
     },
   },
+  capture: {
+    app: '/capture',
+    proto: '16',
+    state: { signedIn: true, firstRun: false },
+    labels: {
+      title: { en: 'Say it. Forget it.', ar: 'قلها وانساها.' },
+      subtitle: { en: 'Tap and talk. I’ll catch who, what and when.', ar: 'اضغط وتكلّم، وأنا ألقط مين ووش ومتى.' },
+      orType: { en: 'or type it', ar: 'أو اكتبها' },
+    },
+  },
+  'brain-dump': {
+    app: '/brain-dump',
+    proto: '17',
+    state: { signedIn: true, firstRun: false },
+    labels: {
+      eyebrow: { en: 'BRAIN DUMP', ar: 'فضفضة' },
+      title: { en: 'Empty your head.', ar: 'فضّي راسك.' },
+      subtitle: {
+        en: 'Type or talk it all out, messy is fine. I’ll split it into separate things.',
+        ar: 'اكتب أو تكلّم بكل اللي في بالك، حتى لو مخربط. أنا أقسّمه لأشياء منفصلة.',
+      },
+      talk: { en: 'Talk instead', ar: 'تكلّم بدال' },
+      sort: { en: 'Sort it for me', ar: 'رتّبها لي' },
+    },
+  },
+  assistant: {
+    app: '/assistant',
+    proto: '20',
+    state: { signedIn: true, firstRun: false, seedTasks: true, seedPeople: true, oneThing: true },
+    labels: {
+      title: { en: 'Assistant', ar: 'المساعد' },
+      oneThing: { en: 'Finish the investor proposal', ar: 'أخلّص عرض المستثمرين' },
+      greeting: {
+        en: 'Morning Khalid. Your One Thing is set. Anything rattling around your head? Dump it here — I’ll sort it.',
+        ar: 'صباح الخير يا خالد. شغلك الأساسي جاهز. في شي شاغل بالك؟ قوله هنا وأنا أرتّبه.',
+      },
+      chip: { en: 'Arrange my day', ar: 'رتّب لي يومي' },
+    },
+  },
+  paywall: {
+    app: '/paywall',
+    proto: '04',
+    // The prototype's demo account has no name, so its title has none; with
+    // one, the Arabic title takes a third line. Measured nameless, like for like.
+    state: { signedIn: true, firstRun: false, session: { firstName: '' } },
+    labels: {
+      badge: { en: 'THE ONE THING PRO', ar: 'ذا ون ثينق PRO' },
+      subtitle: {
+        en: 'Everything in Free, plus the tools that keep every client warm.',
+        ar: 'كل اللي في المجاني، وأدوات تخلّي علاقتك مع عملائك دافية.',
+      },
+      firstFeature: { en: 'Unlimited smart assistant', ar: 'مساعد ذكي بلا حدود' },
+      recap: { en: 'Weekly recap', ar: 'ملخص أسبوعي' },
+      yearly: { en: 'Yearly', ar: 'سنوي' },
+      monthly: { en: 'Monthly', ar: 'شهري' },
+      cta: { en: 'Start 7-day free trial', ar: 'ابدأ تجربة ٧ أيام مجاناً' },
+    },
+  },
 };
 
 const DEMO_SESSION = {
@@ -369,7 +427,8 @@ async function measureApp(lang, screen, probe) {
       put('ot.history', history);
     },
     {
-      session: probe.state.signedIn ? { ...DEMO_SESSION[lang], firstRun: probe.state.firstRun !== false } : null,
+      // `state.session` overrides fields of the demo session for one probe.
+      session: probe.state.signedIn ? { ...DEMO_SESSION[lang], firstRun: probe.state.firstRun !== false, ...probe.state.session } : null,
       tasks: probe.state.seedTasks ? demoTasks(lang, new Date()) : null,
       oneThing: probe.state.oneThing
         ? { date: dateKey(new Date()), done: false, focusMinutes: 45, title: DEMO_ONE_THING[lang] }
