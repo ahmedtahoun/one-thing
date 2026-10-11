@@ -60,6 +60,21 @@ async function main() {
   const url = (e.EXPO_PUBLIC_SUPABASE_URL || '').replace(/\/+$/, '');
   const key = e.EXPO_PUBLIC_SUPABASE_ANON_KEY;
   if (!url || !key) throw new Error('Set EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY (or put them in .env).');
+  // Some terminals mask anything that looks like a secret when it is pasted,
+  // and substitute the characters rather than only hiding them. The failure
+  // then surfaces as a ByteString error from deep inside fetch, which says
+  // nothing useful.
+  const odd = [...key].find((c) => c.charCodeAt(0) > 126);
+  if (odd) {
+    throw new Error(
+      `The anon key contains ${JSON.stringify(odd)} (character ${odd.charCodeAt(0)}), which a JWT never does — ` +
+        'your terminal most likely masked it while pasting.\nPut it in a .env file with a text editor instead: ' +
+        'this script reads .env, and nothing has to go through the command line.'
+    );
+  }
+  if (key.split('.').length !== 3) {
+    throw new Error('The anon key is not a JWT (three dot-separated parts). Copy it again from Supabase → Project Settings → API.');
+  }
   const headers = { apikey: key, Authorization: `Bearer ${key}` };
   const lines = [];
   let fatal = 0;
