@@ -135,7 +135,7 @@ set the accounts up. BUILD-REVIEW §2.41.
 | ~~The assistant / capture parsing~~ — built, never called | `supabase/functions/assist` with the limit in `0005_assist.sql`; `src/lib/parse/local.ts` is the fallback. Needs deploying, and an API key to have ever run | a Supabase project |
 | Notification delivery on a real device | rules are written and unit-tested; never once delivered (BUILD-REVIEW §2.26) | a build on hardware |
 | ~~Store webhooks → `plan`~~ — written, never delivered to | `supabase/functions/app-store`, `supabase/functions/play-rtdn`, `0007_store_webhooks.sql`. Needs the certificates, the service account and a Pub/Sub subscription | a Supabase project + store products |
-| A schedule for `lapse_expired_subscriptions()` and for `export` | the safety net for a lost expiry notification, and the export sweep; nothing calls either | a Supabase project |
+| ~~A schedule for `lapse_expired_subscriptions()` and for `export`~~ — written | `0009_schedules.sql` schedules both on pg_cron; the export sweep also needs the two Vault secrets the migration's header names | a Supabase project |
 | An email provider, to send an export | `supabase/functions/export` writes the file and records its path; sending it is the only step left | **your decision** |
 | Purchases must send the Supabase user id | `startTrial` in `src/features/paywall/purchases.ts` says exactly what, and why it cannot be recovered later | whoever writes purchases |
 
@@ -315,7 +315,8 @@ its 30-day deadline from. BUILD-REVIEW §2.40.
 **The export itself is now written too** — `supabase/functions/export` and
 `0008_export.sql`, with the table list held to the database's own answer so it
 cannot quietly go stale (BUILD-REVIEW §2.44). It needs a private `exports`
-bucket and a schedule.
+bucket, and the two Vault secrets its schedule reads (`0009_schedules.sql`,
+BUILD-REVIEW §2.47).
 
 **One decision left there, and it is yours: an email provider.** The copy
 promises "we'll email your data within 24 hours", and whoever sends it
@@ -370,8 +371,8 @@ certificate and a Play service account as secrets, and the Pub/Sub push
 subscription pointed at the Play one. Neither has seen a real delivery.
 
 Two things are still open there. `lapse_expired_subscriptions()` is the safety
-net for a lost expiry notification and **nothing calls it yet** — it needs a
-schedule. And the purchase itself has to carry the Supabase user id
+net for a lost expiry notification; it now runs hourly on pg_cron
+(`0009_schedules.sql`, BUILD-REVIEW §2.47). And the purchase itself has to carry the Supabase user id
 (`appAccountToken` on StoreKit, `setObfuscatedAccountId` on Play); it is the
 only part of a purchase that cannot be recovered afterwards, and the note is
 on `startTrial` where purchases will be written.

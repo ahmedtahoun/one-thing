@@ -1197,8 +1197,8 @@ store sends a Supabase token; the signature is the authentication.
 **The safety net.** `lapse_expired_subscriptions()` moves anyone whose paid
 period has passed off Pro without waiting to be told. Stores retry, so a lost
 notification is unlikely — but a user keeping Pro for free is the expensive
-direction to be wrong in. **Nothing calls it yet**: it needs a schedule
-(pg_cron, or a cron-triggered function).
+direction to be wrong in. It runs hourly on pg_cron since `0009_schedules.sql`
+(§2.47).
 
 **The one thing the app still has to do.** A purchase has to carry the
 Supabase user id — `appAccountToken` on StoreKit, `setObfuscatedAccountId` on
@@ -1286,7 +1286,8 @@ panel's Privacy requests screen is where someone hands over a signed link. A
 signed URL is made when the link is handed over rather than stored, so it
 expires; the bucket stays private.
 
-Never run, like the rest: there is no project, no bucket, no schedule.
+Never run, like the rest: there is no project and no bucket. The schedule is
+§2.47.
 
 ### 2.45 Every icon in the project was Expo's placeholder
 Making the store screenshots turned this up, and it had been true since the
@@ -1390,3 +1391,27 @@ device; that needs a native build.
    for it already covers "people you add".
 3. **One at a time.** Importing many contacts at once would need full
    address-book access. It was considered and not chosen.
+
+### 2.47 The two jobs nothing was calling
+`lapse_expired_subscriptions()` (§2.42) and the export function (§2.44) were
+both written with "needs a schedule" beside them. `0009_schedules.sql` is
+that schedule, on pg_cron, which every Supabase project has:
+- **The lapse sweep runs hourly**, at :17. A subscriber whose store notice
+  was lost keeps Pro for at most an hour past what they paid for.
+- **The export sweep runs every ten minutes**, and calls the export function
+  over pg_net once per waiting request, ten at most per run. When nothing is
+  waiting, which is nearly always, it calls nothing, so an idle project
+  costs no invocations. The copy promises "within 24 hours"; this leaves
+  room to spare.
+- **A claim left by a run that died** (a timeout, a deploy mid-run) is freed
+  after an hour, by the same sweep. Before this, such a request stayed
+  claimed for good and missed its 30-day deadline without anyone seeing it.
+
+The export sweep reaches the function with the service role key, kept in
+Supabase Vault rather than in the migration. Two secrets have to be set once,
+in the SQL editor; the migration's header has the two lines. Until they are,
+the sweep writes a warning to the Postgres log and calls nothing.
+
+`scripts/test-schedules-db.ts` checks all of this against Postgres, with
+pg_net and Vault stood in for. pg_cron is not installed there, which also
+shows the migration applying without it. **Never run on Supabase.**
