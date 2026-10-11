@@ -134,7 +134,9 @@ set the accounts up. BUILD-REVIEW §2.41.
 | Restore purchases, Manage subscription, the tip jar | `app/settings.tsx` ~495 and ~555 show their toasts and nothing else | store products |
 | ~~The assistant / capture parsing~~ — built, never called | `supabase/functions/assist` with the limit in `0005_assist.sql`; `src/lib/parse/local.ts` is the fallback. Needs deploying, and an API key to have ever run | a Supabase project |
 | Notification delivery on a real device | rules are written and unit-tested; never once delivered (BUILD-REVIEW §2.26) | a build on hardware |
-| Store webhooks → `plan` | nothing exists; the admin panel also assumes it | backend + store products |
+| ~~Store webhooks → `plan`~~ — written, never delivered to | `supabase/functions/app-store`, `supabase/functions/play-rtdn`, `0007_store_webhooks.sql`. Needs the certificates, the service account and a Pub/Sub subscription | a Supabase project + store products |
+| A schedule for `lapse_expired_subscriptions()` | the safety net for a lost expiry notification; nothing calls it | a Supabase project |
+| Purchases must send the Supabase user id | `startTrial` in `src/features/paywall/purchases.ts` says exactly what, and why it cannot be recovered later | whoever writes purchases |
 
 The admin panel is now in this repo, under `admin/` — all 13 of ADMIN.md's
 screens as a separate Next.js app, with its own checks in CI. It reads the
@@ -345,10 +347,19 @@ Three decisions came with it, and they are yours:
 environment: `ANTHROPIC_API_KEY=… npx tsx scripts/try-assist.ts` runs the real
 function code on the handoff's own sample sentences for about 20 cents.
 
-What is still missing from this corner is the other thing the same host has to
-do: the **store webhooks** (App Store Server Notifications / Play RTDN) that
-move a user's `plan`. Nothing exists for them, and the admin panel's
-subscription screens have nothing to show until they do.
+The other thing the same host has to do — the **store webhooks** that move a
+user's `plan` — is now written too: `supabase/functions/app-store` and
+`supabase/functions/play-rtdn`, with `0007_store_webhooks.sql` behind them.
+BUILD-REVIEW §2.42. They need deploying with `--no-verify-jwt`, Apple's root
+certificate and a Play service account as secrets, and the Pub/Sub push
+subscription pointed at the Play one. Neither has seen a real delivery.
+
+Two things are still open there. `lapse_expired_subscriptions()` is the safety
+net for a lost expiry notification and **nothing calls it yet** — it needs a
+schedule. And the purchase itself has to carry the Supabase user id
+(`appAccountToken` on StoreKit, `setObfuscatedAccountId` on Play); it is the
+only part of a purchase that cannot be recovered afterwards, and the note is
+on `startTrial` where purchases will be written.
 
 ### 9.7 Every fix will be a full store review
 `expo-updates` is not installed, so there is no over-the-air channel: a typo
@@ -399,9 +410,11 @@ most of it is ours:
 3. **A build on hardware** (§9.1). Notifications, account deletion, both
    sign-in flows and the assist function have between them never run on a
    phone or against a live server. This is where the surprises are.
-4. **Purchases and the store webhooks** (§9.6), which is the only thing that
-   makes anyone Pro, and the only thing that gives the admin panel's
-   subscription screens anything to show.
+4. **Purchases** (§9.6). The webhooks behind them are written; what is left is
+   the in-app purchase itself, which must carry the Supabase user id, and
+   deploying the two functions. This is the only thing that makes anyone Pro,
+   and the only thing that gives the admin panel's subscription screens
+   anything to show.
 5. **The website**, three pages plus a Support URL (§7, §9.4).
 6. **Weekly recap and the Pro gating matrix** (§9.5), before the paywall is in
    front of a paying customer.

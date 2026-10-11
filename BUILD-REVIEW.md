@@ -1129,3 +1129,85 @@ the middle of the row opens Legal rather than ticking the box. That is the
 design — the links are meant to be reachable — but it is worth knowing that
 the box itself is the 22 × 22 at the start of the row, and that is where the
 test aims.
+
+### 2.42 The store webhooks: the only thing that makes anyone Pro
+`subscription` and `tip` have been waiting since `0001`, and
+`0003_tips_from_the_store.sql` closed the last user-writable path into them.
+Nothing on a device may write `app_user.plan` either — `0002_sync.sql` revoked
+that column. So until this, a purchase could complete in the store and change
+nothing at all in the app, and the admin panel's Subscriptions screen had no
+source. `supabase/functions/app-store` and `supabase/functions/play-rtdn` are
+that source.
+
+**All the deciding is in one pure file.** `_shared/store-contract.ts` maps
+both stores' taxonomies — 23 Apple notification types, 14 Google ones, and
+Google's eight subscription states — onto the six values `sub_status` allows
+and the four `plan_kind` allows. It touches neither store nor database, so
+every case is tested exhaustively (46 of the 150 unit tests) without an
+account, a certificate or a network. The webhooks themselves are shells:
+verify, look up, call one SQL function.
+
+**The rule the mapping follows is never guess.** An unknown notification type,
+a product we do not sell, a payload with no account on it — each comes back as
+`ignored` with a reason, and the webhook records the reason rather than
+writing a subscription nobody bought. A type Apple adds after today lands
+there too, rather than being silently dropped.
+
+**Three places the obvious mapping would have been wrong:**
+
+- **Cancelled is not over.** Turning auto-renew off does not end a paid year.
+  `DID_CHANGE_RENEWAL_STATUS / AUTO_RENEW_DISABLED` and Google's
+  `SUBSCRIPTION_STATE_CANCELED` both keep Pro until `ends_at`, and so does a
+  grace period. `planFor` takes `now` and decides from the date, which also
+  means a lost `EXPIRED` notification cannot leave someone on Pro forever.
+- **A renewal is never still a trial.** The offer fields can still be set on a
+  renewing transaction, so `DID_RENEW` is `active` regardless of them.
+- **Google has no "in trial" state at all.** The 7-day free trial is an
+  *offer* on the base plan, so an `offerId` on the current line item is what a
+  trial looks like. That holds because these base plans carry exactly one
+  offer (DATA_MODEL § Integrations). If a second is ever configured, that is
+  the line to revisit, and it is marked.
+
+**Idempotency is the property money depends on.** Both stores redeliver
+deliberately, and Apple retries anything that is not 2xx five times.
+`store_notification` claims each notification by `(store, external_id)` —
+Apple's `notificationUUID`, Google's Pub/Sub `messageId` — before anything
+else happens, so a replay returns false and writes nothing. A tip gets a
+second belt: `tip` had no stable handle at all, so `0007` adds
+`transaction_id` and a unique index, in case one purchase ever arrives under
+two notification ids. Both are tested against Postgres
+(`scripts/test-store-db.ts`), including that a replay cannot walk a
+subscription backwards.
+
+**The status codes are part of the design.** A notification we understood
+answers 200, including one we chose not to act on. A failed write answers 500,
+because a 200 would mean the store never sends it again — a purchase lost for
+good. An unverified payload answers 401 and writes nothing, not even a notice:
+it is not the store's traffic to record.
+
+**What verifies them.** Apple signs every notification, and its own library
+checks the chain — against Apple's root certificate, which the operator
+supplies as a secret. No root is invented here and there is no default; with
+none configured the function answers 503 and writes nothing, the way `assist`
+does with no API key. Google signs nothing, so the Pub/Sub push must carry an
+OIDC token from the service account the push subscription runs as, and that is
+verified instead. Both URLs are public (`--no-verify-jwt`), because neither
+store sends a Supabase token; the signature is the authentication.
+
+**The safety net.** `lapse_expired_subscriptions()` moves anyone whose paid
+period has passed off Pro without waiting to be told. Stores retry, so a lost
+notification is unlikely — but a user keeping Pro for free is the expensive
+direction to be wrong in. **Nothing calls it yet**: it needs a schedule
+(pg_cron, or a cron-triggered function).
+
+**The one thing the app still has to do.** A purchase has to carry the
+Supabase user id — `appAccountToken` on StoreKit, `setObfuscatedAccountId` on
+Play Billing. It is the only part of a purchase that cannot be recovered
+afterwards, and the webhooks refuse to guess from an email or a receipt. A
+purchase made without it is money taken for a Pro account nobody gets. That
+note now sits on `startTrial` in `src/features/paywall/purchases.ts`, which is
+where purchases will be written.
+
+**Neither has run.** No store account, no certificate, no service account, no
+Supabase project. What is proven is the mapping, the status codes, the
+idempotency and the grants; what is not is a single real delivery.

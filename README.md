@@ -418,3 +418,30 @@ npm test                              # the contract, the handler, the client
 npm run test:db                       # the meter in Postgres
 ANTHROPIC_API_KEY=… npx tsx scripts/try-assist.ts   # the real prompt on the handoff's samples; costs money
 ```
+
+`supabase/functions/app-store/` and `supabase/functions/play-rtdn/` are the
+store webhooks — the only thing that makes anyone Pro, since nothing on a
+device may write `app_user.plan` or `subscription`. BUILD-REVIEW.md §2.42 has
+the reasoning.
+
+- **One pure file decides everything.** `_shared/store-contract.ts` maps both
+  stores' notification taxonomies onto the six statuses `sub_status` allows
+  and the four plans `plan_kind` allows, and touches neither store nor
+  database — so every case is tested without an account or a certificate.
+- **Never guess.** An unknown notification, a product we do not sell, a
+  payload with no account on it: each is recorded with its reason rather than
+  written as a subscription.
+- **A redelivery writes nothing.** `store_notification` claims each one by the
+  store's own notification id first; a tip has a second belt on the
+  transaction id.
+- **Verification.** Apple's own library against Apple's root certificate,
+  which the operator supplies as a secret; for Play, the OIDC token on the
+  Pub/Sub push. Both function URLs are public because neither store sends a
+  Supabase token — the signature is the authentication, and with no
+  certificate configured the function answers 503 and writes nothing.
+- **Not run.** No store account, no certificate, no service account. The
+  mapping, the status codes, the idempotency and the grants are tested; a real
+  delivery is not.
+
+The deploy lines and the secrets each one needs are at the top of its
+`index.ts`.

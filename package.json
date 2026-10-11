@@ -9,7 +9,7 @@
     "export:web": "expo export --platform web",
     "typecheck": "tsc --noEmit",
     "test": "tsx --test \"src/**/*.test.ts\" \"supabase/functions/**/*.test.ts\"",
-    "test:db": "tsx --test scripts/test-sync-db.ts scripts/test-assist-db.ts",
+    "test:db": "tsx --test scripts/test-sync-db.ts scripts/test-assist-db.ts scripts/test-store-db.ts",
     "verify:colours": "node scripts/verify-oklch.js scripts/oklch-colours.txt",
     "capture:app": "expo export --platform web && node scripts/capture-screens.js",
     "capture:prototype": "node scripts/capture-prototype.js",
@@ -23,6 +23,7 @@
     "typecheck:functions": "tsc -p supabase/functions"
   },
   "dependencies": {
+    "@apple/app-store-server-library": "3.1.0",
     "@expo-google-fonts/ibm-plex-sans-arabic": "^0.4.2",
     "@react-native-async-storage/async-storage": "^2.2.0",
     "@react-native-google-signin/google-signin": "^16.1.5",
@@ -43,6 +44,7 @@
     "expo-splash-screen": "~57.0.9",
     "expo-status-bar": "~57.0.1",
     "expo-web-browser": "~57.0.3",
+    "google-auth-library": "11.2.0",
     "react": "19.2.3",
     "react-dom": "^19.2.3",
     "react-native": "0.86.3",
