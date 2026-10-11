@@ -9,7 +9,7 @@
     "export:web": "expo export --platform web",
     "typecheck": "tsc --noEmit",
     "test": "tsx --test \"src/**/*.test.ts\" \"supabase/functions/**/*.test.ts\"",
-    "test:db": "tsx --test scripts/test-sync-db.ts scripts/test-assist-db.ts scripts/test-store-db.ts",
+    "test:db": "tsx --test scripts/test-sync-db.ts scripts/test-assist-db.ts scripts/test-store-db.ts scripts/test-export-db.ts",
     "verify:colours": "node scripts/verify-oklch.js scripts/oklch-colours.txt",
     "capture:app": "expo export --platform web && node scripts/capture-screens.js",
     "capture:prototype": "node scripts/capture-prototype.js",

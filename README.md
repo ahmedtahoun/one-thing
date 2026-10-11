@@ -445,3 +445,19 @@ the reasoning.
 
 The deploy lines and the secrets each one needs are at the top of its
 `index.ts`.
+
+`supabase/functions/export/` answers "Download my data": it claims the oldest
+unanswered request, reads every table holding that person's rows, writes one
+JSON document to a private `exports` bucket, and marks the request done.
+BUILD-REVIEW.md §2.44.
+
+- **Completeness is checked against the database, not a list.**
+  `scripts/test-export-db.ts` asks Postgres which tables carry a `user_id`
+  and holds the export to that answer, so a table added next year fails the
+  test until it is exported or excluded with a reason.
+- **The file first, then the request**, and any failure hands the request
+  back — left claimed it would miss its 30-day deadline with nobody told.
+- **It does not send the email.** That needs a provider, which is a decision
+  about who processes someone's whole account. Until then the file is written
+  and its path recorded, and the admin panel is where someone hands over a
+  signed link.

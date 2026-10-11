@@ -1240,3 +1240,50 @@ because the placeholder is three characters longer.
 
 The handoff's own files keep `theonething.app`. They are the record of what
 was asked for, not configuration.
+
+### 2.44 The data export, and the list that cannot go stale
+§2.40 made "Download my data" leave a record; this answers it.
+`supabase/functions/export` claims the oldest unanswered request, reads every
+table holding that person's rows, writes one JSON document to a private
+Storage bucket, and marks the request done. `0008_export.sql` is the
+claim/complete/release around it.
+
+**The hard part is not the reading, it is staying complete.** A year from now
+somebody adds a table and nobody remembers the export; the promise quietly
+stops being true, and the only way to find out is a regulator asking. So the
+list is not maintained by hand and trusted — `scripts/test-export-db.ts` asks
+Postgres which tables carry a `user_id` and holds the export to that answer.
+A new one fails the test until it is either exported or written into
+`EXCLUDED` **with a reason**, and the test checks the reason is long enough to
+be one. I added a table that nobody exports to prove the test fails, then
+took it out again; a check that cannot fail is not a check.
+
+Two tables are excluded, both deliberately: `admin_member`, which is a team
+membership rather than anyone's use of the app, and `store_notification`,
+which is the store's delivery traffic — what was actually bought is exported,
+through `subscription` and `tips`.
+
+**Three smaller decisions.**
+
+- **Every section appears, empty or not.** A missing key reads like something
+  withheld; an empty list is an answer. The document also carries its own
+  table of contents and the omissions with their reasons, so a reader can see
+  the shape of it rather than having to trust it.
+- **The file first, then the request.** A request marked answered with no file
+  is a promise broken silently; a file with the request still open is
+  repeated work and nothing worse. A failure anywhere hands the request back
+  (`release_export_request`), because left claimed it would sit there until
+  the 30 days ran out with nobody told.
+- **One at a time, `for update skip locked`.** Two runs on a schedule step
+  over each other rather than both answering the same request.
+
+**What it does not do is send the email**, and that is on purpose. The copy
+promises "we'll email your data within 24 hours", and an email provider is a
+decision about who processes a file containing someone's entire account — the
+product owner's to make, not mine (RELEASE.md § 9.3). Until one is chosen the
+file is written, the request is marked answered with its path, and the admin
+panel's Privacy requests screen is where someone hands over a signed link. A
+signed URL is made when the link is handed over rather than stored, so it
+expires; the bucket stays private.
+
+Never run, like the rest: there is no project, no bucket, no schedule.

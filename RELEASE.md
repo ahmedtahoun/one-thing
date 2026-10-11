@@ -135,7 +135,8 @@ set the accounts up. BUILD-REVIEW §2.41.
 | ~~The assistant / capture parsing~~ — built, never called | `supabase/functions/assist` with the limit in `0005_assist.sql`; `src/lib/parse/local.ts` is the fallback. Needs deploying, and an API key to have ever run | a Supabase project |
 | Notification delivery on a real device | rules are written and unit-tested; never once delivered (BUILD-REVIEW §2.26) | a build on hardware |
 | ~~Store webhooks → `plan`~~ — written, never delivered to | `supabase/functions/app-store`, `supabase/functions/play-rtdn`, `0007_store_webhooks.sql`. Needs the certificates, the service account and a Pub/Sub subscription | a Supabase project + store products |
-| A schedule for `lapse_expired_subscriptions()` | the safety net for a lost expiry notification; nothing calls it | a Supabase project |
+| A schedule for `lapse_expired_subscriptions()` and for `export` | the safety net for a lost expiry notification, and the export sweep; nothing calls either | a Supabase project |
+| An email provider, to send an export | `supabase/functions/export` writes the file and records its path; sending it is the only step left | **your decision** |
 | Purchases must send the Supabase user id | `startTrial` in `src/features/paywall/purchases.ts` says exactly what, and why it cannot be recovered later | whoever writes purchases |
 
 The admin panel is now in this repo, under `admin/` — all 13 of ADMIN.md's
@@ -305,9 +306,17 @@ having been made. A request now queues on the device and goes up as a
 `privacy_request` row of type `export`, which is what the admin panel counts
 its 30-day deadline from. BUILD-REVIEW §2.40.
 
-**The export itself is still a server job**, and still unwritten: something
-has to read every table for that user and email the result inside 24 hours.
-Nothing on a phone can do that.
+**The export itself is now written too** — `supabase/functions/export` and
+`0008_export.sql`, with the table list held to the database's own answer so it
+cannot quietly go stale (BUILD-REVIEW §2.44). It needs a private `exports`
+bucket and a schedule.
+
+**One decision left there, and it is yours: an email provider.** The copy
+promises "we'll email your data within 24 hours", and whoever sends it
+processes a file containing someone's entire account. Until you pick one, the
+file is written and the request is marked answered with its path, and the
+admin panel's Privacy requests screen is where someone hands over a signed
+link.
 
 
 ### 9.4 Support has a back end and no front door
