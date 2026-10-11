@@ -47,3 +47,4 @@ yarn-error.*
 # Visual-comparison captures
 .screens/
 .screens-prototype/
+all-migrations.sql

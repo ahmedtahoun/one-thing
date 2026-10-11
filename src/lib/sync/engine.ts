@@ -14,7 +14,9 @@
  * fall out of the comparison with the base for free, which a cursor would
  * need tombstones for. BUILD-REVIEW.md §2.36.
  */
+import type { QueuedEvent } from '../analytics/events';
 import type { ConsentRecord } from '../consent';
+import type { QueuedPrivacyRequest } from '../privacy-request';
 import type { Contact, FollowUp, HistoryEntry, OneThing, Task } from '../model-types';
 import type { Plan } from '@/policy/entitlements';
 import { applyDelta, reconcile, reconcileOne, sameRow } from './reconcile';
@@ -119,6 +121,10 @@ export type SyncResult = {
   marketing: boolean | null;
   /** How many queued consent rows went out. */
   consentSent: number;
+  /** How many queued analytics events went out. */
+  eventsSent: number;
+  /** How many queued privacy requests went out. */
+  privacySent: number;
   /** Rows pushed and deleted, for the log and the tests. */
   pushed: number;
   deleted: number;
@@ -166,10 +172,14 @@ export async function syncOnce(options: {
   base: Base;
   /** Consent rows recorded on this device and not yet on the server. */
   consent: ConsentRecord[];
+  /** Analytics events recorded on this device and not yet on the server. */
+  events: QueuedEvent[];
+  /** Export requests recorded on this device and not yet on the server. */
+  privacyRequests: QueuedPrivacyRequest[];
   /** Today's date key, YYYY-MM-DD, in the device's time zone. */
   today: string;
 }): Promise<SyncResult> {
-  const { remote, userId, local, base, consent, today } = options;
+  const { remote, userId, local, base, consent, events, privacyRequests, today } = options;
   const withUser = <R extends object>(row: R) => ({ ...row, user_id: userId });
 
   // ---------------------------------------------------------------- read ----
@@ -298,6 +308,22 @@ export async function syncOnce(options: {
     );
   }
 
+  // Append-only, like consent: these are facts, not state to reconcile. They
+  // go out in the same chunks as everything else so one request never carries
+  // a month of a device that was offline.
+  for (const part of chunks(events)) {
+    await remote.insert(
+      'analytics_event',
+      part.map((e) => ({ user_id: userId, name: e.name, props: e.props, at: e.at, platform: local.profile.platform }))
+    );
+  }
+  if (privacyRequests.length > 0) {
+    await remote.insert(
+      'privacy_request',
+      privacyRequests.map((r) => ({ user_id: userId, type: r.kind, source: 'app', requested_at: r.at }))
+    );
+  }
+
   for (const part of chunks(contacts.upsert)) await remote.upsert('contact', part.map(withUser), 'id');
   for (const part of chunks(tasks.upsert)) {
     await remote.upsert('task', part.map(({ contact_ids: _links, ...row }) => withUser(row)), 'id');
@@ -362,6 +388,8 @@ export async function syncOnce(options: {
     plan: remoteUser ? ((remoteUser.plan as Plan | undefined) ?? 'free') : 'free',
     marketing: marketingRows[0]?.granted ?? null,
     consentSent: consent.length,
+    eventsSent: events.length,
+    privacySent: privacyRequests.length,
     pushed,
     deleted,
   };

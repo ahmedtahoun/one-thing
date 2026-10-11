@@ -3,7 +3,7 @@
  * 01 · Sign in and 02 · Two-step verification (ADMIN.md § 01–02).
  *
  * The prototype's own checks come first and use its words: the email must
- * be @theonething.app, the password at least six characters, the code six
+ * be @onlyonething.app, the password at least six characters, the code six
  * digits. Live, Supabase then checks the password and the TOTP code, and
  * five failures in 15 minutes lock the email for 15 minutes.
  *
@@ -21,7 +21,7 @@ export type StepResult = { ok: true } | { ok: false; error: string };
 
 /** The prototype's messages. */
 const SAYS = {
-  domain: 'Use your @theonething.app email.',
+  domain: `Use your @${ADMIN_EMAIL_DOMAIN} email.`,
   password: 'Enter your password.',
   code: 'The code is 6 digits.',
 };

@@ -39,7 +39,7 @@ export default function People() {
 
   const start = useStartTask();
 
-  // "Import" (BUILD-REVIEW.md §2.39): the phone's own picker, then the New
+  // "Import" (BUILD-REVIEW.md §2.46): the phone's own picker, then the New
   // contact form filled in, to check and save. Phones only.
   const importFromPhone = async () => {
     const draft = await pickFromPhone();

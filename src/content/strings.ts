@@ -1054,11 +1054,11 @@ const ACC_en = {
     ],
     [
       "People you add",
-      "When you save a contact, we store their name, position, phone and email so the app can work for you. They can ask us to remove their details at privacy@theonething.app."
+      "When you save a contact, we store their name, position, phone and email so the app can work for you. They can ask us to remove their details at privacy@onlyonething.app."
     ],
     [
       "Your choices",
-      "Turn marketing off any time in Settings. Download or delete your data and account from Settings or at theonething.app/delete — deletion removes everything within 30 days."
+      "Turn marketing off any time in Settings. Download or delete your data and account from Settings or at onlyonething.app/delete — deletion removes everything within 30 days."
     ],
     [
       "Children",
@@ -1070,7 +1070,7 @@ const ACC_en = {
     ],
     [
       "Contact",
-      "privacy@theonething.app"
+      "privacy@onlyonething.app"
     ]
   ]
 };
@@ -1162,7 +1162,7 @@ const ACC_ar: typeof ACC_en = {
     ],
     [
       "الأشخاص اللي تضيفهم",
-      "لما تحفظ جهة اتصال نخزّن اسمه ومنصبه ورقمه وإيميله عشان يشتغل التطبيق لك. ويقدر يطلب حذف بياناته على privacy@theonething.app."
+      "لما تحفظ جهة اتصال نخزّن اسمه ومنصبه ورقمه وإيميله عشان يشتغل التطبيق لك. ويقدر يطلب حذف بياناته على privacy@onlyonething.app."
     ],
     [
       "خياراتك",
@@ -1170,7 +1170,7 @@ const ACC_ar: typeof ACC_en = {
     ],
     [
       "تواصل معنا",
-      "privacy@theonething.app"
+      "privacy@onlyonething.app"
     ]
   ]
 };
@@ -1211,7 +1211,7 @@ const SETX_en = {
       "All tasks, follow-ups and notes",
       "Contacts and their history"
     ],
-    "delNote": "Data is removed within 30 days. A Pro subscription isn’t cancelled automatically — cancel it in App Store or Google Play settings. You can also request deletion at theonething.app/delete.",
+    "delNote": "Data is removed within 30 days. A Pro subscription isn’t cancelled automatically — cancel it in App Store or Google Play settings. You can also request deletion at onlyonething.app/delete.",
     "delCta": "Delete my account",
     "keep": "Keep my account",
     "free": "Free",

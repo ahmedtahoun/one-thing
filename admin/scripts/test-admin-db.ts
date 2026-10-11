@@ -27,7 +27,7 @@ let source: ReturnType<typeof import('../src/data/db')['dbSource']>;
 const SEED = `
 insert into auth.users (id, email) values
   ('${U1}', 'noura@example.com'), ('${U2}', 'omar@example.com'), ('${U3}', 'sara@example.com'),
-  ('${OWNER}', 'khalid@theonething.app'), ('${SUPPORT}', 'dana@theonething.app');
+  ('${OWNER}', 'khalid@onlyonething.app'), ('${SUPPORT}', 'dana@onlyonething.app');
 insert into auth.mfa_factors (user_id, factor_type, status) values ('${OWNER}', 'totp', 'verified');
 insert into admin_member (user_id, name, role) values ('${OWNER}', 'Khalid Al-Mansouri', 'Owner'), ('${SUPPORT}', 'Dana Al-Anazi', 'Support');
 
@@ -90,9 +90,9 @@ describe('the admin panel against Postgres', () => {
   it('signs in only team members, and locks an email after repeated failures', async () => {
     assert.deepEqual(await db.memberById(OWNER), { name: 'Khalid Al-Mansouri', role: 'Owner' });
     assert.equal(await db.memberById(U1), null);
-    for (let i = 0; i < 5; i++) await db.recordFailure('khalid@theonething.app');
-    assert.equal(await db.recentFailures('khalid@theonething.app', 15), 5);
-    assert.equal(await db.recentFailures('dana@theonething.app', 15), 0);
+    for (let i = 0; i < 5; i++) await db.recordFailure('khalid@onlyonething.app');
+    assert.equal(await db.recentFailures('khalid@onlyonething.app', 15), 5);
+    assert.equal(await db.recentFailures('dana@onlyonething.app', 15), 0);
   });
 
   it('counts the Overview from the tables', async () => {

@@ -10,9 +10,9 @@ export type Added = { importC: string; fillFromPhone: string };
 
 const ADDED: Record<Lang, Added> = {
   en: {
-    /** People, beside "New" — §2.39. */
+    /** People, beside "New" — §2.46. */
     importC: 'Import',
-    /** New contact, above the name — §2.39. */
+    /** New contact, above the name — §2.46. */
     fillFromPhone: 'Fill from phone',
   },
   ar: {

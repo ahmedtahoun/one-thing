@@ -170,6 +170,10 @@ rather than quietly dropping it, as the handoff asks.
 
 ## 3. Things that must come from you (not buildable)
 
+`RELEASE.md` sequences this list into the order the steps unblock each other,
+with the three irreversible decisions (bundle ID, product IDs, data region)
+first. What follows is the inventory.
+
 - Apple Developer / App Store Connect and Google Play Console accounts; bundle
   IDs; the IAP products (`pro_monthly`, `pro_yearly` + 7-day trial, 3 tips).
 - `theonething.app` domain + DNS. Three public pages are **required** by both
@@ -981,8 +985,360 @@ so it is not in CI.
      `scripts/try-assist.ts` with the model changed in `claude.ts`.
 
    This decision is yours; the code uses Opus 5.5 until you say otherwise.
+### 2.39 Analytics: seventeen events, one table, and no way to send a phone number
+`DATA_MODEL.md` § Analytics events lists the taxonomy and two rules —
+"Phone/email SHA-256 hashed; never send message text" — and nothing in the
+handoff says where the events go or who reads them. `ADMIN.md` then builds
+KPI cards, a seven-step funnel and weekly retention cohorts out of them. So
+the events were specified, demanded by another product, and implemented by
+nobody. Four decisions were needed:
 
-### 2.39 Adding a contact from the phone
+**Where they go.** An `analytics_event` table in the same Postgres
+(`0006_events.sql` — numbered after the admin panel's and the assist
+function's migrations, which landed on `main` while this was being written),
+not a vendor. The admin panel meanwhile derives its funnel and cohorts from
+the entity tables (§2.37), which for those particular numbers is the better
+source — state cannot be lost in transit. These events are for what leaves no
+row behind: which capture route a task came in by, which channel Compose
+opened, a nudge that brought someone back, a focus session, a paywall seen. A vendor would mean an SDK on the device,
+a privacy-manifest entry, a Data safety answer and a second place user data
+lives — all before the first dashboard. The admin panel already reads this
+database through the service role, so a table it can `group by` is the
+shortest path to the screens that need it. If a vendor is wanted later, this
+table is the thing to replay into it.
+
+**The name is an enum, not text.** A typo in a client is then a rejected
+insert rather than a silent extra row in someone's funnel. Properties are
+`jsonb`, so `task_created`'s `{type, via}` stays queryable without a column
+per event.
+
+**No hashing, because there is nothing to hash.** The union in
+`src/lib/analytics/events.ts` is the whole surface, and no event in it carries
+a phone, an email or any free text. That is a stronger guarantee than hashing
+would have been: there is no field to put a message body in, and adding one
+fails a test that pins the six allowed property names. Hashing a value the
+app never sends would have been ceremony.
+
+**`account_deleted` is the server's to send.** By the time it happens the
+account's rows are gone and the session with them, so an insert from the
+device would either fail row-level security or resurrect a `user_id` the hard
+delete just removed. `delete_my_account()` records it instead, with no
+`user_id` — which is also how `privacy_request` already counted deletions
+without keeping who asked. Every other event's `user_id` is
+`on delete set null` for the same reason: the funnel keeps its shape, and the
+rows stop being personal data, so DATA_MODEL's hard delete stays a hard
+delete.
+
+Two smaller calls. Events ride along with whatever syncs next rather than
+triggering a sync each — a sync per tap is a sync per tap — while an export
+request syncs at once, because it carries a promise with a clock on it. And
+`task_done` is tracked in `toggleDone` and in the review's bulk close, not
+centrally in `persistTasks`, which would have been tidier and wrong: a task
+another device finished arrives through `applySync`, and that is not this
+device's event to report.
+
+The queue caps at 500 events, dropping the oldest. A device offline for a
+month must not grow without bound, and a count short by its oldest rows beats
+a queue that never drains.
+
+### 2.40 "Download my data" was a toast and nothing else
+The row is in the design — Settings → Privacy & data, with the toast "We'll
+email your data within 24 hours." The build showed the toast and kept no
+record, so the Privacy Policy's own sentence ("Download or delete your data
+and account from Settings", in both languages) rested on a request that had
+never been made. `privacy_request` was waiting for it the whole time:
+`type` is `('delete', 'export')`, `source` is `('app', 'web')`, and
+`deadline_at` defaults to 30 days out — the countdown ADMIN.md § 11 draws.
+
+The request now queues on the device and goes up as that row. It is
+deliberately not deduplicated: asking again tomorrow is a second request with
+its own deadline, and two rows an hour apart tell support more than one row
+would.
+
+Writing it turned up an integrity hole next door. `0001` gave
+`privacy_request` the same owner-only policy as every other table carrying a
+`user_id`, which let a user delete their own deletion or export request — the
+one row that proves a request was made, and the row the 30-day clock is
+counted from. `0003` revokes update and delete, as `admin_audit_log` already
+did: insert and read, nothing else. A test in `scripts/test-sync-db.ts` holds
+that line for both tables.
+
+The export itself — read every table for one user, email the result inside 24
+hours — is a server job, and is not written. Nothing on the device can do it,
+and nothing pretends to.
+
+### 2.41 Real Apple and Google sign-in, and the two states the design never drew
+The sign-in screen recorded which button was tapped and opened Account setup;
+`src/lib/session.tsx` then held the whole account on the device. Meanwhile the
+sync layer waits on `db.auth.getSession()`, so several thousand tested lines
+did nothing. This is the keystone, and it is now written. It has still never
+run: both flows need a real build, the client IDs, and the providers
+configured in Supabase (RELEASE.md § 2–3).
+
+**Which modules.** `expo-apple-authentication` for Apple, and
+`@react-native-google-signin/google-signin` for Google. I started with
+`expo-auth-session`'s Google provider, which would have worked on web too —
+tempting, since the whole verification harness is web — and then found its
+`GoogleAuthRequestConfig` carries an `@deprecated` tag pointing at the native
+module. Building a brand-new integration on a deprecated API to gain test
+coverage we cannot trust anyway was the wrong trade, so it came back out.
+`expo-crypto` went in and came out with it: it was there for a nonce that
+neither provider's documented flow uses.
+
+**No nonce.** Supabase's own native examples pass the identity token to
+`signInWithIdToken` without one, and Apple's token is already bound to the
+bundle ID. Inventing a nonce protocol that the provider and Supabase were not
+documented to agree on, in code nobody can run yet, would be the worst kind of
+guess: invisible until it fails on a device.
+
+**Anything but `ready` falls back to the local session.**
+`src/lib/auth/availability.ts` decides, before a native module is touched,
+whether a provider can really sign anyone in: no backend, no client IDs, or
+the wrong platform. Web is always "wrong platform", so the harness keeps
+rendering the first-run flow exactly as before, and a build without a Supabase
+project keeps working for whoever is testing the UI. It is the same shape dev 2
+used for the backend itself, and it is tested, which the native calls cannot be.
+
+**Two states the handoff has no copy for.** A cancelled sign-in and a failed
+one. Apple and Google both show their own sheet and their own error before
+returning, so the screen does nothing on either rather than inventing a
+message — SCREENS.md § 01 has no error state but the Terms one. If a
+"couldn't sign you in" line is wanted, it needs copy in both languages; it is
+on the list with the other four missing strings.
+
+**Apple says the name once.** `fullName` and the real email come back on the
+*first* authorisation and never again, so they are carried through the sign-up
+draft and prefill Account setup's name field — still editable, because Apple's
+spelling of someone's name is not always the one they use. The email is stored
+as given, relay address and all (RELEASE.md § 9.8).
+
+**`app.config.js`, not more `app.json`.** Google's iOS side needs a URL scheme
+built from the reversed iOS client ID, and there is no honest placeholder for
+it: a made-up scheme builds and then fails on a device. So the config became a
+function that adds the plugin only once `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID` is
+set, with `app.json` still the readable base Expo passes in. `usesAppleSignIn`
+is turned on there too, since adding the capability later means a new
+provisioning profile.
+
+**What this turned up in the tests.** The first-run flow had no behavioural
+coverage at all — sign-in and setup were only ever screenshot-compared — so
+`scripts/smoke-analytics.js` now drives it. Writing that found nothing wrong
+with the app and one thing worth knowing: the consent row is a single
+pressable whose *centre* is the "Terms of Service" link, so a click aimed at
+the middle of the row opens Legal rather than ticking the box. That is the
+design — the links are meant to be reachable — but it is worth knowing that
+the box itself is the 22 × 22 at the start of the row, and that is where the
+test aims.
+
+### 2.42 The store webhooks: the only thing that makes anyone Pro
+`subscription` and `tip` have been waiting since `0001`, and
+`0003_tips_from_the_store.sql` closed the last user-writable path into them.
+Nothing on a device may write `app_user.plan` either — `0002_sync.sql` revoked
+that column. So until this, a purchase could complete in the store and change
+nothing at all in the app, and the admin panel's Subscriptions screen had no
+source. `supabase/functions/app-store` and `supabase/functions/play-rtdn` are
+that source.
+
+**All the deciding is in one pure file.** `_shared/store-contract.ts` maps
+both stores' taxonomies — 23 Apple notification types, 14 Google ones, and
+Google's eight subscription states — onto the six values `sub_status` allows
+and the four `plan_kind` allows. It touches neither store nor database, so
+every case is tested exhaustively (46 of the 150 unit tests) without an
+account, a certificate or a network. The webhooks themselves are shells:
+verify, look up, call one SQL function.
+
+**The rule the mapping follows is never guess.** An unknown notification type,
+a product we do not sell, a payload with no account on it — each comes back as
+`ignored` with a reason, and the webhook records the reason rather than
+writing a subscription nobody bought. A type Apple adds after today lands
+there too, rather than being silently dropped.
+
+**Three places the obvious mapping would have been wrong:**
+
+- **Cancelled is not over.** Turning auto-renew off does not end a paid year.
+  `DID_CHANGE_RENEWAL_STATUS / AUTO_RENEW_DISABLED` and Google's
+  `SUBSCRIPTION_STATE_CANCELED` both keep Pro until `ends_at`, and so does a
+  grace period. `planFor` takes `now` and decides from the date, which also
+  means a lost `EXPIRED` notification cannot leave someone on Pro forever.
+- **A renewal is never still a trial.** The offer fields can still be set on a
+  renewing transaction, so `DID_RENEW` is `active` regardless of them.
+- **Google has no "in trial" state at all.** The 7-day free trial is an
+  *offer* on the base plan, so an `offerId` on the current line item is what a
+  trial looks like. That holds because these base plans carry exactly one
+  offer (DATA_MODEL § Integrations). If a second is ever configured, that is
+  the line to revisit, and it is marked.
+
+**Idempotency is the property money depends on.** Both stores redeliver
+deliberately, and Apple retries anything that is not 2xx five times.
+`store_notification` claims each notification by `(store, external_id)` —
+Apple's `notificationUUID`, Google's Pub/Sub `messageId` — before anything
+else happens, so a replay returns false and writes nothing. A tip gets a
+second belt: `tip` had no stable handle at all, so `0007` adds
+`transaction_id` and a unique index, in case one purchase ever arrives under
+two notification ids. Both are tested against Postgres
+(`scripts/test-store-db.ts`), including that a replay cannot walk a
+subscription backwards.
+
+**The status codes are part of the design.** A notification we understood
+answers 200, including one we chose not to act on. A failed write answers 500,
+because a 200 would mean the store never sends it again — a purchase lost for
+good. An unverified payload answers 401 and writes nothing, not even a notice:
+it is not the store's traffic to record.
+
+**What verifies them.** Apple signs every notification, and its own library
+checks the chain — against Apple's root certificate, which the operator
+supplies as a secret. No root is invented here and there is no default; with
+none configured the function answers 503 and writes nothing, the way `assist`
+does with no API key. Google signs nothing, so the Pub/Sub push must carry an
+OIDC token from the service account the push subscription runs as, and that is
+verified instead. Both URLs are public (`--no-verify-jwt`), because neither
+store sends a Supabase token; the signature is the authentication.
+
+**The safety net.** `lapse_expired_subscriptions()` moves anyone whose paid
+period has passed off Pro without waiting to be told. Stores retry, so a lost
+notification is unlikely — but a user keeping Pro for free is the expensive
+direction to be wrong in. **Nothing calls it yet**: it needs a schedule
+(pg_cron, or a cron-triggered function).
+
+**The one thing the app still has to do.** A purchase has to carry the
+Supabase user id — `appAccountToken` on StoreKit, `setObfuscatedAccountId` on
+Play Billing. It is the only part of a purchase that cannot be recovered
+afterwards, and the webhooks refuse to guess from an email or a receipt. A
+purchase made without it is money taken for a Pro account nobody gets. That
+note now sits on `startTrial` in `src/features/paywall/purchases.ts`, which is
+where purchases will be written.
+
+**Neither has run.** No store account, no certificate, no service account, no
+Supabase project. What is proven is the mapping, the status codes, the
+idempotency and the grants; what is not is a single real delivery.
+
+### 2.43 The domain moved to `onlyonething.app`
+The product owner's decision, after the handoff was written, so it overrides
+the handoff's copy rather than departing from it. Twenty-eight references
+moved in the app, the admin panel and their checks:
+
+- The app's six user-facing strings, two of them Arabic:
+  `privacy@onlyonething.app` and `onlyonething.app/delete`. **Both have to
+  resolve** — a reviewer clicks them, and the delete sheet's own copy promises
+  the second one (RELEASE.md § 7).
+- The admin panel's email domain, which is a sign-in rule and not decoration:
+  only an `@onlyonething.app` address can reach it. `ADMIN_EMAIL_DOMAIN` is
+  the one place it lives, and the rejection message now reads from it rather
+  than repeating it. `scripts/add-admin.ts` repeats the literal because
+  `src/config.ts` is `server-only` and that is a CLI script; the comment says
+  so.
+- The team's seed data, so demo mode and the sign-in rule agree. Without that
+  the demo users could no longer sign in to the demo.
+
+This is the first place the build deliberately says something the prototype
+does not, in text the prototype's own screenshots show — so the admin panel's
+fidelity check needed a way to express it. A probe can now be
+`{ app, prototype }`: the same cell's position is still compared, and the two
+wordings are recorded rather than the probe being deleted. Still 56 probes,
+none failing; the sign-in screen's pixel difference moves from 0 % to 0.05 %
+because the placeholder is three characters longer.
+
+The handoff's own files keep `theonething.app`. They are the record of what
+was asked for, not configuration.
+
+### 2.44 The data export, and the list that cannot go stale
+§2.40 made "Download my data" leave a record; this answers it.
+`supabase/functions/export` claims the oldest unanswered request, reads every
+table holding that person's rows, writes one JSON document to a private
+Storage bucket, and marks the request done. `0008_export.sql` is the
+claim/complete/release around it.
+
+**The hard part is not the reading, it is staying complete.** A year from now
+somebody adds a table and nobody remembers the export; the promise quietly
+stops being true, and the only way to find out is a regulator asking. So the
+list is not maintained by hand and trusted — `scripts/test-export-db.ts` asks
+Postgres which tables carry a `user_id` and holds the export to that answer.
+A new one fails the test until it is either exported or written into
+`EXCLUDED` **with a reason**, and the test checks the reason is long enough to
+be one. I added a table that nobody exports to prove the test fails, then
+took it out again; a check that cannot fail is not a check.
+
+Two tables are excluded, both deliberately: `admin_member`, which is a team
+membership rather than anyone's use of the app, and `store_notification`,
+which is the store's delivery traffic — what was actually bought is exported,
+through `subscription` and `tips`.
+
+**Three smaller decisions.**
+
+- **Every section appears, empty or not.** A missing key reads like something
+  withheld; an empty list is an answer. The document also carries its own
+  table of contents and the omissions with their reasons, so a reader can see
+  the shape of it rather than having to trust it.
+- **The file first, then the request.** A request marked answered with no file
+  is a promise broken silently; a file with the request still open is
+  repeated work and nothing worse. A failure anywhere hands the request back
+  (`release_export_request`), because left claimed it would sit there until
+  the 30 days ran out with nobody told.
+- **One at a time, `for update skip locked`.** Two runs on a schedule step
+  over each other rather than both answering the same request.
+
+**What it does not do is send the email**, and that is on purpose. The copy
+promises "we'll email your data within 24 hours", and an email provider is a
+decision about who processes a file containing someone's entire account — the
+product owner's to make, not mine (RELEASE.md § 9.3). Until one is chosen the
+file is written, the request is marked answered with its path, and the admin
+panel's Privacy requests screen is where someone hands over a signed link. A
+signed URL is made when the link is handed over rather than stored, so it
+expires; the bucket stays private.
+
+Never run, like the rest: there is no project, no bucket, no schedule.
+
+### 2.45 Every icon in the project was Expo's placeholder
+Making the store screenshots turned this up, and it had been true since the
+first commit: `assets/icon.png`, `android-icon-foreground.png`,
+`splash-icon.png` and `favicon.png` were all the scaffold's blue chevron —
+the one with the construction guides drawn on it. Nobody noticed, and §2.11's
+fix made it worse by correcting the adaptive-icon *paths* so that they pointed
+reliably at placeholder art.
+
+`scripts/make-icons.js` renders them from the logo the design already has:
+`LogoMark` in `src/design/BrandMarks.tsx`, a ring inside a ring around a dot,
+in `ink.base` on white, with the proportions taken from the component (ring
+36/64, dot 11/64, stroke 1.5/64 of the mark). This is not a new logo; it is
+the one the sign-in screen is built around, at the sizes the OSes and the
+stores need. A designer may still want to replace it — what it replaces was
+not a design at all.
+
+The Android foreground sits at 42 % of its canvas rather than 60 %, because an
+adaptive icon is masked and may be cropped to a circle; the monochrome layer
+is the same shape in solid black, for Android's themed icons.
+
+**And the store screenshots themselves** (`scripts/capture-store.js`,
+`npm run capture:store`), rendered from the running app in both languages:
+
+- **Apple** takes one iPhone set now — the 6.9-inch class — and scales it
+  down. 1320 × 2868 is that class's native size, so the app is rendered at
+  440 × 956 points at 3x: a real device's logical size, not a stretch.
+- **Google will not take the shape this app is.** Play's rule is that the long
+  side may be at most twice the short side; the design is 402 × 874, which is
+  1 : 2.17. The Play set is rendered at 432 × 864 at 2.5x — exactly
+  1080 × 2160, exactly 1:2, and within 30 points of the design frame.
+- The obvious first try, 360 × 720 at 3x, was wrong, and only looking at it
+  showed why: at 360 points the greeting truncates to "Good morning, …" and
+  the tab bar covers the top of the task list. **Both are true of the app on a
+  narrow Android phone**, which is worth knowing before the first build goes
+  on hardware — the design was specified at 402 and nothing has ever rendered
+  it narrower.
+- Both sets are flattened to 24-bit RGB. A screenshot carries an alpha channel
+  even when nothing in it is transparent, and Play asks for PNGs without one.
+- Play's **feature graphic** is its one required piece of artwork that is not
+  a screenshot, and the handoff has no design for it. What is produced is the
+  app's own sign-in lockup — mark, name, tagline, in the app's colours and
+  type — at 1024 × 500, in both languages. The name stays "The One Thing" in
+  the Arabic one: there is no Arabic brand name anywhere in the handoff, and
+  inventing one is the product owner's decision, not a typesetting choice.
+  Tracked-out capitals are an English device, so only the English name is
+  tracked; letter-spacing pulls Arabic's joined letters apart.
+
+The output is checked for the exact pixel size and Play's 8 MB limit, and the
+script fails if a screen logs an error while being shot.
+
+### 2.46 Adding a contact from the phone
 Added at the product owner's request; the handoff has no such feature.
 - **Import**, beside "New" on People, opens the phone's own contact picker.
   The chosen contact fills in the New contact form.
@@ -1026,7 +1382,9 @@ device; that needs a native build.
    - "Fill from phone" / "تعبئة من جهات الاتصال";
    - the iOS permission text in `app.json` ("Used only when you choose a
      contact to add to People…"). iOS shows it only if the app ever asks
-     for address-book access, which this feature does not.
+     for address-book access, which this feature does not. It is also in
+     `src/content/locale-en.json` and, newly written in Arabic, in
+     `locale-ar.json`, so an Arabic phone does not fall back to English.
 2. **The Privacy Policy** should mention that people can be added from the
    phone's contacts, one at a time, by the user's choice. SCREENS.md's list
    for it already covers "people you add".

@@ -4,7 +4,9 @@
  */
 import { useCallback } from 'react';
 
+import { clearEventQueue } from './analytics/track';
 import { clearConsentQueue } from './consent';
+import { clearPrivacyRequests } from './privacy-request';
 import { usePeople } from './people';
 import { usePrefs } from './prefs';
 import { useSession } from './session';
@@ -33,6 +35,12 @@ export function useAccount() {
   const signOut = useCallback(async () => {
     await syncNow();
     if (await signOutOfServer()) wipeDevice();
+    // Anything still queued belongs to the session that is ending and can no
+    // longer be attributed to it — the sync above was its last chance. Left
+    // in place it would go up as the next account's, which is worse than
+    // losing an event or an export request whose owner has just left.
+    await clearEventQueue();
+    await clearPrivacyRequests();
     await endSession();
   }, [syncNow, wipeDevice, endSession]);
 
@@ -47,6 +55,8 @@ export function useAccount() {
     await deleteAccountOnServer();
     wipeDevice();
     await clearConsentQueue();
+    await clearEventQueue();
+    await clearPrivacyRequests();
     await endSession();
   }, [wipeDevice, endSession]);
 

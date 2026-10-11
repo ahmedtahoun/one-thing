@@ -18,6 +18,7 @@ import { Screen } from '@/ui/Screen';
 import { Text } from '@/ui/Text';
 import { ink, space } from '@/design/tokens';
 import { useDirection, useLanguage } from '@/i18n/LanguageProvider';
+import { track } from '@/lib/analytics/track';
 import { recordConsent } from '@/lib/consent';
 import { usePrefs } from '@/lib/prefs';
 import { useSession } from '@/lib/session';
@@ -36,7 +37,10 @@ export default function Setup() {
   const draft = useSignUpDraft();
   const { setPrefs } = usePrefs();
 
-  const [name, setName] = useState('');
+  // Prefilled with whatever the provider gave, which Apple says once and
+  // never again. Still editable: it is their name, and Apple's spelling of it
+  // is not always the one they use.
+  const [name, setName] = useState(draft.read()?.profile?.fullName ?? '');
   const [job, setJob] = useState('');
   const [saving, setSaving] = useState(false);
 
@@ -61,6 +65,10 @@ export default function Setup() {
       name: name.trim(),
       firstName: first,
       jobTitle: job.trim() || undefined,
+      // Apple's relay address (…@privaterelay.appleid.com) is a real inbox
+      // and the only one it will give for a user who chose Hide My Email, so
+      // it is kept as given. RELEASE.md § 9.8.
+      email: d?.profile?.email,
       authProvider: d?.provider ?? 'apple',
     });
 
@@ -71,6 +79,8 @@ export default function Setup() {
       await recordConsent(d.consent);
       draft.clear();
     }
+
+    track({ name: 'setup_done' });
 
     // Defaults applied silently (SCREENS.md § 02): reminder style Gentle,
     // channels all on, focus 45 min — these are the column defaults in

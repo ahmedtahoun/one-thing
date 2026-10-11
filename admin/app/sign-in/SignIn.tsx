@@ -76,7 +76,7 @@ export function SignIn({ initialEmail }: { initialEmail: string }) {
                 setEmail(e.target.value);
                 setError('');
               }}
-              placeholder="you@theonething.app"
+              placeholder="you@onlyonething.app"
               type="email"
               autoComplete="username"
               data-probe="email"

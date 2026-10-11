@@ -1,6 +1,6 @@
 /**
  * Bringing one contact in from the phone's own address book (BUILD-REVIEW.md
- * §2.39).
+ * §2.46).
  *
  * The system picker shows the person their contacts and hands back only the
  * one they choose; the app never reads the address book. On iOS that needs

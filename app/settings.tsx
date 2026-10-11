@@ -31,6 +31,9 @@ import { ink, settingsTile, status, surface, typeColour } from '@/design/tokens'
 import { useDirection, useLanguage } from '@/i18n/LanguageProvider';
 import type { Lang } from '@/content/strings';
 import { useAccount } from '@/lib/account';
+import { TIP_PRODUCTS } from '@/features/paywall/purchases';
+import { track } from '@/lib/analytics/track';
+import { requestExport } from '@/lib/privacy-request';
 import { POLICY_VERSION, recordConsent } from '@/lib/consent';
 import type { Channel, NudgeStyle, Prefs } from '@/lib/model-types';
 import { useNotifications } from '@/lib/notifications/NotificationsProvider';
@@ -438,12 +441,18 @@ export default function Settings() {
               />
               <LinkRow label={acc.si.privL} onPress={() => router.push('/legal?tab=privacy')} />
               <LinkRow label={acc.si.termsL} onPress={() => router.push('/legal?tab=terms')} />
-              {/* The export request itself is a PrivacyRequest row once the
-                  backend exists; the promise to the user is the toast. */}
+              {/* The toast promises "within 24 hours", so the request has to
+                  outlive the tap: it queues on the device and goes up as a
+                  privacy_request row, which is what the admin panel counts
+                  its 30-day deadline from. The export itself is a server job
+                  — see src/lib/privacy-request.ts. */}
               <LinkRow
                 testID="settings-export"
                 label={st.export}
-                onPress={() => toast.show(st.toastExp, { undo: false })}
+                onPress={() => {
+                  void requestExport();
+                  toast.show(st.toastExp, { undo: false });
+                }}
                 last
               />
             </AccordionPanel>
@@ -549,10 +558,12 @@ export default function Settings() {
       <TipSheet
         open={tipOpen}
         onClose={() => setTipOpen(false)}
-        onBuy={() => {
-          // A consumable in-app purchase (tip_small / tip_regular /
-          // tip_large) once the store accounts exist — never a payment link.
+        onBuy={(size) => {
+          // A consumable in-app purchase once the store accounts exist —
+          // never a payment link. The event names the product now so the
+          // tip jar reports itself the day the purchase is real.
           setTipOpen(false);
+          track({ name: 'tip', product: TIP_PRODUCTS[size] ?? 'tip_small' });
           toast.show(st.toastTip, { undo: false });
         }}
       />

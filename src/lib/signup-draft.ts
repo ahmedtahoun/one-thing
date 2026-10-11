@@ -6,6 +6,7 @@
  * leaves nothing behind. No reactivity is needed — setup reads this once, on
  * submit — so it is a plain module store rather than context.
  */
+import type { ProviderProfile } from './auth';
 import type { ConsentRecord } from './consent';
 import { consentRecordsAtSignIn } from './consent';
 
@@ -13,15 +14,29 @@ export type SignUpDraft = {
   provider: 'apple' | 'google';
   marketingOptIn: boolean;
   consent: ConsentRecord[];
+  /**
+   * What the provider told us about them. Apple gives the name and the real
+   * email on the *first* authorisation and never again, so whatever arrives
+   * has to be carried through to setup rather than asked for twice.
+   */
+  profile?: ProviderProfile;
 };
 
 let draft: SignUpDraft | null = null;
 
 export function useSignUpDraft() {
   return {
-    /** Called when a sign-in button is tapped with Terms accepted. */
-    begin({ provider, marketingOptIn }: { provider: 'apple' | 'google'; marketingOptIn: boolean }) {
-      draft = { provider, marketingOptIn, consent: consentRecordsAtSignIn(marketingOptIn) };
+    /** Called once a provider has signed the user in, or the stub stood in. */
+    begin({
+      provider,
+      marketingOptIn,
+      profile,
+    }: {
+      provider: 'apple' | 'google';
+      marketingOptIn: boolean;
+      profile?: ProviderProfile;
+    }) {
+      draft = { provider, marketingOptIn, profile, consent: consentRecordsAtSignIn(marketingOptIn) };
     },
     /** The draft, or null if setup was reached without signing in. */
     read(): SignUpDraft | null {

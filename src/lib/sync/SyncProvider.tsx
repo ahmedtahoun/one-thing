@@ -17,7 +17,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 import * as Notifications from 'expo-notifications';
 
+import { dropSentEvents, readEventQueue } from '../analytics/track';
 import { dropSentConsent, onConsentQueued, readConsentQueue } from '../consent';
+import { dropSentPrivacyRequests, onPrivacyRequestQueued, readPrivacyRequests } from '../privacy-request';
 import { dateKey } from '../model-types';
 import { usePeople } from '../people';
 import { usePrefs } from '../prefs';
@@ -182,6 +184,8 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       const rawBase = await AsyncStorage.getItem(baseKey(userId));
       const base: Base = rawBase ? { ...EMPTY_BASE, ...(JSON.parse(rawBase) as Partial<Base>) } : EMPTY_BASE;
       const consent = await readConsentQueue();
+      const events = await readEventQueue();
+      const privacyRequests = await readPrivacyRequests();
       const { marketing: _marketing, ...syncedPrefs } = pr.prefs;
 
       const result = await syncOnce({
@@ -189,6 +193,8 @@ export function SyncProvider({ children }: { children: ReactNode }) {
         userId,
         base,
         consent,
+        events,
+        privacyRequests,
         today: dateKey(),
         local: {
           tasks: lists.tasks,
@@ -213,6 +219,8 @@ export function SyncProvider({ children }: { children: ReactNode }) {
 
       await AsyncStorage.setItem(baseKey(userId), JSON.stringify(result.base));
       await dropSentConsent(result.consentSent);
+      await dropSentEvents(result.eventsSent);
+      await dropSentPrivacyRequests(result.privacySent);
 
       // Into the stores, around anything the user changed meanwhile.
       const into = <T extends { id: string }>(before: T[], after: T[], order: (list: T[]) => T[]) =>
@@ -304,6 +312,18 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     onConsentQueued(active ? () => void run() : null);
     return () => onConsentQueued(null);
   }, [active, run]);
+
+  /**
+   * An export request is a promise to the user with a 30-day clock on it, so
+   * it goes at once rather than waiting for the next change. Analytics events
+   * do not: they ride along with whatever syncs next, because a sync per tap
+   * would be a sync per tap.
+   */
+  useEffect(() => {
+    onPrivacyRequestQueued(active ? () => void run() : null);
+    return () => onPrivacyRequestQueued(null);
+  }, [active, run]);
+
 
   const syncNow = useCallback(async () => {
     if (!active) return;

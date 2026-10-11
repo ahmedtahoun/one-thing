@@ -51,7 +51,7 @@ function ContactForm({ contact }: { contact?: Contact }) {
   const toast = useToast();
   const editing = Boolean(contact);
 
-  // A contact picked on People's "Import" arrives filled in (§2.39).
+  // A contact picked on People's "Import" arrives filled in (§2.46).
   const [imported] = useState<ContactDraft | null>(() => (editing ? null : importDraft.peek()));
   useEffect(() => importDraft.clear(), []);
 

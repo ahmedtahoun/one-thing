@@ -17,6 +17,7 @@ import {
 } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+import { track } from './analytics/track';
 import { newId } from './ids';
 import { dateKey, type OneThing, type Task } from './model-types';
 import { remindAt } from './reminders';
@@ -140,6 +141,10 @@ export function TasksProvider({ children }: { children: ReactNode }) {
       // worked out here rather than by every caller in a second write.
       if (task.remind && task.dueAt && !task.remindAt) task.remindAt = remindAt(task);
       persistTasks((current) => [...current, task]);
+      // Every route into a task comes through here — quick add, capture,
+      // brain dump, the assistant, the event form, a follow-up — so the
+      // `via` split DATA_MODEL asks for needs instrumenting once.
+      track({ name: 'task_created', type: task.type, via: task.createdVia });
       return task;
     },
     [persistTasks]
@@ -167,6 +172,11 @@ export function TasksProvider({ children }: { children: ReactNode }) {
       // updater against the list as it will be.
       const next = tasks.find((t) => t.id === id)?.status === 'done' ? 'open' : 'done';
       persistTasks((current) => current.map((t) => (t.id === id ? { ...t, status: next } : t)));
+      // Only the user's own doing. Tracking this inside `persistTasks` would
+      // have caught every path in one place, including a task another device
+      // finished arriving through `applySync` — which is not this device's
+      // event to report, and would double-count it.
+      if (next === 'done') track({ name: 'task_done' });
       return next;
     },
     [tasks, persistTasks]
@@ -189,6 +199,7 @@ export function TasksProvider({ children }: { children: ReactNode }) {
   const setOneThing = useCallback<TasksValue['setOneThing']>(
     (title, focusMinutes = DEFAULT_FOCUS_MINUTES) => {
       persistOneThing({ date: dateKey(), title, done: false, focusMinutes });
+      track({ name: 'one_thing_set' });
     },
     [persistOneThing]
   );

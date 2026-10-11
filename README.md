@@ -138,8 +138,11 @@ day", and that Reschedule in remind mode moves the reminder and not the task.
 On Quick capture, Brain dump, the Assistant and the Paywall
 (`scripts/smoke-capture.js`): that nothing is saved until it is confirmed, the
 Assistant's daily limit and the paywall it opens, and that starting the trial
-makes nobody Pro. A screenshot says a screen looks right; this says it behaves
-right.
+makes nobody Pro. On what the app records about itself
+(`scripts/smoke-analytics.js`): that the events reach the queue as the user
+moves, once each, carrying nothing but the properties DATA_MODEL names, and
+that "Download my data" leaves a request behind rather than only a toast. A
+screenshot says a screen looks right; this says it behaves right.
 
 One trap worth knowing: the prototype almost never sets `line-height`, so
 nearly all of its text takes the font's own metrics — and those are not a flat
@@ -231,7 +234,7 @@ with swipe-to-done and swipe-to-reschedule, and the empty state) and Tasks in
 full (progress header, the bulk reminder hint, filter chips, the Up next card,
 all seven groups with their collapse and bulk actions, status pills, the add
 sheet and the reminder sheet), People (search, quick WhatsApp / email / call
-buttons, and Import from the phone's contacts — §2.39), Follow-ups (the three segments, Got a reply with Undo, Reopen,
+buttons, and Import from the phone's contacts — §2.46), Follow-ups (the three segments, Got a reply with Undo, Reopen,
 Nudge), Settings (the accordion, language switch, privacy toggles, the tip
 sheet and the delete-account sheet) and Compose (the WhatsApp number with its
 country picker, email To and Subject, suggestions from People, the brief with
@@ -275,12 +278,17 @@ project and a signed-in session, and with on-device rules until then
 (§2.38). Speech uses a browser's own recogniser where
 there is one and typing everywhere else (§2.35). Sync and Delete account's
 server half need a Supabase project and real sign-in (§2.36). Notifications are written
-and their rules tested, but never delivered on a real device. Real Apple and Google sign-in are stubbed pending
-developer accounts; `src/lib/session.tsx` holds the session on the device until
-then.
+and their rules tested, but never delivered on a real device. Real Apple and
+Google sign-in are written and have never run: they need the client IDs and a
+build on a device, and until then `src/lib/auth/availability.ts` says why and
+the screen falls back to the local session in `src/lib/session.tsx` (§2.41).
+The app records the analytics events DATA_MODEL specifies, and "Download my
+data" leaves a request behind (§2.39–§2.40); the export job that answers it is
+server work and is not written.
 
 See `BUILD-REVIEW.md` for what the handoff leaves open and what has to come
-from the product owner before a store build is possible.
+from the product owner before a store build is possible, and `RELEASE.md` for
+the path from here to a build in review.
 
 ## Free text and the paywall
 
@@ -410,3 +418,46 @@ npm test                              # the contract, the handler, the client
 npm run test:db                       # the meter in Postgres
 ANTHROPIC_API_KEY=… npx tsx scripts/try-assist.ts   # the real prompt on the handoff's samples; costs money
 ```
+
+`supabase/functions/app-store/` and `supabase/functions/play-rtdn/` are the
+store webhooks — the only thing that makes anyone Pro, since nothing on a
+device may write `app_user.plan` or `subscription`. BUILD-REVIEW.md §2.42 has
+the reasoning.
+
+- **One pure file decides everything.** `_shared/store-contract.ts` maps both
+  stores' notification taxonomies onto the six statuses `sub_status` allows
+  and the four plans `plan_kind` allows, and touches neither store nor
+  database — so every case is tested without an account or a certificate.
+- **Never guess.** An unknown notification, a product we do not sell, a
+  payload with no account on it: each is recorded with its reason rather than
+  written as a subscription.
+- **A redelivery writes nothing.** `store_notification` claims each one by the
+  store's own notification id first; a tip has a second belt on the
+  transaction id.
+- **Verification.** Apple's own library against Apple's root certificate,
+  which the operator supplies as a secret; for Play, the OIDC token on the
+  Pub/Sub push. Both function URLs are public because neither store sends a
+  Supabase token — the signature is the authentication, and with no
+  certificate configured the function answers 503 and writes nothing.
+- **Not run.** No store account, no certificate, no service account. The
+  mapping, the status codes, the idempotency and the grants are tested; a real
+  delivery is not.
+
+The deploy lines and the secrets each one needs are at the top of its
+`index.ts`.
+
+`supabase/functions/export/` answers "Download my data": it claims the oldest
+unanswered request, reads every table holding that person's rows, writes one
+JSON document to a private `exports` bucket, and marks the request done.
+BUILD-REVIEW.md §2.44.
+
+- **Completeness is checked against the database, not a list.**
+  `scripts/test-export-db.ts` asks Postgres which tables carry a `user_id`
+  and holds the export to that answer, so a table added next year fails the
+  test until it is exported or excluded with a reason.
+- **The file first, then the request**, and any failure hands the request
+  back — left claimed it would miss its 30-day deadline with nobody told.
+- **It does not send the email.** That needs a provider, which is a decision
+  about who processes someone's whole account. Until then the file is written
+  and its path recorded, and the admin panel is where someone hands over a
+  signed link.
