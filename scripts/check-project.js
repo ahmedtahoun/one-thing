@@ -72,9 +72,27 @@ async function main() {
         'this script reads .env, and nothing has to go through the command line.'
     );
   }
-  if (key.split('.').length !== 3) {
-    throw new Error('The anon key is not a JWT (three dot-separated parts). Copy it again from Supabase → Project Settings → API.');
+  // A secret key is the one thing that must never be given to this, so it is
+  // named before anything else.
+  const payload = (() => {
+    try {
+      return Buffer.from(key.split('.')[1] ?? '', 'base64url').toString('utf8');
+    } catch {
+      return '';
+    }
+  })();
+  if (/^sb_secret_/.test(key) || /"role"\s*:\s*"service_role"/.test(payload)) {
+    throw new Error('That is the SECRET key, which this never needs and should not have seen. Rotate it in Supabase, then use the publishable one.');
   }
+  // Supabase issues two publishable shapes: the legacy anon JWT, and the
+  // newer `sb_publishable_…`. Both work.
+  if (key.split('.').length !== 3 && !/^sb_publishable_/.test(key)) {
+    throw new Error(
+      'That does not look like a publishable key: it is neither a JWT (three dot-separated parts) ' +
+        'nor an sb_publishable_… key. Copy the anon / publishable key from Supabase → Project Settings → API.'
+    );
+  }
+
   const headers = { apikey: key, Authorization: `Bearer ${key}` };
   const lines = [];
   let fatal = 0;
@@ -92,6 +110,20 @@ async function main() {
     }
   };
 
+  // The key is checked once, against a request that must succeed, before
+  // anything is reported. A rejected key makes every later answer look the
+  // same — every table "present but closed", every row hidden — which reads
+  // like a well-locked project and means nothing at all.
+  const probe = await get('/rest/v1/');
+  if (probe.status === 401 || probe.status === 403) {
+    const why = (await probe.text().catch(() => '')).slice(0, 200);
+    throw new Error(
+      `The project rejected this key (HTTP ${probe.status})${why ? `: ${why}` : ''}.\n` +
+        'Nothing below would mean anything, so nothing is reported. Copy the anon / publishable key ' +
+        'again from Supabase → Project Settings → API.'
+    );
+  }
+
   // ---------------------------------------------------------- the schema ----
   lines.push(`Project ${url}`, '', 'Schema');
   const missing = [];
@@ -104,7 +136,19 @@ async function main() {
   }
   lines.push(`  ${tick(missing.length === 0)} ${TABLES.length - missing.length}/${TABLES.length} tables present`);
   if (missing.length) lines.push(`      missing: ${missing.join(', ')}`);
-  if (denied.length) lines.push(`      present but closed to the anon role (fine for the admin tables): ${denied.join(', ')}`);
+  if (denied.length) {
+    // The admin tables are meant to be closed. Everything else being closed
+    // too means the key is not being accepted as `anon`, whatever it is.
+    const admin = denied.filter((t) => t.startsWith('admin_') || t === 'store_notification');
+    const rest = denied.filter((t) => !admin.includes(t));
+    if (admin.length) lines.push(`      closed to the anon role, as intended: ${admin.join(', ')}`);
+    if (rest.length) {
+      fatal++;
+      lines.push(`      ✗ UNEXPECTEDLY CLOSED: ${rest.join(', ')}`);
+      lines.push('        A signed-out client should get an empty list from these, not a refusal.');
+      lines.push('        Usually this means the key is not being read as the anon role.');
+    }
+  }
 
   // Row-level security: a signed-out client must see nothing at all.
   if (missing.length < TABLES.length) {
@@ -164,8 +208,12 @@ async function main() {
     headers: { 'Content-Type': 'application/json' },
   });
   const body = await bucket.text().catch(() => '');
-  const exists = !/bucket not found/i.test(body);
-  lines.push(`  ${tick(exists)} exports bucket ${exists ? 'exists' : 'not found — the export job has nowhere to write'}`);
+  if (bucket.status === 401 || bucket.status === 403) {
+    lines.push('  · storage refused the key, so the bucket was not checked');
+  } else {
+    const exists = !/bucket not found/i.test(body);
+    lines.push(`  ${tick(exists)} exports bucket ${exists ? 'exists' : 'not found — the export job has nowhere to write'}`);
+  }
 
   console.log(lines.join('\n'));
   if (fatal) {
