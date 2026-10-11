@@ -4,6 +4,7 @@
  */
 import { useCallback } from 'react';
 
+import { clearActivityQueues } from './activity';
 import { clearEventQueue } from './analytics/track';
 import { clearConsentQueue } from './consent';
 import { clearPrivacyRequests } from './privacy-request';
@@ -41,6 +42,7 @@ export function useAccount() {
     // losing an event or an export request whose owner has just left.
     await clearEventQueue();
     await clearPrivacyRequests();
+    await clearActivityQueues();
     await endSession();
   }, [syncNow, wipeDevice, endSession]);
 
@@ -57,6 +59,7 @@ export function useAccount() {
     await clearConsentQueue();
     await clearEventQueue();
     await clearPrivacyRequests();
+    await clearActivityQueues();
     await endSession();
   }, [wipeDevice, endSession]);
 

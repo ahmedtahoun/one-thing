@@ -12,7 +12,8 @@
  *
  *   # once, in the dashboard or the CLI: a PRIVATE bucket named `exports`
  *   supabase functions deploy export
- *   # then, on a schedule:
+ *   # 0009_schedules.sql calls it every ten minutes while a request waits,
+ *   # once the Vault secrets it names are set. By hand:
  *   curl -X POST -H "Authorization: Bearer $SERVICE_ROLE_KEY" .../functions/v1/export
  *
  * The bucket must stay private. The file is one person's whole account; it is

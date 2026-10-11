@@ -35,6 +35,9 @@
         "RECORD_AUDIO",
         "POST_NOTIFICATIONS",
         "SCHEDULE_EXACT_ALARM"
+      ],
+      "blockedPermissions": [
+        "android.permission.WRITE_CONTACTS"
       ]
     },
     "web": {
@@ -46,7 +49,19 @@
       "en": "./src/content/locale-en.json",
       "ar": "./src/content/locale-ar.json"
     },
-    "plugins": ["expo-router", "expo-font", "expo-localization", "expo-notifications"],
+    "plugins": [
+      "expo-router",
+      "expo-font",
+      "expo-localization",
+      "expo-notifications",
+      [
+        "expo-contacts",
+        {
+          "contactsPermission": "Used only when you choose a contact to add to People. The One Thing never reads your address book on its own."
+        }
+      ],
+      "expo-iap"
+    ],
     "extra": {
       "router": {},
       "eas": {}

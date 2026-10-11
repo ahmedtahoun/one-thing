@@ -19,6 +19,9 @@ const KEYS: Record<string, string[]> = {
   settings: ['user_id'],
   consent: ['id'],
   active_day: ['user_id', 'day'],
+  focus_session: ['id'],
+  review: ['user_id', 'date'],
+  review_item: ['user_id', 'date', 'task_id'],
 };
 
 export type MemoryServer = Remote & {

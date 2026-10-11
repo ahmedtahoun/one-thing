@@ -10,6 +10,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { router } from 'expo-router';
 
+import { recordReview } from '@/lib/activity';
 import { track } from '@/lib/analytics/track';
 import { ReviewRow, type ReviewMark } from '@/features/review/ReviewRow';
 import { BackButton } from '@/ui/BackButton';
@@ -89,8 +90,16 @@ export default function DailyReview() {
     // see: closing the day marks several at once through `patchMany`.
     for (const mark of Object.values(marks)) if (mark === 'kept') track({ name: 'task_done' });
     track({ name: 'review_closed' });
+    recordReview({
+      date: today,
+      // The screen shows "Not yet" as chosen until Yes is pressed, so a One
+      // Thing that is not done is the answer "not yet" rather than no answer.
+      oneThingDone: oneThing ? oneThing.done : null,
+      closedAt: new Date().toISOString(),
+      items: Object.entries(marks).map(([taskId, mark]) => ({ taskId, decision: mark === 'dropped' ? 'drop' : mark })),
+    });
     setClosed(true);
-  }, [marks, patchMany]);
+  }, [marks, patchMany, today, oneThing]);
 
   if (closed) {
     return (

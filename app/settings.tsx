@@ -31,7 +31,8 @@ import { ink, settingsTile, status, surface, typeColour } from '@/design/tokens'
 import { useDirection, useLanguage } from '@/i18n/LanguageProvider';
 import type { Lang } from '@/content/strings';
 import { useAccount } from '@/lib/account';
-import { TIP_PRODUCTS } from '@/features/paywall/purchases';
+import { TIP_PRODUCTS, buyTip, manageSubscription as openStoreSubscriptions, restorePurchases } from '@/features/paywall/purchases';
+import { added } from '@/content/additions';
 import { track } from '@/lib/analytics/track';
 import { requestExport } from '@/lib/privacy-request';
 import { POLICY_VERSION, recordConsent } from '@/lib/consent';
@@ -112,9 +113,17 @@ export default function Settings() {
     if (Platform.OS !== 'web') Linking.openSettings().catch(() => {});
   };
 
-  const manageSubscription = () => {
+  const manageSubscription = async () => {
     toast.show(st.toastManage, { undo: false });
-    if (STORE_SUBSCRIPTIONS) Linking.openURL(STORE_SUBSCRIPTIONS).catch(() => {});
+    // The store's own screen where there is a store connection; its web page
+    // otherwise.
+    if (!(await openStoreSubscriptions()) && STORE_SUBSCRIPTIONS) Linking.openURL(STORE_SUBSCRIPTIONS).catch(() => {});
+  };
+
+  const restore = async () => {
+    const result = await restorePurchases();
+    const message = result === 'restored' ? added(lang).restored : result === 'failed' ? added(lang).storeFailed : setx.pw.toastRestore;
+    toast.show(message, { undo: false });
   };
 
   const onSignOut = async () => {
@@ -499,12 +508,10 @@ export default function Settings() {
           {pro ? (
             <LinkRow label={st.manage} onPress={manageSubscription} background={surface.white} last />
           ) : (
-            // Restoring needs the store SDKs (StoreKit `AppStore.sync()`, Play
-            // `queryPurchasesAsync`), which wait on the developer accounts.
             <LinkRow
               testID="settings-restore"
               label={st.restore}
-              onPress={() => toast.show(setx.pw.toastRestore, { undo: false })}
+              onPress={restore}
               background={surface.white}
               last
             />
@@ -558,13 +565,19 @@ export default function Settings() {
       <TipSheet
         open={tipOpen}
         onClose={() => setTipOpen(false)}
-        onBuy={(size) => {
-          // A consumable in-app purchase once the store accounts exist —
-          // never a payment link. The event names the product now so the
-          // tip jar reports itself the day the purchase is real.
+        onBuy={async (size) => {
+          // A consumable in-app purchase, never a payment link. The thanks
+          // waits for the store to take the money: before, it was said for a
+          // purchase that never happened (§2.34).
           setTipOpen(false);
-          track({ name: 'tip', product: TIP_PRODUCTS[size] ?? 'tip_small' });
-          toast.show(st.toastTip, { undo: false });
+          const product = TIP_PRODUCTS[size] ?? 'tip_small';
+          const result = await buyTip(product);
+          if (result === 'started') {
+            track({ name: 'tip', product });
+            toast.show(st.toastTip, { undo: false });
+          } else if (result === 'failed') {
+            toast.show(added(lang).storeFailed, { undo: false });
+          }
         }}
       />
       <DeleteSheet open={deleteOpen} onCancel={() => setDeleteOpen(false)} onConfirm={onDelete} />

@@ -14,6 +14,7 @@
  * fall out of the comparison with the base for free, which a cursor would
  * need tombstones for. BUILD-REVIEW.md §2.36.
  */
+import type { QueuedFocus, QueuedReview } from '../activity';
 import type { QueuedEvent } from '../analytics/events';
 import type { ConsentRecord } from '../consent';
 import type { QueuedPrivacyRequest } from '../privacy-request';
@@ -125,6 +126,9 @@ export type SyncResult = {
   eventsSent: number;
   /** How many queued privacy requests went out. */
   privacySent: number;
+  /** How many queued focus sessions and closed reviews went out. */
+  focusSent: number;
+  reviewsSent: number;
   /** Rows pushed and deleted, for the log and the tests. */
   pushed: number;
   deleted: number;
@@ -176,10 +180,13 @@ export async function syncOnce(options: {
   events: QueuedEvent[];
   /** Export requests recorded on this device and not yet on the server. */
   privacyRequests: QueuedPrivacyRequest[];
+  /** Focus sessions and closed evening reviews not yet on the server. */
+  focus: QueuedFocus[];
+  reviews: QueuedReview[];
   /** Today's date key, YYYY-MM-DD, in the device's time zone. */
   today: string;
 }): Promise<SyncResult> {
-  const { remote, userId, local, base, consent, events, privacyRequests, today } = options;
+  const { remote, userId, local, base, consent, events, privacyRequests, focus, reviews, today } = options;
   const withUser = <R extends object>(row: R) => ({ ...row, user_id: userId });
 
   // ---------------------------------------------------------------- read ----
@@ -336,6 +343,32 @@ export async function syncOnce(options: {
   for (const part of chunks(followUps.upsert)) await remote.upsert('follow_up', part.map(withUser), 'id');
   if (oneThing.upsert.length > 0) await remote.upsert('one_thing', oneThing.upsert.map(withUser), 'user_id,date');
   if (settings.push) await remote.upsert('settings', [withUser(settings.merged)], 'user_id');
+  // Facts again, but sent after the tasks a review's answers point at.
+  // Upserts by key rather than inserts, so a sync that fails after sending
+  // them and sends them again writes nothing twice.
+  for (const part of chunks(focus)) {
+    await remote.upsert(
+      'focus_session',
+      part.map((f) => ({ id: f.id, user_id: userId, started_at: f.startedAt, planned_min: f.plannedMin, ended_at: f.endedAt, completed: f.completed })),
+      'id'
+    );
+  }
+  if (reviews.length > 0) {
+    await remote.upsert(
+      'review',
+      reviews.map((r) => ({ user_id: userId, date: r.date, one_thing_done: r.oneThingDone, closed_at: r.closedAt })),
+      'user_id,date'
+    );
+    // An answer about a task the server no longer has would fail its foreign
+    // key and with it the whole sync; the task's deletion took the answer's
+    // meaning with it.
+    const present = new Set(tasks.merged.map(byId));
+    const items = reviews.flatMap((r) =>
+      r.items.filter((i) => present.has(i.taskId)).map((i) => ({ user_id: userId, date: r.date, task_id: i.taskId, decision: i.decision }))
+    );
+    for (const part of chunks(items)) await remote.upsert('review_item', part, 'user_id,date,task_id');
+  }
+
   pushed += contacts.upsert.length + tasks.upsert.length + history.upsert.length + followUps.upsert.length;
   pushed += oneThing.upsert.length + (settings.push ? 1 : 0);
 
@@ -390,6 +423,8 @@ export async function syncOnce(options: {
     consentSent: consent.length,
     eventsSent: events.length,
     privacySent: privacyRequests.length,
+    focusSent: focus.length,
+    reviewsSent: reviews.length,
     pushed,
     deleted,
   };

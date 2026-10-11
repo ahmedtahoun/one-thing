@@ -31,7 +31,7 @@ function env() {
   return out;
 }
 
-/** The 24 tables the eight migrations create. */
+/** The 24 tables the migrations create. */
 const TABLES = [
   'active_day', 'admin_audit_log', 'admin_member', 'admin_sign_in_failure', 'analytics_event',
   'app_user', 'assist_usage', 'consent', 'contact', 'focus_session', 'follow_up', 'history',
@@ -53,9 +53,9 @@ const EXPECTED_CLOSED = ['admin_audit_log', 'admin_member', 'admin_sign_in_failu
 
 /** Ours, as opposed to pgcrypto's. None may be reachable by the anon role. */
 const FUNCTIONS = [
-  'claim_export_request', 'complete_export_request', 'delete_my_account',
+  'claim_export_request', 'complete_export_request', 'delete_my_account', 'kick_export_sweep',
   'lapse_expired_subscriptions', 'record_store_notice', 'record_store_subscription',
-  'record_store_tip', 'refund_assist_request', 'release_export_request', 'spend_assist_request',
+  'record_store_tip', 'refund_assist_request', 'release_export_request', 'release_stale_export_claims', 'spend_assist_request',
 ];
 
 const EDGE = [
