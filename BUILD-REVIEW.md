@@ -1337,3 +1337,56 @@ is the same shape in solid black, for Android's themed icons.
 
 The output is checked for the exact pixel size and Play's 8 MB limit, and the
 script fails if a screen logs an error while being shot.
+
+### 2.46 Adding a contact from the phone
+Added at the product owner's request; the handoff has no such feature.
+- **Import**, beside "New" on People, opens the phone's own contact picker.
+  The chosen contact fills in the New contact form.
+- **Fill from phone**, under the avatar on New contact, does the same from
+  inside the form.
+
+Either way the person sees the filled-in form, with the usual checks and
+duplicate warning, and nothing is saved until they press Save. One contact
+per pick, chosen in the phone's own picker.
+
+**Privacy.** The app never reads the address book: the picker hands back
+only the contact chosen.
+- **iOS** asks for no permission at all. Apple's picker returns that one
+  contact. This is why the code uses `expo-contacts/legacy`: the newer API
+  returns only an ID and reads the details through the address book, which
+  needs full access.
+- **Android** cannot read the chosen contact's numbers without the contacts
+  permission, so it is asked for once, the first time. Writing to contacts
+  is blocked in `app.json`; the app never needs it.
+
+**What it fills.**
+- The name, or the company when there is no name.
+- "Company or role": both, as "Job · Company", when the phone has both.
+- One number: the primary, else a mobile, else the first. It is split into
+  country and number by its international prefix; a local number keeps the
+  form's country, unless the phone knows it.
+- One email: the primary, else the first.
+
+`src/lib/phone-contacts/draft.ts` holds these rules, and
+`draft.test.ts` checks them.
+
+**Phones only.** The web build has no picker, so neither button appears
+there. That is also why the screenshot and drift checks, which run on the
+web, still match the design exactly. Neither button has been tried on a
+device; that needs a native build.
+
+**Decisions for the product owner**
+1. **Wording.** The new copy is in `src/content/additions.ts`, the one
+   place for copy the handoff never had:
+   - "Import" / "استيراد";
+   - "Fill from phone" / "تعبئة من جهات الاتصال";
+   - the iOS permission text in `app.json` ("Used only when you choose a
+     contact to add to People…"). iOS shows it only if the app ever asks
+     for address-book access, which this feature does not. It is also in
+     `src/content/locale-en.json` and, newly written in Arabic, in
+     `locale-ar.json`, so an Arabic phone does not fall back to English.
+2. **The Privacy Policy** should mention that people can be added from the
+   phone's contacts, one at a time, by the user's choice. SCREENS.md's list
+   for it already covers "people you add".
+3. **One at a time.** Importing many contacts at once would need full
+   address-book access. It was considered and not chosen.

@@ -8,7 +8,7 @@
  *
  * `?id=` edits that contact; without it the form makes a new one.
  */
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Alert, Platform, Pressable, ScrollView, TextInput, View } from 'react-native';
 import { Redirect, router, useLocalSearchParams } from 'expo-router';
 
@@ -19,12 +19,14 @@ import { Icon } from '@/ui/Icon';
 import { Screen } from '@/ui/Screen';
 import { Text } from '@/ui/Text';
 import { Toast, useToast } from '@/ui/Toast';
+import { added } from '@/content/additions';
 import { DEFAULT_DIAL } from '@/content/countries';
 import { TYPE_ICON } from '@/design/icon-paths';
 import { fontFamily, ink, status, surface, typeColour } from '@/design/tokens';
 import { useDirection, useLanguage } from '@/i18n/LanguageProvider';
 import { initials, type Channel, type Contact } from '@/lib/model-types';
 import { usePeople } from '@/lib/people';
+import { canPickFromPhone, importDraft, pickFromPhone, type ContactDraft } from '@/lib/phone-contacts';
 
 const CHANNELS: Channel[] = ['whatsapp', 'email', 'call'];
 
@@ -42,21 +44,38 @@ export default function ContactEdit() {
 }
 
 function ContactForm({ contact }: { contact?: Contact }) {
-  const { t, inline } = useLanguage();
+  const { t, inline, lang } = useLanguage();
   const dir = useDirection();
   const { contacts, addContact, updateContact, deleteContact } = usePeople();
   const start = useStartTask();
   const toast = useToast();
   const editing = Boolean(contact);
 
-  const [name, setName] = useState(contact?.name ?? '');
-  const [role, setRole] = useState(contact?.role ?? '');
-  const [dial, setDial] = useState(contact?.dial ?? DEFAULT_DIAL);
-  const [phone, setPhone] = useState(contact?.phone ?? '');
-  const [email, setEmail] = useState(contact?.email ?? '');
+  // A contact picked on People's "Import" arrives filled in (§2.46).
+  const [imported] = useState<ContactDraft | null>(() => (editing ? null : importDraft.peek()));
+  useEffect(() => importDraft.clear(), []);
+
+  const [name, setName] = useState(contact?.name ?? imported?.name ?? '');
+  const [role, setRole] = useState(contact?.role ?? imported?.role ?? '');
+  const [dial, setDial] = useState(contact?.dial ?? imported?.dial ?? DEFAULT_DIAL);
+  const [phone, setPhone] = useState(contact?.phone ?? imported?.phone ?? '');
+  const [email, setEmail] = useState(contact?.email ?? imported?.email ?? '');
   const [pref, setPref] = useState<Channel>(
-    contact?.preferredChannel ?? (contact && !contact.phone ? 'email' : 'whatsapp')
+    contact?.preferredChannel ??
+      ((contact && !contact.phone) || (imported && !imported.phone && imported.email) ? 'email' : 'whatsapp')
   );
+
+  /** "Fill from phone": the picked contact's details, over whatever is typed. */
+  const fillFromPhone = async () => {
+    const draft = await pickFromPhone();
+    if (!draft) return;
+    setName(draft.name);
+    setRole(draft.role);
+    if (draft.dial) setDial(draft.dial);
+    setPhone(draft.phone);
+    setEmail(draft.email);
+    if (!draft.phone && draft.email) setPref('email');
+  };
   const [notes, setNotes] = useState(contact?.rememberNote ?? '');
   const [tried, setTried] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -188,6 +207,32 @@ function ContactForm({ contact }: { contact?: Contact }) {
                 {name.trim() ? initials(name.trim()) : '+'}
               </Text>
             </View>
+            {!editing && canPickFromPhone ? (
+              <Pressable
+                testID="contact-form-fill"
+                onPress={fillFromPhone}
+                accessibilityRole="button"
+                style={({ pressed }) => ({
+                  marginTop: 12,
+                  height: 34,
+                  paddingStart: 10,
+                  paddingEnd: 14,
+                  borderRadius: 999,
+                  borderWidth: 1,
+                  borderColor: surface.line,
+                  backgroundColor: surface.white,
+                  flexDirection: dir.row,
+                  alignItems: 'center',
+                  gap: 6,
+                  transform: [{ scale: pressed ? 0.96 : 1 }],
+                })}
+              >
+                <Icon name="users" size={15} color={ink.base} strokeWidth={2} />
+                <Text token="bodyS" weight="500">
+                  {added(lang).fillFromPhone}
+                </Text>
+              </Pressable>
+            ) : null}
           </View>
 
           <View style={{ gap: 6 }}>

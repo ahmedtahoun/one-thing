@@ -204,6 +204,10 @@ neither has ever run on hardware.
   third-party SDK you end up adding. Apple needs a `PrivacyInfo.xcprivacy`
   manifest; EAS generates one from your plugins, so check it matches what you
   declared.
+  Both forms must also declare **Contacts**: a contact picked through
+  People's "Import" (BUILD-REVIEW §2.46) is stored and synced to the account,
+  so it is collected and linked to the user. Only the one contact picked is
+  read; the app never reads the address book on its own.
 - ~~**Screenshots**~~ — done. `npm run capture:store` writes `store-assets/`:
   six screens per store per language at exactly the sizes each one takes
   (Apple 1320 × 2868, Play 1080 × 2160), plus Play's required 1024 × 500
