@@ -1211,3 +1211,32 @@ where purchases will be written.
 **Neither has run.** No store account, no certificate, no service account, no
 Supabase project. What is proven is the mapping, the status codes, the
 idempotency and the grants; what is not is a single real delivery.
+
+### 2.43 The domain moved to `onlyonething.app`
+The product owner's decision, after the handoff was written, so it overrides
+the handoff's copy rather than departing from it. Twenty-eight references
+moved in the app, the admin panel and their checks:
+
+- The app's six user-facing strings, two of them Arabic:
+  `privacy@onlyonething.app` and `onlyonething.app/delete`. **Both have to
+  resolve** — a reviewer clicks them, and the delete sheet's own copy promises
+  the second one (RELEASE.md § 7).
+- The admin panel's email domain, which is a sign-in rule and not decoration:
+  only an `@onlyonething.app` address can reach it. `ADMIN_EMAIL_DOMAIN` is
+  the one place it lives, and the rejection message now reads from it rather
+  than repeating it. `scripts/add-admin.ts` repeats the literal because
+  `src/config.ts` is `server-only` and that is a CLI script; the comment says
+  so.
+- The team's seed data, so demo mode and the sign-in rule agree. Without that
+  the demo users could no longer sign in to the demo.
+
+This is the first place the build deliberately says something the prototype
+does not, in text the prototype's own screenshots show — so the admin panel's
+fidelity check needed a way to express it. A probe can now be
+`{ app, prototype }`: the same cell's position is still compared, and the two
+wordings are recorded rather than the probe being deleted. Still 56 probes,
+none failing; the sign-in screen's pixel difference moves from 0 % to 0.05 %
+because the placeholder is three characters longer.
+
+The handoff's own files keep `theonething.app`. They are the record of what
+was asked for, not configuration.

@@ -42,7 +42,7 @@ const click = async (page, label) => {
 
 async function signIn(page, email) {
   await page.goto(`${BASE}/sign-in`);
-  await page.getByPlaceholder('you@theonething.app').fill(email);
+  await page.getByPlaceholder('you@onlyonething.app').fill(email);
   await page.getByPlaceholder('Password').fill('secret1');
   await click(page, 'Continue');
   await page.getByPlaceholder('6-digit code').fill('123456');
@@ -66,12 +66,12 @@ async function signOut(page) {
     await page.goto(`${BASE}/users`);
     check('signed out, a panel page goes to sign in', page.url().endsWith('/sign-in'), page.url());
 
-    await page.getByPlaceholder('you@theonething.app').fill('khalid@gmail.com');
+    await page.getByPlaceholder('you@onlyonething.app').fill('khalid@gmail.com');
     await page.getByPlaceholder('Password').fill('secret1');
     await click(page, 'Continue');
-    check('an outside email is refused', (await text(page)).includes('Use your @theonething.app email.'));
+    check('an outside email is refused', (await text(page)).includes('Use your @onlyonething.app email.'));
 
-    await page.getByPlaceholder('you@theonething.app').fill('khalid@theonething.app');
+    await page.getByPlaceholder('you@onlyonething.app').fill('khalid@onlyonething.app');
     await page.getByPlaceholder('Password').fill('123');
     await click(page, 'Continue');
     check('a short password is refused', (await text(page)).includes('Enter your password.'));
@@ -151,7 +151,7 @@ async function signOut(page) {
 
     // ----------------------------------------------------------- roles ----
     await signOut(page);
-    await signIn(page, 'dana@theonething.app');
+    await signIn(page, 'dana@onlyonething.app');
     body = await text(page);
     check('Support is signed in as Support', body.includes('Dana · Support'));
     check('Support has no Audit log or Team', !body.includes('Audit log') && !body.includes('Team & roles'));
@@ -166,7 +166,7 @@ async function signOut(page) {
     await click(page, '✕');
 
     await signOut(page);
-    await signIn(page, 'turki@theonething.app');
+    await signIn(page, 'turki@onlyonething.app');
     body = await text(page);
     check('the Analyst sees Overview and Growth only', body.includes('Overview') && body.includes('Growth') && !body.includes('Users') && !body.includes('Subscriptions'));
     check('the Analyst can export the pseudonymised dataset', body.includes('Export dataset (pseudonymised)'));

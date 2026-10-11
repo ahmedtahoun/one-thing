@@ -55,7 +55,11 @@ function fontCss() {
 
 /**
  * The screens, in the order the handoff numbers them, and how to get from
- * one to the next. `probe` lists text whose position is compared.
+ * one to the next. `probe` lists text whose position is compared. A probe is
+ * usually one string, present in both; where the build deliberately says
+ * something else — the team's email domain, which the product owner changed
+ * after the prototype was drawn — it is `{ app, prototype }`, and the two
+ * texts' positions are compared instead.
  */
 const SCENES = [
   { name: '01-sign-in', probe: ['Admin sign in', 'For The One Thing team only.', 'Continue'] },
@@ -74,7 +78,15 @@ const SCENES = [
   { name: '10-growth', go: (p) => click(p, 'Growth'), probe: ['Growth', 'Funnel', 'Became Pro', 'Retention by sign-up week', 'Offer codes', 'LAUNCH50'] },
   { name: '11-privacy-requests', go: (p) => click(p, 'Privacy requests'), probe: ['Privacy requests', 'Delete now', 'Send export'] },
   { name: '12-audit-log', go: (p) => click(p, 'Audit log'), probe: ['Audit log', 'When', 'Reason', 'Signed in to admin'] },
-  { name: '13-team-roles', go: (p) => click(p, 'Team & roles'), probe: ['Team & roles', 'Owner', 'Analyst', 'Khalid Al-Mansouri', 'turki@theonething.app'] },
+  {
+    name: '13-team-roles',
+    go: (p) => click(p, 'Team & roles'),
+    probe: [
+      'Team & roles', 'Owner', 'Analyst', 'Khalid Al-Mansouri',
+      // The domain moved to onlyonething.app after the prototype was drawn.
+      { app: 'turki@onlyonething.app', prototype: 'turki@theonething.app' },
+    ],
+  },
 ];
 
 async function click(page, text) {
@@ -126,7 +138,11 @@ async function run(page, base, label) {
     const file = path.join(OUT, `${label}-${scene.name}.png`);
     await page.screenshot({ path: file });
     const positions = {};
-    for (const text of scene.probe) positions[text] = await where(page, text);
+    for (const probe of scene.probe) {
+      const text = typeof probe === 'string' ? probe : probe[label === 'prototype' ? 'prototype' : 'app'];
+      // Keyed on the app's wording either way, so the comparison lines up.
+      positions[typeof probe === 'string' ? probe : probe.app] = await where(page, text);
+    }
     shots[scene.name] = { file, positions };
   }
   return shots;
@@ -210,7 +226,8 @@ async function startAdmin() {
       const p = proto[scene.name];
       const a = app[scene.name];
       const pixels = diff(a.file, p.file, path.join(OUT, `diff-${scene.name}.png`));
-      const probes = scene.probe.map((text) => {
+      const probes = scene.probe.map((probe) => {
+        const text = typeof probe === 'string' ? probe : probe.app;
         const pp = p.positions[text];
         const ap = a.positions[text];
         if (!pp || !ap) return { text, missing: !pp ? 'prototype' : 'admin' };

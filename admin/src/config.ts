@@ -14,7 +14,7 @@ import 'server-only';
 import { demoSource } from './data/demo';
 import type { DataSource } from './data/source';
 
-export const ADMIN_EMAIL_DOMAIN = 'theonething.app';
+export const ADMIN_EMAIL_DOMAIN = 'onlyonething.app';
 
 export type Mode = 'demo' | 'live';
 

@@ -3,7 +3,7 @@
  * every action.
  *
  * Live: a Supabase session at assurance level 2 (password and the TOTP
- * code), an @theonething.app email, and a row in admin_member — all three,
+ * code), an @onlyonething.app email, and a row in admin_member — all three,
  * or nobody. Demo: the cookie the demo sign-in sets, with the prototype's
  * own team.
  */
@@ -22,9 +22,9 @@ export type Admin = { id: string; name: string; first: string; email: string; ro
 export const DEMO_COOKIE = 'ot_admin_demo';
 
 const DEMO_TEAM: Record<string, Admin> = {
-  owner: { id: 'demo-owner', name: 'Khalid Al-Mansouri', first: 'Khalid', email: 'khalid@theonething.app', role: 'Owner' },
-  support: { id: 'demo-support', name: 'Dana Al-Anazi', first: 'Dana', email: 'dana@theonething.app', role: 'Support' },
-  analyst: { id: 'demo-analyst', name: 'Turki Al-Ghamdi', first: 'Turki', email: 'turki@theonething.app', role: 'Analyst' },
+  owner: { id: 'demo-owner', name: 'Khalid Al-Mansouri', first: 'Khalid', email: 'khalid@onlyonething.app', role: 'Owner' },
+  support: { id: 'demo-support', name: 'Dana Al-Anazi', first: 'Dana', email: 'dana@onlyonething.app', role: 'Support' },
+  analyst: { id: 'demo-analyst', name: 'Turki Al-Ghamdi', first: 'Turki', email: 'turki@onlyonething.app', role: 'Analyst' },
 };
 
 /** The demo admin a demo sign-in becomes: Khalid, unless the email is Dana's or Turki's. */

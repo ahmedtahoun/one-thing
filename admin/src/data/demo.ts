@@ -119,9 +119,9 @@ const state = {
 };
 
 const TEAM: TeamMember[] = [
-  { name: 'Khalid Al-Mansouri', email: 'khalid@theonething.app', role: 'Owner', twoStep: true },
-  { name: 'Dana Al-Anazi', email: 'dana@theonething.app', role: 'Support', twoStep: true },
-  { name: 'Turki Al-Ghamdi', email: 'turki@theonething.app', role: 'Analyst', twoStep: true },
+  { name: 'Khalid Al-Mansouri', email: 'khalid@onlyonething.app', role: 'Owner', twoStep: true },
+  { name: 'Dana Al-Anazi', email: 'dana@onlyonething.app', role: 'Support', twoStep: true },
+  { name: 'Turki Al-Ghamdi', email: 'turki@onlyonething.app', role: 'Analyst', twoStep: true },
 ];
 /** Demo admins are named by their first name in the log, as the prototype does. */
 const ADMIN_NAMES: Record<string, string> = { 'demo-owner': 'Khalid', 'demo-support': 'Dana (Support)', 'demo-analyst': 'Turki (Analyst)' };
