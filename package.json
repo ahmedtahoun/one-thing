@@ -17,6 +17,7 @@
     "icons": "node scripts/make-icons.js",
     "compare": "node scripts/compare-to-prototype.js .screens .screens-prototype scripts/screen-pairs.json",
     "schema:check": "bash scripts/check-schema.sh",
+    "db:bundle": "node scripts/bundle-migrations.js",
     "content:port": "node scripts/port-content.js",
     "content:inline": "node scripts/extract-inline-copy.js",
     "measure": "node scripts/measure-prototype-type.js",
