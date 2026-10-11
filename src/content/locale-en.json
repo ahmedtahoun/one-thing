@@ -1,6 +1,8 @@
 {
-  "CFBundleDisplayName": "The One Thing",
-  "NSMicrophoneUsageDescription": "Used only while you're recording a note, so you can capture a task by speaking instead of typing.",
-  "NSSpeechRecognitionUsageDescription": "Used to turn the note you just spoke into a task. Nothing is recorded in the background.",
-  "NSContactsUsageDescription": "Used only when you choose a contact to add to People. The One Thing never reads your address book on its own."
+  "ios": {
+    "CFBundleDisplayName": "The One Thing",
+    "NSMicrophoneUsageDescription": "Used only while you're recording a note, so you can capture a task by speaking instead of typing.",
+    "NSSpeechRecognitionUsageDescription": "Used to turn the note you just spoke into a task. Nothing is recorded in the background.",
+    "NSContactsUsageDescription": "Used only when you choose a contact to add to People. The One Thing never reads your address book on its own."
+  }
 }
