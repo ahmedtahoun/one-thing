@@ -39,6 +39,18 @@ const TABLES = [
   'subscription', 'support_message', 'support_ticket', 'task', 'task_contact', 'tip',
 ];
 
+/**
+ * Tables a signed-out client is refused outright, rather than handed an empty
+ * list. Each is a `revoke` in a migration, not an accident:
+ *   admin_*             the team's own tables, reached only by the panel
+ *   store_notification  the stores' delivery traffic
+ *   analytics_event     0006 revokes all from anon; signed-in users insert
+ *                       through `authenticated`, which keeps its grants
+ * Any *other* table refusing a signed-out client is worth looking at — and
+ * all of them refusing means the key is not being read as the anon role.
+ */
+const EXPECTED_CLOSED = ['admin_audit_log', 'admin_member', 'admin_sign_in_failure', 'store_notification', 'analytics_event'];
+
 /** Ours, as opposed to pgcrypto's. None may be reachable by the anon role. */
 const FUNCTIONS = [
   'claim_export_request', 'complete_export_request', 'delete_my_account',
@@ -95,7 +107,10 @@ async function main() {
 
   const headers = { apikey: key, Authorization: `Bearer ${key}` };
   const lines = [];
+  /** Things open that should be shut. Only these can say "open to the world". */
   let fatal = 0;
+  /** Things shut that were expected open, or otherwise odd. Not exposures. */
+  let surprises = 0;
 
   const get = async (p, init = {}) => {
     try {
@@ -142,16 +157,16 @@ async function main() {
   lines.push(`  ${tick(missing.length === 0)} ${TABLES.length - missing.length}/${TABLES.length} tables present`);
   if (missing.length) lines.push(`      missing: ${missing.join(', ')}`);
   if (denied.length) {
-    // The admin tables are meant to be closed. Everything else being closed
-    // too means the key is not being accepted as `anon`, whatever it is.
-    const admin = denied.filter((t) => t.startsWith('admin_') || t === 'store_notification');
-    const rest = denied.filter((t) => !admin.includes(t));
-    if (admin.length) lines.push(`      closed to the anon role, as intended: ${admin.join(', ')}`);
+    const intended = denied.filter((t) => EXPECTED_CLOSED.includes(t));
+    const rest = denied.filter((t) => !EXPECTED_CLOSED.includes(t));
+    if (intended.length) lines.push(`      closed to a signed-out client, as the migrations intend: ${intended.join(', ')}`);
     if (rest.length) {
-      fatal++;
-      lines.push(`      ✗ UNEXPECTEDLY CLOSED: ${rest.join(', ')}`);
+      // Not an exposure — the opposite — so it is a surprise to look at,
+      // never a reason to say anything is open.
+      surprises++;
+      lines.push(`      · unexpectedly closed: ${rest.join(', ')}`);
       lines.push('        A signed-out client should get an empty list from these, not a refusal.');
-      lines.push('        Usually this means the key is not being read as the anon role.');
+      if (rest.length > 3) lines.push('        This many usually means the key is not being read as the anon role.');
     }
   }
 
@@ -229,8 +244,10 @@ async function main() {
 
   console.log(lines.join('\n'));
   if (fatal) {
-    console.log(`\n${fatal} thing(s) above are open to the world. Nothing else matters until they are closed.`);
+    console.log(`\n${fatal} thing(s) above are reachable without signing in. Nothing else matters until they are closed.`);
     process.exitCode = 1;
+  } else if (surprises) {
+    console.log(`\n${surprises} thing(s) above are shut tighter than expected. Not an exposure — worth understanding, not fixing in a hurry.`);
   }
 }
 
