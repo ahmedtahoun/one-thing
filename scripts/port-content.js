@@ -40,6 +40,102 @@ vm.runInContext(body + '\n;__out = { P, TYPE_ICON, C, STEPS, CONTACTS, CCS, SUG_
 });
 const d = sandbox.__out;
 
+/**
+ * Deliberate divergences from the handoff.
+ *
+ * The handoff is the source of truth for copy, and this script transcribes it
+ * mechanically — which means anything hand-edited into the generated files is
+ * silently reverted the next time anyone re-runs it. Two things have to
+ * survive that, so they are declared here instead of being typed into
+ * src/content/strings.ts.
+ *
+ * Each one asserts that it still applies. If the handoff is revised so that a
+ * rule no longer matches, this throws rather than quietly producing a file
+ * that has lost the change — which is the entire failure this block exists to
+ * prevent.
+ */
+
+/** Text replaced everywhere it appears, in both languages. */
+const SUBSTITUTIONS = [
+  {
+    from: 'theonething.app',
+    to: 'onlyonething.app',
+    why:
+      'The product shipped as onlyonething.app — the bundle ID is app.onlyonething ' +
+      'and the domain follows it. The handoff predates that decision. These are not ' +
+      'decoration: a reviewer clicks privacy@ and /delete, and Play requires the ' +
+      'deletion route to resolve (RELEASE.md §7). Reverting this ships a dead ' +
+      'mailbox, and nothing would fail to tell you.',
+  },
+];
+
+/**
+ * Keys the app needs that the handoff never wrote.
+ *
+ * Only one so far, and it is here for a reason worth stating: the prototype
+ * has no failure state for sign-in, because in a prototype sign-in cannot
+ * fail. On a device it can, and specifically it can fail *after* the
+ * provider's sheet has already closed — a token Supabase rejects, a paused
+ * project, no network. By then there is nothing left on screen to explain
+ * itself. app/sign-in.tsx carries the rest of the reasoning.
+ */
+const ADDITIONS = [
+  {
+    path: ['ACC', 'en', 'si', 'fail'],
+    value: 'We couldn\u2019t sign you in. Please try again.',
+  },
+  {
+    path: ['ACC', 'ar', 'si', 'fail'],
+    value: '\u0645\u0627 \u0642\u062f\u0631\u0646\u0627 \u0646\u0633\u062c\u0651\u0644 \u062f\u062e\u0648\u0644\u0643. \u062c\u0631\u0651\u0628 \u0645\u0631\u0629 \u062b\u0627\u0646\u064a\u0629.',
+  },
+];
+
+/** Applies a string transform to every string in the ported data, in place. */
+function mapStrings(value, fn) {
+  if (typeof value === 'string') return fn(value);
+  if (Array.isArray(value)) return value.map((v) => mapStrings(v, fn));
+  if (value && typeof value === 'object') {
+    for (const k of Object.keys(value)) value[k] = mapStrings(value[k], fn);
+  }
+  return value;
+}
+
+for (const rule of SUBSTITUTIONS) {
+  let hits = 0;
+  mapStrings(d, (text) => {
+    if (!text.includes(rule.from)) return text;
+    hits += text.split(rule.from).length - 1;
+    return text.split(rule.from).join(rule.to);
+  });
+  if (hits === 0) {
+    throw new Error(
+      `Substitution "${rule.from}" → "${rule.to}" matched nothing.\n` +
+        'Either the handoff was revised and this rule is obsolete, or it was ' +
+        'applied to the wrong text. Do not delete it without reading why:\n  ' +
+        rule.why
+    );
+  }
+  console.log(`  override: ${rule.from} → ${rule.to} (${hits}×)`);
+}
+
+for (const addition of ADDITIONS) {
+  const keys = addition.path.slice();
+  const leaf = keys.pop();
+  let node = d;
+  for (const k of keys) {
+    node = node?.[k];
+    if (!node) throw new Error(`Addition ${addition.path.join('.')}: no ${k} in the handoff's data.`);
+  }
+  if (leaf in node) {
+    throw new Error(
+      `Addition ${addition.path.join('.')} already exists in the handoff.\n` +
+        'The handoff has caught up — drop this addition rather than overwriting it.'
+    );
+  }
+  node[leaf] = addition.value;
+  console.log(`  override: + ${addition.path.join('.')}`);
+}
+
 const banner = (what) => `/**
  * ${what}
  *

@@ -21,8 +21,17 @@ us. Two things are still worth stating, because they catch people who have
 shipped before:
 
 - **Sign in with Apple is configured in the Developer account, not App Store
-  Connect** — a Services ID, a `.p8` key, the Team ID and the Key ID. Those
-  four values go into Supabase, not into this repo.
+  Connect**, and it needs far less than the documentation implies. The usual
+  four values — a Services ID, a `.p8` key, the Team ID and the Key ID — are
+  for the **web** OAuth flow. This app signs in natively, so Supabase verifies
+  Apple's identity token against Apple's own public keys and needs only the
+  **bundle ID** in Providers → Apple → Client IDs. Leave *Secret Key (for
+  OAuth)* empty; the dashboard's own warning that the secret expires every six
+  months is the tell that the field wants a self-signed JWT, not the `.p8`.
+  Register the App ID with Sign in with Apple, Push Notifications and In-App
+  Purchase ticked — all three are cheaper to enable now than to add later —
+  and keep the `.p8` backed up for the day web sign-in exists. None of it
+  belongs in this repo.
 - **Google sign-in does not come from Play Console.** It comes from a **Google
   Cloud** project: OAuth 2.0 client IDs, one Web (this is the one Supabase
   needs) plus iOS and Android. The Android client needs the release signing
@@ -68,11 +77,23 @@ Arabic-locale pricing in SAR is a separate price tier per territory, and the
 app shows prices LTR inside Arabic text, so a SAR tier needs looking at on the
 Arabic paywall once it is live.
 
-### 1.3 Data region — **still open, and now the only blocker here**
-PDPL applies and most of the seed data is Saudi/Gulf. The Supabase region is
-chosen when the project is created and cannot be moved afterwards; it also
-decides what the Privacy Policy has to say. Nothing server-side can start
-until this is picked.
+### 1.3 Data region — **settled as `eu-west-1`, by default rather than by choice**
+The project `ujcoouwbrkewckpphrod` was created in West EU (Ireland). That is
+the decision, and it cannot be moved: changing it means a new project and
+migrating whatever data is live by then.
+
+Ireland is a defensible place to keep it. Two things it costs, which are
+worth knowing rather than discovering:
+
+- **Distance.** Most of the people in the seed data are in the Gulf, and
+  every sync crosses a continent to reach them.
+- **PDPL.** Saudi personal data leaving the Kingdom carries transfer
+  obligations, and the Privacy Policy has to say where the data actually
+  lives — which is now a sentence someone has to write (§7).
+
+If a Middle East region matters, the only cheap moment to act is before there
+is live data in this one. Check the region list in Supabase rather than
+trusting this file: what they offer changes.
 
 ---
 
@@ -128,7 +149,7 @@ set the accounts up. BUILD-REVIEW §2.41.
 
 | Work | Where it lands | Blocked on |
 |---|---|---|
-| Supabase project, apply all six migrations, fill `.env`, deploy the `assist` function | `.env` (see `.env.example`); `npm run schema:check` applies the whole sequence to a throwaway Postgres first | §1.3 region decision |
+| ~~Supabase project, apply the migrations, fill `.env`, deploy the functions~~ — **live and verified** (§4.1) | `.env` (see `.env.example`); `npm run schema:check` applies the whole sequence to a throwaway Postgres first | — |
 | ~~Real Apple + Google sign-in~~ — written, unrun | `src/lib/auth/`, wired into `app/sign-in.tsx`. Needs the client IDs and a build on a device | Apple §2.3, Google §3.2–3.3 |
 | ~~Purchases~~ — written, unrun | `src/features/paywall/store.ts` through expo-iap: the trial, the tips, Restore and Manage. Each carries the Supabase user id and makes nobody Pro on its own; the plan comes from the webhooks (BUILD-REVIEW §2.50). Needs the products in both consoles and a build on a device | §2.5 / §3.5 |
 | ~~The assistant / capture parsing~~ — built, never called | `supabase/functions/assist` with the limit in `0005_assist.sql`; `src/lib/parse/local.ts` is the fallback. Needs deploying, and an API key to have ever run | a Supabase project |
@@ -145,6 +166,37 @@ subscription screens have nothing to show.
 
 Still not in this repo at all: the public website, which has no owner.
 
+### 4.1 The live project, and what checking it is worth
+
+`node scripts/check-project.js` reads the real project with the anon key and
+reports what a stranger can reach. On 11 October 2026 every line passed:
+
+```
+Schema        24/24 tables present
+              closed to a signed-out client, as the migrations intend: analytics_event
+              row-level security hides every row from a signed-out client
+              none of the 12 privileged functions answers a signed-out caller
+Sign-in       apple enabled · google enabled · Google web + iOS client IDs
+Edge funcs    assist · export · app-store · play-rtdn — all deployed
+Storage       exports bucket exists
+```
+
+**Be precise about what that proves.** It proves the schema matches the
+migrations, that the policies refuse a signed-out caller, that both providers
+are configured, and that four functions answer at all. It does not prove any
+of them *works*: `assist` answering 401 means it is deployed, not that the API
+key is right; `apple enabled` means Supabase holds a client ID, not that a
+phone has ever completed the flow. Every one of those still needs §9.1.
+
+The two store webhooks report **deployed, unconfigured** on purpose. Neither
+can be configured before the store products exist, and each answers 503 and
+writes nothing until it has Apple's certificate or a Play service account —
+so they are safe to leave standing.
+
+The checker is worth more than the one run. It is how you find out that a
+later migration, a dashboard click or a rotated key quietly opened something:
+run it after any change to the project, not only once.
+
 ## 5. Two config fixes already applied
 
 - `app.json` pointed `android.adaptiveIcon.foregroundImage` at
@@ -160,13 +212,76 @@ Still needed in `app.json` once you have an Expo account:
 
 ## 6. Build and test tracks
 
+EAS compiles on Expo's servers, so this needs Node and the CLI and nothing
+else — no Xcode, no Android Studio. It cannot be run from the browser agent's
+container, whose proxy blocks `expo.dev` the same way it blocks
+`supabase.co`. It belongs on the machine that has the phone.
+
+### 6.1 The first build, in order
+
+```sh
+npm i -g eas-cli && eas login && eas init     # eas init writes extra.eas.projectId — commit it
 ```
-npm i -g eas-cli && eas login && eas init
+
+**Then, before building, give EAS the environment.** `.env` is gitignored, so
+EAS never sees it. The four `EXPO_PUBLIC_*` values are inlined at build time:
+
+```sh
+eas env:create --name EXPO_PUBLIC_SUPABASE_URL          --value https://ujcoouwbrkewckpphrod.supabase.co
+eas env:create --name EXPO_PUBLIC_SUPABASE_ANON_KEY     --value <from .env>
+eas env:create --name EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID  --value <from .env>
+eas env:create --name EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID  --value <from .env>
+```
+
+Skipping this does not fail the build. It produces an app that runs, falls
+back to the local session, and explains nothing — because `app.config.js`
+adds the Google native module *only* when `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID`
+is set, and `availability.ts` will correctly report `not-configured` for a
+build that was never given the value. That is the worst failure mode in this
+project: everything looks fine and sign-in silently is not real.
+
+```sh
+eas build --profile preview --platform android   # an APK you can sideload; no provisioning
+eas device:create                                # register the iPhone, once
+eas build --profile development --platform ios
+```
+
+Android first, deliberately: it reaches a phone without Apple's provisioning,
+so the first batch of §9.1 surprises arrives hours earlier.
+
+### 6.2 What the first build is for
+
+§9.1 lists what has never run. Work it as a checklist, because a build that
+only gets opened once proves very little:
+
+| Check | What to watch for |
+|---|---|
+| Arabic layout | Native RTL is resolved by iOS/Android layout engines, not CSS. The web harness cannot see a double-mirror here |
+| IBM Plex Sans Arabic | Loaded via `expo-font`. A silent fallback to the system font is the usual failure |
+| Tab bar blur, shadows, safe areas | `expo-blur` on a notched device |
+| All five notifications | Schedule one of each and **wait**. Delivery has never happened once. Check wording in both languages |
+| Google sign-in | Then confirm `auth.users` gained a row in Supabase |
+| Apple sign-in | Only the bundle ID is configured (§0); this is the run that proves that is enough. Expect a relay address (§9.8) |
+| Sync after sign-in | `signInWithIdToken` is what wakes it. Check rows land in the right tables |
+| Account deletion | It is irreversible and server-side. Use a throwaway account |
+| The assistant | First call that has ever reached `assist` with a real key |
+| A narrow Android phone | At 360pt the greeting truncates and the tab bar crowds the list (§9.9) |
+
+Record what breaks in BUILD-REVIEW rather than fixing it silently — after
+submission every fix is a full store review (§9.7).
+
+### 6.3 Submission
+
+```sh
 eas build --platform ios --profile production
 eas build --platform android --profile production
-eas submit --platform ios    # needs the ASC app ID + Apple ID
+eas submit --platform ios      # needs the ASC app ID + Apple ID
 eas submit --platform android  # needs the service account JSON
 ```
+
+The Android production build is also what produces the **release signing
+SHA-1** that the Google Cloud Android OAuth client needs (§3.2) — so that
+client cannot exist until this step has run once.
 
 Play's closed-testing requirement — roughly 12 testers for 14 continuous days
 before the Production track unlocks — applies to personal accounts opened
@@ -186,14 +301,19 @@ neither has ever run on hardware.
   one. `app/legal.tsx` is the in-app copy of the text; nobody owns the website
   (BUILD-REVIEW §3).
 
-  **The domain in the app's copy no longer matches the bundle ID.** The
-  handoff's copy says `theonething.app`, and it is user-facing in six places,
-  in both languages: `privacy@theonething.app` ×4 (`src/content/strings.ts`
-  1057, 1061, 1073, 1165, 1173) and `theonething.app/delete` ×2 (1061, 1214).
-  If the domain is now `onlyonething.app`, all six change, that mailbox has to
-  exist, and `/delete` has to resolve — a reviewer can and does click them.
-  Not changed on a guess, because the handoff set that copy and two of the
-  strings are Arabic. Say which domain is real and it is a five-minute edit.
+  ~~**The domain in the app's copy no longer matches the bundle ID.**~~
+  Settled. All six user-facing places now say `onlyonething.app`, in both
+  languages: `privacy@onlyonething.app` ×4 (`src/content/strings.ts` 1057,
+  1073, 1165, 1173) and `onlyonething.app/delete` ×2 (1061, 1214). The
+  handoff's own files still say `theonething.app`; they are the record of what
+  was asked for, not configuration, so the admin panel's fidelity check
+  records the divergence as `{ app, prototype }` rather than failing on it
+  (BUILD-REVIEW §2.43).
+
+  **What the strings now promise, and nobody has built.** A reviewer clicks
+  these. `privacy@onlyonething.app` has to receive mail and `/delete` has to
+  resolve — both on a domain with no owner. The copy is no longer the open
+  question; the website is.
 - **Legal review of that text.** What ships in `ACC` is plain-English summary
   copy. It is good UX writing and it is not a policy that satisfies PDPL or
   GDPR.
@@ -415,6 +535,11 @@ creates two accounts for one person, and there is no merge path.
   class and §9.1's hardware build is where it will show.
 - **The repo's default branch is still my working branch.** `main` is the
   trunk now — Settings → Branches, and I have no tool for it.
+- **The browser suites read a bundle nothing rebuilds for them.** Fixed:
+  they now refuse to run against a `dist/` older than the code
+  (BUILD-REVIEW §2.52). Worth knowing anyway, because the habit it
+  encourages is wrong — `npm test` passing after a merge says nothing about
+  the 264 behavioural checks, and those need `npm run export:web` first.
 
 ---
 
@@ -424,11 +549,12 @@ With both accounts already shipping-ready and Play's tester gate behind us,
 there is no multi-week wait left in this plan. Everything below is work, and
 most of it is ours:
 
-1. **Pick the data region** (§1.3), then create the project. Nothing
-   server-side starts without it — not this app, not the admin panel, not the
-   `assist` function — and it cannot be moved afterwards. **Yours.**
-2. **Settle the domain** (§7), because six user-facing strings and a mailbox
-   depend on it. **Yours.**
+1. ~~**Pick the data region**~~ — the project exists, in `eu-west-1` (§1.3).
+   What is left there is a decision, not a task: keep Ireland, or move while
+   moving is still free.
+2. ~~**Settle the domain**~~ — done; the app says `onlyonething.app`
+   everywhere (§7). What the strings promise is not: the `privacy@` mailbox
+   and `/delete` both belong to item 5. **Yours.**
 3. **A build on hardware** (§9.1). Notifications, account deletion, both
    sign-in flows and the assist function have between them never run on a
    phone or against a live server. This is where the surprises are.

@@ -39,6 +39,18 @@ const TABLES = [
   'subscription', 'support_message', 'support_ticket', 'task', 'task_contact', 'tip',
 ];
 
+/**
+ * Tables a signed-out client is refused outright, rather than handed an empty
+ * list. Each is a `revoke` in a migration, not an accident:
+ *   admin_*             the team's own tables, reached only by the panel
+ *   store_notification  the stores' delivery traffic
+ *   analytics_event     0006 revokes all from anon; signed-in users insert
+ *                       through `authenticated`, which keeps its grants
+ * Any *other* table refusing a signed-out client is worth looking at — and
+ * all of them refusing means the key is not being read as the anon role.
+ */
+const EXPECTED_CLOSED = ['admin_audit_log', 'admin_member', 'admin_sign_in_failure', 'store_notification', 'analytics_event'];
+
 /** Ours, as opposed to pgcrypto's. None may be reachable by the anon role. */
 const FUNCTIONS = [
   'claim_export_request', 'complete_export_request', 'delete_my_account', 'kick_export_sweep',
@@ -72,12 +84,33 @@ async function main() {
         'this script reads .env, and nothing has to go through the command line.'
     );
   }
-  if (key.split('.').length !== 3) {
-    throw new Error('The anon key is not a JWT (three dot-separated parts). Copy it again from Supabase → Project Settings → API.');
+  // A secret key is the one thing that must never be given to this, so it is
+  // named before anything else.
+  const payload = (() => {
+    try {
+      return Buffer.from(key.split('.')[1] ?? '', 'base64url').toString('utf8');
+    } catch {
+      return '';
+    }
+  })();
+  if (/^sb_secret_/.test(key) || /"role"\s*:\s*"service_role"/.test(payload)) {
+    throw new Error('That is the SECRET key, which this never needs and should not have seen. Rotate it in Supabase, then use the publishable one.');
   }
+  // Supabase issues two publishable shapes: the legacy anon JWT, and the
+  // newer `sb_publishable_…`. Both work.
+  if (key.split('.').length !== 3 && !/^sb_publishable_/.test(key)) {
+    throw new Error(
+      'That does not look like a publishable key: it is neither a JWT (three dot-separated parts) ' +
+        'nor an sb_publishable_… key. Copy the anon / publishable key from Supabase → Project Settings → API.'
+    );
+  }
+
   const headers = { apikey: key, Authorization: `Bearer ${key}` };
   const lines = [];
+  /** Things open that should be shut. Only these can say "open to the world". */
   let fatal = 0;
+  /** Things shut that were expected open, or otherwise odd. Not exposures. */
+  let surprises = 0;
 
   const get = async (p, init = {}) => {
     try {
@@ -92,6 +125,25 @@ async function main() {
     }
   };
 
+  // The key is checked once, against a request that must succeed, before
+  // anything is reported. A rejected key makes every later answer look the
+  // same — every table "present but closed", every row hidden — which reads
+  // like a well-locked project and means nothing at all.
+  //
+  // The probe is an ordinary table read, which is exactly what the app does.
+  // It must not be `/rest/v1/` — the API description — because a project may
+  // restrict that to the secret key, and a publishable key being refused
+  // there says nothing about the key.
+  const probe = await get(`/rest/v1/${TABLES[0]}?select=*&limit=1`);
+  if (probe.status === 401 || probe.status === 403) {
+    const why = (await probe.text().catch(() => '')).slice(0, 200);
+    throw new Error(
+      `The project rejected this key (HTTP ${probe.status})${why ? `: ${why}` : ''}.\n` +
+        'Nothing below would mean anything, so nothing is reported. Copy the anon / publishable key ' +
+        'again from Supabase → Project Settings → API.'
+    );
+  }
+
   // ---------------------------------------------------------- the schema ----
   lines.push(`Project ${url}`, '', 'Schema');
   const missing = [];
@@ -104,7 +156,19 @@ async function main() {
   }
   lines.push(`  ${tick(missing.length === 0)} ${TABLES.length - missing.length}/${TABLES.length} tables present`);
   if (missing.length) lines.push(`      missing: ${missing.join(', ')}`);
-  if (denied.length) lines.push(`      present but closed to the anon role (fine for the admin tables): ${denied.join(', ')}`);
+  if (denied.length) {
+    const intended = denied.filter((t) => EXPECTED_CLOSED.includes(t));
+    const rest = denied.filter((t) => !EXPECTED_CLOSED.includes(t));
+    if (intended.length) lines.push(`      closed to a signed-out client, as the migrations intend: ${intended.join(', ')}`);
+    if (rest.length) {
+      // Not an exposure — the opposite — so it is a surprise to look at,
+      // never a reason to say anything is open.
+      surprises++;
+      lines.push(`      · unexpectedly closed: ${rest.join(', ')}`);
+      lines.push('        A signed-out client should get an empty list from these, not a refusal.');
+      if (rest.length > 3) lines.push('        This many usually means the key is not being read as the anon role.');
+    }
+  }
 
   // Row-level security: a signed-out client must see nothing at all.
   if (missing.length < TABLES.length) {
@@ -122,16 +186,23 @@ async function main() {
   }
 
   // The privileged functions must not be reachable by the anon role at all.
-  const spec = await get('/rest/v1/').then((r) => (r.ok ? r.json() : null)).catch(() => null);
-  if (spec && spec.paths) {
-    const exposed = FUNCTIONS.filter((f) => `/rpc/${f}` in spec.paths);
-    const ok = exposed.length === 0;
-    if (!ok) fatal++;
-    lines.push(`  ${tick(ok)} none of the ${FUNCTIONS.length} privileged functions is callable by the anon role`);
-    if (!ok) lines.push(`      REACHABLE WITHOUT SIGNING IN: ${exposed.join(', ')}`);
-  } else {
-    lines.push('  · could not read the API description, so the function grants were not checked');
+  // PostgREST only keeps functions the role may execute in its schema cache,
+  // so a revoked one answers 404 — which is the result we want. Anything
+  // else means the anon role can see it, and that is worth looking at even
+  // though a granted function called with the wrong arguments can also 404.
+  const exposed = [];
+  for (const fn of FUNCTIONS) {
+    const r = await get(`/rest/v1/rpc/${fn}`, {
+      method: 'POST',
+      body: '{}',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    if (r.status !== 404 && r.status !== 401 && r.status !== 403) exposed.push(`${fn} (HTTP ${r.status})`);
   }
+  const grantsOk = exposed.length === 0;
+  if (!grantsOk) fatal++;
+  lines.push(`  ${tick(grantsOk)} none of the ${FUNCTIONS.length} privileged functions answers a signed-out caller`);
+  if (!grantsOk) lines.push(`      REACHABLE WITHOUT SIGNING IN: ${exposed.join(', ')}`);
 
   // ------------------------------------------------------------- sign-in ----
   lines.push('', 'Sign-in');
@@ -164,13 +235,19 @@ async function main() {
     headers: { 'Content-Type': 'application/json' },
   });
   const body = await bucket.text().catch(() => '');
-  const exists = !/bucket not found/i.test(body);
-  lines.push(`  ${tick(exists)} exports bucket ${exists ? 'exists' : 'not found — the export job has nowhere to write'}`);
+  if (bucket.status === 401 || bucket.status === 403) {
+    lines.push('  · storage refused the key, so the bucket was not checked');
+  } else {
+    const exists = !/bucket not found/i.test(body);
+    lines.push(`  ${tick(exists)} exports bucket ${exists ? 'exists' : 'not found — the export job has nowhere to write'}`);
+  }
 
   console.log(lines.join('\n'));
   if (fatal) {
-    console.log(`\n${fatal} thing(s) above are open to the world. Nothing else matters until they are closed.`);
+    console.log(`\n${fatal} thing(s) above are reachable without signing in. Nothing else matters until they are closed.`);
     process.exitCode = 1;
+  } else if (surprises) {
+    console.log(`\n${surprises} thing(s) above are shut tighter than expected. Not an exposure — worth understanding, not fixing in a hurry.`);
   }
 }
 

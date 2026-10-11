@@ -19,6 +19,9 @@ const { demoContacts, demoFollowUps, demoHistory, demoTasks, dateKey } = require
 
 const ROOT = path.join(__dirname, '..');
 const DIST = path.join(ROOT, 'dist');
+
+// The suite is only as true as the bundle it reads. ./dist-fresh.js
+require('./dist-fresh.js').requireFreshDist();
 const OUT = process.argv[2] || path.join(ROOT, '.screens');
 
 /** The iPhone 16 Pro logical size the design is specified at. */

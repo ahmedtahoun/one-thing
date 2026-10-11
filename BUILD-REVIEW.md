@@ -1519,3 +1519,89 @@ consoles and a build on a device.
    different numbers. Showing the store's own price on the card is a design
    change, so it is raised here and not made. Apple's review checks that
    the price shown matches the price charged.
+
+### 2.51 The silence after the sheet closes, and the file that would have eaten it
+
+Two findings, and the second is the one that matters.
+
+**Sign-in could fail and say nothing.** `app/sign-in.tsx` deliberately showed
+no error, and the comment gave a reason: *"a failure has already been
+explained by Apple's or Google's own sheet."* That is true for a failure
+raised while the sheet is up. It is not true for the two that happen after it
+closes successfully — `signInWithIdToken` being rejected by Supabase, and a
+provider returning no token at all. Those are the realistic ones: a client ID
+the project does not know, a paused project, no network, EAS built without
+`EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID`. The user taps, authenticates, the sheet
+closes, and the screen sits there having apparently done nothing.
+
+So `outcome.kind === 'failed'` now raises a toast, and only that kind.
+A cancel is still the user's answer and still says nothing. The toast is
+vague on purpose: the underlying message is diagnostic (*"Unacceptable
+audience in id_token"*), unlocalised, and not the user's problem. It can
+occasionally repeat something the sheet already said, which is a much smaller
+harm than silence.
+
+**`src/content/strings.ts` is generated, and says so in its own header.**
+`scripts/port-content.js` transcribes the handoff mechanically, with no
+override mechanism — so anything hand-edited into it is reverted, silently,
+the next time anyone runs `npm run content:port`.
+
+That had already happened to something load-bearing. The six places that say
+`onlyonething.app` were a hand-edit; the handoff still says
+`theonething.app`. A re-run would have restored a dead mailbox and a
+`/delete` route that does not resolve — the two things RELEASE.md §7 says a
+reviewer clicks, and Play requires. Nothing would have failed. No test covers
+the contents of a string, and the only signal would have been a rejected
+submission.
+
+The generator now has an explicit overrides step: `SUBSTITUTIONS` for text
+replaced throughout, `ADDITIONS` for keys the handoff never wrote. Each
+carries its reason in the file, and each asserts it still applies — a
+substitution that matches nothing throws and prints why it existed, rather
+than producing a file that has quietly lost the change. Confirmed by pointing
+the rule at a domain that does not appear and watching it refuse to write.
+
+Re-running the generator now reproduces the committed `strings.ts` exactly
+except for the new key, which is the useful part of the result: it proves
+those six replacements were the *only* divergence. There were no other hand
+edits hiding in a 1,700-line generated file, and now there is a place to put
+the next one.
+
+### 2.52 The browser suites were testing a bundle from three hours earlier
+
+Two checks in `smoke-day.js` were failing — a finished focus session and a
+closed evening review not reaching their outboxes. Both are developer 2's
+work (§2.48), both looked like a real regression, and neither was.
+
+`dist/` was three and a half hours older than `src/lib/activity.ts`. The
+browser suites read the exported web bundle, and nothing rebuilds it for
+them: `npm run smoke` runs the six scripts directly. Rebuilding and
+re-running turned 262 checks into 264, all passing. The code was always
+correct; the bundle had never contained it.
+
+**That is worse than a failing test, because it fails in both directions.**
+Here it reported working features as broken, which wastes an afternoon. The
+other direction is the one that matters: a suite that reports green on code
+that is not in the tree, which is how a regression reaches a store.
+
+It is also how it reached me. After merging developer 2's four commits I ran
+`npm test`, both typechecks and the migrations, and did not run the browser
+suites — so the first time they ran against that merge was hours later, by
+which point the failure looked like something I had just done.
+
+CI never had this problem: the fidelity job runs `capture:app`, which
+exports first, and a fresh runner has no `dist/` at all. So the fix does not
+belong in the npm script — rebuilding on every smoke run would cost minutes
+locally and export twice in CI, to prevent something CI cannot do.
+
+`scripts/dist-fresh.js` instead refuses to start: it compares the newest
+mtime under `dist/` against the newest under what `expo export` actually
+reads (`app/`, `src/`, `assets/`, `app.json`, `app.config.js`,
+`package.json` — not `scripts/`, `supabase/` or `admin/`, which cannot
+change the bundle), and throws naming the gap and the command to fix it.
+All six smoke scripts call it, and so do `capture-screens.js` and
+`capture-store.js`, which have the same exposure whenever they are run
+directly rather than through their npm scripts.
+
+Verified by touching a source file and watching `smoke-day.js` refuse to
+run.
