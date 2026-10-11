@@ -21,8 +21,17 @@ us. Two things are still worth stating, because they catch people who have
 shipped before:
 
 - **Sign in with Apple is configured in the Developer account, not App Store
-  Connect** — a Services ID, a `.p8` key, the Team ID and the Key ID. Those
-  four values go into Supabase, not into this repo.
+  Connect**, and it needs far less than the documentation implies. The usual
+  four values — a Services ID, a `.p8` key, the Team ID and the Key ID — are
+  for the **web** OAuth flow. This app signs in natively, so Supabase verifies
+  Apple's identity token against Apple's own public keys and needs only the
+  **bundle ID** in Providers → Apple → Client IDs. Leave *Secret Key (for
+  OAuth)* empty; the dashboard's own warning that the secret expires every six
+  months is the tell that the field wants a self-signed JWT, not the `.p8`.
+  Register the App ID with Sign in with Apple, Push Notifications and In-App
+  Purchase ticked — all three are cheaper to enable now than to add later —
+  and keep the `.p8` backed up for the day web sign-in exists. None of it
+  belongs in this repo.
 - **Google sign-in does not come from Play Console.** It comes from a **Google
   Cloud** project: OAuth 2.0 client IDs, one Web (this is the one Supabase
   needs) plus iOS and Android. The Android client needs the release signing
@@ -140,7 +149,7 @@ set the accounts up. BUILD-REVIEW §2.41.
 
 | Work | Where it lands | Blocked on |
 |---|---|---|
-| Supabase project, apply all six migrations, fill `.env`, deploy the `assist` function | `.env` (see `.env.example`); `npm run schema:check` applies the whole sequence to a throwaway Postgres first | §1.3 region decision |
+| ~~Supabase project, apply the migrations, fill `.env`, deploy the functions~~ — **live and verified** (§4.1) | `.env` (see `.env.example`); `npm run schema:check` applies the whole sequence to a throwaway Postgres first | — |
 | ~~Real Apple + Google sign-in~~ — written, unrun | `src/lib/auth/`, wired into `app/sign-in.tsx`. Needs the client IDs and a build on a device | Apple §2.3, Google §3.2–3.3 |
 | ~~Purchases~~ — written, unrun | `src/features/paywall/store.ts` through expo-iap: the trial, the tips, Restore and Manage. Each carries the Supabase user id and makes nobody Pro on its own; the plan comes from the webhooks (BUILD-REVIEW §2.50). Needs the products in both consoles and a build on a device | §2.5 / §3.5 |
 | ~~The assistant / capture parsing~~ — built, never called | `supabase/functions/assist` with the limit in `0005_assist.sql`; `src/lib/parse/local.ts` is the fallback. Needs deploying, and an API key to have ever run | a Supabase project |
@@ -156,6 +165,37 @@ webhooks in the row above: without them nobody's `plan` ever changes and its
 subscription screens have nothing to show.
 
 Still not in this repo at all: the public website, which has no owner.
+
+### 4.1 The live project, and what checking it is worth
+
+`node scripts/check-project.js` reads the real project with the anon key and
+reports what a stranger can reach. On 11 October 2026 every line passed:
+
+```
+Schema        24/24 tables present
+              closed to a signed-out client, as the migrations intend: analytics_event
+              row-level security hides every row from a signed-out client
+              none of the 12 privileged functions answers a signed-out caller
+Sign-in       apple enabled · google enabled · Google web + iOS client IDs
+Edge funcs    assist · export · app-store · play-rtdn — all deployed
+Storage       exports bucket exists
+```
+
+**Be precise about what that proves.** It proves the schema matches the
+migrations, that the policies refuse a signed-out caller, that both providers
+are configured, and that four functions answer at all. It does not prove any
+of them *works*: `assist` answering 401 means it is deployed, not that the API
+key is right; `apple enabled` means Supabase holds a client ID, not that a
+phone has ever completed the flow. Every one of those still needs §9.1.
+
+The two store webhooks report **deployed, unconfigured** on purpose. Neither
+can be configured before the store products exist, and each answers 503 and
+writes nothing until it has Apple's certificate or a Play service account —
+so they are safe to leave standing.
+
+The checker is worth more than the one run. It is how you find out that a
+later migration, a dashboard click or a rotated key quietly opened something:
+run it after any change to the project, not only once.
 
 ## 5. Two config fixes already applied
 
@@ -198,14 +238,19 @@ neither has ever run on hardware.
   one. `app/legal.tsx` is the in-app copy of the text; nobody owns the website
   (BUILD-REVIEW §3).
 
-  **The domain in the app's copy no longer matches the bundle ID.** The
-  handoff's copy says `theonething.app`, and it is user-facing in six places,
-  in both languages: `privacy@theonething.app` ×4 (`src/content/strings.ts`
-  1057, 1061, 1073, 1165, 1173) and `theonething.app/delete` ×2 (1061, 1214).
-  If the domain is now `onlyonething.app`, all six change, that mailbox has to
-  exist, and `/delete` has to resolve — a reviewer can and does click them.
-  Not changed on a guess, because the handoff set that copy and two of the
-  strings are Arabic. Say which domain is real and it is a five-minute edit.
+  ~~**The domain in the app's copy no longer matches the bundle ID.**~~
+  Settled. All six user-facing places now say `onlyonething.app`, in both
+  languages: `privacy@onlyonething.app` ×4 (`src/content/strings.ts` 1057,
+  1073, 1165, 1173) and `onlyonething.app/delete` ×2 (1061, 1214). The
+  handoff's own files still say `theonething.app`; they are the record of what
+  was asked for, not configuration, so the admin panel's fidelity check
+  records the divergence as `{ app, prototype }` rather than failing on it
+  (BUILD-REVIEW §2.43).
+
+  **What the strings now promise, and nobody has built.** A reviewer clicks
+  these. `privacy@onlyonething.app` has to receive mail and `/delete` has to
+  resolve — both on a domain with no owner. The copy is no longer the open
+  question; the website is.
 - **Legal review of that text.** What ships in `ACC` is plain-English summary
   copy. It is good UX writing and it is not a policy that satisfies PDPL or
   GDPR.
@@ -439,8 +484,9 @@ most of it is ours:
 1. ~~**Pick the data region**~~ — the project exists, in `eu-west-1` (§1.3).
    What is left there is a decision, not a task: keep Ireland, or move while
    moving is still free.
-2. **Settle the domain** (§7), because six user-facing strings and a mailbox
-   depend on it. **Yours.**
+2. ~~**Settle the domain**~~ — done; the app says `onlyonething.app`
+   everywhere (§7). What the strings promise is not: the `privacy@` mailbox
+   and `/delete` both belong to item 5. **Yours.**
 3. **A build on hardware** (§9.1). Notifications, account deletion, both
    sign-in flows and the assist function have between them never run on a
    phone or against a live server. This is where the surprises are.
