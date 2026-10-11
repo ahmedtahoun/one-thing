@@ -212,13 +212,76 @@ Still needed in `app.json` once you have an Expo account:
 
 ## 6. Build and test tracks
 
+EAS compiles on Expo's servers, so this needs Node and the CLI and nothing
+else — no Xcode, no Android Studio. It cannot be run from the browser agent's
+container, whose proxy blocks `expo.dev` the same way it blocks
+`supabase.co`. It belongs on the machine that has the phone.
+
+### 6.1 The first build, in order
+
+```sh
+npm i -g eas-cli && eas login && eas init     # eas init writes extra.eas.projectId — commit it
 ```
-npm i -g eas-cli && eas login && eas init
+
+**Then, before building, give EAS the environment.** `.env` is gitignored, so
+EAS never sees it. The four `EXPO_PUBLIC_*` values are inlined at build time:
+
+```sh
+eas env:create --name EXPO_PUBLIC_SUPABASE_URL          --value https://ujcoouwbrkewckpphrod.supabase.co
+eas env:create --name EXPO_PUBLIC_SUPABASE_ANON_KEY     --value <from .env>
+eas env:create --name EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID  --value <from .env>
+eas env:create --name EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID  --value <from .env>
+```
+
+Skipping this does not fail the build. It produces an app that runs, falls
+back to the local session, and explains nothing — because `app.config.js`
+adds the Google native module *only* when `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID`
+is set, and `availability.ts` will correctly report `not-configured` for a
+build that was never given the value. That is the worst failure mode in this
+project: everything looks fine and sign-in silently is not real.
+
+```sh
+eas build --profile preview --platform android   # an APK you can sideload; no provisioning
+eas device:create                                # register the iPhone, once
+eas build --profile development --platform ios
+```
+
+Android first, deliberately: it reaches a phone without Apple's provisioning,
+so the first batch of §9.1 surprises arrives hours earlier.
+
+### 6.2 What the first build is for
+
+§9.1 lists what has never run. Work it as a checklist, because a build that
+only gets opened once proves very little:
+
+| Check | What to watch for |
+|---|---|
+| Arabic layout | Native RTL is resolved by iOS/Android layout engines, not CSS. The web harness cannot see a double-mirror here |
+| IBM Plex Sans Arabic | Loaded via `expo-font`. A silent fallback to the system font is the usual failure |
+| Tab bar blur, shadows, safe areas | `expo-blur` on a notched device |
+| All five notifications | Schedule one of each and **wait**. Delivery has never happened once. Check wording in both languages |
+| Google sign-in | Then confirm `auth.users` gained a row in Supabase |
+| Apple sign-in | Only the bundle ID is configured (§0); this is the run that proves that is enough. Expect a relay address (§9.8) |
+| Sync after sign-in | `signInWithIdToken` is what wakes it. Check rows land in the right tables |
+| Account deletion | It is irreversible and server-side. Use a throwaway account |
+| The assistant | First call that has ever reached `assist` with a real key |
+| A narrow Android phone | At 360pt the greeting truncates and the tab bar crowds the list (§9.9) |
+
+Record what breaks in BUILD-REVIEW rather than fixing it silently — after
+submission every fix is a full store review (§9.7).
+
+### 6.3 Submission
+
+```sh
 eas build --platform ios --profile production
 eas build --platform android --profile production
-eas submit --platform ios    # needs the ASC app ID + Apple ID
+eas submit --platform ios      # needs the ASC app ID + Apple ID
 eas submit --platform android  # needs the service account JSON
 ```
+
+The Android production build is also what produces the **release signing
+SHA-1** that the Google Cloud Android OAuth client needs (§3.2) — so that
+client cannot exist until this step has run once.
 
 Play's closed-testing requirement — roughly 12 testers for 14 continuous days
 before the Production track unlocks — applies to personal accounts opened
