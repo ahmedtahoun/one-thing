@@ -1519,3 +1519,50 @@ consoles and a build on a device.
    different numbers. Showing the store's own price on the card is a design
    change, so it is raised here and not made. Apple's review checks that
    the price shown matches the price charged.
+
+### 2.51 The silence after the sheet closes, and the file that would have eaten it
+
+Two findings, and the second is the one that matters.
+
+**Sign-in could fail and say nothing.** `app/sign-in.tsx` deliberately showed
+no error, and the comment gave a reason: *"a failure has already been
+explained by Apple's or Google's own sheet."* That is true for a failure
+raised while the sheet is up. It is not true for the two that happen after it
+closes successfully — `signInWithIdToken` being rejected by Supabase, and a
+provider returning no token at all. Those are the realistic ones: a client ID
+the project does not know, a paused project, no network, EAS built without
+`EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID`. The user taps, authenticates, the sheet
+closes, and the screen sits there having apparently done nothing.
+
+So `outcome.kind === 'failed'` now raises a toast, and only that kind.
+A cancel is still the user's answer and still says nothing. The toast is
+vague on purpose: the underlying message is diagnostic (*"Unacceptable
+audience in id_token"*), unlocalised, and not the user's problem. It can
+occasionally repeat something the sheet already said, which is a much smaller
+harm than silence.
+
+**`src/content/strings.ts` is generated, and says so in its own header.**
+`scripts/port-content.js` transcribes the handoff mechanically, with no
+override mechanism — so anything hand-edited into it is reverted, silently,
+the next time anyone runs `npm run content:port`.
+
+That had already happened to something load-bearing. The six places that say
+`onlyonething.app` were a hand-edit; the handoff still says
+`theonething.app`. A re-run would have restored a dead mailbox and a
+`/delete` route that does not resolve — the two things RELEASE.md §7 says a
+reviewer clicks, and Play requires. Nothing would have failed. No test covers
+the contents of a string, and the only signal would have been a rejected
+submission.
+
+The generator now has an explicit overrides step: `SUBSTITUTIONS` for text
+replaced throughout, `ADDITIONS` for keys the handoff never wrote. Each
+carries its reason in the file, and each asserts it still applies — a
+substitution that matches nothing throws and prints why it existed, rather
+than producing a file that has quietly lost the change. Confirmed by pointing
+the rule at a domain that does not appear and watching it refuse to write.
+
+Re-running the generator now reproduces the committed `strings.ts` exactly
+except for the new key, which is the useful part of the result: it proves
+those six replacements were the *only* divergence. There were no other hand
+edits hiding in a 1,700-line generated file, and now there is a place to put
+the next one.

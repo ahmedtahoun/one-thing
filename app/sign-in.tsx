@@ -15,7 +15,7 @@ import { Checkbox } from '@/ui/Checkbox';
 import { BalancedText } from '@/ui/BalancedText';
 import { Screen } from '@/ui/Screen';
 import { Text } from '@/ui/Text';
-import { Toast } from '@/ui/Toast';
+import { Toast, showToast } from '@/ui/Toast';
 import { AppleMark, GoogleMark, LogoMark } from '@/design/BrandMarks';
 import { ink, space, status } from '@/design/tokens';
 import { useLanguage } from '@/i18n/LanguageProvider';
@@ -62,9 +62,22 @@ export default function SignIn() {
     const outcome = await signInWith(provider);
     setBusy(null);
 
-    // A cancel is the user's answer, not an error, and a failure has already
-    // been explained by Apple's or Google's own sheet — the design has no
-    // state for either, so neither invents one. BUILD-REVIEW §2.41.
+    // A cancel is the user's answer, not an error, so it says nothing.
+    //
+    // A failure is different, and the distinction is where the sheet was when
+    // it happened. Inside the sheet, Apple and Google explain themselves. But
+    // `signInWithIdToken` runs *after* the sheet has closed successfully, and
+    // so does the check for a missing token — a rejected token, a paused
+    // project, no network, a client ID the project does not know. By then
+    // there is no sheet left to say so, and without this the screen simply
+    // sits there having apparently done nothing.
+    //
+    // The toast is deliberately vague: the underlying message is diagnostic
+    // ("Unacceptable audience in id_token"), it is not localised, and it is
+    // not the user's problem. It can occasionally repeat something the sheet
+    // already said, which is a far smaller harm than silence.
+    // BUILD-REVIEW §2.41, §2.51.
+    if (outcome.kind === 'failed') showToast(si.fail);
     if (outcome.kind !== 'signed-in') return;
     proceed(provider, outcome.profile);
   };

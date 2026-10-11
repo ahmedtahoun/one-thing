@@ -982,7 +982,8 @@ const ACC_en = {
     "opt": "(optional)",
     "err": "Please accept the Terms and Privacy Policy to continue.",
     "note": "We collect your name, phone, job title and how you use the app to run it and improve it. Marketing only if you opt in — change anytime in Settings.",
-    "updated": "Last updated 9 October 2026"
+    "updated": "Last updated 9 October 2026",
+    "fail": "We couldn’t sign you in. Please try again."
   },
   "su": {
     "q": [
@@ -1090,7 +1091,8 @@ const ACC_ar: typeof ACC_en = {
     "opt": "(اختياري)",
     "err": "وافق على الشروط وسياسة الخصوصية عشان تكمّل.",
     "note": "نجمع اسمك ورقمك ومسمّاك الوظيفي وطريقة استخدامك للتطبيق لتشغيله وتحسينه. التسويق فقط إذا وافقت — وتقدر تغيّرها من الإعدادات.",
-    "updated": "آخر تحديث ٩ أكتوبر ٢٠٢٦"
+    "updated": "آخر تحديث ٩ أكتوبر ٢٠٢٦",
+    "fail": "ما قدرنا نسجّل دخولك. جرّب مرة ثانية."
   },
   "su": {
     "q": [
