@@ -1446,3 +1446,25 @@ Checked: the engine test (one send, no doubles on a resend, the deleted
 task's answer dropped), the Postgres test (the rows fit the tables, row-level
 security holds, and Delete my account removes them) and the day smoke test
 (Finish and Close the day each queue exactly one record).
+
+### 2.49 Growth's first two funnel steps were the same number
+ADMIN.md's funnel goes Signed in → Finished setup → … The panel showed the
+same count for both, with a comment explaining why: it counted from
+`app_user`, and that row is written by the first sync, which only a
+finished setup starts.
+
+Signing in does leave its own record, the auth user, which Supabase creates
+at the moment of sign-in. So "Signed in" now counts auth users from the last
+30 days, leaving out admin accounts, which are auth users too. "Finished
+setup" counts `app_user` rows. The gap between the two is the people who
+left during setup, which is the step the panel could not see.
+
+"Added 3+ tasks" also counts `task_created` events now, so someone who added
+three tasks and then deleted them still passed the step.
+
+Not done: a "Saw the paywall" step. `paywall_viewed` is recorded (§2.39), but
+ADMIN.md's funnel has no step for it, and adding one is a design change.
+**Do you want it between "Added 3+ tasks" and "Started trial"?**
+
+`admin/scripts/test-admin-db.ts` checks both: someone who left at setup, and
+a user whose events remember three tasks after two were deleted.

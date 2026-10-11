@@ -459,9 +459,14 @@ export function dbSource(url: string): DataSource {
       const tz = TIME_ZONE;
       const [f] = await sql`
         with cohort as (select id from app_user where created_at > now() - interval '30 days')
-        select (select count(*) from cohort)::int as signed_in,
+        select (select count(*) from auth.users a
+                  where a.created_at > now() - interval '30 days'
+                    and not exists (select 1 from admin_member m where m.user_id = a.id))::int as signed_in,
+          (select count(*) from cohort)::int as finished_setup,
           (select count(*) from cohort c where exists (select 1 from one_thing o where o.user_id = c.id))::int as one_thing,
-          (select count(*) from cohort c where (select count(*) from task t where t.user_id = c.id) >= 3)::int as three_tasks,
+          (select count(*) from cohort c
+             where (select count(*) from task t where t.user_id = c.id) >= 3
+                or (select count(*) from analytics_event e where e.user_id = c.id and e.name = 'task_created') >= 3)::int as three_tasks,
           (select count(*) from cohort c where exists (select 1 from subscription s where s.user_id = c.id))::int as trial,
           (select count(*) from cohort c where exists (select 1 from subscription s where s.user_id = c.id and s.status in ('active', 'grace')))::int as pro`;
       const cohorts = await sql`
@@ -488,11 +493,16 @@ export function dbSource(url: string): DataSource {
       const now = new Date();
       return {
         // Store downloads come from App Store Connect and the Play Console,
-        // which are not connected; "Finished setup" equals "Signed in",
-        // because the account is created only when setup is finished.
+        // which are not connected. Signing in makes the auth user; the app's
+        // own row is written by the first sync, which only a finished setup
+        // starts, so the gap between the two is who left at setup. Admins are
+        // auth users too, and are not counted.
+        //
+        // "Added 3+ tasks" also counts task_created events, so someone who
+        // added three and then deleted them still passed the step.
         funnel: [
           { label: 'Signed in', count: f?.signed_in ?? 0 },
-          { label: 'Finished setup', count: f?.signed_in ?? 0 },
+          { label: 'Finished setup', count: f?.finished_setup ?? 0 },
           { label: 'Set first One Thing', count: f?.one_thing ?? 0 },
           { label: 'Added 3+ tasks', count: f?.three_tasks ?? 0 },
           { label: 'Started trial', count: f?.trial ?? 0 },

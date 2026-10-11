@@ -300,8 +300,11 @@ sessions, `review_closed`, and `paywall_viewed` — the funnel step between
 its own comment says "Finished setup equals Signed in", and with the events it
 no longer has to.
 
-Still open: pointing the Growth screen at the new table, and whether a vendor
-ever joins this — if one does, it brings an SDK, a privacy-manifest entry and
+Growth now reads two things it could not before (BUILD-REVIEW §2.49):
+"Signed in" counts auth users, so it finally differs from "Finished setup",
+and "Added 3+ tasks" also counts `task_created` events. `paywall_viewed` is
+recorded but has no step to sit in: ADMIN.md's funnel does not have one, and
+adding it is a design change. Still open: whether a vendor ever joins this — if one does, it brings an SDK, a privacy-manifest entry and
 a Data safety answer with it.
 ### 9.3 The app promised a data download it could not do — **built**
 The row was there all along — Settings → Privacy & data → "Download my data",
