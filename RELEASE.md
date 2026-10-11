@@ -394,10 +394,10 @@ given, on the first authorisation, which is the only time Apple offers it
 creates two accounts for one person, and there is no merge path.
 
 ### 9.9 Smaller, but real
-- **Focus sessions never leave the device.** `focus_session` is in the schema
-  and not in the sync engine's `COLUMNS`, so a new phone starts with no focus
-  history. The daily total survives, because `one_thing.focus_minutes` syncs.
-  The evening review's decisions are the same story (§2.29).
+- ~~**Focus sessions never leave the device.**~~ — fixed. Each session and
+  each closed evening review now goes up to `focus_session`, `review` and
+  `review_item`, which is what the admin panel's focus totals read
+  (BUILD-REVIEW §2.48).
 - **No crash or error reporting.** You will ship blind to anything the
   harness cannot see, which after §9.1 is a lot.
 - **Supabase tier.** A free project pauses after inactivity, which is not a

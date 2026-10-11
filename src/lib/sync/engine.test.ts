@@ -6,10 +6,11 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
+import type { QueuedFocus, QueuedReview } from '../activity';
 import type { QueuedEvent } from '../analytics/events';
 import type { ConsentRecord } from '../consent';
 import type { QueuedPrivacyRequest } from '../privacy-request';
-import { isUuid } from '../ids';
+import { isUuid, newId } from '../ids';
 import { EMPTY_BASE, ORDER, syncOnce, type Base, type LocalState, type Remote } from './engine';
 import { bareTask, contact, emptyLocal, followUp, fullTask, historyFor } from './fixtures';
 import { legacyIds, rewrite } from './adopt';
@@ -26,6 +27,8 @@ function device(remote: Remote, local: LocalState = emptyLocal(), userId = USER)
     consent: [] as ConsentRecord[],
     events: [] as QueuedEvent[],
     privacyRequests: [] as QueuedPrivacyRequest[],
+    focus: [] as QueuedFocus[],
+    reviews: [] as QueuedReview[],
     plan: null as string | null,
     marketing: null as boolean | null,
     async sync() {
@@ -37,12 +40,16 @@ function device(remote: Remote, local: LocalState = emptyLocal(), userId = USER)
         consent: d.consent,
         events: d.events,
         privacyRequests: d.privacyRequests,
+        focus: d.focus,
+        reviews: d.reviews,
         today: TODAY,
       });
       base = result.base;
       d.consent = d.consent.slice(result.consentSent);
       d.events = d.events.slice(result.eventsSent);
       d.privacyRequests = d.privacyRequests.slice(result.privacySent);
+      d.focus = d.focus.slice(result.focusSent);
+      d.reviews = d.reviews.slice(result.reviewsSent);
       d.plan = result.plan;
       d.marketing = result.marketing;
       d.local = {
@@ -187,6 +194,51 @@ describe('sync engine', () => {
     await a.sync();
     assert.equal(server.tables.get('consent')?.length, 3);
     assert.equal(a.marketing, false);
+  });
+
+  it('sends focus sessions and closed reviews once, even when they are sent again', async () => {
+    const server = memoryRemote();
+    const kept = bareTask();
+    const gone = bareTask();
+    const a = device(server, emptyLocal({ tasks: [kept, gone] }));
+    await a.sync();
+
+    // The other device deletes a task before this one's review goes up.
+    a.local = { ...a.local, tasks: [kept] };
+    await a.sync();
+    a.focus = [
+      { id: newId(), startedAt: '2026-10-10T08:00:00.000Z', plannedMin: 45, endedAt: '2026-10-10T08:45:00.000Z', completed: true },
+      { id: newId(), startedAt: '2026-10-10T10:00:00.000Z', plannedMin: 25, endedAt: '2026-10-10T10:03:00.000Z', completed: false },
+    ];
+    const review: QueuedReview = {
+      date: TODAY,
+      oneThingDone: true,
+      closedAt: '2026-10-10T20:00:00.000Z',
+      items: [
+        { taskId: kept.id, decision: 'tomorrow' },
+        { taskId: gone.id, decision: 'drop' },
+      ],
+    };
+    a.reviews = [review];
+    const resend = a.focus;
+    await a.sync();
+    assert.deepEqual(a.focus, []);
+    assert.deepEqual(a.reviews, []);
+    assert.deepEqual(
+      server.tables.get('focus_session')?.map((f) => [f.planned_min, f.completed]),
+      [[45, true], [25, false]]
+    );
+    assert.deepEqual(server.tables.get('review')?.map((r) => [r.date, r.one_thing_done]), [[TODAY, true]]);
+    // The answer about the deleted task is dropped, not sent to fail its key.
+    assert.deepEqual(server.tables.get('review_item')?.map((i) => [i.task_id, i.decision]), [[kept.id, 'tomorrow']]);
+
+    // A sync that died after sending sends them again: nothing doubles.
+    a.focus = resend;
+    a.reviews = [{ ...review, oneThingDone: false }];
+    await a.sync();
+    assert.equal(server.tables.get('focus_session')?.length, 2);
+    assert.deepEqual(server.tables.get('review')?.map((r) => r.one_thing_done), [false]);
+    assert.equal(server.tables.get('review_item')?.length, 1);
   });
 
   it("reads the plan from the server and never writes it", async () => {

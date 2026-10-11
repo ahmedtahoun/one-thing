@@ -17,6 +17,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 import * as Notifications from 'expo-notifications';
 
+import { dropSentFocus, dropSentReviews, readFocusQueue, readReviewQueue } from '../activity';
 import { dropSentEvents, readEventQueue } from '../analytics/track';
 import { dropSentConsent, onConsentQueued, readConsentQueue } from '../consent';
 import { dropSentPrivacyRequests, onPrivacyRequestQueued, readPrivacyRequests } from '../privacy-request';
@@ -186,6 +187,8 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       const consent = await readConsentQueue();
       const events = await readEventQueue();
       const privacyRequests = await readPrivacyRequests();
+      const focus = await readFocusQueue();
+      const reviews = await readReviewQueue();
       const { marketing: _marketing, ...syncedPrefs } = pr.prefs;
 
       const result = await syncOnce({
@@ -195,6 +198,8 @@ export function SyncProvider({ children }: { children: ReactNode }) {
         consent,
         events,
         privacyRequests,
+        focus,
+        reviews,
         today: dateKey(),
         local: {
           tasks: lists.tasks,
@@ -221,6 +226,8 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       await dropSentConsent(result.consentSent);
       await dropSentEvents(result.eventsSent);
       await dropSentPrivacyRequests(result.privacySent);
+      await dropSentFocus(result.focusSent);
+      await dropSentReviews(result.reviewsSent);
 
       // Into the stores, around anything the user changed meanwhile.
       const into = <T extends { id: string }>(before: T[], after: T[], order: (list: T[]) => T[]) =>

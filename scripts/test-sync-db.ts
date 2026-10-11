@@ -20,6 +20,7 @@ import { after, before, describe, it } from 'node:test';
 
 import { EMPTY_BASE, syncOnce, type Base, type LocalState, type Remote } from '../src/lib/sync/engine';
 import { bareTask, contact, emptyLocal, followUp, fullTask, historyFor } from '../src/lib/sync/fixtures';
+import { newId } from '../src/lib/ids';
 import { contactToRow, followUpToRow, historyToRow, taskToRow } from '../src/lib/sync/rows';
 import { startCluster, type Cluster } from './pg-cluster';
 
@@ -85,7 +86,9 @@ function device(userId: string, local: LocalState = emptyLocal()) {
     async sync(
       consent: Parameters<typeof syncOnce>[0]['consent'] = [],
       events: Parameters<typeof syncOnce>[0]['events'] = [],
-      privacyRequests: Parameters<typeof syncOnce>[0]['privacyRequests'] = []
+      privacyRequests: Parameters<typeof syncOnce>[0]['privacyRequests'] = [],
+      focus: Parameters<typeof syncOnce>[0]['focus'] = [],
+      reviews: Parameters<typeof syncOnce>[0]['reviews'] = []
     ) {
       const result = await syncOnce({
         remote: postgresRemote(userId),
@@ -95,6 +98,8 @@ function device(userId: string, local: LocalState = emptyLocal()) {
         consent,
         events,
         privacyRequests,
+        focus,
+        reviews,
         today: TODAY,
       });
       base = result.base;
@@ -249,9 +254,31 @@ describe('sync against Postgres', () => {
     );
   });
 
+  it('writes focus sessions and closed reviews into their own tables, and nobody else’s', async () => {
+    const task = bareTask();
+    const phone = device(A, emptyLocal({ tasks: [task] }));
+    await phone.sync();
+    await phone.sync(
+      [],
+      [],
+      [],
+      [{ id: newId(), startedAt: '2026-10-10T08:00:00.000Z', plannedMin: 45, endedAt: '2026-10-10T08:45:00.000Z', completed: true }],
+      [{ date: TODAY, oneThingDone: true, closedAt: '2026-10-10T20:00:00.000Z', items: [{ taskId: task.id, decision: 'drop' }] }]
+    );
+    assert.equal(count('focus_session', A), 1);
+    assert.equal(count('review', A), 1);
+    assert.equal(psql(`select decision from public.review_item where user_id = '${A}'`).trim(), 'drop');
+    // Another user can neither read them nor file one under A.
+    assert.equal(asUser(B, 'select count(*) from public.focus_session').trim(), '0');
+    assert.throws(
+      () => asUser(B, `insert into public.focus_session (user_id, planned_min) values ('${A}', 25)`),
+      /row-level security/
+    );
+  });
+
   it('deletes every row of the account and nothing of anyone else’s', () => {
     asUser(A, 'select public.delete_my_account()');
-    for (const table of ['task', 'contact', 'history', 'follow_up', 'one_thing', 'settings', 'consent']) {
+    for (const table of ['task', 'contact', 'history', 'follow_up', 'one_thing', 'settings', 'consent', 'focus_session', 'review', 'review_item']) {
       assert.equal(count(table, A), 0, table);
     }
     assert.equal(Number(psql(`select count(*) from public.app_user where id = '${A}'`).trim()), 0);

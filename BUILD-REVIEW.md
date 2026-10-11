@@ -519,6 +519,8 @@ the asking — so here "Close the day" applies them: Kept completes the task,
 Tomorrow moves it on a day, Not needed cancels it. Nothing happens until that
 button, which is the part the rule is actually about.
 
+The answers themselves are also kept, in `review` and `review_item` (§2.48).
+
 Also: the prototype's "{a} of {b} promises kept" counts **every** task in the
 list, including the six on later days — 18 rather than today's 12. An evening
 review that counts next week's tasks is reporting on the wrong day, so this
@@ -1415,3 +1417,32 @@ the sweep writes a warning to the Postgres log and calls nothing.
 `scripts/test-schedules-db.ts` checks all of this against Postgres, with
 pg_net and Vault stood in for. pg_cron is not installed there, which also
 shows the migration applying without it. **Never run on Supabase.**
+
+### 2.48 Focus sessions and the evening review now reach the server
+`focus_session`, `review` and `review_item` were in the schema from the
+start and nothing wrote them. The admin panel reads `focus_session` twice,
+for a user's focus minutes in the drawer and for "used Focus this week" on
+Growth, so both read zero for everyone.
+
+The device writes them now, through the same kind of outbox as analytics
+events (`src/lib/activity.ts`), because they are things that already
+happened rather than state to merge. Nothing in the app shows them back, so
+the device keeps no copy once they are sent.
+- **A focus session** is recorded from the moment the screen opens. It is
+  marked completed when Finish is pressed, and not completed when the screen
+  is left. A session the app was killed during is not recorded; its
+  `focus_started` event still is.
+- **A closed review** records the day, the answer about the One Thing, and
+  each task the user marked: Kept, Tomorrow or Not needed (`drop` in the
+  database). Tasks that were already done get no row, because nothing was
+  decided about them.
+- An answer about a task that was deleted on another device before the
+  review went up is dropped. Sending it would fail the task's foreign key,
+  and with it the whole sync.
+- Both are sent by key, so a sync that fails after sending them and sends
+  them again writes nothing twice.
+
+Checked: the engine test (one send, no doubles on a resend, the deleted
+task's answer dropped), the Postgres test (the rows fit the tables, row-level
+security holds, and Delete my account removes them) and the day smoke test
+(Finish and Close the day each queue exactly one record).

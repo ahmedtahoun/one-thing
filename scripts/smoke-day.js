@@ -196,6 +196,12 @@ const ONE_THING = { en: 'Finish the investor proposal', ar: 'أخلّص عرض �
   await page.getByTestId('focus-finish').click();
   await page.waitForTimeout(700);
   check('"I’m done" marks the One Thing done', (await read('ot.oneThing'))?.done === true);
+  const sessions = (await read('ot.focusQueue')) || [];
+  check(
+    'and queues one completed session for the server, once',
+    sessions.length === 1 && sessions[0].completed === true && sessions[0].plannedMin === 45,
+    JSON.stringify(sessions)
+  );
 
   // ------------------------------------------------------ 20 Daily review
   await seed('en');
@@ -219,6 +225,17 @@ const ONE_THING = { en: 'Finish the investor proposal', ar: 'أخلّص عرض �
   check('and moves what was put off', dateKey(new Date(after.find((t) => t.id === openTasks[1].id).dueAt)) !== dateKey(new Date()));
   check('and cancels what was not needed', after.find((t) => t.id === openTasks[2].id).status === 'cancelled');
   check('the closed state shows', await page.getByTestId('review-plan-tomorrow').isVisible());
+  const reviews = (await read('ot.reviewQueue')) || [];
+  const decided = Object.fromEntries((reviews[0]?.items || []).map((i) => [i.taskId, i.decision]));
+  check(
+    'and the answers are queued for the server, in its spelling',
+    reviews.length === 1 &&
+      reviews[0].date === dateKey(new Date()) &&
+      decided[target.id] === 'kept' &&
+      decided[openTasks[1].id] === 'tomorrow' &&
+      decided[openTasks[2].id] === 'drop',
+    JSON.stringify(reviews)
+  );
 
   // --------------------------------------------------------- Reschedule
   await seed('en');
