@@ -31,7 +31,7 @@ echo
 echo "tables:"
 su postgres -c "psql -tA -d ${DB} -c \"select tablename from pg_tables where schemaname='public' order by 1\""
 echo
-echo "tables with RLS enabled but no policy (should be only admin_audit_log):"
+echo "tables with RLS enabled but no policy (should be admin_audit_log, admin_member, admin_sign_in_failure — all service-role only):"
 su postgres -c "psql -tA -d ${DB} -c \"
   select c.relname from pg_class c
   join pg_namespace n on n.oid = c.relnamespace

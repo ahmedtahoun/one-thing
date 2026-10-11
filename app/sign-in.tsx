@@ -64,7 +64,7 @@ export default function SignIn() {
 
     // A cancel is the user's answer, not an error, and a failure has already
     // been explained by Apple's or Google's own sheet — the design has no
-    // state for either, so neither invents one. BUILD-REVIEW §2.39.
+    // state for either, so neither invents one. BUILD-REVIEW §2.41.
     if (outcome.kind !== 'signed-in') return;
     proceed(provider, outcome.profile);
   };

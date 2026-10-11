@@ -35,13 +35,17 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - name: Typecheck
         run: npm run typecheck
+      # The edge functions, under Node's TypeScript with a Deno shim.
+      - name: Typecheck the edge functions
+        run: npm run typecheck:functions
       # The rules that need no device: notifications, the parser, the
       # assistant meter, the paywall's required wording.
       - name: Unit tests
         run: npm test
-      # The sync engine against a throwaway Postgres with both migrations and
-      # their row-level security. The runner image ships the server binaries.
-      - name: Sync against Postgres
+      # The sync engine and the Assistant's meter against a throwaway Postgres
+      # with every migration and its row-level security. The runner image
+      # ships the server binaries.
+      - name: Sync and the meter against Postgres
         run: npm run test:db
       - name: OKLCH colours match Chromium
         run: npm run verify:colours
@@ -85,5 +89,52 @@ jobs:
           path: |
             .screens/
             .screens-prototype/
+          retention-days: 14
+          if-no-files-found: ignore
+
+  admin:
+    name: Admin panel
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            admin/package-lock.json
+      # The root packages carry the harness the panel is measured with:
+      # Playwright, the pixel diff, and the prototype's own React.
+      - run: npm ci
+      - run: npm ci
+        working-directory: admin
+      - run: npx playwright install --with-deps chromium
+      - name: Typecheck
+        run: npm run typecheck
+        working-directory: admin
+      - name: Unit tests
+        run: npm test
+        working-directory: admin
+      # The live data source against Postgres with every migration.
+      - name: Data against Postgres
+        run: npm run test:db
+        working-directory: admin
+      - name: Build (demo data)
+        run: npm run build:demo
+        working-directory: admin
+      - name: Behaviour
+        run: npm run smoke
+        working-directory: admin
+      # Gates on every probe within 2 px of the prototype; pixels are reported.
+      - name: Matches the prototype
+        run: npm run fidelity
+        working-directory: admin
+      - name: Keep the screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: admin-screens
+          path: admin/.screens-admin/
           retention-days: 14
           if-no-files-found: ignore

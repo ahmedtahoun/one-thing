@@ -14,6 +14,8 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { AppState, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Constants from 'expo-constants';
+import * as Notifications from 'expo-notifications';
 
 import { dropSentEvents, readEventQueue } from '../analytics/track';
 import { dropSentConsent, onConsentQueued, readConsentQueue } from '../consent';
@@ -58,6 +60,29 @@ const SyncContext = createContext<SyncValue>({
 });
 
 const byId = (item: { id: string }) => item.id;
+
+/** "1.0.0 (iOS 19.1)" — what the admin panel's Troubleshoot shows. */
+function appVersion(): string | null {
+  const version = Constants.expoConfig?.version;
+  if (!version) return null;
+  if (Platform.OS === 'ios') return `${version} (iOS ${Platform.Version})`;
+  // Platform.Version is the API level on Android (35); the release is "16".
+  if (Platform.OS === 'android') {
+    const release = (Platform.constants as { Release?: string }).Release ?? String(Platform.Version);
+    return `${version} (Android ${release})`;
+  }
+  return version;
+}
+
+/** Whether the OS will deliver notifications; null on web, where it is not asked. */
+async function notificationsAllowed(): Promise<boolean | null> {
+  if (Platform.OS !== 'ios' && Platform.OS !== 'android') return null;
+  try {
+    return (await Notifications.getPermissionsAsync()).granted;
+  } catch {
+    return null;
+  }
+}
 
 export function SyncProvider({ children }: { children: ReactNode }) {
   const { session, update: updateSession } = useSession();
@@ -185,6 +210,8 @@ export function SyncProvider({ children }: { children: ReactNode }) {
             email: s.email,
             language,
             platform: Platform.OS === 'ios' || Platform.OS === 'android' ? Platform.OS : null,
+            appVersion: appVersion(),
+            notificationsAllowed: await notificationsAllowed(),
           },
           authProvider: s.authProvider,
         },

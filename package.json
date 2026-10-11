@@ -8,8 +8,8 @@
     "web": "expo start --web",
     "export:web": "expo export --platform web",
     "typecheck": "tsc --noEmit",
-    "test": "tsx --test \"src/**/*.test.ts\"",
-    "test:db": "tsx --test scripts/test-sync-db.ts",
+    "test": "tsx --test \"src/**/*.test.ts\" \"supabase/functions/**/*.test.ts\"",
+    "test:db": "tsx --test scripts/test-sync-db.ts scripts/test-assist-db.ts",
     "verify:colours": "node scripts/verify-oklch.js scripts/oklch-colours.txt",
     "capture:app": "expo export --platform web && node scripts/capture-screens.js",
     "capture:prototype": "node scripts/capture-prototype.js",
@@ -19,7 +19,8 @@
     "content:inline": "node scripts/extract-inline-copy.js",
     "measure": "node scripts/measure-prototype-type.js",
     "drift": "node scripts/measure-drift.js",
-    "smoke": "node scripts/smoke-tasks.js && node scripts/smoke-people.js && node scripts/smoke-compose.js && node scripts/smoke-day.js && node scripts/smoke-capture.js && node scripts/smoke-analytics.js"
+    "smoke": "node scripts/smoke-tasks.js && node scripts/smoke-people.js && node scripts/smoke-compose.js && node scripts/smoke-day.js && node scripts/smoke-capture.js && node scripts/smoke-analytics.js",
+    "typecheck:functions": "tsc -p supabase/functions"
   },
   "dependencies": {
     "@expo-google-fonts/ibm-plex-sans-arabic": "^0.4.2",
@@ -51,6 +52,7 @@
     "react-native-web": "^0.21.4"
   },
   "devDependencies": {
+    "@anthropic-ai/sdk": "0.133.0",
     "@babel/standalone": "^7.29.0",
     "@types/node": "^22.20.5",
     "@types/react": "~19.2.2",

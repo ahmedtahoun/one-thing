@@ -69,11 +69,18 @@ export type Base = {
   one_thing: OneThingRow[];
   settings: SettingsRow | null;
   app_user: NameRow | null;
-  /** The language and platform this device last sent. */
+  /** What this device last said about itself. */
   device: DeviceRow | null;
+  /** The last day this device reported the user as active (YYYY-MM-DD). */
+  seenOn?: string | null;
 };
 
-type DeviceRow = { language: 'en' | 'ar'; platform: 'ios' | 'android' | null };
+type DeviceRow = {
+  language: 'en' | 'ar';
+  platform: 'ios' | 'android' | null;
+  app_version: string | null;
+  notifications_allowed: boolean | null;
+};
 
 export const EMPTY_BASE: Base = {
   task: [],
@@ -266,22 +273,33 @@ export async function syncOnce(options: {
   let deleted = 0;
 
   // The user's own row first: every other table points at it.
-  const device: DeviceRow = { language: local.profile.language, platform: local.profile.platform };
+  const device: DeviceRow = {
+    language: local.profile.language,
+    platform: local.profile.platform,
+    app_version: local.profile.appVersion ?? null,
+    notifications_allowed: local.profile.notificationsAllowed ?? null,
+  };
+  // Once a day at most: the admin panel's Last active, and the active_day
+  // row its Active users and Retention are counted from. A day, not a time.
+  const firstToday = base.seenOn !== today;
+  const seen: Raw = firstToday ? { last_seen_at: new Date().toISOString() } : {};
   if (!remoteUser) {
-    await remote.insert('app_user', [{ id: userId, auth_provider: local.authProvider, ...name.merged, ...device }]);
+    await remote.insert('app_user', [{ id: userId, auth_provider: local.authProvider, ...name.merged, ...device, ...seen }]);
     pushed++;
   } else {
-    const patch: Raw = name.push ? { ...name.merged } : {};
-    // The language and platform belong to the device, not the account: they
-    // go up when they change here, so server-sent mail and notifications
-    // follow the device used last, and are never pulled down over this
-    // device's own choice.
+    const patch: Raw = name.push ? { ...name.merged, ...seen } : { ...seen };
+    // The language, platform, app version and notification permission
+    // belong to the device, not the account: they go up when they change
+    // here, so the server follows the device used last, and are never
+    // pulled down over this device's own.
     if (!sameRow(device, base.device)) Object.assign(patch, device);
     if (Object.keys(patch).length > 0) {
       await remote.update('app_user', { id: userId }, patch);
       pushed++;
     }
   }
+
+  if (firstToday) await remote.upsert('active_day', [{ user_id: userId, day: today }], 'user_id,day');
 
   if (consent.length > 0) {
     await remote.insert(
@@ -353,6 +371,7 @@ export async function syncOnce(options: {
       settings: settings.merged,
       app_user: name.merged,
       device,
+      seenOn: today,
     },
     tasks: objectsFor(tasks.merged, local.tasks, taskToRow, taskFromRow),
     contacts: objectsFor(contacts.merged, local.contacts, contactToRow, contactFromRow),

@@ -27,7 +27,7 @@ import type { TaskType } from '@/design/tokens';
  * resurrect a user_id the hard delete just removed. `delete_my_account()`
  * records it server-side instead, with no user_id, which is also how the
  * admin panel counts deletions without keeping who asked
- * (supabase/migrations/0003_events.sql).
+ * (supabase/migrations/0006_events.sql).
  */
 export type AnalyticsEvent =
   | { name: 'signin' }

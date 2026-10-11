@@ -27,7 +27,7 @@ import { ink, surface, typeColour } from '@/design/tokens';
 import { useDirection, useLanguage } from '@/i18n/LanguageProvider';
 import { useAssistantMeter } from '@/lib/assistant-meter';
 import { dateKey, followUpStatus, isOnDay, timeLabel, type Task } from '@/lib/model-types';
-import { textParser, type AssistantIntent, type ParsedTask } from '@/lib/parse';
+import { AssistLimitError, textParser, type AssistantIntent, type ParsedTask } from '@/lib/parse';
 import { taskFromParsed } from '@/lib/parse/to-task';
 import { usePeople } from '@/lib/people';
 import { useSession } from '@/lib/session';
@@ -74,9 +74,21 @@ export default function Assistant() {
       return;
     }
     meter.spend();
-    setMessages((list) => [...list, { id: newId(), from: 'me', text }]);
+    const sent = newId();
+    setMessages((list) => [...list, { id: sent, from: 'me', text }]);
     if (raw === undefined) setInput('');
-    const intent = await textParser.interpret(text, { lang, now: new Date(), contacts });
+    let intent: AssistantIntent;
+    try {
+      intent = await textParser.interpret(text, { lang, now: new Date(), contacts });
+    } catch (error) {
+      if (!(error instanceof AssistLimitError)) throw error;
+      // The server's count says today's are used up — another device spent
+      // them. As at the eleventh request here: no message, the paywall.
+      setMessages((list) => list.filter((m) => m.id !== sent));
+      if (raw === undefined) setInput(text);
+      router.push('/paywall');
+      return;
+    }
     timers.current.push(
       setTimeout(() => setMessages((list) => [...list, { id: newId(), from: 'bot', intent }]), REPLY_DELAY)
     );

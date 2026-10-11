@@ -124,7 +124,7 @@ only configuration: the Google client IDs in `.env` (see `.env.example`), and
 Apple's Services ID and key in the Supabase dashboard. Until all of it is in
 place `src/lib/auth/availability.ts` reports why, and the screen falls back to
 the local session the app has always used — so this costs nothing while you
-set the accounts up. BUILD-REVIEW §2.39.
+set the accounts up. BUILD-REVIEW §2.41.
 
 | Work | Where it lands | Blocked on |
 |---|---|---|
@@ -271,12 +271,28 @@ it early.
 
 ### 9.2 There is no analytics, and no table to put it in — **built**
 All seventeen events now exist, emitted from the code and landing in an
-`analytics_event` table (migration `0003`). See BUILD-REVIEW §2.37 for the
-decisions. What is still open: the admin panel's own queries, and whether a
-vendor ever joins this — if one does, it brings an SDK, a privacy-manifest
-entry and a Data safety answer with it.
+`analytics_event` table (migration `0006`). BUILD-REVIEW §2.39 has the
+decisions.
 
+One correction to what this section first said. The admin panel is *not*
+reading from nothing: dev 2 built its funnel and retention cohorts from the
+entity tables instead — signed-in from `app_user`, "set first One Thing" from
+`one_thing`, "3+ tasks" by counting them, trial and Pro from `subscription`,
+and the cohorts from `active_day`. For those numbers that is arguably the
+better source: state cannot be lost in transit the way an event can.
 
+What the events add is everything that leaves no row behind:
+`task_created`'s `via` (which capture route people actually use),
+`compose_opened`'s channel, `send_confirmed`, `nudge_opened`, the focus
+sessions, `review_closed`, and `paywall_viewed` — the funnel step between
+"3+ tasks" and "started trial" that the panel currently has no way to show.
+`signin` and `setup_done` also separate two steps the panel had to collapse:
+its own comment says "Finished setup equals Signed in", and with the events it
+no longer has to.
+
+Still open: pointing the Growth screen at the new table, and whether a vendor
+ever joins this — if one does, it brings an SDK, a privacy-manifest entry and
+a Data safety answer with it.
 ### 9.3 The app promised a data download it could not do — **built**
 The row was there all along — Settings → Privacy & data → "Download my data",
 with the toast SCREENS.md § 21–23 specifies — and the tap did nothing but
@@ -284,7 +300,7 @@ show the toast. So the Privacy Policy's "Download or delete your data … from
 Settings", in both languages, rested on a promise with no record of ever
 having been made. A request now queues on the device and goes up as a
 `privacy_request` row of type `export`, which is what the admin panel counts
-its 30-day deadline from. BUILD-REVIEW §2.38.
+its 30-day deadline from. BUILD-REVIEW §2.40.
 
 **The export itself is still a server job**, and still unwritten: something
 has to read every table for that user and email the result inside 24 hours.
@@ -329,7 +345,7 @@ address only on first authorisation, once. This app stores `email` on
 `app_user`, shows it in Settings, and Compose mails contacts — not the user —
 so the blast radius is small. The relay address is now captured and stored as
 given, on the first authorisation, which is the only time Apple offers it
-(BUILD-REVIEW §2.39). What is still open: "sign in with Google, then Apple"
+(BUILD-REVIEW §2.41). What is still open: "sign in with Google, then Apple"
 creates two accounts for one person, and there is no merge path.
 
 ### 9.9 Smaller, but real

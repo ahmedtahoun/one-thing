@@ -112,7 +112,7 @@ describe('the events the code actually emits', () => {
   it('leaves account_deleted to the server', () => {
     assert.equal(emitted().has('account_deleted'), false);
     // Recorded by delete_my_account(), with no user_id to attach it to.
-    const sql = readFileSync('supabase/migrations/0003_events.sql', 'utf8');
+    const sql = readFileSync('supabase/migrations/0006_events.sql', 'utf8');
     assert.match(sql, /insert into public\.analytics_event .*values \(null, 'account_deleted'\)/);
   });
 });

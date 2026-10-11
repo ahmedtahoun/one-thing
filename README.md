@@ -17,7 +17,7 @@ see `BUILD-REVIEW.md`.
 | App | React Native via Expo (SDK 57), expo-router |
 | Backend | Supabase (Postgres + auth + row-level security) |
 | Assistant / text parsing | Claude API, behind the backend — never from the device |
-| Admin panel | Next.js, separate, not started |
+| Admin panel | Next.js 16, separate (`admin/`) |
 
 ## Layout
 
@@ -250,7 +250,8 @@ notification, Overwhelm mode, the evening review, Reschedule, Quick capture
 things, each kept or dropped), the Assistant (task cards, the day's plan, the
 follow-up count, and the Free plan's 10 requests a day), and the Paywall.
 Sync with the server is built and tested against Postgres, but it stays off
-until real sign-in exists (see Sync below).
+until real sign-in exists (see Sync below). The admin panel's 13 screens are
+built too (see Admin panel below).
 
 Across 202 probes on those screens, in both languages, the worst element sits
 within 2 pt of the prototype — ACCEPTANCE.md's bar — with two documented
@@ -271,16 +272,18 @@ Screen 08 is the Tasks add sheet, which is built; SCREENS.md files it under
 What waits on things outside the code. Purchases need the store accounts:
 starting the trial changes nothing and makes nobody Pro, Restore truthfully
 finds nothing, and the tip jar still says thank you for a purchase that did
-not happen (§2.34). The parser is on-device rules until the backend carries
-the Claude API call (§2.34), and speech uses a browser's own recogniser where
+not happen (§2.34). Quick capture, Brain dump and the Assistant read notes
+with Claude through the `assist` edge function once there is a Supabase
+project and a signed-in session, and with on-device rules until then
+(§2.38). Speech uses a browser's own recogniser where
 there is one and typing everywhere else (§2.35). Sync and Delete account's
 server half need a Supabase project and real sign-in (§2.36). Notifications are written
 and their rules tested, but never delivered on a real device. Real Apple and
 Google sign-in are written and have never run: they need the client IDs and a
 build on a device, and until then `src/lib/auth/availability.ts` says why and
-the screen falls back to the local session in `src/lib/session.tsx` (§2.39).
+the screen falls back to the local session in `src/lib/session.tsx` (§2.41).
 The app records the analytics events DATA_MODEL specifies, and "Download my
-data" leaves a request behind (§2.37–§2.38); the export job that answers it is
+data" leaves a request behind (§2.39–§2.40); the export job that answers it is
 server work and is not written.
 
 See `BUILD-REVIEW.md` for what the handoff leaves open and what has to come
@@ -295,11 +298,14 @@ differ by 0.03–0.78 % of pixels. `scripts/smoke-capture.js` (part of
 `npm run smoke`) drives them; BUILD-REVIEW.md §2.34–2.35 has what was decided.
 
 - **One seam for free text.** `src/lib/parse/` is the contract the three
-  screens use — text in, `{type, title, who, contactId, when}` out. The
-  implementation behind it is on-device rules (`local.ts`, tested against the
-  handoff's sample sentences); `index.ts` is the one place the backend call
-  replaces them. Nothing is saved on parsing: a proposal waits for "Save &
-  back to focus", "Save {n}" or "Looks right".
+  screens use — text in, `{type, title, who, contactId, when}` out.
+  - With a backend, it calls the `assist` edge function, where Claude reads
+    the note (see Assistant backend below).
+  - Without one, or when it cannot answer, the on-device rules answer instead
+    (`local.ts`, tested against the handoff's sample sentences).
+
+  Nothing is saved on parsing: a proposal waits for "Save & back to focus",
+  "Save {n}" or "Looks right".
 - **The Free plan's 10 Assistant requests a day** are counted on the device
   (`src/lib/assistant-meter.ts`); whether one more is allowed is
   `canUseAssistant()` in `src/policy/entitlements.ts`. The eleventh opens the
@@ -333,3 +339,82 @@ what is still open.
 **Dormant until real sign-in exists.** A sync needs a Supabase session, and
 sign-in is still the local stub, so today the app runs on the device alone,
 as before.
+
+## Admin panel
+
+`admin/` is the team's panel: ADMIN.md's 13 screens, as a separate Next.js
+app. It is never part of the mobile app, and its pages load nothing from
+third parties. BUILD-REVIEW.md §2.37 has the reasoning and what is still
+open.
+
+```sh
+cd admin
+npm install
+cp .env.example .env.local   # live: DATABASE_URL, Supabase URL and anon key, DATASET_KEY
+npm run dev                  # http://localhost:3100
+
+# Or with the handoff's seed data and no database:
+ADMIN_DEMO=1 npm run dev
+```
+
+- **Live mode** reads the app's tables over a Postgres connection only the
+  panel's server holds. The team signs in through Supabase Auth with a
+  password and a TOTP code. `scripts/add-admin.ts` adds someone to the
+  team, since the design has no screen for it.
+- **Demo mode** (`ADMIN_DEMO=1`) uses the prototype's own data and sign-in
+  rules. It is how the panel is measured against the prototype. The panel
+  refuses to start with neither mode, or with both.
+- **Roles** (Owner, Support, Analyst) are checked on the server for every
+  page and action (`src/auth/permissions.ts`).
+- **Every view of a user's record is logged**, and the audit log cannot be
+  edited, even from the database.
+
+Checks, all run in CI:
+
+```sh
+npm run typecheck
+npm test            # roles
+npm run test:db     # the live data source against Postgres with every migration
+npm run build:demo
+npm run smoke       # sign-in rules, roles, logging, actions, in a browser
+npm run fidelity    # every probe within 2 px of the prototype; pixels reported
+```
+
+**Several actions wait on outside services.** They need an email provider,
+the stores' APIs, or push notifications. Live, those buttons say
+"Not connected yet" and change nothing. Figures with no source, such as
+downloads, crashes and store reviews, are left out rather than invented.
+
+## Assistant backend
+
+`supabase/functions/assist/` is the edge function behind Quick capture,
+Brain dump and the Assistant: `POST /functions/v1/assist`. BUILD-REVIEW.md
+§2.38 has the reasoning.
+
+- **Claude does the reading.** It turns a note into a task, splits a brain
+  dump into several, or reads what an Assistant message is asking for. It
+  answers in a fixed JSON shape (`prompt.ts`), and gets the person's People
+  so names link to contacts.
+- **The API key stays on the server.** It is held in the function's
+  environment and never reaches the app.
+- **Answers are checked twice.** One contract
+  (`supabase/functions/_shared/assist-contract.ts`) is read on the server
+  and again in the app, so nothing outside the app's types reaches a screen.
+- **The meter decides on the server.** The Free plan's 10 Assistant
+  requests a day are counted in the database (`0005_assist.sql`). The count
+  can be changed only by the function, acting for the user it has verified;
+  a request that produces no answer is given back.
+- **The app falls back.** When there is no project, nobody is signed in, the
+  device is offline, or Claude cannot answer, `src/lib/parse/remote.ts`
+  steps aside and the on-device rules answer.
+
+```sh
+supabase secrets set ANTHROPIC_API_KEY=…
+supabase db push                      # 0005_assist.sql
+supabase functions deploy assist
+
+npm run typecheck:functions
+npm test                              # the contract, the handler, the client
+npm run test:db                       # the meter in Postgres
+ANTHROPIC_API_KEY=… npx tsx scripts/try-assist.ts   # the real prompt on the handoff's samples; costs money
+```
