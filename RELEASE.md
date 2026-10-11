@@ -128,20 +128,21 @@ set the accounts up. BUILD-REVIEW §2.41.
 
 | Work | Where it lands | Blocked on |
 |---|---|---|
-| Supabase project, apply `supabase/migrations/0001_init.sql` and `0002_sync.sql`, fill `.env` | `.env` (see `.env.example`); `npm run schema:check` applies both to a throwaway Postgres first | §1.3 region decision |
+| Supabase project, apply all six migrations, fill `.env`, deploy the `assist` function | `.env` (see `.env.example`); `npm run schema:check` applies the whole sequence to a throwaway Postgres first | §1.3 region decision |
 | ~~Real Apple + Google sign-in~~ — written, unrun | `src/lib/auth/`, wired into `app/sign-in.tsx`. Needs the client IDs and a build on a device | Apple §2.3, Google §3.2–3.3 |
 | Purchases | `src/features/paywall/purchases.ts` answers `'unavailable'` on purpose, so nobody becomes Pro on a purchase that never happened. Plan must come from the store receipt via the backend (App Store Server Notifications / Play RTDN), not from the client | §2.5 / §3.5 |
 | Restore purchases, Manage subscription, the tip jar | `app/settings.tsx` ~495 and ~555 show their toasts and nothing else | store products |
-| The assistant / capture parsing | `src/lib/parse/local.ts` is a real local parser with the 10/day Free meter (`assistant-meter.ts`); a hosted model would replace or back it | an AI provider, if you want one |
+| ~~The assistant / capture parsing~~ — built, never called | `supabase/functions/assist` with the limit in `0005_assist.sql`; `src/lib/parse/local.ts` is the fallback. Needs deploying, and an API key to have ever run | a Supabase project |
 | Notification delivery on a real device | rules are written and unit-tested; never once delivered (BUILD-REVIEW §2.26) | a build on hardware |
 | Store webhooks → `plan` | nothing exists; the admin panel also assumes it | backend + store products |
 
-Not in this repo: the admin panel (13 screens), now being built by a third
-developer, and the public website, which still has no owner. The admin panel
-reads the same Supabase project, so it is waiting on §1.3 too, and both it and
-this app need the store webhooks in the last row above — without them nobody's
-`plan` ever changes and the admin panel's subscription screens have nothing to
-show.
+The admin panel is now in this repo, under `admin/` — all 13 of ADMIN.md's
+screens as a separate Next.js app, with its own checks in CI. It reads the
+same Supabase project, so it waits on §1.3 as well, and it needs the store
+webhooks in the row above: without them nobody's `plan` ever changes and its
+subscription screens have nothing to show.
+
+Still not in this repo at all: the public website, which has no owner.
 
 ## 5. Two config fixes already applied
 
@@ -322,15 +323,32 @@ currently gets everything except the assistant's 10-a-day limit. Advertising
 a feature the app does not have is both a metadata problem at review and a
 refund problem after it. Design it or take it off the card.
 
-### 9.6 The assistant has no server, and its limit is on the wrong side
-`.env.example` reserves `ANTHROPIC_API_KEY` for "the backend that fronts the
-assistant", and there is no backend. The key cannot ship in the app — anyone
-can read it out of the bundle — so this needs a Supabase Edge Function or
-similar. The same host is needed for the store webhooks (App Store Server
-Notifications / Play RTDN) that move a user's `plan`. And the Free limit of 10
-requests a day lives in `src/lib/assistant-meter.ts`, on the device, where a
-reinstall resets it; when the assistant costs money per call, the meter has to
-move server-side.
+### 9.6 The assistant has no server, and its limit is on the wrong side — **built by dev 2**
+`supabase/functions/assist` is now that server: the Claude key stays in the
+function's environment, the note and the contact names are fenced as data
+rather than instructions, and the answer has to fit a fixed schema that cannot
+carry free text. The daily limit moved into the database with it
+(`0005_assist.sql`), counted in the user's own time zone, spendable only by
+the function's service role — so a reinstall no longer resets it.
+BUILD-REVIEW §2.38.
+
+Three decisions came with it, and they are yours:
+
+- **Cost.** Opus 5.5 at low effort runs about 1–2 cents a note. Haiku 5.5
+  should be measured against it before launch.
+- **A hidden guard.** Quick capture and Brain dump stop at 200 a day per
+  account, silently. Nothing tells the user.
+- **Whose day.** The limit counts in the user's own time zone, so changing the
+  phone's clock stretches an allowance a little.
+
+**It has never called Claude.** There was no API key in the build
+environment: `ANTHROPIC_API_KEY=… npx tsx scripts/try-assist.ts` runs the real
+function code on the handoff's own sample sentences for about 20 cents.
+
+What is still missing from this corner is the other thing the same host has to
+do: the **store webhooks** (App Store Server Notifications / Play RTDN) that
+move a user's `plan`. Nothing exists for them, and the admin panel's
+subscription screens have nothing to show until they do.
 
 ### 9.7 Every fix will be a full store review
 `expo-updates` is not installed, so there is no over-the-air channel: a typo
@@ -370,20 +388,23 @@ creates two accounts for one person, and there is no merge path.
 ## What is actually left
 
 With both accounts already shipping-ready and Play's tester gate behind us,
-the calendar-time risks are gone and what remains is work:
+there is no multi-week wait left in this plan. Everything below is work, and
+most of it is ours:
 
-1. **Pick the data region** (§1.3). Nothing server-side — not this app, not
-   the admin panel — starts without it.
-2. **Real Apple and Google sign-in** (§4). The keystone; the sync engine does
-   nothing until it exists.
-3. **The website**, three pages, and the domain question in §7.
-4. **Purchases and the store webhooks**, which is what makes anyone Pro.
-5. **A build on hardware**, because notifications and deletion have only ever
-   been tested in a browser and in Postgres.
+1. **Pick the data region** (§1.3), then create the project. Nothing
+   server-side starts without it — not this app, not the admin panel, not the
+   `assist` function — and it cannot be moved afterwards. **Yours.**
+2. **Settle the domain** (§7), because six user-facing strings and a mailbox
+   depend on it. **Yours.**
+3. **A build on hardware** (§9.1). Notifications, account deletion, both
+   sign-in flows and the assist function have between them never run on a
+   phone or against a live server. This is where the surprises are.
+4. **Purchases and the store webhooks** (§9.6), which is the only thing that
+   makes anyone Pro, and the only thing that gives the admin panel's
+   subscription screens anything to show.
+5. **The website**, three pages plus a Support URL (§7, §9.4).
+6. **Weekly recap and the Pro gating matrix** (§9.5), before the paywall is in
+   front of a paying customer.
 
-Of those, only (1) and the domain in §7 are waiting on you. The rest is ours.
-
-What §9 adds to that list, in the order I would take it: get a `preview` build
-onto a real phone (§9.1), decide analytics before the admin panel is built
-around nothing (§9.2), and settle Weekly recap and the gating matrix (§9.5)
-before the paywall is in front of a paying customer.
+Items 1, 2 and 6 are decisions only you can make. 3, 4 and 5 are work, and 5
+has no owner yet.
