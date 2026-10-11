@@ -31,6 +31,9 @@ const { demoContacts, demoFollowUps, demoHistory, demoTasks } = require('./demo-
 
 const ROOT = path.join(__dirname, '..');
 const DIST = path.join(ROOT, 'dist');
+
+// The suite is only as true as the bundle it reads. ./dist-fresh.js
+require('./dist-fresh.js').requireFreshDist();
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.ttf': 'font/ttf', '.png': 'image/png', '.json': 'application/json', '.woff2': 'font/woff2' };
 const srv = http.createServer((req, res) => {
   const url = decodeURIComponent((req.url || '/').split('?')[0]);

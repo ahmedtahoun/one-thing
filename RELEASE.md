@@ -535,6 +535,11 @@ creates two accounts for one person, and there is no merge path.
   class and §9.1's hardware build is where it will show.
 - **The repo's default branch is still my working branch.** `main` is the
   trunk now — Settings → Branches, and I have no tool for it.
+- **The browser suites read a bundle nothing rebuilds for them.** Fixed:
+  they now refuse to run against a `dist/` older than the code
+  (BUILD-REVIEW §2.52). Worth knowing anyway, because the habit it
+  encourages is wrong — `npm test` passing after a merge says nothing about
+  the 264 behavioural checks, and those need `npm run export:web` first.
 
 ---
 

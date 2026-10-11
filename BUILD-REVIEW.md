@@ -1566,3 +1566,42 @@ except for the new key, which is the useful part of the result: it proves
 those six replacements were the *only* divergence. There were no other hand
 edits hiding in a 1,700-line generated file, and now there is a place to put
 the next one.
+
+### 2.52 The browser suites were testing a bundle from three hours earlier
+
+Two checks in `smoke-day.js` were failing — a finished focus session and a
+closed evening review not reaching their outboxes. Both are developer 2's
+work (§2.48), both looked like a real regression, and neither was.
+
+`dist/` was three and a half hours older than `src/lib/activity.ts`. The
+browser suites read the exported web bundle, and nothing rebuilds it for
+them: `npm run smoke` runs the six scripts directly. Rebuilding and
+re-running turned 262 checks into 264, all passing. The code was always
+correct; the bundle had never contained it.
+
+**That is worse than a failing test, because it fails in both directions.**
+Here it reported working features as broken, which wastes an afternoon. The
+other direction is the one that matters: a suite that reports green on code
+that is not in the tree, which is how a regression reaches a store.
+
+It is also how it reached me. After merging developer 2's four commits I ran
+`npm test`, both typechecks and the migrations, and did not run the browser
+suites — so the first time they ran against that merge was hours later, by
+which point the failure looked like something I had just done.
+
+CI never had this problem: the fidelity job runs `capture:app`, which
+exports first, and a fresh runner has no `dist/` at all. So the fix does not
+belong in the npm script — rebuilding on every smoke run would cost minutes
+locally and export twice in CI, to prevent something CI cannot do.
+
+`scripts/dist-fresh.js` instead refuses to start: it compares the newest
+mtime under `dist/` against the newest under what `expo export` actually
+reads (`app/`, `src/`, `assets/`, `app.json`, `app.config.js`,
+`package.json` — not `scripts/`, `supabase/` or `admin/`, which cannot
+change the bundle), and throws naming the gap and the command to fix it.
+All six smoke scripts call it, and so do `capture-screens.js` and
+`capture-store.js`, which have the same exposure whenever they are run
+directly rather than through their npm scripts.
+
+Verified by touching a source file and watching `smoke-day.js` refuse to
+run.
