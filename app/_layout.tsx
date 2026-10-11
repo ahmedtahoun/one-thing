@@ -11,6 +11,7 @@ import {
   useFonts,
 } from '@expo-google-fonts/ibm-plex-sans-arabic';
 
+import { startPurchases } from '@/features/paywall/purchases';
 import { LanguageProvider } from '@/i18n/LanguageProvider';
 import { NotificationsProvider } from '@/lib/notifications/NotificationsProvider';
 import { PeopleProvider } from '@/lib/people';
@@ -37,6 +38,10 @@ export default function RootLayout() {
   useEffect(() => {
     if (fontsLoaded || fontError) SplashScreen.hideAsync().catch(() => {});
   }, [fontsLoaded, fontError]);
+
+  // Finishes any purchase the store is still holding from an earlier launch;
+  // Play refunds one left unacknowledged for three days.
+  useEffect(() => startPurchases(), []);
 
   if (!fontsLoaded && !fontError) return null;
 

@@ -1468,3 +1468,54 @@ ADMIN.md's funnel has no step for it, and adding one is a design change.
 
 `admin/scripts/test-admin-db.ts` checks both: someone who left at setup, and
 a user whose events remember three tasks after two were deleted.
+
+### 2.50 Purchases are written, and they make nobody Pro on their own
+`src/features/paywall/store.ts` holds the rules and `purchases.ts` binds them
+to expo-iap (5.8) and the Supabase session. The paywall's trial, the three
+tips, Restore (on the paywall and in Settings) and Manage subscription all go
+to the store now.
+- **Every purchase carries the Supabase user id**, as `appAccountToken` on
+  StoreKit 2 and `obfuscatedAccountId` on Play. The webhooks need it to know
+  whose purchase a notification is about, and it cannot be added afterwards.
+  So without a backend session nothing is sold, and no store sheet opens.
+- **The plan still comes only from the webhooks.** A finished purchase means
+  the store took the money, nothing more. Pro arrives with the next sync,
+  once the store's notification has reached the server.
+- **Every transaction is finished**, including ones replayed from an earlier
+  launch. The app connects to the store at startup for this, because Play
+  refunds a purchase left unacknowledged for three days. Tips are consumed,
+  so the same tip can be bought again. A payment still pending with the bank
+  is left alone until the store reports it complete.
+- **The tip jar thanks people only once the store has taken the money.**
+  Before, it said "Thank you so much ☕" for a purchase that never happened
+  (§2.34).
+- **Manage subscription** opens the store's own subscriptions screen, and its
+  web page where there is no store connection.
+
+`store.test.ts` checks all of this against a pretend store: the id on both
+stores, Play's free-trial offer chosen over the plain base plan, cancel
+versus failure versus pending, a store sheet that never answers, consuming
+tips, finishing a replayed purchase, and Restore ignoring tips.
+**Never run against a real store.** That needs the products in both
+consoles and a build on a device.
+
+**Decisions this needed, all yours to change:**
+1. **The Play subscription's product id is `pro`**, with base plans `yearly`
+   and `monthly` (the webhook already reads those). RELEASE.md §1.2 named
+   the base plans but not the product. Product ids are permanent once
+   created, so create it with exactly this id, or tell me the one you want.
+2. **Two new lines of copy**, in `src/content/additions.ts`:
+   - Restore found a subscription: "Purchases restored." / "رجّعنا
+     مشترياتك." The handoff has only "No previous purchases found."
+   - The store refused for a reason other than Cancel: "The store couldn’t
+     complete the purchase. Please try again." / "المتجر ما قدر يكمّل الشراء.
+     جرّب مرة ثانية."
+   Cancel says nothing, because the store's own sheet has already said it.
+   A payment pending with the bank also says nothing, because there is no
+   designed state for it.
+3. **The paywall shows the handoff's prices as written** ($35.88/year,
+   $4.99/month). Apple and Google set the local price in each country, so in
+   Saudi Riyals, for example, the card and the store sheet will show
+   different numbers. Showing the store's own price on the card is a design
+   change, so it is raised here and not made. Apple's review checks that
+   the price shown matches the price charged.

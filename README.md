@@ -269,10 +269,10 @@ Not built: screen 04, onboarding, which is dead in v1 (BUILD-REVIEW.md §2.9).
 Screen 08 is the Tasks add sheet, which is built; SCREENS.md files it under
 § 07. Every route the built screens lead to now exists.
 
-What waits on things outside the code. Purchases need the store accounts:
-starting the trial changes nothing and makes nobody Pro, Restore truthfully
-finds nothing, and the tip jar still says thank you for a purchase that did
-not happen (§2.34). Quick capture, Brain dump and the Assistant read notes
+What waits on things outside the code. Purchases go through expo-iap and
+need the store products and a build on a device. Until then the trial and the
+tip jar open nothing, Restore truthfully finds nothing, and nobody becomes Pro
+except through the store webhooks (§2.50). Quick capture, Brain dump and the Assistant read notes
 with Claude through the `assist` edge function once there is a Supabase
 project and a signed-in session, and with on-device rules until then
 (§2.38). Speech uses a browser's own recogniser where

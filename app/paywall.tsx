@@ -16,7 +16,8 @@ import { Pressable, View } from 'react-native';
 import { router } from 'expo-router';
 
 import { track } from '@/lib/analytics/track';
-import { PRODUCT, startTrial, type Period } from '@/features/paywall/purchases';
+import { PRODUCT, restorePurchases, startTrial, type Period } from '@/features/paywall/purchases';
+import { added } from '@/content/additions';
 import { BalancedText } from '@/ui/BalancedText';
 import { Icon } from '@/ui/Icon';
 import { Screen } from '@/ui/Screen';
@@ -31,7 +32,7 @@ import { useSession } from '@/lib/session';
 const PRICE: Record<Period, string> = { year: '$2.99', month: '$4.99' };
 
 export default function Paywall() {
-  const { setx, acc, inline, a11y } = useLanguage();
+  const { setx, acc, inline, a11y, lang } = useLanguage();
   const dir = useDirection();
   const { session } = useSession();
   const toast = useToast();
@@ -50,10 +51,13 @@ export default function Paywall() {
   const close = () => (router.canGoBack() ? router.back() : router.replace('/settings'));
 
   const start = async () => {
-    // "unavailable" until the store accounts exist — see purchases.ts. Then
-    // the trial starts in the store's own sheet, and Pro arrives with the
-    // receipt.
+    // The trial starts in the store's own sheet, and Pro arrives with the
+    // receipt through the webhooks — never from this answer (purchases.ts).
+    // Cancel and a payment still pending say nothing; the store's own sheet
+    // has already said it. Without a store or a backend session nothing
+    // opens at all.
     const result = await startTrial(period);
+    if (result === 'failed') toast.show(added(lang).storeFailed, { undo: false });
     if (result === 'started') {
       // Both, because DATA_MODEL asks for the trial and the purchase
       // separately and the store reports one event: the trial is the start of
@@ -62,6 +66,12 @@ export default function Paywall() {
       track({ name: 'purchase', product: PRODUCT[period] });
       close();
     }
+  };
+
+  const restore = async () => {
+    const result = await restorePurchases();
+    const message = result === 'restored' ? added(lang).restored : result === 'failed' ? added(lang).storeFailed : pw.toastRestore;
+    toast.show(message, { undo: false });
   };
 
   const plans: { key: Period; name: string; sub: string; tag?: string }[] = [
@@ -82,10 +92,9 @@ export default function Paywall() {
           >
             <Icon name="x" size={18} strokeWidth={2} />
           </Pressable>
-          {/* As on Settings: restoring needs the store SDKs (StoreKit
-              `AppStore.sync()`, Play `queryPurchasesAsync`); with no store,
-              "No previous purchases found" is the true answer. */}
-          <Pressable testID="paywall-restore" onPress={() => toast.show(pw.toastRestore, { undo: false })} accessibilityRole="button">
+          {/* As on Settings. With no store, "No previous purchases found"
+              is the true answer. */}
+          <Pressable testID="paywall-restore" onPress={restore} accessibilityRole="button">
             <Text token="bodyS" color={ink.s4}>
               {pw.restore}
             </Text>

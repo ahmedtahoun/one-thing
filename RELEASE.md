@@ -130,14 +130,12 @@ set the accounts up. BUILD-REVIEW §2.41.
 |---|---|---|
 | Supabase project, apply all six migrations, fill `.env`, deploy the `assist` function | `.env` (see `.env.example`); `npm run schema:check` applies the whole sequence to a throwaway Postgres first | §1.3 region decision |
 | ~~Real Apple + Google sign-in~~ — written, unrun | `src/lib/auth/`, wired into `app/sign-in.tsx`. Needs the client IDs and a build on a device | Apple §2.3, Google §3.2–3.3 |
-| Purchases | `src/features/paywall/purchases.ts` answers `'unavailable'` on purpose, so nobody becomes Pro on a purchase that never happened. Plan must come from the store receipt via the backend (App Store Server Notifications / Play RTDN), not from the client | §2.5 / §3.5 |
-| Restore purchases, Manage subscription, the tip jar | `app/settings.tsx` ~495 and ~555 show their toasts and nothing else | store products |
+| ~~Purchases~~ — written, unrun | `src/features/paywall/store.ts` through expo-iap: the trial, the tips, Restore and Manage. Each carries the Supabase user id and makes nobody Pro on its own; the plan comes from the webhooks (BUILD-REVIEW §2.50). Needs the products in both consoles and a build on a device | §2.5 / §3.5 |
 | ~~The assistant / capture parsing~~ — built, never called | `supabase/functions/assist` with the limit in `0005_assist.sql`; `src/lib/parse/local.ts` is the fallback. Needs deploying, and an API key to have ever run | a Supabase project |
 | Notification delivery on a real device | rules are written and unit-tested; never once delivered (BUILD-REVIEW §2.26) | a build on hardware |
 | ~~Store webhooks → `plan`~~ — written, never delivered to | `supabase/functions/app-store`, `supabase/functions/play-rtdn`, `0007_store_webhooks.sql`. Needs the certificates, the service account and a Pub/Sub subscription | a Supabase project + store products |
 | ~~A schedule for `lapse_expired_subscriptions()` and for `export`~~ — written | `0009_schedules.sql` schedules both on pg_cron; the export sweep also needs the two Vault secrets the migration's header names | a Supabase project |
 | An email provider, to send an export | `supabase/functions/export` writes the file and records its path; sending it is the only step left | **your decision** |
-| Purchases must send the Supabase user id | `startTrial` in `src/features/paywall/purchases.ts` says exactly what, and why it cannot be recovered later | whoever writes purchases |
 
 The admin panel is now in this repo, under `admin/` — all 13 of ADMIN.md's
 screens as a separate Next.js app, with its own checks in CI. It reads the
@@ -377,8 +375,8 @@ Two things are still open there. `lapse_expired_subscriptions()` is the safety
 net for a lost expiry notification; it now runs hourly on pg_cron
 (`0009_schedules.sql`, BUILD-REVIEW §2.47). And the purchase itself has to carry the Supabase user id
 (`appAccountToken` on StoreKit, `setObfuscatedAccountId` on Play); it is the
-only part of a purchase that cannot be recovered afterwards, and the note is
-on `startTrial` where purchases will be written.
+only part of a purchase that cannot be recovered afterwards. The purchases
+written since do carry it (BUILD-REVIEW §2.50).
 
 ### 9.7 Every fix will be a full store review
 `expo-updates` is not installed, so there is no over-the-air channel: a typo
@@ -434,9 +432,11 @@ most of it is ours:
 3. **A build on hardware** (§9.1). Notifications, account deletion, both
    sign-in flows and the assist function have between them never run on a
    phone or against a live server. This is where the surprises are.
-4. **Purchases** (§9.6). The webhooks behind them are written; what is left is
-   the in-app purchase itself, which must carry the Supabase user id, and
-   deploying the two functions. This is the only thing that makes anyone Pro,
+4. **Purchases** (§9.6). The webhooks and the in-app purchase are both written
+   now, and the purchase carries the Supabase user id (BUILD-REVIEW §2.50).
+   What is left is creating the products, including a Play subscription with
+   the id `pro`, deploying the two functions, and a first purchase in each
+   store's sandbox. This is the only thing that makes anyone Pro,
    and the only thing that gives the admin panel's subscription screens
    anything to show.
 5. **The website**, three pages plus a Support URL (§7, §9.4).
