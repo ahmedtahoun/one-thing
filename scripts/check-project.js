@@ -114,7 +114,12 @@ async function main() {
   // anything is reported. A rejected key makes every later answer look the
   // same — every table "present but closed", every row hidden — which reads
   // like a well-locked project and means nothing at all.
-  const probe = await get('/rest/v1/');
+  //
+  // The probe is an ordinary table read, which is exactly what the app does.
+  // It must not be `/rest/v1/` — the API description — because a project may
+  // restrict that to the secret key, and a publishable key being refused
+  // there says nothing about the key.
+  const probe = await get(`/rest/v1/${TABLES[0]}?select=*&limit=1`);
   if (probe.status === 401 || probe.status === 403) {
     const why = (await probe.text().catch(() => '')).slice(0, 200);
     throw new Error(
@@ -166,16 +171,23 @@ async function main() {
   }
 
   // The privileged functions must not be reachable by the anon role at all.
-  const spec = await get('/rest/v1/').then((r) => (r.ok ? r.json() : null)).catch(() => null);
-  if (spec && spec.paths) {
-    const exposed = FUNCTIONS.filter((f) => `/rpc/${f}` in spec.paths);
-    const ok = exposed.length === 0;
-    if (!ok) fatal++;
-    lines.push(`  ${tick(ok)} none of the ${FUNCTIONS.length} privileged functions is callable by the anon role`);
-    if (!ok) lines.push(`      REACHABLE WITHOUT SIGNING IN: ${exposed.join(', ')}`);
-  } else {
-    lines.push('  · could not read the API description, so the function grants were not checked');
+  // PostgREST only keeps functions the role may execute in its schema cache,
+  // so a revoked one answers 404 — which is the result we want. Anything
+  // else means the anon role can see it, and that is worth looking at even
+  // though a granted function called with the wrong arguments can also 404.
+  const exposed = [];
+  for (const fn of FUNCTIONS) {
+    const r = await get(`/rest/v1/rpc/${fn}`, {
+      method: 'POST',
+      body: '{}',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    if (r.status !== 404 && r.status !== 401 && r.status !== 403) exposed.push(`${fn} (HTTP ${r.status})`);
   }
+  const grantsOk = exposed.length === 0;
+  if (!grantsOk) fatal++;
+  lines.push(`  ${tick(grantsOk)} none of the ${FUNCTIONS.length} privileged functions answers a signed-out caller`);
+  if (!grantsOk) lines.push(`      REACHABLE WITHOUT SIGNING IN: ${exposed.join(', ')}`);
 
   // ------------------------------------------------------------- sign-in ----
   lines.push('', 'Sign-in');
