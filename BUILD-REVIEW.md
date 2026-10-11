@@ -1287,3 +1287,53 @@ signed URL is made when the link is handed over rather than stored, so it
 expires; the bucket stays private.
 
 Never run, like the rest: there is no project, no bucket, no schedule.
+
+### 2.45 Every icon in the project was Expo's placeholder
+Making the store screenshots turned this up, and it had been true since the
+first commit: `assets/icon.png`, `android-icon-foreground.png`,
+`splash-icon.png` and `favicon.png` were all the scaffold's blue chevron —
+the one with the construction guides drawn on it. Nobody noticed, and §2.11's
+fix made it worse by correcting the adaptive-icon *paths* so that they pointed
+reliably at placeholder art.
+
+`scripts/make-icons.js` renders them from the logo the design already has:
+`LogoMark` in `src/design/BrandMarks.tsx`, a ring inside a ring around a dot,
+in `ink.base` on white, with the proportions taken from the component (ring
+36/64, dot 11/64, stroke 1.5/64 of the mark). This is not a new logo; it is
+the one the sign-in screen is built around, at the sizes the OSes and the
+stores need. A designer may still want to replace it — what it replaces was
+not a design at all.
+
+The Android foreground sits at 42 % of its canvas rather than 60 %, because an
+adaptive icon is masked and may be cropped to a circle; the monochrome layer
+is the same shape in solid black, for Android's themed icons.
+
+**And the store screenshots themselves** (`scripts/capture-store.js`,
+`npm run capture:store`), rendered from the running app in both languages:
+
+- **Apple** takes one iPhone set now — the 6.9-inch class — and scales it
+  down. 1320 × 2868 is that class's native size, so the app is rendered at
+  440 × 956 points at 3x: a real device's logical size, not a stretch.
+- **Google will not take the shape this app is.** Play's rule is that the long
+  side may be at most twice the short side; the design is 402 × 874, which is
+  1 : 2.17. The Play set is rendered at 432 × 864 at 2.5x — exactly
+  1080 × 2160, exactly 1:2, and within 30 points of the design frame.
+- The obvious first try, 360 × 720 at 3x, was wrong, and only looking at it
+  showed why: at 360 points the greeting truncates to "Good morning, …" and
+  the tab bar covers the top of the task list. **Both are true of the app on a
+  narrow Android phone**, which is worth knowing before the first build goes
+  on hardware — the design was specified at 402 and nothing has ever rendered
+  it narrower.
+- Both sets are flattened to 24-bit RGB. A screenshot carries an alpha channel
+  even when nothing in it is transparent, and Play asks for PNGs without one.
+- Play's **feature graphic** is its one required piece of artwork that is not
+  a screenshot, and the handoff has no design for it. What is produced is the
+  app's own sign-in lockup — mark, name, tagline, in the app's colours and
+  type — at 1024 × 500, in both languages. The name stays "The One Thing" in
+  the Arabic one: there is no Arabic brand name anywhere in the handoff, and
+  inventing one is the product owner's decision, not a typesetting choice.
+  Tracked-out capitals are an English device, so only the English name is
+  tracked; letter-spacing pulls Arabic's joined letters apart.
+
+The output is checked for the exact pixel size and Play's 8 MB limit, and the
+script fails if a screen logs an error while being shot.

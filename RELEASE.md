@@ -204,9 +204,11 @@ neither has ever run on hardware.
   third-party SDK you end up adding. Apple needs a `PrivacyInfo.xcprivacy`
   manifest; EAS generates one from your plugins, so check it matches what you
   declared.
-- **Screenshots** per device size, in both languages — the harness in
-  `scripts/` already renders every screen at 402×874 in EN and AR, so these
-  can come out of it rather than out of a designer's afternoon.
+- ~~**Screenshots**~~ — done. `npm run capture:store` writes `store-assets/`:
+  six screens per store per language at exactly the sizes each one takes
+  (Apple 1320 × 2868, Play 1080 × 2160), plus Play's required 1024 × 500
+  feature graphic and 512 × 512 icon. BUILD-REVIEW §2.45. They are committed,
+  so nobody needs the toolchain to upload them.
 - **A reviewer demo account.** The app is behind a sign-in wall. Apple will
   reject it if the reviewer cannot get in. Once auth is real, create a seeded
   account and put the credentials in the review notes.
@@ -398,8 +400,13 @@ creates two accounts for one person, and there is no merge path.
 - **Store listing assets beyond screenshots** — Play's 512 icon and
   1024×500 feature graphic, both stores' descriptions and keywords, all in
   Arabic as well as English. Nobody has written the Arabic listing copy.
-- **The Android adaptive icon foreground is 512×512** where Expo wants
-  1024×1024. It builds; it will look slightly soft next to a sharp one.
+- ~~**The Android adaptive icon foreground is 512×512**~~ — moot. Every icon
+  in the project was Expo's scaffold placeholder, including that one; they are
+  now rendered from the design's own logo mark at 1024 (BUILD-REVIEW §2.45).
+- **The app has never been rendered narrower than 402 points.** Shooting the
+  Play set at 360 showed the greeting truncating and the tab bar covering the
+  task list. Nothing is broken, but a narrow Android phone is a real device
+  class and §9.1's hardware build is where it will show.
 - **The repo's default branch is still my working branch.** `main` is the
   trunk now — Settings → Branches, and I have no tool for it.
 

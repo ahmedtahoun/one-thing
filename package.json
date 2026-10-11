@@ -13,6 +13,8 @@
     "verify:colours": "node scripts/verify-oklch.js scripts/oklch-colours.txt",
     "capture:app": "expo export --platform web && node scripts/capture-screens.js",
     "capture:prototype": "node scripts/capture-prototype.js",
+    "capture:store": "expo export --platform web && node scripts/capture-store.js",
+    "icons": "node scripts/make-icons.js",
     "compare": "node scripts/compare-to-prototype.js .screens .screens-prototype scripts/screen-pairs.json",
     "schema:check": "bash scripts/check-schema.sh",
     "content:port": "node scripts/port-content.js",
