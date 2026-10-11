@@ -162,10 +162,15 @@ describe('the admin panel against Postgres', () => {
     assert.equal(tickets.find((t) => t.userId === U2)?.name, 'Omar Khalid');
     assert.deepEqual(await source.badges(), { support: 1, requests: 2 });
 
+    // Someone who signed in and left at setup has an auth user and no app
+    // row; Omar added three tasks and deleted two, which his events remember.
+    cluster.psql(`
+      insert into auth.users (id) values ('00000000-0000-4000-8000-0000000000b9');
+      insert into analytics_event (user_id, name, props, at) select '${U2}', 'task_created', '{}', now() from generate_series(1, 3);`);
     const growth = await source.growth();
     assert.deepEqual(
       growth.funnel.map((f) => f.count),
-      [3, 3, 1, 1, 2, 1]
+      [4, 3, 1, 2, 2, 1]
     );
     assert.equal(growth.cohorts.length, 5);
     assert.ok(growth.cohorts.every((c) => c.values.length === 5));

@@ -59,7 +59,8 @@
         {
           "contactsPermission": "Used only when you choose a contact to add to People. The One Thing never reads your address book on its own."
         }
-      ]
+      ],
+      "expo-iap"
     ],
     "extra": {
       "router": {},

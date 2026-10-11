@@ -6,7 +6,7 @@
  */
 import type { Lang } from './strings';
 
-export type Added = { importC: string; fillFromPhone: string };
+export type Added = { importC: string; fillFromPhone: string; restored: string; storeFailed: string };
 
 const ADDED: Record<Lang, Added> = {
   en: {
@@ -14,10 +14,16 @@ const ADDED: Record<Lang, Added> = {
     importC: 'Import',
     /** New contact, above the name — §2.46. */
     fillFromPhone: 'Fill from phone',
+    /** Restore found a subscription — §2.50. The handoff has only "none found". */
+    restored: 'Purchases restored.',
+    /** The store refused a purchase for a reason other than Cancel — §2.50. */
+    storeFailed: 'The store couldn’t complete the purchase. Please try again.',
   },
   ar: {
     importC: 'استيراد',
     fillFromPhone: 'تعبئة من جهات الاتصال',
+    restored: 'رجّعنا مشترياتك.',
+    storeFailed: 'المتجر ما قدر يكمّل الشراء. جرّب مرة ثانية.',
   },
 };
 

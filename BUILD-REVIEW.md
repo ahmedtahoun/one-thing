@@ -519,6 +519,8 @@ the asking — so here "Close the day" applies them: Kept completes the task,
 Tomorrow moves it on a day, Not needed cancels it. Nothing happens until that
 button, which is the part the rule is actually about.
 
+The answers themselves are also kept, in `review` and `review_item` (§2.48).
+
 Also: the prototype's "{a} of {b} promises kept" counts **every** task in the
 list, including the six on later days — 18 rather than today's 12. An evening
 review that counts next week's tasks is reporting on the wrong day, so this
@@ -1197,8 +1199,8 @@ store sends a Supabase token; the signature is the authentication.
 **The safety net.** `lapse_expired_subscriptions()` moves anyone whose paid
 period has passed off Pro without waiting to be told. Stores retry, so a lost
 notification is unlikely — but a user keeping Pro for free is the expensive
-direction to be wrong in. **Nothing calls it yet**: it needs a schedule
-(pg_cron, or a cron-triggered function).
+direction to be wrong in. It runs hourly on pg_cron since `0009_schedules.sql`
+(§2.47).
 
 **The one thing the app still has to do.** A purchase has to carry the
 Supabase user id — `appAccountToken` on StoreKit, `setObfuscatedAccountId` on
@@ -1286,7 +1288,8 @@ panel's Privacy requests screen is where someone hands over a signed link. A
 signed URL is made when the link is handed over rather than stored, so it
 expires; the bucket stays private.
 
-Never run, like the rest: there is no project, no bucket, no schedule.
+Never run, like the rest: there is no project and no bucket. The schedule is
+§2.47.
 
 ### 2.45 Every icon in the project was Expo's placeholder
 Making the store screenshots turned this up, and it had been true since the
@@ -1390,3 +1393,129 @@ device; that needs a native build.
    for it already covers "people you add".
 3. **One at a time.** Importing many contacts at once would need full
    address-book access. It was considered and not chosen.
+
+### 2.47 The two jobs nothing was calling
+`lapse_expired_subscriptions()` (§2.42) and the export function (§2.44) were
+both written with "needs a schedule" beside them. `0009_schedules.sql` is
+that schedule, on pg_cron, which every Supabase project has:
+- **The lapse sweep runs hourly**, at :17. A subscriber whose store notice
+  was lost keeps Pro for at most an hour past what they paid for.
+- **The export sweep runs every ten minutes**, and calls the export function
+  over pg_net once per waiting request, ten at most per run. When nothing is
+  waiting, which is nearly always, it calls nothing, so an idle project
+  costs no invocations. The copy promises "within 24 hours"; this leaves
+  room to spare.
+- **A claim left by a run that died** (a timeout, a deploy mid-run) is freed
+  after an hour, by the same sweep. Before this, such a request stayed
+  claimed for good and missed its 30-day deadline without anyone seeing it.
+
+The export sweep reaches the function with the service role key, kept in
+Supabase Vault rather than in the migration. Two secrets have to be set once,
+in the SQL editor; the migration's header has the two lines. Until they are,
+the sweep writes a warning to the Postgres log and calls nothing.
+
+`scripts/test-schedules-db.ts` checks all of this against Postgres, with
+pg_net and Vault stood in for. pg_cron is not installed there, which also
+shows the migration applying without it. **Never run on Supabase.**
+
+### 2.48 Focus sessions and the evening review now reach the server
+`focus_session`, `review` and `review_item` were in the schema from the
+start and nothing wrote them. The admin panel reads `focus_session` twice,
+for a user's focus minutes in the drawer and for "used Focus this week" on
+Growth, so both read zero for everyone.
+
+The device writes them now, through the same kind of outbox as analytics
+events (`src/lib/activity.ts`), because they are things that already
+happened rather than state to merge. Nothing in the app shows them back, so
+the device keeps no copy once they are sent.
+- **A focus session** is recorded from the moment the screen opens. It is
+  marked completed when Finish is pressed, and not completed when the screen
+  is left. A session the app was killed during is not recorded; its
+  `focus_started` event still is.
+- **A closed review** records the day, the answer about the One Thing, and
+  each task the user marked: Kept, Tomorrow or Not needed (`drop` in the
+  database). Tasks that were already done get no row, because nothing was
+  decided about them.
+- An answer about a task that was deleted on another device before the
+  review went up is dropped. Sending it would fail the task's foreign key,
+  and with it the whole sync.
+- Both are sent by key, so a sync that fails after sending them and sends
+  them again writes nothing twice.
+
+Checked: the engine test (one send, no doubles on a resend, the deleted
+task's answer dropped), the Postgres test (the rows fit the tables, row-level
+security holds, and Delete my account removes them) and the day smoke test
+(Finish and Close the day each queue exactly one record).
+
+### 2.49 Growth's first two funnel steps were the same number
+ADMIN.md's funnel goes Signed in → Finished setup → … The panel showed the
+same count for both, with a comment explaining why: it counted from
+`app_user`, and that row is written by the first sync, which only a
+finished setup starts.
+
+Signing in does leave its own record, the auth user, which Supabase creates
+at the moment of sign-in. So "Signed in" now counts auth users from the last
+30 days, leaving out admin accounts, which are auth users too. "Finished
+setup" counts `app_user` rows. The gap between the two is the people who
+left during setup, which is the step the panel could not see.
+
+"Added 3+ tasks" also counts `task_created` events now, so someone who added
+three tasks and then deleted them still passed the step.
+
+Not done: a "Saw the paywall" step. `paywall_viewed` is recorded (§2.39), but
+ADMIN.md's funnel has no step for it, and adding one is a design change.
+**Do you want it between "Added 3+ tasks" and "Started trial"?**
+
+`admin/scripts/test-admin-db.ts` checks both: someone who left at setup, and
+a user whose events remember three tasks after two were deleted.
+
+### 2.50 Purchases are written, and they make nobody Pro on their own
+`src/features/paywall/store.ts` holds the rules and `purchases.ts` binds them
+to expo-iap (5.8) and the Supabase session. The paywall's trial, the three
+tips, Restore (on the paywall and in Settings) and Manage subscription all go
+to the store now.
+- **Every purchase carries the Supabase user id**, as `appAccountToken` on
+  StoreKit 2 and `obfuscatedAccountId` on Play. The webhooks need it to know
+  whose purchase a notification is about, and it cannot be added afterwards.
+  So without a backend session nothing is sold, and no store sheet opens.
+- **The plan still comes only from the webhooks.** A finished purchase means
+  the store took the money, nothing more. Pro arrives with the next sync,
+  once the store's notification has reached the server.
+- **Every transaction is finished**, including ones replayed from an earlier
+  launch. The app connects to the store at startup for this, because Play
+  refunds a purchase left unacknowledged for three days. Tips are consumed,
+  so the same tip can be bought again. A payment still pending with the bank
+  is left alone until the store reports it complete.
+- **The tip jar thanks people only once the store has taken the money.**
+  Before, it said "Thank you so much ☕" for a purchase that never happened
+  (§2.34).
+- **Manage subscription** opens the store's own subscriptions screen, and its
+  web page where there is no store connection.
+
+`store.test.ts` checks all of this against a pretend store: the id on both
+stores, Play's free-trial offer chosen over the plain base plan, cancel
+versus failure versus pending, a store sheet that never answers, consuming
+tips, finishing a replayed purchase, and Restore ignoring tips.
+**Never run against a real store.** That needs the products in both
+consoles and a build on a device.
+
+**Decisions this needed, all yours to change:**
+1. **The Play subscription's product id is `pro`**, with base plans `yearly`
+   and `monthly` (the webhook already reads those). RELEASE.md §1.2 named
+   the base plans but not the product. Product ids are permanent once
+   created, so create it with exactly this id, or tell me the one you want.
+2. **Two new lines of copy**, in `src/content/additions.ts`:
+   - Restore found a subscription: "Purchases restored." / "رجّعنا
+     مشترياتك." The handoff has only "No previous purchases found."
+   - The store refused for a reason other than Cancel: "The store couldn’t
+     complete the purchase. Please try again." / "المتجر ما قدر يكمّل الشراء.
+     جرّب مرة ثانية."
+   Cancel says nothing, because the store's own sheet has already said it.
+   A payment pending with the bank also says nothing, because there is no
+   designed state for it.
+3. **The paywall shows the handoff's prices as written** ($35.88/year,
+   $4.99/month). Apple and Google set the local price in each country, so in
+   Saudi Riyals, for example, the card and the store sheet will show
+   different numbers. Showing the store's own price on the card is a design
+   change, so it is raised here and not made. Apple's review checks that
+   the price shown matches the price charged.

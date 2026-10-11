@@ -14,6 +14,7 @@ import { Alert, Platform, Pressable, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 
+import { startFocusRecord } from '@/lib/activity';
 import { track } from '@/lib/analytics/track';
 import { RingTimer } from '@/features/focus/RingTimer';
 import { BalancedText } from '@/ui/BalancedText';
@@ -52,8 +53,15 @@ export default function Focus() {
 
   const idleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // The clock starts with the screen, so a mount is a started session.
-  useEffect(() => track({ name: 'focus_started', min: minutes }), [minutes]);
+  // The clock starts with the screen, so a mount is a started session. Its
+  // record ends at Finish, or as not completed when the screen is left.
+  const endRecord = useRef<(completed: boolean) => void>(() => {});
+  useEffect(() => {
+    track({ name: 'focus_started', min: minutes });
+    const end = startFocusRecord(minutes);
+    endRecord.current = end;
+    return () => end(false);
+  }, [minutes]);
 
   const wake = useCallback(() => {
     setIdle(false);
@@ -116,6 +124,7 @@ export default function Focus() {
       // A session abandoned by leaving the screen reports nothing, so
       // started-minus-completed is the drop-off.
       track({ name: 'focus_completed' });
+      endRecord.current(true);
       setRunning(false);
       setOneThingDone(true);
       cancelFocusEnd().catch(() => {});
