@@ -68,11 +68,23 @@ Arabic-locale pricing in SAR is a separate price tier per territory, and the
 app shows prices LTR inside Arabic text, so a SAR tier needs looking at on the
 Arabic paywall once it is live.
 
-### 1.3 Data region — **still open, and now the only blocker here**
-PDPL applies and most of the seed data is Saudi/Gulf. The Supabase region is
-chosen when the project is created and cannot be moved afterwards; it also
-decides what the Privacy Policy has to say. Nothing server-side can start
-until this is picked.
+### 1.3 Data region — **settled as `eu-west-1`, by default rather than by choice**
+The project `ujcoouwbrkewckpphrod` was created in West EU (Ireland). That is
+the decision, and it cannot be moved: changing it means a new project and
+migrating whatever data is live by then.
+
+Ireland is a defensible place to keep it. Two things it costs, which are
+worth knowing rather than discovering:
+
+- **Distance.** Most of the people in the seed data are in the Gulf, and
+  every sync crosses a continent to reach them.
+- **PDPL.** Saudi personal data leaving the Kingdom carries transfer
+  obligations, and the Privacy Policy has to say where the data actually
+  lives — which is now a sentence someone has to write (§7).
+
+If a Middle East region matters, the only cheap moment to act is before there
+is live data in this one. Check the region list in Supabase rather than
+trusting this file: what they offer changes.
 
 ---
 
@@ -418,9 +430,9 @@ With both accounts already shipping-ready and Play's tester gate behind us,
 there is no multi-week wait left in this plan. Everything below is work, and
 most of it is ours:
 
-1. **Pick the data region** (§1.3), then create the project. Nothing
-   server-side starts without it — not this app, not the admin panel, not the
-   `assist` function — and it cannot be moved afterwards. **Yours.**
+1. ~~**Pick the data region**~~ — the project exists, in `eu-west-1` (§1.3).
+   What is left there is a decision, not a task: keep Ireland, or move while
+   moving is still free.
 2. **Settle the domain** (§7), because six user-facing strings and a mailbox
    depend on it. **Yours.**
 3. **A build on hardware** (§9.1). Notifications, account deletion, both
