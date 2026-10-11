@@ -231,7 +231,7 @@ with swipe-to-done and swipe-to-reschedule, and the empty state) and Tasks in
 full (progress header, the bulk reminder hint, filter chips, the Up next card,
 all seven groups with their collapse and bulk actions, status pills, the add
 sheet and the reminder sheet), People (search, quick WhatsApp / email / call
-buttons), Follow-ups (the three segments, Got a reply with Undo, Reopen,
+buttons, and Import from the phone's contacts — §2.39), Follow-ups (the three segments, Got a reply with Undo, Reopen,
 Nudge), Settings (the accordion, language switch, privacy toggles, the tip
 sheet and the delete-account sheet) and Compose (the WhatsApp number with its
 country picker, email To and Subject, suggestions from People, the brief with
