@@ -10,6 +10,7 @@ import { useMemo, useState } from 'react';
 import { Pressable, TextInput, View } from 'react-native';
 import { router } from 'expo-router';
 
+import { added } from '@/content/additions';
 import { matchContact } from '@/features/people/search';
 import { useStartTask } from '@/features/people/start-task';
 import { Icon } from '@/ui/Icon';
@@ -22,12 +23,13 @@ import { fontFamily, ink, surface, typeColour } from '@/design/tokens';
 import { useDirection, useLanguage } from '@/i18n/LanguageProvider';
 import { initials, type Channel, type Contact } from '@/lib/model-types';
 import { usePeople } from '@/lib/people';
+import { canPickFromPhone, importDraft, pickFromPhone } from '@/lib/phone-contacts';
 
 /** Bottom padding under the tab bar, as on Tasks. */
 const BOTTOM_INSET = 120;
 
 export default function People() {
-  const { t, a11y } = useLanguage();
+  const { t, a11y, lang } = useLanguage();
   const dir = useDirection();
   const { contacts } = usePeople();
   const [query, setQuery] = useState('');
@@ -36,6 +38,15 @@ export default function People() {
   const searching = query.trim().length > 0;
 
   const start = useStartTask();
+
+  // "Import" (BUILD-REVIEW.md §2.39): the phone's own picker, then the New
+  // contact form filled in, to check and save. Phones only.
+  const importFromPhone = async () => {
+    const draft = await pickFromPhone();
+    if (!draft) return;
+    importDraft.set(draft);
+    router.push('/contact-edit');
+  };
 
   return (
     <>
@@ -47,28 +58,56 @@ export default function People() {
               {t.pp_s}
             </Text>
           </View>
-          <Pressable
-            testID="people-new"
-            onPress={() => router.push('/contact-edit')}
-            accessibilityRole="button"
-            style={({ pressed }) => ({
-              height: 40,
-              paddingStart: 10,
-              paddingEnd: 14,
-              marginTop: 2,
-              borderRadius: 999,
-              backgroundColor: ink.base,
-              flexDirection: dir.row,
-              alignItems: 'center',
-              gap: 4,
-              transform: [{ scale: pressed ? 0.96 : 1 }],
-            })}
-          >
-            <Icon name="plus" size={16} color={surface.white} strokeWidth={2.2} />
-            <Text token="bodyS" weight="500" color={surface.white}>
-              {t.newC}
-            </Text>
-          </Pressable>
+          <View style={{ flexDirection: dir.row, gap: 8 }}>
+            {canPickFromPhone ? (
+              <Pressable
+                testID="people-import"
+                onPress={importFromPhone}
+                accessibilityRole="button"
+                style={({ pressed }) => ({
+                  height: 40,
+                  paddingStart: 10,
+                  paddingEnd: 14,
+                  marginTop: 2,
+                  borderRadius: 999,
+                  borderWidth: 1,
+                  borderColor: surface.line,
+                  backgroundColor: surface.white,
+                  flexDirection: dir.row,
+                  alignItems: 'center',
+                  gap: 4,
+                  transform: [{ scale: pressed ? 0.96 : 1 }],
+                })}
+              >
+                <Icon name="users" size={16} color={ink.base} strokeWidth={2} />
+                <Text token="bodyS" weight="500">
+                  {added(lang).importC}
+                </Text>
+              </Pressable>
+            ) : null}
+            <Pressable
+              testID="people-new"
+              onPress={() => router.push('/contact-edit')}
+              accessibilityRole="button"
+              style={({ pressed }) => ({
+                height: 40,
+                paddingStart: 10,
+                paddingEnd: 14,
+                marginTop: 2,
+                borderRadius: 999,
+                backgroundColor: ink.base,
+                flexDirection: dir.row,
+                alignItems: 'center',
+                gap: 4,
+                transform: [{ scale: pressed ? 0.96 : 1 }],
+              })}
+            >
+              <Icon name="plus" size={16} color={surface.white} strokeWidth={2.2} />
+              <Text token="bodyS" weight="500" color={surface.white}>
+                {t.newC}
+              </Text>
+            </Pressable>
+          </View>
         </View>
 
         <View
