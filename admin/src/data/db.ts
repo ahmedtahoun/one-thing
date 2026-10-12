@@ -81,6 +81,12 @@ export async function confirmEmail(email: string): Promise<void> {
   await db()`update auth.users set email_confirmed_at = coalesce(email_confirmed_at, now()) where lower(email) = ${email}`;
 }
 
+/** The auth account behind an email, if there is one. */
+export async function authUserIdByEmail(email: string): Promise<string | null> {
+  const [row] = await db()`select id from auth.users where lower(email) = ${email} limit 1`;
+  return row ? String(row.id) : null;
+}
+
 /** Adds the first Owner, and only while there is no team yet. */
 export async function addFirstOwner(userId: string, name: string): Promise<boolean> {
   const rows = await db()`

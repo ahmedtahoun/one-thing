@@ -69,12 +69,20 @@ From now on, every merge to `main` that touches `admin/` redeploys it.
 
 ## 4. Add the first admin (the Owner), from the browser
 
-There is a one-time setup page for this. It needs one more value in Vercel.
+There is a one-time setup page for this. It needs two more values in
+Vercel, both removed again once you are in.
 
-1. In Vercel, go to **Project → Settings → Environment Variables** and add
-   `ADMIN_SETUP_SECRET`. The value is any password-like word you make up,
-   such as `blue-falcon-7731`. Then go to **Deployments**, open the latest
-   one, choose **⋯ → Redeploy**, and wait for it to finish.
+1. In Vercel, go to **Project → Settings → Environment Variables** and add:
+   - `ADMIN_SETUP_SECRET`: any password-like word you make up, such as
+     `blue-falcon-7731`.
+   - `SUPABASE_SERVICE_ROLE_KEY`: from Supabase → Project Settings → API
+     Keys, the **service_role / secret** key. Turn on the lock toggle.
+     Setup uses it to create your account already confirmed. Otherwise
+     Supabase tries to email a confirmation link, and its built-in mailer
+     only sends to members of the Supabase team.
+
+   Then go to **Deployments**, open the latest one, choose **⋯ →
+   Redeploy**, and wait for it to finish.
 2. Open **`https://admin.onething.wheretospot.com/setup`**.
 3. Fill in:
    - the setup secret from step 1;
@@ -87,8 +95,9 @@ There is a one-time setup page for this. It needs one more value in Vercel.
 4. Scan the QR code with **Google Authenticator, Authy or 1Password**, type
    the 6-digit code the app shows, and press **Finish setup**. You land on
    Overview, signed in as **Owner**.
-5. The page now closes itself: `/setup` shows "not found" for everyone. You
-   can delete `ADMIN_SETUP_SECRET` from Vercel; it is not used again.
+5. The page now closes itself: `/setup` shows "not found" for everyone.
+   **Delete both `ADMIN_SETUP_SECRET` and `SUPABASE_SERVICE_ROLE_KEY` from
+   Vercel**, then redeploy. Nothing else in the panel uses them.
 
 From then on, sign in at `https://admin.onething.wheretospot.com` with the
 email, the password and the code from the app.
