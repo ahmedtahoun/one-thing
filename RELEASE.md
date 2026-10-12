@@ -249,6 +249,34 @@ eas build --profile development --platform ios
 Android first, deliberately: it reaches a phone without Apple's provisioning,
 so the first batch of §9.1 surprises arrives hours earlier.
 
+**For a tester on the iOS Simulator**, there is a fourth profile, because a
+normal iOS build installs on registered hardware only:
+
+```sh
+eas build --profile simulator --platform ios
+```
+
+It produces a `.app` to drag onto a running Simulator — self-contained, no
+Metro, and **no device registration and no Apple account**, which is what
+makes it the cheapest way to put the app in another developer's hands. (For
+someone iterating rather than testing, `--profile development --platform ios`
+with a registered device is the live-reload path.)
+
+What the Simulator is genuinely good for is most of what §9.1 lists: native
+RTL resolved by iOS's own layout engine rather than CSS, IBM Plex Sans Arabic
+loading through `expo-font` instead of silently falling back, `expo-blur`,
+shadows, safe areas on a notched device, every keyboard interaction, the whole
+navigation and task flow, the contact picker, and all five local
+notifications, which do fire there.
+
+**It does not close §9.1.** It cannot run in-app purchases without a StoreKit
+configuration file, so the trial, the tips, Restore and Manage stay untested.
+Its performance and scroll feel are its host Mac's, not a phone's.
+Notification behaviour once the app is killed is not faithful. Sign in with
+Apple works only if the Simulator is signed into an Apple ID, and is flaky
+when it is. Treat it as an accelerator for layout, language and flow bugs —
+the hardware run still has to happen before submission.
+
 ### 6.2 What the first build is for
 
 §9.1 lists what has never run. Work it as a checklist, because a build that
