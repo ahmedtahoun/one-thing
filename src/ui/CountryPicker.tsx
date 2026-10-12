@@ -6,14 +6,17 @@
  * The list lies over what follows it, so the row that holds it must sit
  * above its later siblings (`zIndex`).
  */
-import { useMemo, useState } from 'react';
-import { Pressable, ScrollView, TextInput, View } from 'react-native';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Animated, Keyboard, Pressable, ScrollView, TextInput, View } from 'react-native';
 
 import { Icon } from './Icon';
 import { LTRText, Text } from './Text';
 import { COUNTRIES, type Country } from '@/content/countries';
 import { fontFamily, ink, surface } from '@/design/tokens';
 import { useLanguage } from '@/i18n/LanguageProvider';
+
+/** Rows built before the rest of the list follows. */
+const FIRST_ROWS = 14;
 
 export function countryFor(dial: string): Country {
   return COUNTRIES.find((c) => c.dial === dial) ?? (COUNTRIES[0] as Country);
@@ -34,7 +37,12 @@ export function CountryButton({
   return (
     <Pressable
       testID={testID}
-      onPress={onPress}
+      // The number field is usually focused when this is tapped; the list is
+      // useless half-hidden behind its keyboard.
+      onPress={() => {
+        Keyboard.dismiss();
+        onPress();
+      }}
       accessibilityRole="button"
       accessibilityState={{ expanded: open }}
       style={{
@@ -85,9 +93,22 @@ export function CountryList({
   const { lang, inline } = useLanguage();
   const [query, setQuery] = useState('');
 
+  // Mounting every country at once is what made the list stutter open: show
+  // the first screenful immediately, and the rest a moment later.
+  const [all, setAll] = useState(false);
+  useEffect(() => {
+    const id = setTimeout(() => setAll(true), 220);
+    return () => clearTimeout(id);
+  }, []);
+
+  const appear = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.timing(appear, { toValue: 1, duration: 160, useNativeDriver: true }).start();
+  }, [appear]);
+
   const list = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return COUNTRIES;
+    if (!q) return all ? COUNTRIES : COUNTRIES.slice(0, FIRST_ROWS);
     const digits = q.replace(/\D/g, '');
     return COUNTRIES.filter(
       (c) =>
@@ -95,14 +116,16 @@ export function CountryList({
         c.nameAr.includes(query.trim()) ||
         (digits.length > 0 && c.dial.replace(/\D/g, '').startsWith(digits))
     );
-  }, [query]);
+  }, [query, all]);
 
   return (
-    <View
+    <Animated.View
       testID={testID}
       style={{
         // Inside the number's LTR island in the prototype, rows and all.
         direction: 'ltr',
+        opacity: appear,
+        transform: [{ translateY: appear.interpolate({ inputRange: [0, 1], outputRange: [-6, 0] }) }],
         position: 'absolute',
         top: 56,
         left: 0,
@@ -179,6 +202,6 @@ export function CountryList({
           </View>
         ) : null}
       </ScrollView>
-    </View>
+    </Animated.View>
   );
 }

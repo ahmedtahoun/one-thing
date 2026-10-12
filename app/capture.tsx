@@ -6,20 +6,25 @@
  * the parsed What · Who · When · Via underneath. Nothing is saved until
  * "Save & back to focus"; closing throws it away.
  */
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, TextInput, View } from 'react-native';
 import { router } from 'expo-router';
 
+import { AskChips } from '@/features/capture/AskChips';
+import { optionsFor, questionFor, type AskOption } from '@/features/capture/ask';
 import { NOBODY, whenText } from '@/features/capture/labels';
 import { Bars, Pulse } from '@/features/capture/Listening';
 import { SendRow } from '@/features/capture/SendRow';
 import { Icon } from '@/ui/Icon';
+import { added } from '@/content/additions';
 import { Screen } from '@/ui/Screen';
 import { Text } from '@/ui/Text';
 import { Toast, useToast } from '@/ui/Toast';
 import { fontFamily, ink, surface } from '@/design/tokens';
 import { useDirection, useLanguage } from '@/i18n/LanguageProvider';
 import { textParser, type ParsedTask } from '@/lib/parse';
+import { clarify, suggestWho, withWhen, withWho, type Gap, type QuickWhen, type Settled } from '@/lib/parse/clarify';
+import type { Contact } from '@/lib/model-types';
 import { taskFromParsed } from '@/lib/parse/to-task';
 import { usePeople } from '@/lib/people';
 import { startListening } from '@/lib/speech';
@@ -30,30 +35,71 @@ type Stage = 'idle' | 'listening' | 'done';
 export default function Capture() {
   const { t, a11y, lang } = useLanguage();
   const dir = useDirection();
-  const { contacts } = usePeople();
-  const { addTask } = useTasks();
+  const { contacts, followUps, addContact } = usePeople();
+  const { tasks, addTask } = useTasks();
   const toast = useToast();
 
   const [stage, setStage] = useState<Stage>('idle');
   const [text, setText] = useState('');
-  const [parsed, setParsed] = useState<ParsedTask | null>(null);
+  const [base, setBase] = useState<ParsedTask | null>(null);
+  // What the person answered under the card. It sits on top of the parse, so
+  // the card still follows the words, and is cleared when the words change.
+  const [edits, setEdits] = useState<{ who?: Contact | null; when?: string; elsewhere?: boolean; settled: Settled }>({
+    settled: {},
+  });
   const stopRef = useRef<(() => void) | null>(null);
   const typeRef = useRef<TextInput>(null);
 
   // The card follows the words: edit "tomorrow" to "today" and When changes.
   useEffect(() => {
     if (stage !== 'done' || !text.trim()) {
-      setParsed(null);
+      setBase(null);
       return;
     }
     let live = true;
-    textParser.parse(text, { lang, now: new Date(), contacts }).then((p) => live && setParsed(p));
+    textParser.parse(text, { lang, now: new Date(), contacts }).then((p) => live && setBase(p));
     return () => {
       live = false;
     };
   }, [stage, text, lang, contacts]);
 
   useEffect(() => () => stopRef.current?.(), []);
+  useEffect(() => setEdits({ settled: {} }), [text]);
+
+  const parsed = useMemo(() => {
+    if (!base) return null;
+    let next = base;
+    if (edits.who !== undefined) next = withWho(next, edits.who);
+    if (edits.when) next = withWhen(next, edits.when);
+    return next;
+  }, [base, edits]);
+
+  const copy = added(lang);
+  const quick = t.rQuick as unknown as readonly QuickWhen[];
+  // What is still worth asking. Saving is never blocked on it: leaving the
+  // question is the same as "good enough".
+  const gap: Gap | null = useMemo(() => {
+    if (!parsed) return null;
+    const now = new Date();
+    if (edits.elsewhere && !edits.settled.who) {
+      return { kind: 'who-missing', suggestions: suggestWho(parsed.type, { contacts, tasks, followUps, now }) };
+    }
+    return clarify(text, parsed, { contacts, tasks, followUps, now }, edits.settled);
+  }, [parsed, text, contacts, tasks, followUps, edits]);
+
+  const choose = (option: AskOption) => {
+    const action = option.action;
+    if (action.kind === 'who') {
+      setEdits((e) => ({ ...e, who: action.contact, settled: { ...e.settled, who: true } }));
+    } else if (action.kind === 'add') {
+      const person = addContact({ name: action.name });
+      setEdits((e) => ({ ...e, who: person, settled: { ...e.settled, who: true } }));
+    } else if (action.kind === 'elsewhere') {
+      setEdits((e) => ({ ...e, elsewhere: true }));
+    } else {
+      setEdits((e) => ({ ...e, when: action.iso, settled: { ...e.settled, when: true } }));
+    }
+  };
 
   const close = () => (router.canGoBack() ? router.back() : router.replace('/today'));
 
@@ -62,15 +108,22 @@ export default function Capture() {
       stopRef.current?.();
       return;
     }
-    const stop = startListening(lang, (heard) => {
-      stopRef.current = null;
-      if (heard) {
-        setText(heard);
-        setStage('done');
-      } else {
-        setStage('idle');
+    const stop = startListening(
+      lang,
+      (heard) => {
+        stopRef.current = null;
+        if (heard) {
+          setText(heard);
+          setStage('done');
+        } else {
+          setStage('idle');
+        }
+      },
+      (why) => {
+        toast.show(why === 'denied' ? added(lang).micOff : added(lang).micFailed, { undo: false });
+        typeRef.current?.focus();
       }
-    });
+    );
     // No recogniser on this device yet: typing is the other way in.
     if (!stop) return typeRef.current?.focus();
     stopRef.current = stop;
@@ -99,7 +152,7 @@ export default function Capture() {
 
   return (
     <>
-      <Screen paddingX={24} paddingTop={8} paddingBottom={44} style={{ gap: 20 }}>
+      <Screen scroll paddingX={24} paddingTop={8} paddingBottom={44} style={{ gap: 20 }}>
         <View style={{ flexDirection: dir.row, justifyContent: 'flex-end' }}>
           <Pressable
             testID="capture-close"
@@ -176,6 +229,14 @@ export default function Capture() {
                       </Text>
                     </View>
                   ))}
+                </View>
+              ) : null}
+              {parsed && gap ? (
+                <View testID="capture-ask" style={{ gap: 10 }}>
+                  <Text token="bodyS" weight="600">
+                    {questionFor(gap, parsed, copy)}
+                  </Text>
+                  <AskChips options={optionsFor(gap, parsed, copy, quick, new Date())} onPick={choose} />
                 </View>
               ) : null}
             </View>

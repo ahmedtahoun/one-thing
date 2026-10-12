@@ -11,6 +11,7 @@ import { router } from 'expo-router';
 
 import { whenText } from '@/features/capture/labels';
 import { Icon } from '@/ui/Icon';
+import { added } from '@/content/additions';
 import { Screen } from '@/ui/Screen';
 import { Text } from '@/ui/Text';
 import { Toast, useToast } from '@/ui/Toast';
@@ -51,11 +52,18 @@ export default function BrainDump() {
    */
   const talk = () => {
     if (listening) return stopRef.current?.();
-    const stop = startListening(lang, (heard) => {
-      stopRef.current = null;
-      setListening(false);
-      if (heard) setText((current) => (current.trim() ? `${current.trim()}\n${heard}` : heard));
-    });
+    const stop = startListening(
+      lang,
+      (heard) => {
+        stopRef.current = null;
+        setListening(false);
+        if (heard) setText((current) => (current.trim() ? `${current.trim()}\n${heard}` : heard));
+      },
+      (why) => {
+        toast.show(why === 'denied' ? added(lang).micOff : added(lang).micFailed, { undo: false });
+        inputRef.current?.focus();
+      }
+    );
     if (!stop) return inputRef.current?.focus();
     stopRef.current = stop;
     setListening(true);

@@ -1,13 +1,17 @@
 /**
  * The normal One Thing card on Today: `fill` background, radius 26, the day's
- * priority, the focus-session meta and the Lock In button. SCREENS.md § 06.
+ * priority, Lock In and Shrink. SCREENS.md § 06 draws it taller (a separate
+ * focus line, a full-width button and a "Feeling stuck?" link); it is kept to
+ * one decision here — the title, then Lock In with its length in the label and
+ * a smaller Shrink beside it — so the quick actions and the day's tasks stay
+ * on screen. A thin bar shows how many of today's promises are kept.
  */
 import { Pressable, View } from 'react-native';
 
 import { BalancedText } from '@/ui/BalancedText';
-import { Button } from '@/ui/Button';
 import { Icon } from '@/ui/Icon';
 import { Text } from '@/ui/Text';
+import { added } from '@/content/additions';
 import { ink, radius, surface } from '@/design/tokens';
 import { useDirection, useLanguage } from '@/i18n/LanguageProvider';
 
@@ -15,6 +19,7 @@ export function OneThingCard({
   title,
   focusMinutes,
   done,
+  progress,
   onEdit,
   onLockIn,
   onShrink,
@@ -22,12 +27,15 @@ export function OneThingCard({
   title: string;
   focusMinutes: number;
   done: boolean;
+  /** Today's promises: how many are kept out of how many. Omitted when there are none. */
+  progress?: { done: number; total: number };
   onEdit: () => void;
   onLockIn: () => void;
   onShrink: () => void;
 }) {
-  const { t } = useLanguage();
+  const { t, inline, lang } = useLanguage();
   const dir = useDirection();
+  const share = progress && progress.total > 0 ? Math.min(1, progress.done / progress.total) : 0;
 
   return (
     <View
@@ -35,10 +43,10 @@ export function OneThingCard({
       style={{
         backgroundColor: surface.fill,
         borderRadius: radius.oneThing,
-        paddingTop: 24,
-        paddingHorizontal: 22,
-        paddingBottom: 20,
-        gap: 16,
+        paddingTop: 16,
+        paddingHorizontal: 18,
+        paddingBottom: 16,
+        gap: 10,
       }}
     >
       <View style={{ flexDirection: dir.row, justifyContent: 'space-between', alignItems: 'center' }}>
@@ -52,7 +60,7 @@ export function OneThingCard({
         </Pressable>
       </View>
 
-      <BalancedText token="h1" lh={33.6} testID="one-thing-title" style={{ letterSpacing: -0.28 }}>
+      <BalancedText token="h2" size={22} lh={27} numberOfLines={2} testID="one-thing-title" style={{ letterSpacing: -0.2 }}>
         {title}
       </BalancedText>
 
@@ -66,7 +74,7 @@ export function OneThingCard({
             backgroundColor: surface.white,
             borderRadius: radius.small,
             paddingHorizontal: 14,
-            paddingVertical: 12,
+            paddingVertical: 10,
           }}
         >
           <Icon name="check" size={16} strokeWidth={2.4} />
@@ -75,37 +83,61 @@ export function OneThingCard({
           </Text>
         </View>
       ) : (
-        <>
-          <View style={{ flexDirection: dir.row, alignItems: 'center', gap: 6 }}>
-            <Icon name="clock" size={16} color={ink.s3} strokeWidth={1.8} />
-            <Text token="bodyS" color={ink.s3}>
-              {t.focusMeta.replace('{n}', String(focusMinutes))}
+        <View style={{ flexDirection: dir.row, alignItems: 'center', gap: 8 }}>
+          <Pressable
+            testID="lock-in"
+            onPress={onLockIn}
+            accessibilityRole="button"
+            accessibilityLabel={t.focusMeta.replace('{n}', String(focusMinutes))}
+            style={({ pressed }) => ({
+              flex: 1,
+              height: 46,
+              borderRadius: 23,
+              backgroundColor: ink.base,
+              alignItems: 'center',
+              justifyContent: 'center',
+              opacity: pressed ? 0.85 : 1,
+            })}
+          >
+            <Text token="body" weight="600" color={surface.white} numberOfLines={1}>
+              {`${t.lockin} · ${focusMinutes}${inline.minSuffixShort}`}
             </Text>
-          </View>
-
-          <Button testID="lock-in" label={t.lockin} onPress={onLockIn} style={{ height: 54, borderRadius: 27 }} />
+          </Pressable>
 
           <Pressable
             testID="shrink-it"
             onPress={onShrink}
             accessibilityRole="button"
-            style={{
-              alignSelf: 'center',
-              // The prototype grows the tap target with padding and pulls it
-              // back with negative margins, so the link keeps its 44 pt target
-              // without adding height to the card.
-              paddingVertical: 10,
-              paddingHorizontal: 8,
-              marginTop: -6,
-              marginBottom: -10,
-            }}
+            accessibilityLabel={t.stuckLink}
+            style={({ pressed }) => ({
+              height: 46,
+              paddingHorizontal: 16,
+              borderRadius: 23,
+              borderWidth: 1.5,
+              borderColor: surface.line,
+              backgroundColor: surface.white,
+              alignItems: 'center',
+              justifyContent: 'center',
+              opacity: pressed ? 0.85 : 1,
+            })}
           >
-            <Text token="caption" color={ink.s3} align="center">
-              {t.stuckLink}
+            <Text token="bodyS" weight="500" numberOfLines={1}>
+              {added(lang).shrinkShort}
             </Text>
           </Pressable>
-        </>
+        </View>
       )}
+
+      {progress && progress.total > 0 ? (
+        <View testID="one-thing-progress" style={{ gap: 6 }}>
+          <View style={{ height: 4, borderRadius: 2, backgroundColor: surface.line, overflow: 'hidden' }}>
+            <View style={{ width: `${Math.round(share * 100)}%`, height: 4, backgroundColor: ink.base }} />
+          </View>
+          <Text token="micro" color={ink.s4}>
+            {t.tk_sum.replace('{a}', String(progress.total - progress.done)).replace('{b}', String(progress.done))}
+          </Text>
+        </View>
+      ) : null}
     </View>
   );
 }

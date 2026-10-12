@@ -8,7 +8,7 @@
  */
 import { useMemo, useState } from 'react';
 import { Pressable, TextInput, View } from 'react-native';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 
 import { added } from '@/content/additions';
 import { matchContact } from '@/features/people/search';
@@ -38,6 +38,12 @@ export default function People() {
   const searching = query.trim().length > 0;
 
   const start = useStartTask();
+
+  // Today's Call / Email / WhatsApp tiles arrive here with ?pick=<channel>:
+  // choosing a person starts that task and opens Compose on it.
+  const params = useLocalSearchParams<{ pick?: string }>();
+  const pick: Channel | null =
+    params.pick === 'whatsapp' || params.pick === 'email' || params.pick === 'call' ? params.pick : null;
 
   // "Import" (BUILD-REVIEW.md §2.46): the phone's own picker, then the New
   // contact form filled in, to check and save. Phones only.
@@ -161,6 +167,35 @@ export default function People() {
           ) : null}
         </View>
 
+        {pick ? (
+          <View
+            testID="people-pick"
+            style={{
+              flexDirection: dir.row,
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 12,
+              padding: 14,
+              borderRadius: 14,
+              backgroundColor: typeColour[pick].bg,
+            }}
+          >
+            <Text token="body" weight="600" color={typeColour[pick].fg} style={{ flex: 1 }}>
+              {added(lang).pickWho[pick]}
+            </Text>
+            <Pressable
+              testID="people-pick-cancel"
+              onPress={() => (router.canGoBack() ? router.back() : router.replace('/today'))}
+              accessibilityRole="button"
+              style={{ paddingVertical: 6, paddingHorizontal: 4 }}
+            >
+              <Text token="bodyS" weight="600" color={typeColour[pick].fg}>
+                {added(lang).pickCancel}
+              </Text>
+            </Pressable>
+          </View>
+        ) : null}
+
         <Text token="micro" color={ink.s4} style={{ letterSpacing: 0.48 }} testID="people-label">
           {searching ? t.pp_res.replace('{n}', String(list.length)) : t.pp_recent}
         </Text>
@@ -170,7 +205,7 @@ export default function People() {
             <PersonRow
               key={contact.id}
               contact={contact}
-              onOpen={() => router.push(`/contact?id=${contact.id}`)}
+              onOpen={() => (pick ? start(contact, pick) : router.push(`/contact?id=${contact.id}`))}
               onStart={(type) => start(contact, type)}
             />
           ))}

@@ -11,15 +11,17 @@
  * button say which.
  */
 import { useCallback, useMemo, useState } from 'react';
-import { Pressable, ScrollView, View } from 'react-native';
+import { Pressable, ScrollView, TextInput, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 
+import { added } from '@/content/additions';
 import { Calendar } from '@/features/reschedule/Calendar';
 import { Sheet } from '@/ui/Sheet';
 import { LTRText, Text } from '@/ui/Text';
 import { Toast, useToast } from '@/ui/Toast';
-import { ink, radius, space, surface } from '@/design/tokens';
+import { fontFamily, ink, radius, space, status, surface } from '@/design/tokens';
 import { useDirection, useLanguage } from '@/i18n/LanguageProvider';
+import { nextSlot, parseClock } from '@/lib/clock';
 import { dateKey, timeLabel } from '@/lib/model-types';
 import { dayLabel } from '@/lib/task-labels';
 import { useTasks } from '@/lib/tasks';
@@ -33,7 +35,7 @@ const TIMES = Array.from({ length: 14 * 2 }, (_, i) => {
 const PAST = '#CFCFCB';
 
 export default function Reschedule() {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const dir = useDirection();
   const { tasks, updateTask } = useTasks();
   const toast = useToast();
@@ -43,12 +45,35 @@ export default function Reschedule() {
   const task = tasks.find((candidate) => candidate.id === params.id) ?? null;
 
   const [now] = useState(() => new Date());
-  const [selected, setSelected] = useState(() => (task?.dueAt ? new Date(task.dueAt) : new Date(now)));
+  // Open on the task's own time while that is still ahead; otherwise on the
+  // next half hour, never on a time that has already gone.
+  const [start] = useState(() => {
+    if (task?.dueAt && new Date(task.dueAt).getTime() > now.getTime()) {
+      return { date: new Date(task.dueAt), time: timeLabel(task.dueAt) };
+    }
+    const slot = nextSlot(timeLabel(now.toISOString()));
+    return { date: new Date(now.getFullYear(), now.getMonth(), now.getDate() + slot.dayOffset), time: slot.time };
+  });
+  const [selected, setSelected] = useState(start.date);
   const [view, setView] = useState(() => ({ year: selected.getFullYear(), month: selected.getMonth() }));
-  const [time, setTime] = useState(() => (task?.dueAt ? timeLabel(task.dueAt) : '10:00'));
+  const [time, setTime] = useState(start.time);
+  // What is in the "type a time" box; the chips and the box feed the same `time`.
+  const [custom, setCustom] = useState('');
 
   const isToday = dateKey(selected) === dateKey(now);
   const nowLabel = timeLabel(now.toISOString());
+  const timeGone = isToday && time <= nowLabel;
+  const typed = parseClock(custom);
+  const customBad = custom.trim() !== '' && (typed === null || (isToday && typed <= nowLabel));
+
+  const onCustom = useCallback(
+    (text: string) => {
+      setCustom(text);
+      const parsed = parseClock(text);
+      if (parsed && !(isToday && parsed <= nowLabel)) setTime(parsed);
+    },
+    [isToday, nowLabel]
+  );
 
   /** "Today", "Tomorrow", or "Mon 13" — what the button and toast say. */
   const whenLabel = useMemo(() => {
@@ -72,6 +97,7 @@ export default function Reschedule() {
 
   const apply = useCallback(() => {
     if (!task) return close();
+    if (timeGone) return;
     const [hour = '10', minute = '00'] = time.split(':');
     const at = new Date(selected);
     at.setHours(Number(hour), Number(minute), 0, 0);
@@ -86,7 +112,7 @@ export default function Reschedule() {
       toast.show(t.toastMoved.replace('{w}', label), { undo: false });
     }
     close();
-  }, [task, time, selected, whenLabel, remindMode, updateTask, toast, t, close]);
+  }, [task, time, timeGone, selected, whenLabel, remindMode, updateTask, toast, t, close]);
 
   return (
     <>
@@ -162,7 +188,14 @@ export default function Reschedule() {
                 <Pressable
                   key={slot}
                   testID={`reschedule-time-${slot}`}
-                  onPress={gone ? undefined : () => setTime(slot)}
+                  onPress={
+                    gone
+                      ? undefined
+                      : () => {
+                          setTime(slot);
+                          setCustom('');
+                        }
+                  }
                   disabled={gone}
                   accessibilityRole="button"
                   accessibilityState={{ selected: on, disabled: gone }}
@@ -184,16 +217,52 @@ export default function Reschedule() {
               );
             })}
           </ScrollView>
+
+          <View style={{ flexDirection: dir.row, alignItems: 'center', gap: 10 }}>
+            <Text token="bodyS" color={ink.s4}>
+              {added(lang).customTime}
+            </Text>
+            <TextInput
+              testID="reschedule-custom-time"
+              value={custom}
+              onChangeText={onCustom}
+              placeholder="17:45"
+              placeholderTextColor={ink.s5}
+              keyboardType="numbers-and-punctuation"
+              maxLength={5}
+              returnKeyType="done"
+              autoCorrect={false}
+              style={{
+                width: 96,
+                height: 40,
+                borderRadius: radius.small,
+                borderWidth: 1.5,
+                borderColor: customBad ? status.invalid : custom && typed ? ink.base : surface.line,
+                paddingHorizontal: 12,
+                fontFamily: `${fontFamily}_400Regular`,
+                fontSize: 16,
+                color: ink.base,
+                textAlign: 'center',
+                writingDirection: 'ltr',
+              }}
+            />
+          </View>
+          {customBad ? (
+            <Text token="micro" color={status.invalid} testID="reschedule-custom-bad">
+              {typed === null ? added(lang).customTimeBad : added(lang).customTimePast}
+            </Text>
+          ) : null}
         </View>
 
         <Pressable
           testID="reschedule-apply"
           onPress={apply}
+          disabled={timeGone}
           accessibilityRole="button"
           style={{
             height: 54,
             borderRadius: 27,
-            backgroundColor: ink.base,
+            backgroundColor: timeGone ? ink.disabledBtn : ink.base,
             alignItems: 'center',
             justifyContent: 'center',
             marginTop: 2,

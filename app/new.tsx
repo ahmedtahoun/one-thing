@@ -8,9 +8,10 @@
  * everything else — that is the whole point of the screen.
  */
 import { useCallback, useMemo, useState } from 'react';
-import { Linking, Pressable, ScrollView, View } from 'react-native';
+import { KeyboardAvoidingView, Linking, Platform, Pressable, ScrollView, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 
+import { added } from '@/content/additions';
 import {
   ChipRow,
   Labelled,
@@ -43,7 +44,7 @@ import { useTasks } from '@/lib/tasks';
 const PEOPLE_SHOWN = 8;
 
 export default function EventForm() {
-  const { t, evx } = useLanguage();
+  const { t, evx, lang } = useLanguage();
   const dir = useDirection();
   const { contacts } = usePeople();
   const { addTask } = useTasks();
@@ -124,7 +125,8 @@ export default function EventForm() {
 
   return (
     <>
-      <View
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={{
           flex: 1,
           backgroundColor: surface.white,
@@ -306,7 +308,12 @@ export default function EventForm() {
           ) : null}
 
           <Labelled label={evx.l.time}>
-            <TimeRow times={EVENT_TIMES} selected={draft.time} onSelect={(time) => set({ time })} />
+            <TimeRow
+              times={EVENT_TIMES}
+              selected={draft.time}
+              onSelect={(time) => set({ time })}
+              custom={{ label: added(lang).customTime, bad: added(lang).customTimeBad }}
+            />
           </Labelled>
 
           {show.duration ? (
@@ -366,7 +373,7 @@ export default function EventForm() {
             </Text>
           </Pressable>
         </ScrollView>
-      </View>
+      </KeyboardAvoidingView>
       <Toast />
     </>
   );

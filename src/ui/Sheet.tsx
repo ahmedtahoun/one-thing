@@ -5,9 +5,12 @@
  * The scrim is tappable and closes the sheet; the panel swallows the tap so a
  * press inside it does not. Two shades of scrim are in use (.35 behind the add
  * sheet, .32 behind the reminder sheet), so it is a prop rather than a token.
+ *
+ * On iOS the panel rides up above the keyboard, so a field inside it is never
+ * hidden; the scrim above it gives up the space.
  */
 import type { ReactNode } from 'react';
-import { Modal, Pressable, View, type ViewStyle } from 'react-native';
+import { KeyboardAvoidingView, Modal, Platform, Pressable, View, type ViewStyle } from 'react-native';
 
 import { surface } from '@/design/tokens';
 import { useLanguage } from '@/i18n/LanguageProvider';
@@ -45,7 +48,10 @@ export function Sheet({
 
   return (
     <Modal transparent visible animationType="fade" onRequestClose={onClose}>
-      <View style={{ flex: 1, justifyContent: 'flex-end', direction: dir }}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={{ flex: 1, justifyContent: 'flex-end', direction: dir }}
+      >
         <Pressable
           testID={testID ? `${testID}-scrim` : undefined}
           accessibilityRole="button"
@@ -69,7 +75,7 @@ export function Sheet({
           ) : null}
           {children}
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }

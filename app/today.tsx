@@ -14,6 +14,7 @@ import { EveningCard } from '@/features/today/EveningCard';
 import { FirstRunCard } from '@/features/today/FirstRunCard';
 import { OneThingCard } from '@/features/today/OneThingCard';
 import { QuickActions } from '@/features/today/QuickActions';
+import { quickActionRoute } from '@/features/today/quick-route';
 import { SmallPromises } from '@/features/today/SmallPromises';
 import { Icon } from '@/ui/Icon';
 import { Screen } from '@/ui/Screen';
@@ -64,6 +65,13 @@ export default function Today() {
       });
   }, [tasks, now]);
 
+  // The first-run card suggests what they already have to do, before the stock
+  // examples: today's open tasks, then the rest, without repeats.
+  const ownSuggestions = useMemo(() => {
+    const open = [...todaysTasks, ...tasks].filter((task) => task.status === 'open' || task.status === 'snoozed');
+    return [...new Set(open.map((task) => task.title.trim()).filter(Boolean))].slice(0, 4);
+  }, [todaysTasks, tasks]);
+
   const openCount = todaysTasks.filter((task) => task.status !== 'done').length;
 
   const setFirstOneThing = useCallback(
@@ -92,9 +100,10 @@ export default function Today() {
   );
 
   const onQuickAction = useCallback((type: TaskType) => {
-    // Call / Email / WhatsApp pick a contact first; Remind captures; the four
-    // event types open the event form. Those screens land next.
-    router.push(`/new?type=${type}`);
+    // Call / Email / WhatsApp pick a contact first (People in its pick mode,
+    // which then opens Compose); Remind captures; the four event types open
+    // the event form.
+    router.push(quickActionRoute(type));
   }, []);
 
   const showFirstRun = Boolean(session?.firstRun) && !isEvening;
@@ -146,6 +155,9 @@ export default function Today() {
           </View>
         </View>
 
+        {/* First, so a task is one tap from the top of the screen. */}
+        <QuickActions onPress={onQuickAction} />
+
         {isEvening ? (
           <EveningCard
             oneThingLine={oneThing ? `${oneThing.title} — ${oneThing.done ? t.doneToday : t.notYet}` : ''}
@@ -155,19 +167,18 @@ export default function Today() {
             onReview={() => router.push('/review')}
           />
         ) : showFirstRun ? (
-          <FirstRunCard onSet={setFirstOneThing} onLater={skipFirstRun} />
+          <FirstRunCard onSet={setFirstOneThing} onLater={skipFirstRun} suggestions={ownSuggestions} />
         ) : showOneThing && oneThing ? (
           <OneThingCard
             title={oneThing.title}
             focusMinutes={oneThing.focusMinutes}
             done={oneThing.done}
+            progress={{ done: todaysTasks.length - openCount, total: todaysTasks.length }}
             onEdit={() => router.push('/priority')}
             onLockIn={() => router.push('/focus')}
             onShrink={() => router.push('/overwhelm')}
           />
         ) : null}
-
-        <QuickActions onPress={onQuickAction} />
 
         <SmallPromises
           tasks={todaysTasks}

@@ -16,6 +16,9 @@ import { useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
 import { router } from 'expo-router';
 
+import { added } from '@/content/additions';
+import { AskChips } from '@/features/capture/AskChips';
+import { optionsFor, questionFor, type AskAction, type AskOption } from '@/features/capture/ask';
 import { NOBODY, whenText } from '@/features/capture/labels';
 import { SendRow } from '@/features/capture/SendRow';
 import { Icon } from '@/ui/Icon';
@@ -28,6 +31,17 @@ import { useDirection, useLanguage } from '@/i18n/LanguageProvider';
 import { useAssistantMeter } from '@/lib/assistant-meter';
 import { dateKey, followUpStatus, isOnDay, timeLabel, type Task } from '@/lib/model-types';
 import { AssistLimitError, textParser, type AssistantIntent, type ParsedTask } from '@/lib/parse';
+import {
+  answerFromText,
+  clarify,
+  suggestWho,
+  withWhen,
+  withWho,
+  type Gap,
+  type QuickWhen,
+  type Settled,
+  type World,
+} from '@/lib/parse/clarify';
 import { taskFromParsed } from '@/lib/parse/to-task';
 import { usePeople } from '@/lib/people';
 import { useSession } from '@/lib/session';
@@ -36,10 +50,28 @@ import { useTasks } from '@/lib/tasks';
 /** How long the prototype takes to answer. */
 const REPLY_DELAY = 650;
 
+/**
+ * A question the Assistant is waiting on. `text` is what the person originally
+ * wrote, so each answer can be checked against it again; `settled` is what
+ * they have already waved away, so nothing is asked twice.
+ */
+type Ask = {
+  id: string;
+  from: 'bot';
+  kind: 'ask';
+  gap: Gap;
+  draft: ParsedTask;
+  text: string;
+  settled: Settled;
+  answered?: boolean;
+};
+
 type Message =
   | { id: string; from: 'me'; text: string }
   | { id: string; from: 'bot'; kind: 'greet' }
   | { id: string; from: 'bot'; kind: 'saved'; time: string }
+  | { id: string; from: 'bot'; kind: 'note'; text: string }
+  | Ask
   | { id: string; from: 'bot'; intent: AssistantIntent; confirmed?: boolean };
 
 const newId = () => `m_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
@@ -52,7 +84,7 @@ export default function Assistant() {
   const dir = useDirection();
   const { session } = useSession();
   const { tasks, oneThing, addTask } = useTasks();
-  const { contacts, followUps } = usePeople();
+  const { contacts, followUps, addContact } = usePeople();
   const meter = useAssistantMeter();
 
   const [messages, setMessages] = useState<Message[]>([{ id: 'greet', from: 'bot', kind: 'greet' }]);
@@ -66,9 +98,89 @@ export default function Assistant() {
 
   const back = () => (router.canGoBack() ? router.back() : router.replace('/today'));
 
+  const copy = added(lang);
+  const quick = t.rQuick as unknown as readonly QuickWhen[];
+  const world = (): World => ({ contacts, tasks, followUps, now: new Date() });
+
+  /** The last question still waiting for an answer, if the chat is mid-question. */
+  const pending = [...messages].reverse().find((m): m is Ask => 'kind' in m && m.kind === 'ask' && !m.answered) ?? null;
+
+  /** Asks the next question, or — when nothing is left to ask — shows the card. */
+  const proceed = (draft: ParsedTask, text: string, settled: Settled) => {
+    const gap = clarify(text, draft, world(), settled);
+    setMessages((list) => [
+      ...list,
+      gap
+        ? { id: newId(), from: 'bot', kind: 'ask', gap, draft, text, settled }
+        : { id: newId(), from: 'bot', intent: { kind: 'task', task: draft } },
+    ]);
+  };
+
+  /** Closes a question, shows the answer as the person's own bubble, then carries on. */
+  const answer = (ask: Ask, label: string, draft: ParsedTask, settled: Settled, note?: string) => {
+    setMessages((list) => [
+      ...list.map((m) => (m.id === ask.id ? { ...m, answered: true } : m)),
+      { id: newId(), from: 'me', text: label },
+      ...(note ? [{ id: newId(), from: 'bot' as const, kind: 'note' as const, text: note }] : []),
+    ]);
+    timers.current.push(setTimeout(() => proceed(draft, ask.text, settled), 350));
+  };
+
+  /** Closes a question and asks a different one in its place, for the same sentence. */
+  const reask = (ask: Ask, label: string, gap: Gap) => {
+    setMessages((list) => [
+      ...list.map((m) => (m.id === ask.id ? { ...m, answered: true } : m)),
+      { id: newId(), from: 'me', text: label },
+      { id: newId(), from: 'bot', kind: 'ask', gap, draft: ask.draft, text: ask.text, settled: ask.settled },
+    ]);
+  };
+
+  const choose = (ask: Ask, option: AskOption) => {
+    const action: AskAction = option.action;
+    if (action.kind === 'who') {
+      answer(ask, option.label, withWho(ask.draft, action.contact), { ...ask.settled, who: true });
+    } else if (action.kind === 'add') {
+      // A name and nothing else: Compose asks for the number when they are first messaged.
+      const person = addContact({ name: action.name });
+      answer(ask, option.label, withWho(ask.draft, person), { ...ask.settled, who: true }, copy.ask.added.replace('{n}', action.name));
+    } else if (action.kind === 'elsewhere') {
+      reask(ask, option.label, { kind: 'who-missing', suggestions: suggestWho(ask.draft.type, world()) });
+    } else {
+      answer(ask, option.label, withWhen(ask.draft, action.iso), { ...ask.settled, when: true });
+    }
+  };
+
+  /** A typed reply to the open question: no Assistant request is spent on it. */
+  const reply = (ask: Ask, text: string) => {
+    const found = answerFromText(ask.gap, text, world());
+    if (found.kind === 'who') {
+      answer(ask, text, withWho(ask.draft, found.contact), { ...ask.settled, who: true });
+    } else if (found.kind === 'when') {
+      answer(ask, text, withWhen(ask.draft, found.iso), { ...ask.settled, when: true });
+    } else if (found.kind === 'who-several') {
+      reask(ask, text, { kind: 'who-ambiguous', name: found.name, options: found.options });
+    } else if (found.kind === 'who-new') {
+      reask(ask, text, { kind: 'who-unknown', name: found.name });
+    } else {
+      setMessages((list) => [
+        ...list,
+        { id: newId(), from: 'me', text },
+        { id: newId(), from: 'bot', kind: 'note', text: copy.ask.unreadable },
+      ]);
+    }
+  };
+
   const send = async (raw?: string) => {
     const text = (raw ?? input).trim();
-    if (!text || !meter.ready) return;
+    if (!text) return;
+    // Mid-question, typing answers it. The suggestion chips are always a new message.
+    if (pending && raw === undefined) {
+      setInput('');
+      reply(pending, text);
+      return;
+    }
+    if (!meter.ready) return;
+    if (pending) setMessages((list) => list.map((m) => ('kind' in m && m.kind === 'ask' ? { ...m, answered: true } : m)));
     if (!meter.canAsk) {
       router.push('/paywall');
       return;
@@ -90,7 +202,11 @@ export default function Assistant() {
       return;
     }
     timers.current.push(
-      setTimeout(() => setMessages((list) => [...list, { id: newId(), from: 'bot', intent }]), REPLY_DELAY)
+      setTimeout(() => {
+        // A task is checked for what is missing before it is shown for "Looks right".
+        if (intent.kind === 'task') proceed(intent.task, text, {});
+        else setMessages((list) => [...list, { id: newId(), from: 'bot', intent }]);
+      }, REPLY_DELAY)
     );
   };
 
@@ -191,13 +307,24 @@ export default function Assistant() {
                   {'kind' in m
                     ? m.kind === 'greet'
                       ? greeting
-                      : t.botSaved.replace('{t}', m.time)
+                      : m.kind === 'saved'
+                        ? t.botSaved.replace('{t}', m.time)
+                        : m.kind === 'note'
+                          ? m.text
+                          : questionFor(m.gap, m.draft, copy)
                     : m.intent.kind === 'task'
                       ? t.botTask
                       : m.intent.kind === 'plan'
                         ? t.botPlan
                         : followUpLine}
                 </Bubble>
+                {'kind' in m && m.kind === 'ask' && !m.answered ? (
+                  <AskChips
+                    testID="assistant-ask"
+                    options={optionsFor(m.gap, m.draft, copy, quick, new Date())}
+                    onPick={(option) => choose(m, option)}
+                  />
+                ) : null}
                 {'intent' in m && m.intent.kind === 'task' ? (
                   <TaskCard task={m.intent.task} confirmed={Boolean(m.confirmed)} onConfirm={() => confirm(m.id, (m.intent as { task: ParsedTask }).task)} />
                 ) : null}

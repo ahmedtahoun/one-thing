@@ -8,6 +8,7 @@
  * account.
  */
 import { useCallback, useState } from 'react';
+import Constants from 'expo-constants';
 import { Linking, Platform, Pressable, View } from 'react-native';
 import { router } from 'expo-router';
 
@@ -35,6 +36,8 @@ import { TIP_PRODUCTS, buyTip, manageSubscription as openStoreSubscriptions, res
 import { added } from '@/content/additions';
 import { track } from '@/lib/analytics/track';
 import { requestExport } from '@/lib/privacy-request';
+import { requestAppReview } from '@/lib/store-review';
+import { SUPPORT_EMAIL, supportMailUrl } from '@/lib/support';
 import { POLICY_VERSION, recordConsent } from '@/lib/consent';
 import type { Channel, NudgeStyle, Prefs } from '@/lib/model-types';
 import { useNotifications } from '@/lib/notifications/NotificationsProvider';
@@ -118,6 +121,20 @@ export default function Settings() {
     // The store's own screen where there is a store connection; its web page
     // otherwise.
     if (!(await openStoreSubscriptions()) && STORE_SUBSCRIPTIONS) Linking.openURL(STORE_SUBSCRIPTIONS).catch(() => {});
+  };
+
+  const rateApp = async () => {
+    if ((await requestAppReview()) === 'unavailable') toast.show(added(lang).rateUnavailable, { undo: false });
+  };
+
+  const helpAndFeedback = async () => {
+    const copy = added(lang);
+    const body = `${copy.helpBody}\n\n\n—\nThe One Thing ${Constants.expoConfig?.version ?? ''} · ${Platform.OS} ${Platform.Version}`;
+    try {
+      await Linking.openURL(supportMailUrl(copy.helpSubject, body));
+    } catch {
+      toast.show(copy.helpNoMail.replace('{email}', SUPPORT_EMAIL), { undo: false });
+    }
   };
 
   const restore = async () => {
@@ -516,6 +533,22 @@ export default function Settings() {
               last
             />
           )}
+        </SettingsCard>
+
+        <SettingsCard>
+          <LinkRow
+            testID="settings-rate"
+            label={added(lang).rateApp}
+            onPress={rateApp}
+            background={surface.white}
+          />
+          <LinkRow
+            testID="settings-help"
+            label={added(lang).helpFeedback}
+            onPress={helpAndFeedback}
+            background={surface.white}
+            last
+          />
         </SettingsCard>
 
         <View
