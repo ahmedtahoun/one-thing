@@ -67,12 +67,36 @@ From now on, every merge to `main` that touches `admin/` redeploys it.
 3. Wait until Vercel shows the domain as **Valid**. This usually takes
    minutes, at most a few hours. HTTPS is issued automatically.
 
-## 4. Add the first admin (the Owner)
+## 4. Add the first admin (the Owner), from the browser
 
-The design has no "invite" screen. The first admin is added once, from a
-computer with Node 20+ and the repo checked out. The new admin must be beside
-you with an authenticator app, such as Google Authenticator, 1Password or
-Authy.
+There is a one-time setup page for this. It needs one more value in Vercel.
+
+1. In Vercel, go to **Project → Settings → Environment Variables** and add
+   `ADMIN_SETUP_SECRET`. The value is any password-like word you make up,
+   such as `blue-falcon-7731`. Then go to **Deployments**, open the latest
+   one, choose **⋯ → Redeploy**, and wait for it to finish.
+2. Open **`https://admin.onething.wheretospot.com/setup`**.
+3. Fill in:
+   - the setup secret from step 1;
+   - your name;
+   - an email ending in **`@onlyonething.app`** (it does not need a real
+     mailbox; the panel sends no email);
+   - a password of 10 or more characters.
+
+   Then press **Continue**.
+4. Scan the QR code with **Google Authenticator, Authy or 1Password**, type
+   the 6-digit code the app shows, and press **Finish setup**. You land on
+   Overview, signed in as **Owner**.
+5. The page now closes itself: `/setup` shows "not found" for everyone. You
+   can delete `ADMIN_SETUP_SECRET` from Vercel; it is not used again.
+
+From then on, sign in at `https://admin.onething.wheretospot.com` with the
+email, the password and the code from the app.
+
+**Adding teammates later** (Support or Analyst) still uses the script, from a
+computer with Node 20+, with the new person beside you and their
+authenticator app ready. Use the **Session pooler** string as
+`DATABASE_URL` here, not the Transaction pooler:
 
 ```sh
 cd admin
@@ -80,21 +104,15 @@ npm install
 SUPABASE_SERVICE_ROLE_KEY=… DATABASE_URL=… \
 NEXT_PUBLIC_SUPABASE_URL=https://ujcoouwbrkewckpphrod.supabase.co \
 NEXT_PUBLIC_SUPABASE_ANON_KEY=… \
-  npx tsx scripts/add-admin.ts you@onlyonething.app "Your Name" Owner
+  npx tsx scripts/add-admin.ts dana@onlyonething.app "Dana Al-Anazi" Support
 ```
 
-It prints a setup secret. The new admin adds it in their authenticator app
-("enter a setup key"), then types back the 6-digit code the app shows. The
-script then prints their password, once. Sign in at
-`https://admin.onething.wheretospot.com` with the email, that password and the
-6-digit code. Add Support and Analyst people the same way.
-
-- **The service role key is used only here, on your computer.** It never
-  goes into Vercel.
-- **Admin emails must end in `@onlyonething.app`**, which is
-  `ADMIN_EMAIL_DOMAIN` in `src/config.ts` and `scripts/add-admin.ts`. The
-  panel sends no email, so the address does not need a real mailbox. To use
-  a different domain, change it in both files.
+It prints a setup key for their authenticator app ("enter a setup key"),
+asks for the 6-digit code it shows, and then prints their password, once.
+The service role key is used only on that computer; it never goes into
+Vercel. Admin emails must end in `@onlyonething.app`, which is
+`ADMIN_EMAIL_DOMAIN` in `src/config.ts` and `scripts/add-admin.ts`; to use a
+different domain, change it in both files.
 
 ## 5. Check it
 
