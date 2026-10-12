@@ -10,10 +10,11 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "app.onlyonething",
-      "buildNumber": "3",
+      "buildNumber": "4",
       "infoPlist": {
         "NSMicrophoneUsageDescription": "Used only while you're recording a note, so you can capture a task by speaking instead of typing.",
         "NSSpeechRecognitionUsageDescription": "Used to turn the note you just spoke into a task. Nothing is recorded in the background.",
+        "NSPhotoLibraryUsageDescription": "Not used. The One Thing never reads your photos.",
         "CFBundleAllowMixedLocalizations": true,
         "ITSAppUsesNonExemptEncryption": false
       }
