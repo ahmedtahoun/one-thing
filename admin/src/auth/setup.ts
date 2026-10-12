@@ -15,6 +15,8 @@
  */
 import { timingSafeEqual } from 'node:crypto';
 
+import { createClient } from '@supabase/supabase-js';
+
 import { ADMIN_EMAIL_DOMAIN, mode, source } from '@/config';
 import { authClient } from './supabase';
 
@@ -57,14 +59,11 @@ export async function startSetup(
   if (!email.endsWith(`@${ADMIN_EMAIL_DOMAIN}`)) return { ok: false, error: `Use your @${ADMIN_EMAIL_DOMAIN} email.` };
   if (password.length < MIN_PASSWORD) return { ok: false, error: `Use a password of at least ${MIN_PASSWORD} characters.` };
 
+  const made = await makeAccount(email, password);
+  if (made) return { ok: false, error: made };
   const auth = await authClient();
-  // A new account, or the one a half-finished setup already made. Signing up
-  // an address that exists changes nothing, so the sign-in below decides.
-  await auth.auth.signUp({ email, password });
-  const { confirmEmail } = await import('@/data/db');
-  await confirmEmail(email);
   const { error: signInError } = await auth.auth.signInWithPassword({ email, password });
-  if (signInError) return { ok: false, error: 'That email already has an account with a different password.' };
+  if (signInError) return { ok: false, error: `Supabase would not sign this account in: ${signInError.message}` };
 
   // A factor left unverified by an earlier attempt would block a new one.
   const { data: factors } = await auth.auth.mfa.listFactors();
@@ -74,6 +73,38 @@ export async function startSetup(
   const { data: factor, error } = await auth.auth.mfa.enroll({ factorType: 'totp', friendlyName: 'The One Thing admin' });
   if (error || !factor) return { ok: false, error: 'Could not start 2-step verification. Try again.' };
   return { ok: true, factorId: factor.id, qr: factor.totp.qr_code, key: factor.totp.secret };
+}
+
+/**
+ * Makes the account, or sets the password on the one an earlier attempt
+ * made. Returns an error to show, or null.
+ *
+ * With SUPABASE_SERVICE_ROLE_KEY set this goes through Supabase's admin API,
+ * which creates the account already confirmed and sends no email. Without it,
+ * it signs up like anyone else, and that only works when Supabase can send
+ * (or is told not to send) the confirmation email: its built-in mailer sends
+ * only to members of the Supabase team, so for a team address the sign-up
+ * fails. DEPLOY.md § 4 sets the key for setup and removes it afterwards.
+ */
+async function makeAccount(email: string, password: string): Promise<string | null> {
+  const { authUserIdByEmail, confirmEmail } = await import('@/data/db');
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (serviceKey) {
+    const admin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL as string, serviceKey, { auth: { persistSession: false } });
+    const existing = await authUserIdByEmail(email);
+    const { error } = existing
+      ? await admin.auth.admin.updateUserById(existing, { password, email_confirm: true })
+      : await admin.auth.admin.createUser({ email, password, email_confirm: true });
+    return error ? `Supabase would not create the account: ${error.message}` : null;
+  }
+  const auth = await authClient();
+  const { error } = await auth.auth.signUp({ email, password });
+  // "Already registered" is fine: the sign-in that follows decides.
+  if (error && !(await authUserIdByEmail(email))) {
+    return `Supabase would not create the account: ${error.message}. Add SUPABASE_SERVICE_ROLE_KEY in Vercel for setup (DEPLOY.md § 4), redeploy, and try again.`;
+  }
+  await confirmEmail(email);
+  return null;
 }
 
 /** Step 2: the first code from the app, then the account becomes the Owner. */
