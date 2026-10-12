@@ -1530,7 +1530,7 @@ explained by Apple's or Google's own sheet."* That is true for a failure
 raised while the sheet is up. It is not true for the two that happen after it
 closes successfully — `signInWithIdToken` being rejected by Supabase, and a
 provider returning no token at all. Those are the realistic ones: a client ID
-the project does not know, a paused project, no network, EAS built without
+the project does not know, a paused project, no network, a build made without
 `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID`. The user taps, authenticates, the sheet
 closes, and the screen sits there having apparently done nothing.
 
