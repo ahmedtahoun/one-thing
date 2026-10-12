@@ -35,7 +35,7 @@ shipped before:
 - **Google sign-in does not come from Play Console.** It comes from a **Google
   Cloud** project: OAuth 2.0 client IDs, one Web (this is the one Supabase
   needs) plus iOS and Android. The Android client needs the release signing
-  certificate's SHA-1, which only exists after the first EAS production build.
+  certificate's SHA-1, which only exists once you have made the release keystore (§6.3).
 
 ---
 
@@ -123,12 +123,12 @@ trusting this file: what they offer changes.
 2. **Google Cloud Console** (separate from Play): a project, then OAuth 2.0
    client IDs — a **Web** client (this is the one Supabase needs), plus **iOS**
    and **Android** clients. The Android client needs the release signing
-   certificate's SHA-1, which comes from EAS after the first production build,
+   certificate's SHA-1, which comes from the release keystore you create in §6.3,
    so this step straddles step 4 below.
 3. **Supabase** → Providers → Google: the Web client ID and secret.
 4. **Play Billing**: the subscription with monthly and yearly base plans, the
    7-day free-trial offer, and the three consumable tips. Product IDs from §1.2.
-5. **A service account JSON** for `eas submit` to upload builds without you.
+5. **A service account JSON**, only if you later script uploads to Play. Uploading the first `.aab` by hand in Play Console needs none.
 6. **Data safety form** and the **account-deletion URL** (§7).
 
 ---
@@ -204,63 +204,57 @@ run it after any change to the project, not only once.
   Android build would have failed on the first attempt. It now points at the
   three `android-icon-*.png` files that are actually there. The foreground is
   512×512 where Expo wants 1024×1024 — it will build, slightly soft.
-- `eas.json` did not exist, so no EAS build could be started at all. Added with
-  `development` / `preview` / `production` profiles and remote versioning.
-
-Still needed in `app.json` once you have an Expo account:
-`extra.eas.projectId`, which `eas init` writes for you.
+- The project is **not linked to EAS**. `eas.json`, `extra.eas.projectId` and
+  `owner` were removed: every build is made on this machine with
+  `expo run:ios` / `expo run:android` (§6).
 
 ## 6. Build and test tracks
 
-EAS compiles on Expo's servers, so this needs Node and the CLI and nothing
-else — no Xcode, no Android Studio. It cannot be run from the browser agent's
-container, whose proxy blocks `expo.dev` the same way it blocks
-`supabase.co`. It belongs on the machine that has the phone.
+Builds are local, so this needs the toolchain on the machine that has the
+phone: Xcode and CocoaPods (`brew install cocoapods`) for iOS; the Android SDK,
+Java 17+ and an emulator image or a device for Android. Expect several GB of
+free disk for the first build of each. The first build generates `ios/` and
+`android/` with `expo prebuild`; both are build output, not source.
 
 ### 6.1 The first build, in order
 
-```sh
-npm i -g eas-cli && eas login && eas init     # eas init writes extra.eas.projectId — commit it
-```
+`.env` is gitignored but Expo loads it, and the four `EXPO_PUBLIC_*` values are
+inlined at build time, so a local build picks them up with nothing to do. The
+check that matters: confirm `.env` has all four before building.
 
-**Then, before building, give EAS the environment.** `.env` is gitignored, so
-EAS never sees it. The four `EXPO_PUBLIC_*` values are inlined at build time:
-
-```sh
-eas env:create --name EXPO_PUBLIC_SUPABASE_URL          --value https://ujcoouwbrkewckpphrod.supabase.co
-eas env:create --name EXPO_PUBLIC_SUPABASE_ANON_KEY     --value <from .env>
-eas env:create --name EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID  --value <from .env>
-eas env:create --name EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID  --value <from .env>
-```
-
-Skipping this does not fail the build. It produces an app that runs, falls
-back to the local session, and explains nothing — because `app.config.js`
-adds the Google native module *only* when `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID`
-is set, and `availability.ts` will correctly report `not-configured` for a
-build that was never given the value. That is the worst failure mode in this
-project: everything looks fine and sign-in silently is not real.
+Skipping any of them does not fail the build. It produces an app that runs,
+falls back to the local session, and explains nothing — because
+`app.config.js` adds the Google native module *only* when
+`EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID` is set, and `availability.ts` will correctly
+report `not-configured` for a build that was never given the value. That is the
+worst failure mode in this project: everything looks fine and sign-in silently
+is not real.
 
 ```sh
-eas build --profile preview --platform android   # an APK you can sideload; no provisioning
-eas device:create                                # register the iPhone, once
-eas build --profile development --platform ios
+npx expo run:android                               # emulator or a USB device; no provisioning
+npx expo run:ios --device                          # a plugged-in iPhone; needs signing set up in Xcode, once
+npx expo run:ios --device <simulator name or UDID>  # a Simulator
 ```
 
 Android first, deliberately: it reaches a phone without Apple's provisioning,
 so the first batch of §9.1 surprises arrives hours earlier.
 
-**For a tester on the iOS Simulator**, there is a fourth profile, because a
-normal iOS build installs on registered hardware only:
+**Metro port.** `run:ios` and the dev client look for Metro on 8081. If another
+project's Metro already holds it, the app loads *that* project's bundle and
+fails with a native-module error for a package this repo does not have (seen
+once, as `ExpoCamera`). Stop the other server, or check
+`lsof -nP -iTCP:8081 -sTCP:LISTEN`.
+
+**For a tester on the iOS Simulator**, a normal device build installs on
+registered hardware only, so hand over a Simulator build:
 
 ```sh
-eas build --profile simulator --platform ios
+npx expo run:ios --configuration Release --device <simulator>
 ```
 
-It produces a `.app` to drag onto a running Simulator — self-contained, no
-Metro, and **no device registration and no Apple account**, which is what
-makes it the cheapest way to put the app in another developer's hands. (For
-someone iterating rather than testing, `--profile development --platform ios`
-with a registered device is the live-reload path.)
+It runs on a Simulator with no device registration and **no Apple account**,
+which is what makes it the cheapest way to put the app in another developer's
+hands. Day-to-day iteration is the Debug build with Metro running.
 
 What the Simulator is genuinely good for is most of what §9.1 lists: native
 RTL resolved by iOS's own layout engine rather than CSS, IBM Plex Sans Arabic
@@ -300,16 +294,30 @@ submission every fix is a full store review (§9.7).
 
 ### 6.3 Submission
 
+**iOS.** `npx expo prebuild --platform ios`, open `ios/TheOneThing.xcworkspace`
+in Xcode, set the Team under Signing & Capabilities, then Product → Archive →
+Distribute App → App Store Connect (or upload the archive with Transporter).
+Bump the build number in Xcode for every upload — nothing does it for you now.
+
+**Android.** Make the release keystore once and **back it up outside the repo**:
+losing it means you can never update the app under the same key (unless you
+enrol in Play App Signing, which is the safer default).
+
 ```sh
-eas build --platform ios --profile production
-eas build --platform android --profile production
-eas submit --platform ios      # needs the ASC app ID + Apple ID
-eas submit --platform android  # needs the service account JSON
+keytool -genkeypair -v -storetype PKCS12 -keystore release.keystore \
+  -alias onething -keyalg RSA -keysize 2048 -validity 10000
+keytool -list -v -keystore release.keystore -alias onething   # the SHA-1 for §3.2
+cd android && ./gradlew bundleRelease                         # app/build/outputs/bundle/release/*.aab
 ```
 
-The Android production build is also what produces the **release signing
-SHA-1** that the Google Cloud Android OAuth client needs (§3.2) — so that
-client cannot exist until this step has run once.
+Point `android/app/build.gradle`'s release `signingConfig` at that keystore
+through `~/.gradle/gradle.properties`, never a committed file. Upload the `.aab`
+in Play Console. Raise `versionCode` for every upload.
+
+The keystore's **SHA-1** is what the Google Cloud Android OAuth client needs
+(§3.2) — so that client cannot exist until the keystore does. With Play App
+Signing, Google re-signs the app, so register the *Play App Signing*
+certificate's SHA-1 (Play Console → App integrity) as well.
 
 Play's closed-testing requirement — roughly 12 testers for 14 continuous days
 before the Production track unlocks — applies to personal accounts opened
@@ -348,8 +356,8 @@ neither has ever run on hardware.
 - **App Privacy answers** (Apple) and the **Data safety form** (Play), both
   consistent with the analytics event list in `DATA_MODEL.md` and with every
   third-party SDK you end up adding. Apple needs a `PrivacyInfo.xcprivacy`
-  manifest; EAS generates one from your plugins, so check it matches what you
-  declared.
+  manifest; Expo generates one from your plugins at prebuild, so check it
+  matches what you declared.
   Both forms must also declare **Contacts**: a contact picked through
   People's "Import" (BUILD-REVIEW §2.46) is stored and synced to the account,
   so it is collected and linked to the user. Only the one contact picked is
