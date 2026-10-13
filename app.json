@@ -34,7 +34,8 @@
       ],
       "blockedPermissions": [
         "android.permission.WRITE_CONTACTS"
-      ]
+      ],
+      "versionCode": 5
     },
     "web": {
       "bundler": "metro",
@@ -70,7 +71,9 @@
         {
           "microphonePermission": "Used only while you're recording a note, so you can capture a task by speaking instead of typing.",
           "speechRecognitionPermission": "Used to turn the note you just spoke into a task. Nothing is recorded in the background.",
-          "androidSpeechServicePackages": ["com.google.android.googlequicksearchbox"]
+          "androidSpeechServicePackages": [
+            "com.google.android.googlequicksearchbox"
+          ]
         }
       ]
     ],
