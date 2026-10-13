@@ -62,7 +62,8 @@ export default function BrainDump() {
       (why) => {
         toast.show(why === 'denied' ? added(lang).micOff : added(lang).micFailed, { undo: false });
         inputRef.current?.focus();
-      }
+      },
+      { names: contacts.map((c) => c.name) }
     );
     if (!stop) return inputRef.current?.focus();
     stopRef.current = stop;

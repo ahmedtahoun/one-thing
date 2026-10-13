@@ -40,6 +40,44 @@ export type Added = {
   customTime: string;
   customTimeBad: string;
   customTimePast: string;
+  /** The Assistant saving a person from a sentence or a voice note. */
+  contact: {
+    chip: string;
+    askName: string;
+    askDetail: string;
+    ready: string;
+    save: string;
+    nameOnly: string;
+    cancel: string;
+    saved: string;
+    updated: string;
+    dropped: string;
+    duplicate: string;
+    update: string;
+    saveNew: string;
+    guessed: string;
+    name: string;
+    phone: string;
+    email: string;
+    role: string;
+    badPhone: string;
+    badEmail: string;
+    needName: string;
+  };
+  small: { hello: string; help: string; thanks: string; notFound: string; noPhone: string; noEmail: string };
+  /** The nudges that build the habit: each morning, and after a quiet spell. */
+  nudge: { morningTitle: string; morningAsk: string; comebackTitle: string; comebackBody: string };
+  /** Today: the notifications-off prompt and the streak line. */
+  habit: {
+    nudgesOff: string;
+    nudgesTurnOn: string;
+    streak: string;
+    streakKeep: string;
+    streakFresh: string;
+  };
+  listening: string;
+  micStart: string;
+  micStop: string;
 };
 
 const ADDED: Record<Lang, Added> = {
@@ -87,6 +125,54 @@ const ADDED: Record<Lang, Added> = {
     customTime: 'Or type a time',
     customTimeBad: 'Use 24-hour time, like 17:45.',
     customTimePast: 'That time has already passed — pick a later one.',
+    /** The Assistant saving a person: asks for what is missing, one thing at a time. */
+    contact: {
+      chip: 'Save a contact',
+      askName: 'Sure. What’s their name?',
+      askDetail: 'Got it, {n}. What’s their number or email?',
+      ready: 'Here’s what I have. Save this contact?',
+      save: 'Save contact',
+      nameOnly: 'Save name only',
+      cancel: 'Cancel',
+      saved: 'Saved {n} to People.',
+      updated: 'Updated {n}.',
+      dropped: 'Okay, I won’t save it.',
+      duplicate: '{n} is already in People. Add these details to them?',
+      update: 'Update {n}',
+      saveNew: 'Save as new',
+      guessed: 'I wrote the email the way I heard it. Please check the spelling.',
+      name: 'Name',
+      phone: 'Number',
+      email: 'Email',
+      role: 'Company or role',
+      badPhone: 'A number needs at least 7 digits.',
+      badEmail: 'That email doesn’t look right.',
+      needName: 'Add a name first.',
+    },
+    small: {
+      hello: 'Hi{n}! Tell me what to remember — or say “save a contact” and speak their details.',
+      help: 'I can turn a sentence into a task, save a contact from what you say (name, number, email), lay out your day, and tell you who’s waiting on you. Try “Call Sara tomorrow at 10” or “Save a contact”. Tap the mic and just talk.',
+      thanks: 'Anytime.',
+      notFound: 'I couldn’t find that person in People.',
+      noPhone: 'I don’t have a number for {n} yet.',
+      noEmail: 'I don’t have an email for {n} yet.',
+    },
+    nudge: {
+      morningTitle: 'Your one thing today',
+      morningAsk: 'What’s the one thing that would make today a good day?',
+      comebackTitle: 'Still here when you are',
+      comebackBody: 'One small thing is enough. Open it and name just one.',
+    },
+    habit: {
+      nudgesOff: 'Reminders are off, so nothing will nudge you.',
+      nudgesTurnOn: 'Turn on',
+      streak: '{n}-day streak',
+      streakKeep: 'Finish one task today to keep your {n}-day streak.',
+      streakFresh: 'Fresh start. One finished task today begins a new streak.',
+    },
+    listening: 'Listening…',
+    micStart: 'Speak',
+    micStop: 'Stop listening',
   },
   ar: {
     importC: 'استيراد',
@@ -122,6 +208,53 @@ const ADDED: Record<Lang, Added> = {
     customTime: 'أو اكتب وقت',
     customTimeBad: 'اكتب الوقت بنظام 24 ساعة، مثل 17:45.',
     customTimePast: 'هذا الوقت فات — اختر وقت أبعد.',
+    contact: {
+      chip: 'احفظ جهة اتصال',
+      askName: 'تمام. ما اسمه؟',
+      askDetail: 'تمام، {n}. ما رقمه أو إيميله؟',
+      ready: 'هذه البيانات اللي عندي. أحفظ الجهة؟',
+      save: 'حفظ الجهة',
+      nameOnly: 'احفظ الاسم فقط',
+      cancel: 'إلغاء',
+      saved: 'تم حفظ {n} في الأشخاص.',
+      updated: 'تم تحديث {n}.',
+      dropped: 'تمام، ما راح أحفظها.',
+      duplicate: '{n} موجود في الأشخاص. أضيف له هذه البيانات؟',
+      update: 'حدّث {n}',
+      saveNew: 'احفظ كجديد',
+      guessed: 'كتبت الإيميل زي ما سمعته. تأكد من الإملاء.',
+      name: 'الاسم',
+      phone: 'الرقم',
+      email: 'الإيميل',
+      role: 'الشركة أو الدور',
+      badPhone: 'الرقم لازم يكون 7 أرقام على الأقل.',
+      badEmail: 'الإيميل مو صحيح.',
+      needName: 'أضف الاسم أولًا.',
+    },
+    small: {
+      hello: 'أهلًا{n}! قل لي وش أذكّرك فيه — أو قل «احفظ جهة اتصال» وقل بياناتها.',
+      help: 'أقدر أحوّل جملتك إلى مهمة، وأحفظ جهة اتصال من كلامك (الاسم والرقم والإيميل)، وأرتّب يومك، وأقول لك مين ينتظر ردك. جرّب «كلم سارة بكرة العصر» أو «احفظ جهة اتصال». اضغط على الميكروفون وتكلم.',
+      thanks: 'العفو.',
+      notFound: 'ما لقيت هذا الشخص في الأشخاص.',
+      noPhone: 'ما عندي رقم لـ{n} بعد.',
+      noEmail: 'ما عندي إيميل لـ{n} بعد.',
+    },
+    nudge: {
+      morningTitle: 'الشي الواحد اليوم',
+      morningAsk: 'وش الشي الواحد اللي لو خلّصته اليوم، يومك ناجح؟',
+      comebackTitle: 'أنا هنا وقت ما ترجع',
+      comebackBody: 'شي صغير واحد يكفي. افتح التطبيق وسمّي شي واحد بس.',
+    },
+    habit: {
+      nudgesOff: 'التذكيرات مقفلة، فما راح يوصلك أي تنبيه.',
+      nudgesTurnOn: 'شغّلها',
+      streak: 'سلسلة {n} يوم',
+      streakKeep: 'خلّص مهمة وحدة اليوم عشان تحافظ على سلسلة {n} يوم.',
+      streakFresh: 'بداية جديدة. مهمة وحدة تخلّصها اليوم تبدأ سلسلة جديدة.',
+    },
+    listening: 'أسمعك…',
+    micStart: 'تحدّث',
+    micStop: 'أوقف الاستماع',
   },
 };
 

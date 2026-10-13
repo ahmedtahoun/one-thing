@@ -12,6 +12,8 @@ import { router } from 'expo-router';
 
 import { EveningCard } from '@/features/today/EveningCard';
 import { FirstRunCard } from '@/features/today/FirstRunCard';
+import { HabitRow } from '@/features/today/HabitRow';
+import { starterIdeas } from '@/features/today/starter-ideas';
 import { OneThingCard } from '@/features/today/OneThingCard';
 import { QuickActions } from '@/features/today/QuickActions';
 import { quickActionRoute } from '@/features/today/quick-route';
@@ -25,7 +27,10 @@ import { type IconName } from '@/design/icon-paths';
 import { ink, space, surface, type TaskType } from '@/design/tokens';
 import { useDirection, useLanguage } from '@/i18n/LanguageProvider';
 import { dateKey, isOnDay, type Task } from '@/lib/model-types';
+import { useNotifications } from '@/lib/notifications/NotificationsProvider';
 import { usePrefs } from '@/lib/prefs';
+import { streakOf } from '@/lib/streak';
+import { useWins } from '@/lib/wins';
 import { useSession } from '@/lib/session';
 import { useTasks } from '@/lib/tasks';
 
@@ -39,6 +44,8 @@ export default function Today() {
   const { tasks, oneThing, setOneThing, toggleDone, restore } = useTasks();
   const { prefs } = usePrefs();
   const toast = useToast();
+  const { allowed, ask, turnOn } = useNotifications();
+  const wins = useWins();
 
   const [now] = useState(() => new Date());
   const isEvening = now.getHours() >= EVENING_HOUR;
@@ -69,8 +76,12 @@ export default function Today() {
   // examples: today's open tasks, then the rest, without repeats.
   const ownSuggestions = useMemo(() => {
     const open = [...todaysTasks, ...tasks].filter((task) => task.status === 'open' || task.status === 'snoozed');
-    return [...new Set(open.map((task) => task.title.trim()).filter(Boolean))].slice(0, 4);
-  }, [todaysTasks, tasks]);
+    const own = [...new Set(open.map((task) => task.title.trim()).filter(Boolean))].slice(0, 4);
+    // Nothing yet: a founder gets founder-shaped ideas, everyone else the stock examples.
+    return own.length > 0 ? own : (starterIdeas(session?.jobTitle, lang) ?? []);
+  }, [todaysTasks, tasks, session?.jobTitle, lang]);
+
+  const streak = useMemo(() => streakOf(wins, now), [wins, now]);
 
   const openCount = todaysTasks.filter((task) => task.status !== 'done').length;
 
@@ -78,11 +89,13 @@ export default function Today() {
     (title: string) => {
       setOneThing(title, prefs.focusMinutes);
       update({ firstRun: false });
+      // Choosing a first One Thing is the moment a reminder means something.
+      ask().catch(() => {});
       // Not destructive, so no Undo: the toast's job is to say that gentle
       // reminders are now on.
       toast.show(inline.firstRunToast, { undo: false });
     },
-    [setOneThing, prefs.focusMinutes, update, toast, inline.firstRunToast]
+    [setOneThing, prefs.focusMinutes, update, toast, inline.firstRunToast, ask]
   );
 
   const skipFirstRun = useCallback(() => {
@@ -157,6 +170,8 @@ export default function Today() {
 
         {/* First, so a task is one tap from the top of the screen. */}
         <QuickActions onPress={onQuickAction} />
+
+        <HabitRow streak={streak} nudgesOff={allowed === false && !showFirstRun} onTurnOn={() => void turnOn()} />
 
         {isEvening ? (
           <EveningCard

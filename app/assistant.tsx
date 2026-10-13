@@ -14,17 +14,19 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 
 import { added } from '@/content/additions';
 import { AskChips } from '@/features/capture/AskChips';
+import { ContactCard, type ContactEdit } from '@/features/capture/ContactCard';
+import { emailInvalid, findDuplicate, nameValid, phoneInvalid } from '@/features/contact/form-rules';
 import { optionsFor, questionFor, type AskAction, type AskOption } from '@/features/capture/ask';
 import { NOBODY, whenText } from '@/features/capture/labels';
 import { SendRow } from '@/features/capture/SendRow';
 import { Icon } from '@/ui/Icon';
 import { Screen } from '@/ui/Screen';
 import { Text } from '@/ui/Text';
-import { Toast } from '@/ui/Toast';
+import { Toast, useToast } from '@/ui/Toast';
 import { TYPE_ICON } from '@/design/icon-paths';
 import { ink, surface, typeColour } from '@/design/tokens';
 import { useDirection, useLanguage } from '@/i18n/LanguageProvider';
@@ -34,6 +36,7 @@ import { AssistLimitError, textParser, type AssistantIntent, type ParsedTask } f
 import {
   answerFromText,
   clarify,
+  readWho,
   suggestWho,
   withWhen,
   withWho,
@@ -42,9 +45,24 @@ import {
   type Settled,
   type World,
 } from '@/lib/parse/clarify';
+import {
+  answerKind,
+  dialFor,
+  hasFields,
+  isContactCommand,
+  looksLikeTask,
+  mergeFields,
+  missingOf,
+  readContact,
+  splitDialled,
+  type ContactFields,
+} from '@/lib/parse/contact';
+import { smallTalk } from '@/lib/parse/small';
+import { westernDigits } from '@/lib/parse/spoken';
 import { taskFromParsed } from '@/lib/parse/to-task';
 import { usePeople } from '@/lib/people';
 import { useSession } from '@/lib/session';
+import { deviceRegion, startListening } from '@/lib/speech';
 import { useTasks } from '@/lib/tasks';
 
 /** How long the prototype takes to answer. */
@@ -66,8 +84,24 @@ type Ask = {
   answered?: boolean;
 };
 
+/**
+ * A person being saved: what has been heard so far. `open` is the card waiting
+ * for the next thing they say; `replaced` is an earlier version of it.
+ */
+type ContactMsg = {
+  id: string;
+  from: 'bot';
+  kind: 'contact';
+  fields: ContactFields;
+  status: 'open' | 'replaced' | 'saved' | 'dropped';
+  /** An existing contact these details match, once Save found one. */
+  duplicate?: { id: string; name: string };
+  error?: string;
+};
+
 type Message =
   | { id: string; from: 'me'; text: string }
+  | ContactMsg
   | { id: string; from: 'bot'; kind: 'greet' }
   | { id: string; from: 'bot'; kind: 'saved'; time: string }
   | { id: string; from: 'bot'; kind: 'note'; text: string }
@@ -80,20 +114,34 @@ const newId = () => `m_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
 const ONE_THING_SLOT = '09:00';
 
 export default function Assistant() {
-  const { t, fux, a11y, lang } = useLanguage();
+  const { t, fux, a11y, lang, inline } = useLanguage();
   const dir = useDirection();
   const { session } = useSession();
   const { tasks, oneThing, addTask } = useTasks();
-  const { contacts, followUps, addContact } = usePeople();
+  const { contacts, followUps, addContact, updateContact } = usePeople();
   const meter = useAssistantMeter();
+  const toast = useToast();
+  // Quick capture hands over a sentence that is really "save this person".
+  const { say } = useLocalSearchParams<{ say?: string }>();
 
   const [messages, setMessages] = useState<Message[]>([{ id: 'greet', from: 'bot', kind: 'greet' }]);
   const [input, setInput] = useState('');
+  const [listening, setListening] = useState(false);
   const scroll = useRef<ScrollView>(null);
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const stopListeningRef = useRef<(() => void) | null>(null);
+  const handedOver = useRef(false);
+  // A card is taller than a bubble and settles after the first size change: look again once it has.
+  useEffect(() => {
+    const id = setTimeout(() => scroll.current?.scrollToEnd({ animated: true }), 160);
+    return () => clearTimeout(id);
+  }, [messages.length]);
   useEffect(() => {
     const pending = timers.current;
-    return () => pending.forEach(clearTimeout);
+    return () => {
+      pending.forEach(clearTimeout);
+      stopListeningRef.current?.();
+    };
   }, []);
 
   const back = () => (router.canGoBack() ? router.back() : router.replace('/today'));
@@ -170,11 +218,194 @@ export default function Assistant() {
     }
   };
 
-  const send = async (raw?: string) => {
+  // --- saving a person ---------------------------------------------------
+
+  const region = deviceRegion();
+  const openContact = [...messages].reverse().find((m): m is ContactMsg => 'kind' in m && m.kind === 'contact' && m.status === 'open') ?? null;
+
+  const patchContact = (id: string, patch: Partial<ContactMsg>) =>
+    setMessages((list) => list.map((m) => (m.id === id && 'kind' in m && m.kind === 'contact' ? { ...m, ...patch } : m)));
+
+  /** The next version of the card, after something was said: the old one stays as history. */
+  const nextContact = (from: ContactMsg | null, fields: ContactFields, said: string) => {
+    setMessages((list) => [
+      ...list.map((m) => (from && m.id === from.id && 'kind' in m && m.kind === 'contact' ? { ...m, status: 'replaced' as const } : m)),
+      { id: newId(), from: 'me', text: said },
+      { id: newId(), from: 'bot', kind: 'contact', fields, status: 'open' },
+    ]);
+  };
+
+  /** Writes the person, or — if People already has them — asks first. */
+  const saveContact = (msg: ContactMsg, how: 'ask' | 'new' | 'update' = 'ask', nameOnly = false) => {
+    const f: ContactFields = nameOnly ? { name: msg.fields.name, role: msg.fields.role } : msg.fields;
+    if (!f.name || !nameValid(f.name)) return patchContact(msg.id, { error: copy.contact.needName });
+    if (phoneInvalid(f.phone ?? '')) return patchContact(msg.id, { error: copy.contact.badPhone });
+    if (emailInvalid(f.email ?? '')) return patchContact(msg.id, { error: copy.contact.badEmail });
+
+    // The same person if the number or email matches — or if only a first name was said and one person has it.
+    const firstName = f.name.trim().split(/\s+/);
+    const byFirstName =
+      firstName.length === 1 ? contacts.filter((c) => c.name.trim().split(/\s+/)[0]?.toLowerCase() === f.name?.trim().toLowerCase()) : [];
+    const same =
+      how === 'ask'
+        ? findDuplicate({ name: f.name, phone: f.phone ?? '', email: f.email ?? '' }, contacts) ?? (byFirstName.length === 1 ? byFirstName[0] : undefined)
+        : undefined;
+    if (same) return patchContact(msg.id, { duplicate: { id: same.id, name: same.name }, error: undefined });
+
+    let saved: string;
+    if (how === 'update' && msg.duplicate) {
+      const target = contacts.find((c) => c.id === msg.duplicate?.id);
+      updateContact(msg.duplicate.id, {
+        ...(f.phone ? { phone: f.phone, dial: dialFor(f, region) } : {}),
+        ...(f.email ? { email: f.email } : {}),
+        ...(f.role ? { role: f.role } : {}),
+      });
+      saved = copy.contact.updated.replace('{n}', target?.name ?? msg.duplicate.name);
+    } else {
+      const person = addContact({
+        name: f.name.trim(),
+        role: f.role,
+        dial: dialFor(f, region),
+        phone: f.phone,
+        email: f.email,
+        preferredChannel: f.phone || !f.email ? 'whatsapp' : 'email',
+        lastLabel: inline.addedToday,
+      });
+      saved = copy.contact.saved.replace('{n}', person.name);
+    }
+    setMessages((list) => [
+      ...list.map((m) => (m.id === msg.id && 'kind' in m && m.kind === 'contact' ? { ...m, status: 'saved' as const, error: undefined } : m)),
+      { id: newId(), from: 'bot', kind: 'note', text: saved },
+    ]);
+  };
+
+  const dropContact = (msg: ContactMsg) =>
+    setMessages((list) => [
+      ...list.map((m) => (m.id === msg.id && 'kind' in m && m.kind === 'contact' ? { ...m, status: 'dropped' as const } : m)),
+      { id: newId(), from: 'bot', kind: 'note', text: copy.contact.dropped },
+    ]);
+
+  /** Typing into the card itself. */
+  const editContact = (msg: ContactMsg, edit: ContactEdit) => {
+    let fields: ContactFields = { ...msg.fields };
+    if (edit.name !== undefined) fields.name = edit.name;
+    if (edit.email !== undefined) {
+      fields.email = edit.email;
+      delete fields.guessedEmail;
+    }
+    if (edit.role !== undefined) fields.role = edit.role;
+    if (edit.phoneText !== undefined) {
+      const typed = westernDigits(edit.phoneText).replace(/[^\d+]/g, '');
+      if (/^(\+|00)/.test(typed)) fields = { ...fields, ...splitDialled(typed, region) };
+      else fields.phone = typed.replace(/^0+/, '');
+    }
+    patchContact(msg.id, { fields, duplicate: undefined, error: undefined });
+  };
+
+  /**
+   * The next message while a card is open: an answer, a correction, "yes" or
+   * "cancel". False when it is some other errand, which then goes its own way.
+   */
+  const continueContact = (msg: ContactMsg, text: string): boolean => {
+    const answer = answerKind(text);
+    const missing = missingOf(msg.fields);
+    if (answer === 'no') {
+      setMessages((list) => [...list, { id: newId(), from: 'me', text }]);
+      dropContact(msg);
+      return true;
+    }
+    if (answer === 'yes') {
+      setMessages((list) => [...list, { id: newId(), from: 'me', text }]);
+      saveContact(msg, 'ask', missing === 'detail');
+      return true;
+    }
+    if (missing === 'name' && looksLikeTask(text)) return false;
+    const found = readContact(text, { expect: missing, region });
+    if (!hasFields(found)) {
+      if (missing === null && looksLikeTask(text)) return false;
+      setMessages((list) => [...list, { id: newId(), from: 'me', text }, { id: newId(), from: 'bot', kind: 'note', text: copy.ask.unreadable }]);
+      return true;
+    }
+    nextContact(msg, mergeFields(msg.fields, found), text);
+    return true;
+  };
+
+  const startContact = (text: string) => {
+    if (pending) setMessages((list) => list.map((m) => ('kind' in m && m.kind === 'ask' ? { ...m, answered: true } : m)));
+    nextContact(null, readContact(text, { command: true, region }), text);
+  };
+
+  /** What the Assistant says over a card: the next thing it needs, or that it is ready. */
+  const contactLine = (m: ContactMsg): string => {
+    if (m.duplicate) return copy.contact.duplicate.replace('{n}', m.duplicate.name);
+    const missing = missingOf(m.fields);
+    if (missing === 'name') return copy.contact.askName;
+    if (missing === 'detail') return copy.contact.askDetail.replace('{n}', m.fields.name?.split(' ')[0] ?? '');
+    return copy.contact.ready;
+  };
+
+  /** Hellos, thanks, "what can you do?" and "what's Sara's number?": answered here, for free. */
+  const answerSmall = (said: string, small: NonNullable<ReturnType<typeof smallTalk>>) => {
+    const first = session?.firstName ? ` ${session.firstName}` : '';
+    let reply: string;
+    if (small.kind === 'hello') reply = copy.small.hello.replace('{n}', first);
+    else if (small.kind === 'thanks') reply = copy.small.thanks;
+    else if (small.kind === 'help') reply = copy.small.help;
+    else {
+      const found = readWho(said, contacts);
+      const people = !found ? [] : found.kind === 'one' ? [found.contact] : found.options.slice(0, 5);
+      reply =
+        people.length === 0
+          ? copy.small.notFound
+          : people
+              .map((c) => {
+                const value = small.what === 'email' ? c.email : c.phone ? `${c.dial ?? ''} ${c.phone}`.trim() : '';
+                return value ? `${c.name}: ${value}` : (small.what === 'email' ? copy.small.noEmail : copy.small.noPhone).replace('{n}', c.name);
+              })
+              .join('\n');
+    }
+    setMessages((list) => [...list, { id: newId(), from: 'me', text: said }, { id: newId(), from: 'bot', kind: 'note', text: reply }]);
+  };
+
+  // --- the microphone -----------------------------------------------------
+
+  /** Tap to talk in the app's language; long-press to talk in the other one. */
+  const talk = (otherLanguage = false) => {
+    if (listening) return stopListeningRef.current?.();
+    const speak = otherLanguage ? (lang === 'ar' ? 'en' : 'ar') : lang;
+    const stop = startListening(
+      speak,
+      (heard) => {
+        stopListeningRef.current = null;
+        setListening(false);
+        setInput('');
+        if (heard.trim()) void send(heard.trim(), true);
+      },
+      (why) => toast.show(why === 'denied' ? copy.micOff : copy.micFailed, { undo: false }),
+      { names: contacts.map((c) => c.name), autoStopMs: 2600, onPartial: setInput }
+    );
+    if (!stop) return toast.show(copy.micFailed, { undo: false });
+    stopListeningRef.current = stop;
+    setListening(true);
+  };
+
+  const send = async (raw?: string, typed = raw === undefined) => {
     const text = (raw ?? input).trim();
     if (!text) return;
+    const clear = () => raw === undefined && setInput('');
+    // Saving a person takes no Assistant request: it is read on the device.
+    if (typed && openContact && continueContact(openContact, text)) return clear();
+    if (isContactCommand(text)) {
+      clear();
+      return startContact(text);
+    }
+    const small = smallTalk(text);
+    if (small) {
+      clear();
+      return answerSmall(text, small);
+    }
     // Mid-question, typing answers it. The suggestion chips are always a new message.
-    if (pending && raw === undefined) {
+    if (pending && typed) {
       setInput('');
       reply(pending, text);
       return;
@@ -188,7 +419,7 @@ export default function Assistant() {
     meter.spend();
     const sent = newId();
     setMessages((list) => [...list, { id: sent, from: 'me', text }]);
-    if (raw === undefined) setInput('');
+    clear();
     let intent: AssistantIntent;
     try {
       intent = await textParser.interpret(text, { lang, now: new Date(), contacts });
@@ -209,6 +440,13 @@ export default function Assistant() {
       }, REPLY_DELAY)
     );
   };
+
+  useEffect(() => {
+    if (!say || handedOver.current || !meter.ready) return;
+    handedOver.current = true;
+    void send(say, true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [say, meter.ready]);
 
   const confirm = (id: string, task: ParsedTask) => {
     addTask(taskFromParsed(task, 'assistant'));
@@ -284,7 +522,7 @@ export default function Assistant() {
           keyboardShouldPersistTaps="handled"
         >
           {messages.map((m) =>
-            m.from === 'me' ? (
+            'kind' in m && m.kind === 'contact' && (m.status === 'saved' || m.status === 'dropped') ? null : m.from === 'me' ? (
               <View
                 key={m.id}
                 testID="assistant-mine"
@@ -311,7 +549,9 @@ export default function Assistant() {
                         ? t.botSaved.replace('{t}', m.time)
                         : m.kind === 'note'
                           ? m.text
-                          : questionFor(m.gap, m.draft, copy)
+                          : m.kind === 'contact'
+                            ? contactLine(m)
+                            : questionFor(m.gap, m.draft, copy)
                     : m.intent.kind === 'task'
                       ? t.botTask
                       : m.intent.kind === 'plan'
@@ -323,6 +563,23 @@ export default function Assistant() {
                     testID="assistant-ask"
                     options={optionsFor(m.gap, m.draft, copy, quick, new Date())}
                     onPick={(option) => choose(m, option)}
+                  />
+                ) : null}
+                {'kind' in m && m.kind === 'contact' && m.status === 'open' ? (
+                  <ContactCard
+                    fields={m.fields}
+                    dial={dialFor(m.fields, region)}
+                    copy={copy.contact}
+                    duplicate={m.duplicate}
+                    error={m.error}
+                    canSave={Boolean(m.fields.name)}
+                    canSaveNameOnly={missingOf(m.fields) === 'detail'}
+                    onEdit={(edit) => editContact(m, edit)}
+                    onSave={() => saveContact(m)}
+                    onSaveNameOnly={() => saveContact(m, 'ask', true)}
+                    onUpdate={() => saveContact(m, 'update')}
+                    onSaveNew={() => saveContact(m, 'new')}
+                    onCancel={() => dropContact(m)}
                   />
                 ) : null}
                 {'intent' in m && m.intent.kind === 'task' ? (
@@ -360,7 +617,7 @@ export default function Assistant() {
           style={{ flexGrow: 0 }}
           contentContainerStyle={{ gap: 8, paddingHorizontal: 16, paddingBottom: 10 }}
         >
-          {t.chips.map((chip, i) => (
+          {[copy.contact.chip, ...t.chips].map((chip, i) => (
             <Pressable
               key={chip}
               testID={`assistant-chip-${i}`}
@@ -388,8 +645,14 @@ export default function Assistant() {
             value={input}
             onChange={setInput}
             onSend={() => send()}
-            placeholder={t.chatPh}
+            placeholder={listening ? copy.listening : t.chatPh}
             sendLabel={a11y.send}
+            mic={{
+              onPress: () => talk(),
+              onLongPress: () => talk(true),
+              listening,
+              label: listening ? copy.micStop : copy.micStart,
+            }}
           />
         </View>
       </Screen>

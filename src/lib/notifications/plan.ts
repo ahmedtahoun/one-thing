@@ -13,7 +13,7 @@ import { dateKey, type FollowUp, type Prefs, type Task } from '@/lib/model-types
 import { remindAt } from '@/lib/reminders';
 
 /** Which row of SCREENS.md § Notifications a planned item comes from. */
-export type NotificationKind = 'task' | 'task_repeat' | 'followup' | 'evening' | 'focus_end';
+export type NotificationKind = 'task' | 'task_repeat' | 'followup' | 'evening' | 'focus_end' | 'morning' | 'comeback';
 
 export type PlannedNotification = {
   /**
@@ -37,6 +37,14 @@ const FIRM_REPEAT_COUNT = 3;
 
 /** SCREENS.md § Notifications: the evening nudge. */
 export const EVENING_NUDGE = { hour: 18, minute: 30 };
+
+/** The morning "what's your one thing?" nudge: after quiet hours end, before the day gets away. */
+export const MORNING_NUDGE = { hour: 9, minute: 0 };
+/** How many days ahead the morning nudge is scheduled; the task reminders need the rest of the 60 slots. */
+const MORNING_DAYS = 7;
+/** When a person who has gone quiet is called back: after two days, and again after five, at 10:00. */
+export const COMEBACK_AFTER_DAYS = [2, 5];
+const COMEBACK_HOUR = 10;
 
 /** Minutes past midnight, from "HH:MM". */
 function minutesOfDay(hhmm: string): number {
@@ -83,6 +91,11 @@ export type PlanInput = {
   followUps: FollowUp[];
   prefs: Prefs;
   now?: Date;
+  /**
+   * The habit nudges — a morning "your one thing" and a comeback after a quiet
+   * spell. Off unless asked for, so the plan for tasks alone stays what it was.
+   */
+  habit?: boolean;
   /** How far ahead to schedule. The OS caps how many can be pending. */
   horizonDays?: number;
 };
@@ -100,6 +113,7 @@ export function planNotifications({
   followUps,
   prefs,
   now = new Date(),
+  habit = false,
   horizonDays = DEFAULT_HORIZON_DAYS,
 }: PlanInput): PlannedNotification[] {
   const horizon = new Date(now.getTime() + horizonDays * 86400000);
@@ -172,6 +186,25 @@ export function planNotifications({
       at: at.toISOString(),
       alert: shouldAlert(at, prefs),
     });
+  }
+
+  if (habit) {
+    // Each morning, a reason to open the app and name the one thing.
+    for (let day = 0; day <= MORNING_DAYS; day++) {
+      const at = new Date(now);
+      at.setDate(at.getDate() + day);
+      at.setHours(MORNING_NUDGE.hour, MORNING_NUDGE.minute, 0, 0);
+      if (!within(at)) continue;
+      planned.push({ id: `morning:${dateKey(at)}`, kind: 'morning', at: at.toISOString(), alert: shouldAlert(at, prefs) });
+    }
+    // Re-planned every time the app opens, so these only ever fire for someone who has not been back.
+    for (const days of COMEBACK_AFTER_DAYS) {
+      const at = new Date(now);
+      at.setDate(at.getDate() + days);
+      at.setHours(COMEBACK_HOUR, 0, 0, 0);
+      if (!within(at)) continue;
+      planned.push({ id: `comeback:${days}`, kind: 'comeback', at: at.toISOString(), alert: shouldAlert(at, prefs) });
+    }
   }
 
   return planned.sort((a, b) => a.at.localeCompare(b.at)).slice(0, MAX_PENDING);

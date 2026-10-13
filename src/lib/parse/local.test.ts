@@ -109,3 +109,15 @@ describe('the pieces', () => {
   });
   it('splits on "then"', () => assert.deepEqual(splitDump('call Sara then email Noura'), ['call Sara', 'email Noura']));
 });
+
+describe('asking about the day', () => {
+  it('reads the many ways of asking what is on', () => {
+    for (const text of ["what's on today", 'What do I have today?', 'show my schedule', "today's tasks", 'عندي ايه النهارده', 'ايش مهامي']) {
+      assert.equal(intentOf(text), 'plan', text);
+    }
+  });
+  it('does not take a reminder about a schedule for the plan', () => {
+    assert.equal(intentOf('remind me to update my schedule tomorrow'), 'task');
+    assert.equal(intentOf('فكرني اراجع جدول يومي بكرة'), 'task');
+  });
+});

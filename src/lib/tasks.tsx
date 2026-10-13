@@ -21,6 +21,7 @@ import { track } from './analytics/track';
 import { newId } from './ids';
 import { dateKey, type OneThing, type Task } from './model-types';
 import { remindAt } from './reminders';
+import { clearWins, recordWin } from './wins';
 
 const TASKS_KEY = 'ot.tasks';
 const ONE_THING_KEY = 'ot.oneThing';
@@ -139,6 +140,9 @@ export function TasksProvider({ children }: { children: ReactNode }) {
       };
       // A reminder's instant is derived from the task's own time, so it is
       // worked out here rather than by every caller in a second write.
+      // A task with a time reminds on time unless the caller said otherwise: a
+      // task that is never reminded is the reason people stop trusting a list.
+      if (input.remind === undefined && task.dueAt) task.remind = 'at';
       if (task.remind && task.dueAt && !task.remindAt) task.remindAt = remindAt(task);
       persistTasks((current) => [...current, task]);
       // Every route into a task comes through here — quick add, capture,
@@ -176,7 +180,10 @@ export function TasksProvider({ children }: { children: ReactNode }) {
       // have caught every path in one place, including a task another device
       // finished arriving through `applySync` — which is not this device's
       // event to report, and would double-count it.
-      if (next === 'done') track({ name: 'task_done' });
+      if (next === 'done') {
+        track({ name: 'task_done' });
+        recordWin().catch(() => {});
+      }
       return next;
     },
     [tasks, persistTasks]
@@ -207,6 +214,7 @@ export function TasksProvider({ children }: { children: ReactNode }) {
   const setOneThingDone = useCallback<TasksValue['setOneThingDone']>(
     (done) => {
       persistOneThing(oneThing ? { ...oneThing, done } : null);
+      if (done && oneThing) recordWin().catch(() => {});
     },
     [oneThing, persistOneThing]
   );
@@ -222,6 +230,7 @@ export function TasksProvider({ children }: { children: ReactNode }) {
     setTasks([]);
     setOneThingState(null);
     AsyncStorage.multiRemove([TASKS_KEY, ONE_THING_KEY]).catch(() => {});
+    clearWins();
   }, []);
 
   const applySync = useCallback<TasksValue['applySync']>(

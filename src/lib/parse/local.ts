@@ -275,11 +275,12 @@ export function splitDump(text: string): string[] {
     .filter((piece) => piece.length > 2);
 }
 
-const PLAN = /\b(arrange|plan)\b.*\b(day|today|my)\b|رتّب|رتب|نظم يومي|نظّم يومي/i;
+const PLAN =
+  /\b(arrange|plan)\b.*\b(day|today|my)\b|\bwhat(?:'|’)?s (?:on|up)(?: my (?:list|plate|agenda|schedule))?(?: today)?\b|\bwhat do i have (?:today|on)\b|\bmy (?:day|schedule|agenda)\b|\btoday(?:'|’)?s (?:tasks|plan|list)\b|رتّب|رتب|نظم يومي|نظّم يومي|عندي ايه|عندي إيه|عندي ايش|عندي شنو|مهامي|جدول يومي|خطه اليوم|خطة اليوم/i;
 const FOLLOW_UPS = /\bwaiting\b|\bfollow-?ups\b|ينتظر|أنتظر|انتظر|المتابعات|مستني|مستنى|مستنين|مردش|ما ردش/i;
 
 export function intentOf(text: string): 'plan' | 'followups' | 'task' {
-  if (PLAN.test(text)) return 'plan';
+  if (PLAN.test(text) && !/\bremind\b|فكرني|ذكرني|نبهني/i.test(text)) return 'plan';
   if (FOLLOW_UPS.test(text)) return 'followups';
   return 'task';
 }

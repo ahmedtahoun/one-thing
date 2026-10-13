@@ -24,8 +24,10 @@ export const SendRow = forwardRef<
     placeholder: string;
     sendLabel: string;
     testID: string;
+    /** A microphone beside Send: tap to talk, long-press to talk in the other language. */
+    mic?: { onPress: () => void; onLongPress?: () => void; listening: boolean; label: string };
   }
->(function SendRow({ value, onChange, onSend, placeholder, sendLabel, testID }, ref) {
+>(function SendRow({ value, onChange, onSend, placeholder, sendLabel, testID, mic }, ref) {
   const dir = useDirection();
   return (
     <View style={{ flexDirection: dir.row, gap: 8 }}>
@@ -53,6 +55,28 @@ export const SendRow = forwardRef<
           textAlign: dir.textAlign,
         }}
       />
+      {mic ? (
+        <Pressable
+          testID={`${testID}-mic`}
+          onPress={mic.onPress}
+          onLongPress={mic.onLongPress}
+          accessibilityRole="button"
+          accessibilityLabel={mic.label}
+          accessibilityState={{ selected: mic.listening }}
+          style={{
+            width: 50,
+            height: 50,
+            borderRadius: 25,
+            borderWidth: 1,
+            borderColor: mic.listening ? ink.base : surface.line,
+            backgroundColor: mic.listening ? ink.base : surface.white,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Icon name="mic" size={18} color={mic.listening ? surface.white : ink.base} strokeWidth={1.7} />
+        </Pressable>
+      ) : null}
       <Pressable
         testID={`${testID}-send`}
         onPress={onSend}

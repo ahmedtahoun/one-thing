@@ -9,7 +9,8 @@
  */
 import type { Copy } from '@/content/strings';
 import type { FollowUp, Task } from '@/lib/model-types';
-import { displayName } from '@/lib/model-types';
+import { dateKey, displayName, type OneThing } from '@/lib/model-types';
+import type { Added } from '@/content/additions';
 
 export type NotificationText = { title: string; body: string };
 
@@ -38,4 +39,22 @@ export function eveningText(t: Copy): NotificationText {
  */
 export function focusEndText(minutes: number, t: Copy): NotificationText {
   return { title: t.focusMeta.replace('{n}', String(minutes)), body: t.rv_close };
+}
+
+/**
+ * The morning nudge names the day's one thing when there is one, else the
+ * first thing due that day, else asks for it — so it is a reason to open the
+ * app and decide, not a generic ping.
+ */
+export function morningText(at: Date, tasks: Task[], oneThing: OneThing | null | undefined, nudge: Added['nudge']): NotificationText {
+  const key = dateKey(at);
+  const chosen = oneThing && !oneThing.done && oneThing.date === key ? oneThing.title : null;
+  const first = tasks
+    .filter((task) => task.status === 'open' && task.dueAt && dateKey(new Date(task.dueAt)) === key)
+    .sort((a, b) => (a.dueAt ?? '').localeCompare(b.dueAt ?? ''))[0];
+  return { title: nudge.morningTitle, body: chosen ?? first?.title ?? nudge.morningAsk };
+}
+
+export function comebackText(nudge: Added['nudge']): NotificationText {
+  return { title: nudge.comebackTitle, body: nudge.comebackBody };
 }

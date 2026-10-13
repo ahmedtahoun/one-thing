@@ -207,11 +207,11 @@ const D_SAMPLE =
   check('"Looks right" saves it', asked.length === 1 && asked[0].createdVia === 'assistant' && asked[0].type === 'call' && asked[0].contactIds[0] === 'c3');
   check('…and says when it will remind', (await page.locator('body').innerText()).includes('Saved. I’ll tap you gently at 11:00.') && (await count('assistant-kept')) === 1);
 
-  await page.getByTestId('assistant-chip-1').click();
+  await page.getByTestId('assistant-chip-2').click();
   await page.waitForTimeout(1000);
   const plan = await text('assistant-plan');
   check('"Arrange my day" lays out the day, One Thing first', plan.startsWith('09:00') && plan.includes('Finish the investor proposal') && plan.includes('Follow up on price quote'), plan.slice(0, 120));
-  await page.getByTestId('assistant-chip-2').click();
+  await page.getByTestId('assistant-chip-3').click();
   await page.waitForTimeout(1000);
   check('"Who am I waiting on?" counts the real follow-ups', (await page.locator('body').innerText()).includes('1 need a nudge · 2 waiting on a reply'));
 

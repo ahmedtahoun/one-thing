@@ -23,6 +23,7 @@ import { Toast, useToast } from '@/ui/Toast';
 import { fontFamily, ink, surface } from '@/design/tokens';
 import { useDirection, useLanguage } from '@/i18n/LanguageProvider';
 import { textParser, type ParsedTask } from '@/lib/parse';
+import { isContactCommand } from '@/lib/parse/contact';
 import { clarify, suggestWho, withWhen, withWho, type Gap, type QuickWhen, type Settled } from '@/lib/parse/clarify';
 import type { Contact } from '@/lib/model-types';
 import { taskFromParsed } from '@/lib/parse/to-task';
@@ -103,6 +104,13 @@ export default function Capture() {
 
   const close = () => (router.canGoBack() ? router.back() : router.replace('/today'));
 
+  /** "Save this number…" is not a task: it goes to the Assistant, which saves people. */
+  const toAssistant = (value: string): boolean => {
+    if (!isContactCommand(value)) return false;
+    router.replace({ pathname: '/assistant', params: { say: value } });
+    return true;
+  };
+
   const micTap = () => {
     if (stage === 'listening') {
       stopRef.current?.();
@@ -112,6 +120,7 @@ export default function Capture() {
       lang,
       (heard) => {
         stopRef.current = null;
+        if (heard && toAssistant(heard)) return;
         if (heard) {
           setText(heard);
           setStage('done');
@@ -122,7 +131,8 @@ export default function Capture() {
       (why) => {
         toast.show(why === 'denied' ? added(lang).micOff : added(lang).micFailed, { undo: false });
         typeRef.current?.focus();
-      }
+      },
+      { names: contacts.map((c) => c.name), autoStopMs: 2600 }
     );
     // No recogniser on this device yet: typing is the other way in.
     if (!stop) return typeRef.current?.focus();
@@ -131,6 +141,7 @@ export default function Capture() {
   };
 
   const submitTyped = () => {
+    if (text.trim() && toAssistant(text)) return;
     if (text.trim()) setStage('done');
   };
 

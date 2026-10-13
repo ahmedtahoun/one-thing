@@ -16,7 +16,29 @@
  */
 import { Platform } from 'react-native';
 
+import { bestHeard } from './parse/spoken';
+import { pickLocale } from './speech-locale';
+
 export type ListenFailure = 'denied' | 'failed';
+
+export type ListenOptions = {
+  /** Names the person has: the recogniser favours them, and the reading that contains one wins. */
+  names?: string[];
+  /** Stop on its own this long after the last word, once something was said. */
+  autoStopMs?: number;
+  /** The running transcript while it is being said. */
+  onPartial?: (text: string) => void;
+};
+
+/** The device's region ("EG"), so a number or a dialect is read the way the person's phone is set. */
+export function deviceRegion(): string | undefined {
+  try {
+    const { getLocales } = require('expo-localization') as typeof import('expo-localization');
+    return getLocales()[0]?.regionCode ?? undefined;
+  } catch {
+    return undefined;
+  }
+}
 
 type Recognition = {
   lang: string;
@@ -43,7 +65,7 @@ function startWeb(lang: 'en' | 'ar', onDone: (text: string) => void): (() => voi
   const R = recognitionClass();
   if (!R) return null;
   const rec = new R();
-  rec.lang = lang === 'ar' ? 'ar-SA' : 'en-GB';
+  rec.lang = pickLocale(lang, [], deviceRegion());
   rec.interimResults = false;
   rec.continuous = true;
   let heard = '';
@@ -82,11 +104,42 @@ function nativeModule(): NativeModule | null {
   }
 }
 
+/** What the device can recognise, asked once per language. */
+const localeCache = new Map<string, string>();
+
+async function localeFor(mod: NativeModule, lang: 'en' | 'ar'): Promise<string> {
+  const cached = localeCache.get(lang);
+  if (cached) return cached;
+  let supported: string[] = [];
+  try {
+    supported = (await mod.getSupportedLocales({})).locales;
+  } catch {
+    // Older Android lists nothing; the default for the region is used.
+  }
+  const locale = pickLocale(lang, supported, deviceRegion());
+  localeCache.set(lang, locale);
+  return locale;
+}
+
+/** The words worth giving the recogniser: the person's names, first names too. */
+function hintsFrom(names: string[] = []): string[] {
+  const out = new Set<string>();
+  for (const name of names) {
+    const full = name.trim();
+    if (!full) continue;
+    out.add(full);
+    const first = full.split(/\s+/)[0];
+    if (first) out.add(first);
+  }
+  return [...out].slice(0, 100);
+}
+
 function startNative(
   mod: NativeModule,
   lang: 'en' | 'ar',
   onDone: (text: string) => void,
-  onError?: (why: ListenFailure) => void
+  onError?: (why: ListenFailure) => void,
+  options: ListenOptions = {}
 ): (() => void) | null {
   if (!mod.isRecognitionAvailable()) return null;
 
@@ -95,25 +148,42 @@ function startNative(
   let interim = '';
   let stopped = false;
   let finished = false;
+  let lastHeard = 0;
+  let silence: ReturnType<typeof setInterval> | null = null;
   const subscriptions: { remove: () => void }[] = [];
+  const names = options.names ?? [];
+
+  const heardSoFar = () => [...finals, interim].join(' ').trim();
 
   const finish = (why?: ListenFailure) => {
     if (finished) return;
     finished = true;
+    if (silence) clearInterval(silence);
     for (const subscription of subscriptions) subscription.remove();
     if (why) onError?.(why);
-    onDone(why ? '' : [...finals, interim].join(' ').trim());
+    onDone(why ? '' : heardSoFar());
+  };
+
+  const stop = () => {
+    stopped = true;
+    try {
+      mod.stop();
+    } catch {
+      finish();
+    }
   };
 
   subscriptions.push(
     mod.addListener('result', (event) => {
-      const transcript = event.results[0]?.transcript?.trim() ?? '';
+      lastHeard = Date.now();
       if (event.isFinal) {
+        const transcript = bestHeard(event.results, names);
         if (transcript) finals.push(transcript);
         interim = '';
       } else {
-        interim = transcript;
+        interim = event.results[0]?.transcript?.trim() ?? '';
       }
+      options.onPartial?.(heardSoFar());
     }),
     mod.addListener('error', (event) => {
       // Silence and a deliberate stop are not failures: just nothing heard.
@@ -125,21 +195,30 @@ function startNative(
 
   mod
     .requestPermissionsAsync()
-    .then((permission) => {
+    .then(async (permission) => {
       if (!permission.granted) return finish('denied');
       if (stopped) return finish();
-      mod.start({ lang: lang === 'ar' ? 'ar-SA' : 'en-GB', interimResults: true, continuous: true });
+      const locale = await localeFor(mod, lang);
+      if (stopped) return finish();
+      mod.start({
+        lang: locale,
+        interimResults: true,
+        continuous: true,
+        maxAlternatives: 3,
+        contextualStrings: hintsFrom(names),
+        addsPunctuation: false,
+        iosTaskHint: 'dictation',
+      });
+      // A person who has finished a sentence should not have to find the stop button.
+      if (options.autoStopMs) {
+        silence = setInterval(() => {
+          if (!stopped && lastHeard && Date.now() - lastHeard > (options.autoStopMs ?? 0)) stop();
+        }, 300);
+      }
     })
     .catch(() => finish('failed'));
 
-  return () => {
-    stopped = true;
-    try {
-      mod.stop();
-    } catch {
-      finish();
-    }
-  };
+  return stop;
 }
 
 /**
@@ -151,9 +230,10 @@ function startNative(
 export function startListening(
   lang: 'en' | 'ar',
   onDone: (text: string) => void,
-  onError?: (why: ListenFailure) => void
+  onError?: (why: ListenFailure) => void,
+  options?: ListenOptions
 ): (() => void) | null {
   const native = nativeModule();
-  if (native) return startNative(native, lang, onDone, onError);
+  if (native) return startNative(native, lang, onDone, onError, options);
   return startWeb(lang, onDone);
 }
