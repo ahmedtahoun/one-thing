@@ -15,7 +15,6 @@ import { ACC } from '../src/content/strings';
 
 const OUT = join(__dirname, '..', 'website');
 const EMAIL = 'privacy@onlyonething.app';
-const DOMAIN = 'https://onlyonething.app';
 
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 type Section = readonly [string, string];
@@ -37,7 +36,9 @@ footer{padding-top:40px;padding-bottom:48px;color:var(--soft);font-size:14px}
 [dir=rtl]{text-align:right}
 `;
 
+/** Links are relative, so the site works from any address: a GitHub Pages sub-path today, onlyonething.app later. */
 function page(path: string, title: string, description: string, body: string): void {
+  const up = path ? '../' : '';
   const html = `<!doctype html>
 <html lang="en">
 <head>
@@ -45,12 +46,11 @@ function page(path: string, title: string, description: string, body: string): v
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${esc(title)} · The One Thing</title>
 <meta name="description" content="${esc(description)}">
-<link rel="canonical" href="${DOMAIN}/${path}">
 <style>${CSS}</style>
 </head>
 <body>
-<header><a class="brand" href="/">The One Thing</a>
-<nav><a href="/privacy/">Privacy</a><a href="/terms/">Terms</a><a href="/support/">Support</a><a href="/delete/">Delete account</a></nav></header>
+<header><a class="brand" href="${up || './'}">The One Thing</a>
+<nav><a href="${up}privacy/">Privacy</a><a href="${up}terms/">Terms</a><a href="${up}support/">Support</a><a href="${up}delete/">Delete account</a></nav></header>
 <main>
 ${body}
 </main>
@@ -119,7 +119,7 @@ page(
 <li>Check Focus / Do Not Disturb isn’t silencing them, and that the task has a time.</li>
 <li>In the app, <strong>Settings → Reminders</strong> sets your style and quiet hours (22:00–08:00 by default, when reminders arrive silently).</li></ol>
 <h2>Your data</h2>
-<p>Download or delete your data from <strong>Settings → Privacy &amp; data</strong>. See also <a href="/delete/">how to delete your account</a> and the <a href="/privacy/">Privacy Policy</a>.</p>
+<p>Download or delete your data from <strong>Settings → Privacy &amp; data</strong>. See also <a href="../delete/">how to delete your account</a> and the <a href="../privacy/">Privacy Policy</a>.</p>
 <h2>Subscriptions</h2>
 <p>Pro is billed by the App Store or Google Play. Manage or cancel it in your store’s subscription settings, or from <strong>Settings → Manage subscription</strong>.</p>`,
       `<p>راسلنا على <a href="mailto:${EMAIL}">${EMAIL}</a> وقل لنا وش صار. لقطة الشاشة تساعد. من التطبيق: <strong>الإعدادات ← المساعدة والملاحظات</strong>.</p>
@@ -128,7 +128,7 @@ page(
 <li>تأكد إن وضع التركيز أو عدم الإزعاج ما يكتمها، وإن للمهمة وقت.</li>
 <li>من التطبيق، <strong>الإعدادات ← التذكيرات</strong> تحدد أسلوبك وساعات الهدوء (من ٢٢:٠٠ إلى ٠٨:٠٠ افتراضيًا، وفيها تصل التذكيرات بدون صوت).</li></ol>
 <h2>بياناتك</h2>
-<p>حمّل أو احذف بياناتك من <strong>الإعدادات ← الخصوصية والبيانات</strong>. شوف أيضًا <a href="/delete/">طريقة حذف حسابك</a> و<a href="/privacy/">سياسة الخصوصية</a>.</p>
+<p>حمّل أو احذف بياناتك من <strong>الإعدادات ← الخصوصية والبيانات</strong>. شوف أيضًا <a href="../delete/">طريقة حذف حسابك</a> و<a href="../privacy/">سياسة الخصوصية</a>.</p>
 <h2>الاشتراكات</h2>
 <p>اشتراك Pro يُحاسَب عبر App Store أو Google Play. أدره أو ألغِه من إعدادات الاشتراكات في المتجر، أو من <strong>الإعدادات ← إدارة الاشتراك</strong>.</p>`
     )
@@ -170,6 +170,6 @@ page(
   `<h1>The One Thing</h1>
 <p>Name the one thing that would make today a good day. Talk to add the rest, in English or Arabic.</p>
 <div class="card" dir="rtl" lang="ar"><p>حدّد الشيء الواحد اللي يخلّي يومك ناجح، وتكلّم لتضيف الباقي بالعربي أو الإنجليزي.</p></div>
-<p><a class="btn" href="/support/">Support</a> <a class="btn" href="/privacy/">Privacy</a></p>`
+<p><a class="btn" href="support/">Support</a> <a class="btn" href="privacy/">Privacy</a></p>`
 );
 console.log('website/ written');
