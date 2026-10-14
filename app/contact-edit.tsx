@@ -76,6 +76,7 @@ function ContactForm({ contact }: { contact?: Contact }) {
     setEmail(draft.email);
     if (!draft.phone && draft.email) setPref('email');
   };
+  const [address, setAddress] = useState(contact?.address ?? '');
   const [notes, setNotes] = useState(contact?.rememberNote ?? '');
   const [tried, setTried] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -103,6 +104,7 @@ function ContactForm({ contact }: { contact?: Contact }) {
       phone: phone.trim() || undefined,
       email: email.trim() || undefined,
       preferredChannel: pref,
+      address: address.trim() || undefined,
       rememberNote: notes.trim() || undefined,
     };
     if (contact) {
@@ -259,6 +261,14 @@ function ContactForm({ contact }: { contact?: Contact }) {
                 value={role}
                 onChangeText={setRole}
                 placeholder={t.f_rolePh}
+                placeholderTextColor={ink.s5}
+                style={{ ...field, ...ruled }}
+              />
+              <TextInput
+                testID="contact-form-address"
+                value={address}
+                onChangeText={setAddress}
+                placeholder={added(lang).contact.address}
                 placeholderTextColor={ink.s5}
                 style={{ ...field, ...ruled }}
               />

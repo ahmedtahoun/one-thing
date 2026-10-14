@@ -8,11 +8,12 @@
  */
 import { clockOf } from '@/lib/clock-format';
 import { useMemo, useState } from 'react';
-import { Pressable, TextInput, View } from 'react-native';
+import { Linking, Pressable, TextInput, View } from 'react-native';
 import { Redirect, router, useLocalSearchParams } from 'expo-router';
 
 import { added } from '@/content/additions';
 import { buildTimeline, type TimelineItem } from '@/features/contact/timeline';
+import { mapsUrl } from '@/features/people/maps';
 import { useStartTask } from '@/features/people/start-task';
 import { Avatar } from '@/ui/Avatar';
 import { Icon } from '@/ui/Icon';
@@ -202,6 +203,28 @@ function Profile({ contact }: { contact: Contact }) {
             </View>
           ) : null}
         </View>
+
+        {contact.address ? (
+          <Pressable
+            testID="contact-address"
+            onPress={() => void Linking.openURL(mapsUrl(contact.address ?? ''))}
+            accessibilityRole="link"
+            accessibilityLabel={`${added(lang).contact.openMap}: ${contact.address}`}
+            style={{ flexDirection: dir.row, alignItems: 'center', gap: 10, paddingVertical: 12, paddingHorizontal: 14, borderRadius: 16, backgroundColor: surface.white }}
+          >
+            <View style={{ width: 36, height: 36, borderRadius: 12, backgroundColor: typeColour.visit.bg, alignItems: 'center', justifyContent: 'center' }}>
+              <Icon name="pin" size={18} color={typeColour.visit.fg} strokeWidth={1.9} />
+            </View>
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text token="bodyS" numberOfLines={2}>
+                {contact.address}
+              </Text>
+              <Text token="micro" color={ink.s4}>
+                {added(lang).contact.openMap}
+              </Text>
+            </View>
+          </Pressable>
+        ) : null}
 
         <View style={{ flexDirection: dir.row, gap: 8 }}>
           {actions.map((a) => {

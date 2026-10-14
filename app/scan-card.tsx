@@ -95,6 +95,7 @@ export default function ScanCard() {
         ...(fields.phone ? { phone: fields.phone, dial: dialFor(fields, region) } : {}),
         ...(fields.email ? { email: fields.email } : {}),
         ...(fields.role ? { role: fields.role } : {}),
+        ...(fields.address ? { address: fields.address } : {}),
       });
       toast.show(added(lang).contact.updated.replace('{n}', duplicate.name), { undo: false });
     } else {
@@ -104,6 +105,7 @@ export default function ScanCard() {
         dial: fields.phone ? dialFor(fields, region) : undefined,
         phone: fields.phone,
         email: fields.email,
+        address: fields.address?.trim() || undefined,
         preferredChannel: fields.phone ? 'whatsapp' : fields.email ? 'email' : undefined,
         lastLabel: inline.addedToday,
       });
@@ -149,7 +151,7 @@ export default function ScanCard() {
               </Text>
             ) : null}
             <ContactCard
-              fields={fields}
+              fields={{ ...fields, address: fields.address ?? '' }}
               dial={dialFor(fields, region)}
               copy={added(lang).contact}
               duplicate={duplicate}

@@ -23,6 +23,8 @@ export type ContactFields = {
   email?: string;
   /** Company or role. */
   role?: string;
+  /** A street address or place, from a scanned card or typed. */
+  address?: string;
   /** The email was written from letters heard in Arabic; worth a second look. */
   guessedEmail?: boolean;
 };
@@ -229,7 +231,7 @@ export function looksLikeTask(text: string): boolean {
 }
 
 /** One field typed into a contact card. A typed number is split into its code and national part. */
-export type ContactEdit = Partial<Pick<ContactFields, 'name' | 'email' | 'role'>> & { phoneText?: string };
+export type ContactEdit = Partial<Pick<ContactFields, 'name' | 'email' | 'role' | 'address'>> & { phoneText?: string };
 
 export function applyEdit(fields: ContactFields, edit: ContactEdit, region?: string): ContactFields {
   let next: ContactFields = { ...fields };
@@ -239,6 +241,7 @@ export function applyEdit(fields: ContactFields, edit: ContactEdit, region?: str
     delete next.guessedEmail;
   }
   if (edit.role !== undefined) next.role = edit.role;
+  if (edit.address !== undefined) next.address = edit.address;
   if (edit.phoneText !== undefined) {
     const typed = westernDigits(edit.phoneText).replace(/[^\d+]/g, '');
     if (/^(\+|00)/.test(typed)) next = { ...next, ...splitDialled(typed, region) };

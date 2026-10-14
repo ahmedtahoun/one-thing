@@ -17,6 +17,8 @@ export type CardFields = {
   dial?: string;
   phone?: string;
   email?: string;
+  /** Street lines found on the card, joined as one line. */
+  address?: string;
 };
 
 const EMAIL = /[^\s@<>,;:]+@[^\s@<>,;]+\.[A-Za-z]{2,}/;
@@ -28,7 +30,7 @@ const MOBILE = /\b(?:mobile|mob|cell|m)\s*[:.]|\bwhats?app\b|جوال|موباي
 const TITLE =
   /\b(?:ceo|cto|cfo|coo|cmo|founder|co-?founder|owner|president|vice president|vp|chairman|managing|director|manager|head of|lead|engineer|developer|designer|consultant|partner|sales|marketing|executive|specialist|officer|architect|doctor|dr\.?|attorney|lawyer|accountant|supervisor|assistant|advisor|analyst|coordinator)\b|مدير|رئيس|مؤسس|مهندس|مستشار|محامي|طبيب|دكتور|محاسب|مشرف|شريك|مسؤول|مسئول|خبير|نائب|مالك|صاحب|مصمم|مطور|منسق|اخصائي|أخصائي/i;
 const COMPANY =
-  /\b(?:ltd|llc|inc|corp|co\.|company|group|holding|holdings|trading|solutions|technologies|technology|studio|agency|bank|clinic|center|centre|enterprises|international|industries|services|consulting|partners|labs|ventures|capital|foundation|university|institute|factory|store|shop)\b|شركة|مؤسسة|مجموعة|للتجارة|للتقنية|للتسويق|للاستشارات|مكتب|مصنع|عيادة|مركز|بنك|أكاديمية|اكاديمية|وكالة|استوديو|جامعة|معهد|مطعم|مقهى/i;
+  /\b(?:ltd|llc|inc|corp|co\.|company|group|holding|holdings|trading|solutions|technologies|technology|studio|agency|bank|clinic|academy|school|club|gym|salon|hotel|restaurant|cafe|pharmacy|center|centre|enterprises|international|industries|services|consulting|partners|labs|ventures|capital|foundation|university|institute|factory|store|shop)\b|شركة|مؤسسة|مجموعة|للتجارة|للتقنية|للتسويق|للاستشارات|مكتب|مصنع|عيادة|مركز|بنك|أكاديمية|اكاديمية|وكالة|استوديو|جامعة|معهد|مطعم|مقهى/i;
 
 const hasArabic = (s: string): boolean => /[؀-ۿ]/.test(s);
 const words = (s: string): string[] => s.split(/\s+/).filter(Boolean);
@@ -65,19 +67,26 @@ export function parseCard(rawLines: readonly string[], options: { region?: strin
     }
   });
 
-  // Phone: the labelled mobile first, then any number that is not a fax.
+  // Phone: the labelled mobile first, then any number that is not a fax. One line can
+  // carry several ("0110 048 9485 - 0106 443 2564"), so each is read on its own.
   const numbers: { line: number; text: string; score: number }[] = [];
   lines.forEach((line, i) => {
     if (used.has(i)) return;
-    const found = /(?:\+|00)?\d[\d\s().-]{6,}\d/.exec(line);
-    if (!found || found[0].replace(/\D/g, '').length < 7 || found[0].replace(/\D/g, '').length > 15) return;
-    const score = FAX.test(line) ? -1 : MOBILE.test(line) ? 3 : /^\s*(?:\+|00)/.test(found[0]) ? 2 : 1;
-    numbers.push({ line: i, text: found[0], score });
+    for (const found of line.matchAll(/(?:\+|00)?\d[\d\s().]{5,}\d|(?:\+|00)?\d[\d\s().-]{5,}\d/g)) {
+      const digits = found[0].replace(/\D/g, '').length;
+      if (digits < 7 || digits > 15) continue;
+      const score = FAX.test(line) ? -1 : MOBILE.test(line) ? 3 : /^\s*(?:\+|00)/.test(found[0]) ? 2 : 1;
+      numbers.push({ line: i, text: found[0], score });
+    }
   });
   numbers.sort((a, b) => b.score - a.score || a.line - b.line);
   const best = numbers.find((n) => n.score > 0);
   if (best) Object.assign(fields, splitDialled(best.text.trim(), options.region));
   for (const n of numbers) used.add(n.line);
+
+  // Street lines are kept as the address rather than thrown away.
+  const street = lines.filter((text, i) => !used.has(i) && ADDRESS.test(text) && !SITE.test(text));
+  if (street.length > 0) fields.address = street.map((l) => tidy(l)).join(', ');
 
   // What is left: set aside the web address and the street, then read name, title and company.
   const rest = lines.map((text, i) => ({ text, i })).filter(({ text, i }) => !used.has(i) && !SITE.test(text) && !ADDRESS.test(text));
@@ -109,6 +118,14 @@ export function parseCard(rawLines: readonly string[], options: { region?: strin
       // No telltale word: the other line beside the title.
       const near = [rest[titleAt - 1], rest[titleAt + 1]].find((r) => r && r.text !== pick?.text && !nameLike(r.text) && r.text.length < 45);
       company = near?.text ?? '';
+    }
+  }
+  // A business card with no person on it: "My Swim" over "ACADEMY" is one name, not a name and a company.
+  if (!title && pick && company && words(company).length === 1) {
+    const at = rest.findIndex(({ text }) => text === pick.text);
+    if (rest[at + 1]?.text === company) {
+      fields.name = `${tidy(pick.text)} ${tidy(company)}`;
+      company = '';
     }
   }
   const role = [title && tidy(title), company && tidy(company)].filter(Boolean).join(' · ');

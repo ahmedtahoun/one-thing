@@ -130,6 +130,9 @@ export function ContactCard(props: Props) {
       {fields.role !== undefined
         ? input(copy.role, fields.role, (role) => props.onEdit({ role }), { testID: 'assistant-contact-role', autoCapitalize: 'sentences' })
         : null}
+      {fields.address !== undefined
+        ? input(copy.address, fields.address, (address) => props.onEdit({ address }), { testID: 'assistant-contact-address', autoCapitalize: 'sentences', autoCorrect: true })
+        : null}
       {fields.guessedEmail ? (
         <Text token="micro" color={ink.s3}>
           {copy.guessed}

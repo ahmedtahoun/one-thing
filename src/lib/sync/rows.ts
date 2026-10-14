@@ -60,6 +60,7 @@ export type ContactRow = {
   dial: string | null;
   phone: string | null;
   email: string | null;
+  address: string | null;
   preferred_channel: Channel | null;
   remember_note: string | null;
   last_label: string | null;
@@ -150,7 +151,7 @@ export const COLUMNS = {
     'sent_confirmed_at',
   ],
   contact: [
-    'id', 'name', 'role_company', 'dial', 'phone', 'email', 'preferred_channel', 'remember_note',
+    'id', 'name', 'role_company', 'dial', 'phone', 'email', 'address', 'preferred_channel', 'remember_note',
     'last_label', 'touched_at', 'created_at',
   ],
   history: ['id', 'contact_id', 'kind', 'text', 'at'],
@@ -285,6 +286,7 @@ export function contactToRow(contact: Contact): ContactRow {
     dial: orNull(contact.dial),
     phone: orNull(contact.phone),
     email: orNull(contact.email),
+    address: orNull(contact.address),
     preferred_channel: orNull(contact.preferredChannel),
     remember_note: orNull(contact.rememberNote),
     last_label: orNull(contact.lastLabel),
@@ -299,6 +301,7 @@ export function contactFromRow(row: ContactRow): Contact {
   if (row.dial !== null) contact.dial = row.dial;
   if (row.phone !== null) contact.phone = row.phone;
   if (row.email !== null) contact.email = row.email;
+  if (row.address !== null) contact.address = row.address;
   if (row.preferred_channel !== null) contact.preferredChannel = row.preferred_channel;
   if (row.remember_note !== null) contact.rememberNote = row.remember_note;
   if (row.last_label !== null) contact.lastLabel = row.last_label;

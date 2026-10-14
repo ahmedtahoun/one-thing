@@ -109,6 +109,8 @@ export type Contact = {
   dial?: string;
   phone?: string;
   email?: string;
+  /** Where they are: a street address or a place name, opened in Maps from their profile. */
+  address?: string;
   preferredChannel?: Channel;
   /** "Remember for next time" on the contact profile. */
   rememberNote?: string;

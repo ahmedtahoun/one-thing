@@ -60,6 +60,8 @@ export type Added = {
     phone: string;
     email: string;
     role: string;
+    address: string;
+    openMap: string;
     badPhone: string;
     badEmail: string;
     needName: string;
@@ -362,6 +364,8 @@ const ADDED: Record<Lang, Added> = {
       phone: 'Number',
       email: 'Email',
       role: 'Company or role',
+      address: 'Address or location',
+      openMap: 'Open in Maps',
       badPhone: 'A number needs at least 7 digits.',
       badEmail: 'That email doesn’t look right.',
       needName: 'Add a name first.',
@@ -646,6 +650,8 @@ const ADDED: Record<Lang, Added> = {
       phone: 'الرقم',
       email: 'الإيميل',
       role: 'الشركة أو الدور',
+      address: 'العنوان أو الموقع',
+      openMap: 'افتح في الخرائط',
       badPhone: 'الرقم لازم يكون 7 أرقام على الأقل.',
       badEmail: 'الإيميل مو صحيح.',
       needName: 'أضف الاسم أولًا.',

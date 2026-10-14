@@ -60,3 +60,19 @@ describe('parseCard — noise', () => {
     assert.deepEqual(parseCard(['x', '--']), {});
   });
 });
+
+describe('parseCard — a business card with no person on it', () => {
+  const lines = ['My Swim', 'ACADEMY', '01100489485 - 01064432564'];
+  it('reads two numbers printed on one line, and takes the first', () => {
+    const f = parseCard(lines, { region: 'EG' });
+    assert.equal(f.dial, '+20');
+    assert.equal(f.phone, '1100489485');
+  });
+  it('joins the logo words into one name', () => {
+    assert.equal(parseCard(lines, { region: 'EG' }).name, 'My Swim Academy');
+  });
+  it('keeps the street as the address', () => {
+    const f = parseCard(['Sara Haddad', 'Managing Partner', '+966 50 123 4567', 'King Fahd Road, Riyadh'], { region: 'SA' });
+    assert.equal(f.address, 'King Fahd Road, Riyadh');
+  });
+});
