@@ -100,6 +100,19 @@ describe('the pieces', () => {
   });
   it('reads Arabic-Indic digits', () => assert.equal(westernDigits('١٠:٣٠'), '10:30'));
   it('falls back to a reminder', () => assert.equal(typeOf('book the dentist'), 'reminder'));
+  it('keeps "remind me … send samples" a reminder to oneself, with nobody to ask about', async () => {
+    const parse = (text: string) => localParser.parse(text, { lang: 'en', now: new Date('2026-10-14T10:00:00'), contacts: [] });
+    assert.equal((await parse('Can you please remind me tomorrow around 9 AM to wake up and send samples')).type, 'reminder');
+    assert.equal((await parse('remind me to reply to the supplier')).type, 'reminder');
+  });
+  it('still sends a message when asked to, and when WhatsApp is named', () => {
+    assert.equal(typeOf('send Sara the deck'), 'whatsapp');
+    assert.equal(typeOf('remind me to whatsapp Sara'), 'whatsapp');
+    assert.equal(typeOf('remind me to call Omar'), 'call');
+    const parse = (text: string) => localParser.parse(text, { lang: 'en', now: new Date('2026-10-14T10:00:00'), contacts: [] });
+    // Somebody is named, so it is a message.
+    return parse('Remind me to send the deck to Noura at 3pm').then((p) => assert.equal(p.type, 'whatsapp'));
+  });
   it('drops "remind me to", the day and the time from the title', () => {
     assert.equal(titleOf('Remind me tomorrow at 3pm to call Hamad'), 'Call Hamad');
   });

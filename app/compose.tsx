@@ -16,6 +16,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState, Linking, Pressable, TextInput, View } from 'react-native';
 import { Redirect, router, useLocalSearchParams } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
+import * as DocumentPicker from 'expo-document-picker';
 import * as MailComposer from 'expo-mail-composer';
 
 import { track } from '@/lib/analytics/track';
@@ -226,6 +227,37 @@ function ComposeTask({ task }: { task: Task }) {
     armSent();
   };
 
+  // Files to go with the email. The system composer takes them; a mail link cannot.
+  const [files, setFiles] = useState<{ uri: string; name: string }[]>([]);
+  const attach = async () => {
+    const picked = await DocumentPicker.getDocumentAsync({ type: '*/*', multiple: true, copyToCacheDirectory: true }).catch(() => null);
+    if (!picked || picked.canceled) return;
+    setFiles((current) => [...current, ...picked.assets.map((a) => ({ uri: a.uri, name: a.name }))]);
+  };
+  const [appsOpen, setAppsOpen] = useState(false);
+  const [clients, setClients] = useState<string[]>([]);
+  useEffect(() => {
+    try {
+      setClients(MailComposer.getClients().map((c) => c.label));
+    } catch {
+      setClients([]);
+    }
+  }, []);
+  /** Gmail and Outlook have their own compose links; every other app is reached through the default mail link. */
+  const openInApp = async (app: 'Gmail' | 'Outlook' | 'default') => {
+    setAppsOpen(false);
+    if (!emailValid(email)) return setTried(true);
+    remember({ email });
+    await Clipboard.setStringAsync(draft).catch(() => {});
+    const q = `to=${encodeURIComponent(email)}&subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(draft)}`;
+    if (app === 'Gmail') Linking.openURL(`googlegmail:///co?${q}`).catch(() => {});
+    else if (app === 'Outlook') Linking.openURL(`ms-outlook://compose?${q}`).catch(() => {});
+    else Linking.openURL(mailtoUrl(email, subject, draft)).catch(() => {});
+    if (files.length > 0) toast.show(added(lang).attach.onlyComposer, { undo: false });
+    else toast.show(t.toastHand.replace('{app}', app === 'default' ? inline.mailAppName : app), { undo: false });
+    armSent();
+  };
+
   const openMailApp = async () => {
     if (!emailValid(email)) return setTried(true);
     remember({ email });
@@ -247,7 +279,14 @@ function ComposeTask({ task }: { task: Task }) {
     const available = await MailComposer.isAvailableAsync().catch(() => false);
     if (!available) return openMailApp();
     remember({ email });
-    const result = await MailComposer.composeAsync({ recipients: [email], subject, body: draft }).catch(() => null);
+    // A copy on the clipboard, in case a mail sheet ever opens without the body.
+    await Clipboard.setStringAsync(draft).catch(() => {});
+    const result = await MailComposer.composeAsync({
+      recipients: [email],
+      subject,
+      body: draft,
+      ...(files.length > 0 ? { attachments: files.map((f) => f.uri) } : {}),
+    }).catch(() => null);
     if (!result || result.status === MailComposer.MailComposerStatus.CANCELLED) return;
     if (result.status === MailComposer.MailComposerStatus.SENT) {
       toast.show(t.toastSentTo.replace('{to}', email), { undo: false });
@@ -655,6 +694,33 @@ function ComposeTask({ task }: { task: Task }) {
                 textAlign: dir.textAlign,
               }}
             />
+            {isEmail ? (
+              <View style={{ gap: 8 }}>
+                <View style={{ flexDirection: dir.row, flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
+                  {files.map((f) => (
+                    <Pressable
+                      key={f.uri}
+                      testID="compose-file"
+                      onPress={() => setFiles((current) => current.filter((x) => x.uri !== f.uri))}
+                      accessibilityRole="button"
+                      accessibilityHint="Remove"
+                      style={{ flexDirection: dir.row, alignItems: 'center', gap: 6, paddingVertical: 6, paddingHorizontal: 12, borderRadius: 999, backgroundColor: surface.fill, maxWidth: '100%' }}
+                    >
+                      <Icon name="note" size={14} color={ink.s2} strokeWidth={2} />
+                      <Text token="caption" weight="600" color={ink.s2} numberOfLines={1} style={{ flexShrink: 1 }}>
+                        {f.name}
+                      </Text>
+                      <Icon name="x" size={12} color={ink.s4} strokeWidth={2.2} />
+                    </Pressable>
+                  ))}
+                  <Pressable testID="compose-attach" onPress={() => void attach()} accessibilityRole="button" hitSlop={8}>
+                    <Text token="caption" weight="600" color={ink.s3}>
+                      + {added(lang).attach.button}
+                    </Text>
+                  </Pressable>
+                </View>
+              </View>
+            ) : null}
             {draft.trim().length > 8 ? (
               <Pressable testID="compose-save-template" onPress={() => setSavingOpen(true)} accessibilityRole="button" hitSlop={8} style={{ alignSelf: 'flex-start' }}>
                 <Text token="caption" weight="600" color={ink.s3}>
@@ -755,7 +821,7 @@ function ComposeTask({ task }: { task: Task }) {
             />
             <Pressable
               testID="compose-open-mail"
-              onPress={openMailApp}
+              onPress={() => setAppsOpen(true)}
               accessibilityRole="button"
               style={{
                 height: 46,
@@ -770,7 +836,7 @@ function ComposeTask({ task }: { task: Task }) {
               }}
             >
               <Icon name="mail" size={16} strokeWidth={1.7} />
-              <Text token="bodyS">{t.openMailApp}</Text>
+              <Text token="bodyS">{added(lang).attach.chooseApp}</Text>
             </Pressable>
             <SendLaterButton onPress={() => setLaterOpen(true)} />
           </View>
@@ -805,6 +871,26 @@ function ComposeTask({ task }: { task: Task }) {
             {added(lang).saved.save}
           </Text>
         </Pressable>
+      </Sheet>
+      <Sheet open={appsOpen} onClose={() => setAppsOpen(false)} testID="mail-apps-sheet" padding={{ paddingTop: 10, paddingHorizontal: 20, paddingBottom: 30 }} gap={10}>
+        <Text token="title">{added(lang).attach.chooseApp}</Text>
+        {(['Gmail', 'Outlook'] as const)
+          .filter((app) => clients.includes(app))
+          .map((app) => (
+            <Pressable key={app} testID={`mail-app-${app}`} onPress={() => void openInApp(app)} accessibilityRole="button" style={({ pressed }) => ({ height: 52, borderRadius: 16, paddingHorizontal: 16, justifyContent: 'center', backgroundColor: pressed ? surface.line : surface.fill })}>
+              <Text token="body" weight="500">
+                {app}
+              </Text>
+            </Pressable>
+          ))}
+        <Pressable testID="mail-app-default" onPress={() => void openInApp('default')} accessibilityRole="button" style={({ pressed }) => ({ height: 52, borderRadius: 16, paddingHorizontal: 16, justifyContent: 'center', backgroundColor: pressed ? surface.line : surface.fill })}>
+          <Text token="body" weight="500">
+            {added(lang).attach.defaultApp}
+          </Text>
+        </Pressable>
+        <Text token="caption" color={ink.s4}>
+          {added(lang).attach.note}
+        </Text>
       </Sheet>
       <Sheet open={laterOpen} onClose={() => setLaterOpen(false)} testID="later-sheet" padding={{ paddingTop: 10, paddingHorizontal: 20, paddingBottom: 30 }} gap={10}>
         <Text token="title">{added(lang).later.title}</Text>

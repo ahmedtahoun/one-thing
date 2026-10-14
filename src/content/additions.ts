@@ -305,6 +305,14 @@ export type Added = {
     saveNew: string;
     needName: string;
   };
+  /** Attachments and the choice of mail app. */
+  attach: {
+    button: string;
+    onlyComposer: string;
+    chooseApp: string;
+    defaultApp: string;
+    note: string;
+  };
   /** The person's own saved messages. */
   saved: {
     title: string;
@@ -527,6 +535,13 @@ const ADDED: Record<Lang, Added> = {
       recentNone: 'Nobody in the last 7 days.',
       favorite: 'Favorite',
       followups: 'Follow-ups',
+    },
+    attach: {
+      button: 'Attach a file',
+      onlyComposer: 'Attachments only go with “Send email”, in the Mail composer.',
+      chooseApp: 'Open in another mail app',
+      defaultApp: 'Default mail app',
+      note: 'Accounts you added to Mail, like Zoho or Gmail, work with “Send email”, attachments included.',
     },
     saved: {
       title: 'Saved messages',
@@ -885,6 +900,13 @@ const ADDED: Record<Lang, Added> = {
       recentNone: 'ما فيه أحد آخر ٧ أيام.',
       favorite: 'مفضّل',
       followups: 'المتابعات',
+    },
+    attach: {
+      button: 'أرفق ملف',
+      onlyComposer: 'المرفقات تروح فقط مع «أرسل الإيميل»، في نافذة البريد.',
+      chooseApp: 'افتحه في تطبيق بريد ثاني',
+      defaultApp: 'تطبيق البريد الافتراضي',
+      note: 'الحسابات اللي أضفتها لتطبيق البريد، مثل Zoho أو Gmail، تشتغل مع «أرسل الإيميل» ومعها المرفقات.',
     },
     saved: {
       title: 'الرسائل المحفوظة',

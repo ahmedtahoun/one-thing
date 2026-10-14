@@ -58,6 +58,9 @@ export function typeOf(text: string): ParsedType {
   return 'reminder';
 }
 
+/** "Remind me…": said to oneself, even when it mentions sending something. */
+const REMIND_SELF = /\bremind me\b|ذكرني|ذكّرني|ذكريني|فكرني|فكّرني|نبهني|نبّهني/i;
+
 // --- the day -------------------------------------------------------------
 
 const DAY_AFTER = new RegExp(`${'day after tomorrow'}|${ar('(?<![' + AR_LETTER + '])بعد\\s+(?:بكره|باكر|غد)').source}`, 'i');
@@ -317,12 +320,14 @@ function fromLoop(loop: Loop, text: string, ctx: ParseContext): ParsedTask {
 function parseNow(text: string, ctx: ParseContext): ParsedTask {
   const loop = loopOf(text, ctx.contacts);
   if (loop) return fromLoop(loop, text, ctx);
-  return {
-    type: typeOf(text),
-    title: titleOf(text),
-    ...whoOf(text, ctx.contacts),
-    when: whenOf(text, ctx.now),
-  };
+  const who = whoOf(text, ctx.contacts);
+  let type = typeOf(text);
+  // "Remind me … to send samples": a note to oneself. Sending only makes it a message when somebody
+  // is named (a contact, or "to Layla"), or WhatsApp is.
+  if (type === 'whatsapp' && REMIND_SELF.test(text) && !who.contactId && !/whatsapp|واتس/i.test(text) && !/\b(?:to|for)\s+[A-Z]/.test(text.replace(/^\s*(?:can you |could you |please )*remind me to\b/i, ''))) {
+    type = 'reminder';
+  }
+  return { type, title: titleOf(text), ...who, when: whenOf(text, ctx.now) };
 }
 
 export const localParser: TextParser = {

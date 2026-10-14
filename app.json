@@ -5,7 +5,7 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "scheme": "onlyonething",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "automatic",
     "icon": "./assets/icon.png",
     "ios": {
       "supportsTablet": false,
@@ -61,6 +61,7 @@
         }
       ],
       "expo-localization",
+      "expo-mail-composer",
       "expo-notifications",
       [
         "expo-contacts",
