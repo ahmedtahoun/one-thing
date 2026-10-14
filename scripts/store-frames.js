@@ -57,8 +57,8 @@ const SLIDES = [
   {
     name: '1-today', path: '/today', seed: { tasks: true, oneThing: true, people: true, wins: true },
     bg: '#FFF1E6', accent: '#F26B21',
-    en: { pre: 'Name your', hi: 'ONE thing', post: '', sub: 'Start every day with the one task that matters.' },
-    ar: { pre: 'سمِّ', hi: 'شيئك الواحد', post: '', sub: 'ابدأ يومك بالمهمة اللي تهمّك فعلًا.' },
+    en: { pre: 'Know what', hi: 'to do next', post: '', sub: 'Late tasks, replies owed and people going quiet, ranked for you.' },
+    ar: { pre: 'اعرف', hi: 'شنو التالي', post: '', sub: 'المتأخر، والردود المنتظرة، واللي طال غيابهم، مرتّبة لك.' },
   },
   {
     name: '2-voice', path: '/assistant', say: 'contact', seed: { tasks: true, oneThing: true, people: true },
@@ -73,10 +73,10 @@ const SLIDES = [
     ar: { pre: 'يسأل بس', hi: 'عن الناقص', post: '', sub: 'أي سارة؟ أي وقت؟ ضغطة وحدة تكفي.' },
   },
   {
-    name: '5-focus', path: '/focus', seed: { tasks: true, oneThing: true },
+    name: '5-people', path: '/people', seed: { tasks: true, people: true },
     bg: '#FFF8DB', accent: '#D99A00',
-    en: { pre: 'Lock in.', hi: 'One thing', post: 'at a time.', sub: 'A focus session with a gentle timer.' },
-    ar: { pre: 'ركّز.', hi: 'شي واحد', post: 'كل مرة.', sub: 'جلسة تركيز بمؤقت هادئ.' },
+    en: { pre: 'Reach anyone', hi: 'in one tap', post: '', sub: 'WhatsApp, email or call, with a draft ready.' },
+    ar: { pre: 'تواصل مع أي أحد', hi: 'بضغطة', post: '', sub: 'واتساب أو إيميل أو اتصال، والمسودة جاهزة.' },
   },
   {
     name: '6-followups', path: '/followups', seed: { tasks: true, people: true },
