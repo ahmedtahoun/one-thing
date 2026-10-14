@@ -49,6 +49,17 @@ export function mailtoUrl(to: string, subject: string, body: string): string {
   return `mailto:${to}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 }
 
+/**
+ * The draft as a small HTML body for the iPhone mail sheet. Given plain text,
+ * the sheet can draw it in black on its dark background, so the message looks
+ * empty; HTML with no colours of its own follows light and dark like typed
+ * text does.
+ */
+export function mailHtml(text: string): string {
+  const escaped = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  return `<div dir="auto">${escaped.replace(/\r?\n/g, '<br>')}</div>`;
+}
+
 export function telUrl(dial: string, phone: string): string {
   return `tel:+${dial.replace(/\D/g, '')}${localDigits(phone)}`;
 }

@@ -17,7 +17,7 @@ import * as MailComposer from 'expo-mail-composer';
 
 import { added } from '@/content/additions';
 import { MAX_RECIPIENTS, personalise, reachable, recipientsOf, usesName, whatsAppLink, type BulkChannel } from '@/features/bulk/plan';
-import { mailtoUrl } from '@/features/compose/recipient';
+import { mailHtml, mailtoUrl } from '@/features/compose/recipient';
 import { FilterChips } from '@/features/people/FilterChips';
 import { BULK_CHIPS, filterCounts, filterPeople, labelFilter, labelsIn, type PeopleFilter } from '@/features/people/filters';
 import { matchContact } from '@/features/people/search';
@@ -106,7 +106,7 @@ export default function Bulk() {
         preview: text,
         run: async () => {
           if (mailAvailable) {
-            const result = await MailComposer.composeAsync({ recipients: [c.email ?? ''], subject, body: text }).catch(() => null);
+            const result = await MailComposer.composeAsync({ recipients: [c.email ?? ''], subject, body: mailHtml(text), isHtml: true }).catch(() => null);
             return result?.status === 'sent' ? 'sent' : result?.status === 'undetermined' ? 'opened' : 'cancelled';
           }
           await Clipboard.setStringAsync(text).catch(() => {});

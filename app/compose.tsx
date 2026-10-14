@@ -27,6 +27,7 @@ import {
   emailState,
   emailValid,
   localDigits,
+  mailHtml,
   mailtoUrl,
   phoneState,
   phoneValid,
@@ -306,7 +307,8 @@ function ComposeTask({ task }: { task: Task }) {
     const result = await MailComposer.composeAsync({
       recipients: [email],
       subject,
-      body: draft,
+      body: mailHtml(draft),
+      isHtml: true,
       ...(files.length > 0 ? { attachments: files.map((f) => f.uri) } : {}),
     }).catch(() => null);
     if (!result || result.status === MailComposer.MailComposerStatus.CANCELLED) return;
