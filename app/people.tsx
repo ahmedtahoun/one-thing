@@ -10,6 +10,7 @@
  */
 import { useEffect, useMemo, useState } from 'react';
 import { Pressable, TextInput, View } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { router, useLocalSearchParams } from 'expo-router';
 
 import { added } from '@/content/additions';
@@ -240,7 +241,11 @@ export default function People() {
                   followUp={states.get(contact.id)}
                   lastChannel={lastChannels.get(contact.id) ?? null}
                   onOpen={() => (pick ? start(contact, pick) : setMenuFor(contact))}
-                  onHold={() => void star(contact)}
+                  onHold={() => {
+                    // Press and hold: the same quick options as a tap, felt as a hold, so call / message / email is one gesture away.
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+                    setMenuFor(contact);
+                  }}
                 />
               ))}
             </View>
@@ -402,7 +407,7 @@ function PersonRow({
   /** How they were last reached, shown as a small icon on the picture. */
   lastChannel: Channel | null;
   onOpen: () => void;
-  /** Press and hold: star or unstar. */
+  /** Press and hold: the quick-options menu. */
   onHold: () => void;
 }) {
   const { t } = useLanguage();
