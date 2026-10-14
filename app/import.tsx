@@ -30,7 +30,7 @@ import { deviceRegion } from '@/lib/speech';
 type Stage =
   | { kind: 'start'; error?: string }
   | { kind: 'reading' }
-  | { kind: 'preview'; candidates: Candidate[]; selected: ReadonlySet<string> }
+  | { kind: 'preview'; candidates: Candidate[]; selected: ReadonlySet<string>; skipped: number }
   | { kind: 'done'; count: number };
 
 export default function ImportContacts() {
@@ -60,7 +60,7 @@ export default function ImportContacts() {
         region
       );
       if ('error' in result) return setStage({ kind: 'start', error: copy[result.error] });
-      setStage({ kind: 'preview', candidates: result.candidates, selected: defaultSelection(result.candidates) });
+      setStage({ kind: 'preview', candidates: result.candidates, selected: defaultSelection(result.candidates), skipped: result.skipped });
     } catch {
       setStage({ kind: 'start', error: copy.failed });
     }
@@ -154,6 +154,18 @@ export default function ImportContacts() {
                 </Text>
               </Pressable>
             </View>
+            {stage.skipped > 0 ? (
+              <Text testID="import-skipped" token="micro" color={ink.s4} style={{ paddingBottom: 6 }}>
+                {copy.noReach.replace('{n}', String(stage.skipped))}
+              </Text>
+            ) : null}
+            {stage.candidates.some((c) => c.duplicateOf) ? (
+              <View testID="import-repeats" style={{ marginBottom: 8, padding: 12, borderRadius: 12, backgroundColor: status.noteBg }}>
+                <Text token="caption" color={status.noteFg}>
+                  {copy.repeats.replace('{n}', String(stage.candidates.filter((c) => c.duplicateOf).length))}
+                </Text>
+              </View>
+            ) : null}
             <FlatList
               style={{ flex: 1 }}
               data={stage.candidates}
@@ -164,7 +176,10 @@ export default function ImportContacts() {
                 const on = stage.selected.has(c.key);
                 const reach = [c.phone ? `${c.dial ?? ''} ${c.phone}`.trim() : '', c.email ?? ''].filter(Boolean).join(' · ');
                 const notes = [
-                  c.duplicateOf ? copy.already.replace('{n}', c.duplicateOf) : '',
+                  c.duplicateOf
+                    ? `${(c.duplicateIn === 'file' ? copy.repeat : copy.already).replace('{n}', c.duplicateOf)}${c.duplicateBy ? ` (${copy.sameBy[c.duplicateBy]})` : ''}`
+                    : '',
+                  c.issues.includes('test') ? copy.testAccount : '',
                   blocked ? copy.noName : '',
                   c.issues.includes('bad-email') ? copy.skippedEmail : '',
                   c.issues.includes('bad-phone') ? copy.skippedPhone : '',

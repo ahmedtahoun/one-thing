@@ -256,6 +256,11 @@ export type Added = {
     selectAll: string;
     clear: string;
     already: string;
+    repeat: string;
+    sameBy: { phone: string; email: string; name: string };
+    repeats: string;
+    noReach: string;
+    testAccount: string;
     noName: string;
     skippedEmail: string;
     skippedPhone: string;
@@ -577,6 +582,11 @@ const ADDED: Record<Lang, Added> = {
       selectAll: 'Select all',
       clear: 'Clear',
       already: 'Already in People · {n}',
+      repeat: 'Repeat of {n} above',
+      sameBy: { phone: 'same number', email: 'same email', name: 'same name' },
+      noReach: '{n} left out: no number or email to reach them on.',
+      repeats: '{n} look like repeats and start unticked. Tick one to import it anyway.',
+      testAccount: 'Test account',
       noName: 'No name, can’t import',
       skippedEmail: 'email skipped',
       skippedPhone: 'number skipped',
@@ -871,6 +881,11 @@ const ADDED: Record<Lang, Added> = {
       selectAll: 'اختر الكل',
       clear: 'مسح',
       already: 'موجود في الأشخاص · {n}',
+      repeat: 'مكرر من {n} فوق',
+      sameBy: { phone: 'نفس الرقم', email: 'نفس الإيميل', name: 'نفس الاسم' },
+      noReach: 'استبعدنا {n}: ما فيه رقم ولا إيميل للتواصل.',
+      repeats: '{n} يبدون مكررين وما انحطّت عليهم علامة. علّم أي واحد لو تبي تستورده.',
+      testAccount: 'حساب تجريبي',
       noName: 'بدون اسم، ما ينفع',
       skippedEmail: 'تجاهلنا الإيميل',
       skippedPhone: 'تجاهلنا الرقم',

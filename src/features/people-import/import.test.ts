@@ -5,7 +5,7 @@ import { strToU8, zipSync } from 'fflate';
 import { defaultSelection, flagDuplicates, readTable, readVcf } from './columns';
 import { parseCsv } from './csv';
 import { parseVcf } from './vcf';
-import { parseXlsx } from './xlsx';
+import { parseXlsx, parseXlsxSheets } from './xlsx';
 import type { Contact } from '@/lib/model-types';
 
 describe('parseCsv', () => {
@@ -168,13 +168,14 @@ describe('readVcf', () => {
 
 import { candidatesFromFile } from './read-file';
 
+const file = (name: string, text = '', bytes: Uint8Array = new Uint8Array(), mime: string | null = null) => ({
+  name,
+  mime,
+  text: async () => text,
+  bytes: async () => bytes,
+});
+
 describe('candidatesFromFile', () => {
-  const file = (name: string, text = '', bytes: Uint8Array = new Uint8Array(), mime: string | null = null) => ({
-    name,
-    mime,
-    text: async () => text,
-    bytes: async () => bytes,
-  });
   it('opens a CSV, flagging someone already saved', async () => {
     const existing: Contact[] = [{ id: 'c1', name: 'Sara Haddad', phone: '501234567', createdAt: '' }];
     const result = await candidatesFromFile(file('people.csv', 'Name,Phone\nSara Haddad,0501234567\nOmar Khaled,0503312045'), existing, 'SA');
@@ -267,5 +268,89 @@ describe('readTable — a store export and a lead sheet', () => {
   it('does not tick someone there is no way to reach', () => {
     const { candidates } = readTable([['Name', 'Title'], ['Steve Pyle', 'CEO']], 'AE');
     assert.equal(defaultSelection(candidates).size, 0);
+  });
+});
+
+/** A workbook of several sheets, with the workbook's own list of them. */
+function workbook(sheets: { name: string; xml: string }[], strings: string[]): Uint8Array {
+  const files: Record<string, Uint8Array> = {
+    'xl/sharedStrings.xml': strToU8(`<sst>${strings.map((s) => `<si><t>${s}</t></si>`).join('')}</sst>`),
+    'xl/workbook.xml': strToU8(`<workbook><sheets>${sheets.map((s, i) => `<sheet name="${s.name}" sheetId="${i + 1}" r:id="rId${i + 1}"/>`).join('')}</sheets></workbook>`),
+    'xl/_rels/workbook.xml.rels': strToU8(
+      `<Relationships>${sheets.map((_, i) => `<Relationship Id="rId${i + 1}" Type="x/worksheet" Target="worksheets/sheet${i + 1}.xml"/>`).join('')}</Relationships>`
+    ),
+  };
+  sheets.forEach((s, i) => (files[`xl/worksheets/sheet${i + 1}.xml`] = strToU8(`<worksheet><sheetData>${s.xml}</sheetData></worksheet>`)));
+  return zipSync(files);
+}
+const str = (ref: string, i: number) => `<c r="${ref}" t="s"><v>${i}</v></c>`;
+
+describe('a workbook with several sheets', () => {
+  const strings = ['Name', 'Phone Number', 'Demo Account', 'Sara Haddad', '+971501234567', 'No', 'Demo Patient', '+971500000000', 'Yes', 'Amr', '+200100116187', 'haddad sara', '0501234567'];
+  const book = workbook(
+    [
+      { name: 'Contacts', xml: `<row r="1">${str('A1', 0)}${str('B1', 1)}${str('C1', 2)}</row><row r="2">${str('A2', 3)}${str('B2', 4)}${str('C2', 5)}</row><row r="3">${str('A3', 6)}${str('B3', 7)}${str('C3', 8)}</row>` },
+      { name: 'UAE', xml: `<row r="1">${str('A1', 0)}${str('B1', 1)}${str('C1', 2)}</row><row r="2">${str('A2', 11)}${str('B2', 12)}${str('C2', 5)}</row>` },
+      { name: 'Egypt', xml: `<row r="1">${str('A1', 0)}${str('B1', 1)}</row><row r="2">${str('A2', 9)}${str('B2', 10)}</row>` },
+    ],
+    strings
+  );
+  it('lists the sheets in the workbook’s order, with their names', () => {
+    const sheets = parseXlsxSheets(book);
+    assert.deepEqual(sheets.map((s) => s.name), ['Contacts', 'UAE', 'Egypt']);
+    assert.equal(sheets[2]?.rows[1]?.[0], 'Amr');
+  });
+  it('reads every sheet, and flags someone who is on two as a repeat of the first, whichever way the number is written', async () => {
+    const result = await candidatesFromFile(file('people.xlsx', '', book), [], 'AE');
+    assert.ok('candidates' in result);
+    const c = result.candidates;
+    assert.equal(c.length, 4);
+    const second = c.find((x) => x.sheet === 'UAE');
+    assert.equal(second?.duplicateIn, 'file');
+    assert.equal(second?.duplicateBy, 'phone');
+    assert.equal(second?.duplicateOf, 'Sara Haddad');
+  });
+  it('drops the 0 written after +20, and leaves test accounts unticked', async () => {
+    const result = await candidatesFromFile(file('people.xlsx', '', book), [], 'AE');
+    assert.ok('candidates' in result);
+    const c = result.candidates;
+    assert.equal(c.find((x) => x.name === 'Amr')?.phone, '100116187');
+    const demo = c.find((x) => x.name === 'Demo Patient');
+    assert.ok(demo?.issues.includes('test'));
+    const ticked = defaultSelection(c);
+    assert.ok(!ticked.has(demo?.key ?? ''));
+    assert.equal(ticked.size, 2);
+  });
+  it('skips hidden rows and a million empty ones without trouble', () => {
+    const empty = Array.from({ length: 30000 }, (_, i) => `<row r="${i + 10}" customFormat="1"/>`).join('');
+    const rows = parseXlsx(
+      xlsx(`<row r="1">${str('A1', 0)}</row><row r="2" hidden="1">${str('A2', 1)}</row><row r="3">${str('A3', 2)}</row>${empty}`, ['Name', 'Hidden one', 'Sara'])
+    );
+    assert.deepEqual(rows, [['Name'], ['Sara']]);
+  });
+});
+
+describe('finding the same person twice', () => {
+  const sara: Contact = { id: 'c1', name: 'Sara Haddad', phone: '501234567', email: 'sara@x.com', createdAt: '' };
+  it('matches a number however it is written', () => {
+    assert.equal(flagDuplicates([{ key: 'a', name: 'S. H.', phone: '0501234567', issues: [] }], [sara])[0]?.duplicateBy, 'phone');
+  });
+  it('matches the same name in another order or case', () => {
+    assert.equal(flagDuplicates([{ key: 'a', name: 'HADDAD sara', issues: [] }], [sara])[0]?.duplicateBy, 'name');
+  });
+  it('matches an email by its case', () => {
+    assert.equal(flagDuplicates([{ key: 'a', name: 'Someone', email: 'SARA@x.com', issues: [] }], [sara])[0]?.duplicateBy, 'email');
+  });
+  it('leaves different people alone', () => {
+    assert.equal(flagDuplicates([{ key: 'a', name: 'Omar Khalid', phone: '501234568', issues: [] }], [sara])[0]?.duplicateOf, undefined);
+  });
+});
+
+describe('people there is no way to reach', () => {
+  it('are left out of the list and counted', async () => {
+    const result = await candidatesFromFile(file('leads.csv', 'Company,Phone,Email\nNorthwind,0501234567,\nNo Contact Ltd,,\nAl Noor,,hello@alnoor.com'), [], 'AE');
+    assert.ok('candidates' in result);
+    assert.equal(result.candidates.length, 2);
+    assert.equal(result.skipped, 1);
   });
 });

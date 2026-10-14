@@ -7,17 +7,17 @@
  * Arabic — and, with no header, by what the cells look like. Nothing is saved
  * here; the Import screen shows the result for the person to tick.
  */
-import { findDuplicate } from '@/features/contact/form-rules';
+import { sameContact } from '@/features/contact/form-rules';
 import type { Contact } from '@/lib/model-types';
 import { splitDialled } from '@/lib/parse/contact';
 import { normalizeArabic } from '@/lib/parse/names';
 import { westernDigits } from '@/lib/parse/spoken';
 import type { VcfRow } from './vcf';
 
-type Role = 'name' | 'first' | 'last' | 'phone' | 'email' | 'company' | 'title' | 'note' | 'address';
+type Role = 'demo' | 'name' | 'first' | 'last' | 'phone' | 'email' | 'company' | 'title' | 'note' | 'address';
 
 /** What can be wrong with a row. `no-name` stops it being imported; the others only drop that one detail. */
-export type Issue = 'no-name' | 'bad-email' | 'bad-phone';
+export type Issue = 'no-name' | 'bad-email' | 'bad-phone' | 'test';
 
 export type Candidate = {
   /** Its row in the file, for a stable list key. */
@@ -31,9 +31,14 @@ export type Candidate = {
   /** A status or notes column, kept on the contact as "Remember for next time". */
   note?: string;
   address?: string;
+  /** The sheet of a workbook it came from. */
+  sheet?: string;
   issues: Issue[];
   /** The contact already in People (or earlier in the file) this one matches. */
   duplicateOf?: string;
+  /** Whether that match is someone already in People or an earlier row of this file, and what matched. */
+  duplicateIn?: 'people' | 'file';
+  duplicateBy?: 'phone' | 'email' | 'name';
 };
 
 // Headers, folded: lower case, Arabic spellings merged, punctuation as spaces.
@@ -51,6 +56,7 @@ const HEADER_RULES: [Role, RegExp][] = [
   ['last', /\b(last|surname|family)\b|العايل|العائل|الكني|اللقب/],
   ['title', /\b(title|position|role|job|designation)\b|الوظيف|المسمي|المنصب/],
   ['company', /\b(company|organi[sz]ation|org|business|employer)\b|الشرك|المؤسس|جهه العمل/],
+  ['demo', /\b(demo|test)( account)?\b|تجريبي/],
   ['note', /\b(status|notes?|comments?|remarks?)\b|ملاحظ|حاله|الحاله/],
   ['address', /\b(address|address ?\d|location|city|street)\b|عنوان|موقع|مدين/],
   ['name', /\b(name|contact)\b|الاسم|اسم/],
@@ -161,7 +167,7 @@ function isMobile(raw: string, region?: string): boolean {
 /** "A / B" or "A; B" as separate people. */
 const PEOPLE_SPLIT = /\s*(?:\/|;|\n)\s*/;
 
-type RowParts = { name?: string; first?: string; last?: string; phones: string[]; emails: string[]; company?: string; title?: string; note?: string; address?: string };
+type RowParts = { name?: string; first?: string; last?: string; phones: string[]; emails: string[]; company?: string; title?: string; note?: string; address?: string; demo?: boolean };
 
 function build(key: string, parts: RowParts, region?: string, person?: { index: number; of: number; names: string[] }): Candidate | null {
   const issues: Issue[] = [];
@@ -191,6 +197,7 @@ function build(key: string, parts: RowParts, region?: string, person?: { index: 
     }
   }
   if (!person && parts.phones.some((p) => p.trim()) && !phone) issues.push('bad-phone');
+  if (parts.demo) issues.push('test');
 
   // Addresses may be several in a cell; with several people, the one that carries their name.
   const addresses = parts.emails.flatMap((cell) => cell.split(/[\s,;]+/).filter((e) => EMAIL.test(e)));
@@ -241,6 +248,8 @@ export function readTable(rows: string[][], region?: string): { candidates: Cand
       title: cellOf(row, roles, 'title')[0],
       note: cellOf(row, roles, 'note').join(' · ') || undefined,
       address: [...new Set(cellOf(row, roles, 'address'))].join(', ') || undefined,
+      // Read raw: "Yes" is exactly what the cleaner treats as an empty cell.
+      demo: roles.some((r, col) => r === 'demo' && /^(yes|true|y|1|نعم)$/i.test((row[col] ?? '').trim())),
     };
     if (indexCol >= 0) {
       if ((row[indexCol] ?? '').trim() && parts.company) groupCompany = parts.company;
@@ -269,17 +278,26 @@ export function readVcf(people: VcfRow[], region?: string): Candidate[] {
   });
 }
 
-/** Marks the ones already in People, or repeated earlier in the same file. */
+/** Marks the ones already in People, or repeated earlier in the same file, and says what matched. */
 export function flagDuplicates(candidates: Candidate[], existing: readonly Contact[]): Candidate[] {
-  const seen: Contact[] = [...existing];
+  const seen: { name: string; phone?: string; email?: string; from: 'people' | 'file' }[] = existing.map((c) => ({ name: c.name, phone: c.phone, email: c.email, from: 'people' }));
   return candidates.map((c) => {
-    const found = findDuplicate({ name: c.name, phone: c.phone ?? '', email: c.email ?? '' }, seen);
-    seen.push({ id: c.key, name: c.name, phone: c.phone, email: c.email, createdAt: '' });
-    return found ? { ...c, duplicateOf: found.name } : c;
+    let hit: { name: string; from: 'people' | 'file'; by: 'phone' | 'email' | 'name' } | undefined;
+    for (const other of seen) {
+      const by = sameContact(c, other);
+      if (by) {
+        hit = { name: other.name, from: other.from, by };
+        break;
+      }
+    }
+    seen.push({ name: c.name, phone: c.phone, email: c.email, from: 'file' });
+    return hit ? { ...c, duplicateOf: hit.name, duplicateIn: hit.from, duplicateBy: hit.by } : c;
   });
 }
 
 /** What is ticked to begin with: everything that can be imported and is not already there. */
 export function defaultSelection(candidates: readonly Candidate[]): Set<string> {
-  return new Set(candidates.filter((c) => !c.issues.includes('no-name') && !c.duplicateOf && (c.phone || c.email)).map((c) => c.key));
+  return new Set(
+    candidates.filter((c) => !c.issues.includes('no-name') && !c.issues.includes('test') && !c.duplicateOf && (c.phone || c.email)).map((c) => c.key)
+  );
 }

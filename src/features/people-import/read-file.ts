@@ -7,7 +7,7 @@ import { flagDuplicates, readTable, readVcf, type Candidate } from './columns';
 import { parseCsv } from './csv';
 import { parsePdfTable } from './pdf';
 import { parseVcf } from './vcf';
-import { parseXlsx } from './xlsx';
+import { parseXlsxSheets } from './xlsx';
 import type { Contact } from '@/lib/model-types';
 
 export type PickedFile = {
@@ -17,7 +17,7 @@ export type PickedFile = {
   bytes: () => Promise<Uint8Array>;
 };
 
-export type ReadResult = { candidates: Candidate[] } | { error: 'oldExcel' | 'unknown' | 'empty' | 'locked' };
+export type ReadResult = { candidates: Candidate[]; skipped: number } | { error: 'oldExcel' | 'unknown' | 'empty' | 'locked' };
 
 export async function candidatesFromFile(file: PickedFile, existing: readonly Contact[], region?: string): Promise<ReadResult> {
   const ext = file.name.toLowerCase().split('.').pop() ?? '';
@@ -26,7 +26,11 @@ export async function candidatesFromFile(file: PickedFile, existing: readonly Co
   let candidates: Candidate[];
   if (ext === 'xls' || mime === 'application/vnd.ms-excel') return { error: 'oldExcel' };
   if (ext === 'xlsx' || mime.includes('spreadsheetml')) {
-    candidates = readTable(parseXlsx(await file.bytes()), region).candidates;
+    // Every sheet is read as its own table (each has its own header), then the lists are one:
+    // a person who is on two sheets is flagged as a repeat below, not imported twice.
+    candidates = parseXlsxSheets(await file.bytes()).flatMap((sheet, i) =>
+      readTable(sheet.rows, region).candidates.map((c) => ({ ...c, key: `s${i}-${c.key}`, sheet: sheet.name }))
+    );
   } else if (ext === 'pdf' || mime === 'application/pdf') {
     const pdf = parsePdfTable(await file.bytes());
     if ('error' in pdf) return { error: pdf.error };
@@ -38,6 +42,9 @@ export async function candidatesFromFile(file: PickedFile, existing: readonly Co
   } else {
     return { error: 'unknown' };
   }
-  if (candidates.length === 0) return { error: 'empty' };
-  return { candidates: flagDuplicates(candidates, existing) };
+  // Someone with no number and no email cannot be messaged, called or emailed: left out, and counted.
+  const reachable = candidates.filter((c) => c.phone || c.email);
+  const skipped = candidates.length - reachable.length;
+  if (reachable.length === 0) return { error: 'empty' };
+  return { candidates: flagDuplicates(reachable, existing), skipped };
 }
