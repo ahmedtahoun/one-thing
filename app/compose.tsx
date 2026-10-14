@@ -79,6 +79,7 @@ function ComposeTask({ task }: { task: Task }) {
   const loopCopy = added(lang).loop;
   const draftCopy = added(lang).drafts;
   const dir = useDirection();
+  const { from } = useLocalSearchParams<{ from?: string }>();
   const { tasks, updateTask, restore } = useTasks();
   const { contacts, history, saveContact, addFollowUp, addHistory } = usePeople();
   const { session } = useSession();
@@ -246,7 +247,10 @@ function ComposeTask({ task }: { task: Task }) {
     const channel: Channel = type === 'email' || type === 'whatsapp' ? type : 'call';
     const reached = contact?.id ?? task.contactIds[0];
     // A dated moment with them, so People can show how you last got in touch.
-    if (reached) addHistory({ contactId: reached, kind: channel, text: task.title, at: now.toISOString() });
+    // What the moment says: the email's subject, the first line of the WhatsApp message, else the task's own title.
+    const gist =
+      channel === 'email' ? subject.trim() : channel === 'whatsapp' ? draft.trim().replace(/\s+/g, ' ').slice(0, 90) : '';
+    if (reached) addHistory({ contactId: reached, kind: channel, text: gist || task.title, at: now.toISOString() });
     const days = FOLLOW_UP_DAYS[index];
     if (days !== undefined) {
       const nextAt = new Date(now);
@@ -266,7 +270,8 @@ function ComposeTask({ task }: { task: Task }) {
     } else {
       toast.show(t.toastDone, { undo: false });
     }
-    router.dismissTo('/today');
+    // Started from their page: back to it, so the next thing (a note, another channel) is right there.
+    router.dismissTo(from === 'contact' && reached ? `/contact?id=${reached}` : '/today');
   };
 
   const notSent = () => {

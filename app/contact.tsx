@@ -183,9 +183,9 @@ function Profile({ contact }: { contact: Contact }) {
   ];
 
   const actions: { key: string; label: string; ok: boolean; onPress: () => void }[] = [
-    { key: 'whatsapp', label: t.types.whatsapp, ok: hasPhone, onPress: () => start(contact, 'whatsapp') },
-    { key: 'email', label: t.types.email, ok: hasEmail, onPress: () => start(contact, 'email') },
-    { key: 'call', label: t.types.call, ok: hasPhone, onPress: () => start(contact, 'call') },
+    { key: 'whatsapp', label: t.types.whatsapp, ok: hasPhone, onPress: () => start(contact, 'whatsapp', undefined, 'contact') },
+    { key: 'email', label: t.types.email, ok: hasEmail, onPress: () => start(contact, 'email', undefined, 'contact') },
+    { key: 'call', label: t.types.call, ok: hasPhone, onPress: () => start(contact, 'call', undefined, 'contact') },
     // Pre-fills the attendee on the meeting form.
     { key: 'meeting', label: pfx.l.meet, ok: true, onPress: () => router.push(`/new?type=meeting&contact=${contact.id}`) },
   ];

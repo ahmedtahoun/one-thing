@@ -20,7 +20,7 @@ export function useStartTask() {
   const { session } = useSession();
 
   return useCallback(
-    (contact: Contact, type: Channel, draftKind?: DraftKind) => {
+    (contact: Contact, type: Channel, draftKind?: DraftKind, from?: 'contact') => {
       // "Email Omar", and "Email Dr. Hassan" for a titled name, never "Email Dr.".
       const first = greetingName(contact.name, lang) || contact.name;
       const task = addTask({
@@ -33,7 +33,7 @@ export function useStartTask() {
         draft: type === 'call' || (!draftKind && type !== 'email') ? undefined : writeDraft(type, draftKind ?? 'blank', { name: contact.name, sender: session?.name, lang }),
         createdVia: 'quick',
       });
-      router.push(`/compose?id=${task.id}`);
+      router.push(`/compose?id=${task.id}${from ? `&from=${from}` : ''}`);
     },
     [addTask, t.newMsg, lang, session?.name]
   );
