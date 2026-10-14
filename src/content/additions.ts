@@ -194,6 +194,8 @@ export type Added = {
     change: string;
     moreOptions: string;
     fewerOptions: string;
+    fromPeople: string;
+    fromPhone: string;
   };
   /** Promises and waiting, said out loud: the tags on the card and what is said after saving. */
   loop: {
@@ -517,6 +519,8 @@ const ADDED: Record<Lang, Added> = {
       change: 'Change',
       moreOptions: 'More options',
       fewerOptions: 'Fewer options',
+      fromPeople: 'Pick from People',
+      fromPhone: 'Choose from your phone contacts',
     },
     loop: {
       promise: 'Promise',
@@ -808,6 +812,8 @@ const ADDED: Record<Lang, Added> = {
       change: 'تغيير',
       moreOptions: 'خيارات أكثر',
       fewerOptions: 'خيارات أقل',
+      fromPeople: 'اختر من الأشخاص',
+      fromPhone: 'اختر من جهات اتصال الجوال',
     },
     loop: {
       promise: 'وعد',

@@ -44,6 +44,7 @@ import { fontFamily, ink, surface, typeColour } from '@/design/tokens';
 import { useDirection, useLanguage } from '@/i18n/LanguageProvider';
 import { displayName, type Channel, type Contact, type Task } from '@/lib/model-types';
 import { contactForTask, usePeople } from '@/lib/people';
+import { pickFromPhone } from '@/lib/phone-contacts';
 import { whenLabel } from '@/lib/task-labels';
 import { useSession } from '@/lib/session';
 import { useTasks } from '@/lib/tasks';
@@ -365,6 +366,13 @@ function ComposeTask({ task }: { task: Task }) {
               setDial(c.dial ?? DEFAULT_DIAL);
               setPhone(c.phone ?? '');
             }}
+            onPickFromPhone={() =>
+              void pickFromPhone().then((draft) => {
+                if (!draft?.phone) return;
+                if (draft.dial) setDial(draft.dial);
+                setPhone(draft.phone);
+              })
+            }
           />
         ) : null}
 
@@ -377,6 +385,11 @@ function ComposeTask({ task }: { task: Task }) {
             onChangeEmail={setEmail}
             onChangeSubject={editSubject}
             onPickContact={(c) => setEmail(c.email ?? '')}
+            onPickFromPhone={() =>
+              void pickFromPhone().then((draft) => {
+                if (draft?.email) setEmail(draft.email);
+              })
+            }
           />
         ) : null}
 
