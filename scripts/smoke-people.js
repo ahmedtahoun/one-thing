@@ -271,7 +271,7 @@ const SESSION = { userId: 'smoke', name: 'Khalid Al-Mansouri', firstName: 'Khali
   await page.getByTestId('contact-form-countries-search').fill('971');
   await page.getByTestId('contact-form-countries-AE').click();
   await page.waitForTimeout(150);
-  await page.getByTestId('contact-form-role').fill('Supplier');
+  await page.getByTestId('contact-form-position').fill('Supplier');
   await page.getByTestId('contact-form-save').click();
   await page.waitForTimeout(600);
   const added = (await read('ot.contacts'))[0];
@@ -286,8 +286,8 @@ const SESSION = { userId: 'smoke', name: 'Khalid Al-Mansouri', firstName: 'Khali
   await page.waitForTimeout(500);
   await page.getByTestId('contact-edit').click();
   await page.waitForTimeout(500);
-  check('Edit fills the form', (await page.getByTestId('contact-form-name').inputValue()) === 'Ahmed Rashid' && (await page.getByTestId('contact-form-role').inputValue()) === 'Supplier');
-  await page.getByTestId('contact-form-role').fill('Packaging supplier');
+  check('Edit fills the form', (await page.getByTestId('contact-form-name').inputValue()) === 'Ahmed Rashid' && (await page.getByTestId('contact-form-position').inputValue()) === 'Supplier');
+  await page.getByTestId('contact-form-position').fill('Packaging supplier');
   await page.getByTestId('contact-form-save-top').click();
   await page.waitForTimeout(500);
   const edited = await read('ot.contacts');

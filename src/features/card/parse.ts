@@ -27,7 +27,7 @@ const ADDRESS = /\b(?:p\.?\s?o\.?\s?box|street|st\.|road|rd\.|avenue|ave\.|build
 const FAX = /\b(?:fax|f)\s*[:.]|فاكس/i;
 const MOBILE = /\b(?:mobile|mob|cell|m)\s*[:.]|\bwhats?app\b|جوال|موبايل|محمول|واتس/i;
 
-const TITLE =
+export const TITLE =
   /\b(?:ceo|cto|cfo|coo|cmo|founder|co-?founder|owner|president|vice president|vp|chairman|managing|director|manager|head of|lead|engineer|developer|designer|consultant|partner|sales|marketing|executive|specialist|officer|architect|doctor|dr\.?|attorney|lawyer|accountant|supervisor|assistant|advisor|analyst|coordinator)\b|مدير|رئيس|مؤسس|مهندس|مستشار|محامي|طبيب|دكتور|محاسب|مشرف|شريك|مسؤول|مسئول|خبير|نائب|مالك|صاحب|مصمم|مطور|منسق|اخصائي|أخصائي/i;
 const COMPANY =
   /\b(?:ltd|llc|inc|corp|co\.|company|group|holding|holdings|trading|solutions|technologies|technology|studio|agency|bank|clinic|academy|school|club|gym|salon|hotel|restaurant|cafe|pharmacy|center|centre|enterprises|international|industries|services|consulting|partners|labs|ventures|capital|foundation|university|institute|factory|store|shop)\b|شركة|مؤسسة|مجموعة|للتجارة|للتقنية|للتسويق|للاستشارات|مكتب|مصنع|عيادة|مركز|بنك|أكاديمية|اكاديمية|وكالة|استوديو|جامعة|معهد|مطعم|مقهى/i;

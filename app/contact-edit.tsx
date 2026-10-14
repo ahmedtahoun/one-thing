@@ -20,6 +20,7 @@ import { Screen } from '@/ui/Screen';
 import { Text } from '@/ui/Text';
 import { Toast, useToast } from '@/ui/Toast';
 import { added } from '@/content/additions';
+import { joinRole, splitRole } from '@/features/contact/role';
 import { DEFAULT_DIAL } from '@/content/countries';
 import { TYPE_ICON } from '@/design/icon-paths';
 import { fontFamily, ink, status, surface, typeColour } from '@/design/tokens';
@@ -56,7 +57,9 @@ function ContactForm({ contact }: { contact?: Contact }) {
   useEffect(() => importDraft.clear(), []);
 
   const [name, setName] = useState(contact?.name ?? imported?.name ?? '');
-  const [role, setRole] = useState(contact?.role ?? imported?.role ?? '');
+  const initialRole = splitRole(contact?.role ?? imported?.role);
+  const [position, setPosition] = useState(initialRole.position);
+  const [company, setCompany] = useState(initialRole.company);
   const [dial, setDial] = useState(contact?.dial ?? imported?.dial ?? DEFAULT_DIAL);
   const [phone, setPhone] = useState(contact?.phone ?? imported?.phone ?? '');
   const [email, setEmail] = useState(contact?.email ?? imported?.email ?? '');
@@ -70,7 +73,9 @@ function ContactForm({ contact }: { contact?: Contact }) {
     const draft = await pickFromPhone();
     if (!draft) return;
     setName(draft.name);
-    setRole(draft.role);
+    const fromPhone = splitRole(draft.role);
+    setPosition(fromPhone.position);
+    setCompany(fromPhone.company);
     if (draft.dial) setDial(draft.dial);
     setPhone(draft.phone);
     setEmail(draft.email);
@@ -99,7 +104,7 @@ function ContactForm({ contact }: { contact?: Contact }) {
     }
     const fields = {
       name: name.trim(),
-      role: role.trim() || undefined,
+      role: joinRole(position, company),
       dial,
       phone: phone.trim() || undefined,
       email: email.trim() || undefined,
@@ -257,10 +262,18 @@ function ContactForm({ contact }: { contact?: Contact }) {
               />
               {/* The prototype draws a rule under this last row too. */}
               <TextInput
+                testID="contact-form-position"
+                value={position}
+                onChangeText={setPosition}
+                placeholder={added(lang).contact.positionPh}
+                placeholderTextColor={ink.s5}
+                style={{ ...field, ...ruled }}
+              />
+              <TextInput
                 testID="contact-form-role"
-                value={role}
-                onChangeText={setRole}
-                placeholder={t.f_rolePh}
+                value={company}
+                onChangeText={setCompany}
+                placeholder={added(lang).contact.companyPh}
                 placeholderTextColor={ink.s5}
                 style={{ ...field, ...ruled }}
               />
