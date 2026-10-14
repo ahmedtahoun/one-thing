@@ -90,6 +90,8 @@ export default function ImportContacts() {
         dial: c.phone ? dialFor({ dial: c.dial }, region) : undefined,
         phone: c.phone,
         email: c.email,
+        address: c.address,
+        rememberNote: c.note,
         preferredChannel: c.phone ? 'whatsapp' : c.email ? 'email' : undefined,
         lastLabel: inline.addedToday,
       }))

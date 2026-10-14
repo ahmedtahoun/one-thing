@@ -14,7 +14,7 @@ import { normalizeArabic } from '@/lib/parse/names';
 import { westernDigits } from '@/lib/parse/spoken';
 import type { VcfRow } from './vcf';
 
-type Role = 'name' | 'first' | 'last' | 'phone' | 'email' | 'company' | 'title';
+type Role = 'name' | 'first' | 'last' | 'phone' | 'email' | 'company' | 'title' | 'note' | 'address';
 
 /** What can be wrong with a row. `no-name` stops it being imported; the others only drop that one detail. */
 export type Issue = 'no-name' | 'bad-email' | 'bad-phone';
@@ -28,6 +28,9 @@ export type Candidate = {
   dial?: string;
   phone?: string;
   email?: string;
+  /** A status or notes column, kept on the contact as "Remember for next time". */
+  note?: string;
+  address?: string;
   issues: Issue[];
   /** The contact already in People (or earlier in the file) this one matches. */
   duplicateOf?: string;
@@ -48,6 +51,8 @@ const HEADER_RULES: [Role, RegExp][] = [
   ['last', /\b(last|surname|family)\b|العايل|العائل|الكني|اللقب/],
   ['title', /\b(title|position|role|job|designation)\b|الوظيف|المسمي|المنصب/],
   ['company', /\b(company|organi[sz]ation|org|business|employer)\b|الشرك|المؤسس|جهه العمل/],
+  ['note', /\b(status|notes?|comments?|remarks?)\b|ملاحظ|حاله|الحاله/],
+  ['address', /\b(address|location)\b|عنوان|موقع/],
   ['name', /\b(name|contact)\b|الاسم|اسم/],
 ];
 /** "Phone 1 - Type" holds "Mobile", not a number. */
@@ -112,23 +117,60 @@ function layoutOf(rows: string[][]): Layout {
   return { roles, header: false };
 }
 
-const cellOf = (row: string[], roles: (Role | null)[], role: Role): string[] =>
-  roles.flatMap((r, col) => (r === role && (row[col] ?? '').trim() ? [(row[col] as string).trim()] : []));
+/** A dash, "N/A" or a blank where a cell has nothing. */
+const EMPTY = /^[\s\-–—−_.?*]+$|^(?:n\/?a|none|null|nil|tbd)$/i;
+const clean = (v: string): string => (EMPTY.test(v.trim()) ? '' : v.trim());
 
-function build(
-  key: string,
-  parts: { name?: string; first?: string; last?: string; phones: string[]; emails: string[]; company?: string; title?: string },
-  region?: string
-): Candidate | null {
+const cellOf = (row: string[], roles: (Role | null)[], role: Role): string[] =>
+  roles.flatMap((r, col) => {
+    const v = clean(row[col] ?? '');
+    return r === role && v ? [v] : [];
+  });
+
+/**
+ * The numbers in one phone cell. Sheets keep several in one ("+971 55 123 4567, +971 4 320 0101"),
+ * sometimes behind a stray "=" from the export; a short tail like "741223" is an extension, not a number.
+ */
+function numbersIn(cell: string): string[] {
+  const text = westernDigits(cell).replace(/^[=\s]+/, '');
+  return text
+    .split(/\s*(?:[,;\n]|\s\/\s|\s&\s)\s*/)
+    .map((p) => p.trim())
+    .filter((p) => p.replace(/\D/g, '').length >= 7);
+}
+
+/** Whether a number is a mobile, which is the one a message or WhatsApp reaches. */
+function isMobile(raw: string, region?: string): boolean {
+  const { dial, phone } = splitDialled(phoneText(raw), region);
+  if (dial === '+971' || dial === '+966') return /^5/.test(phone);
+  if (dial === '+20') return /^1[0125]/.test(phone);
+  if (dial === '+91') return /^[6-9]/.test(phone);
+  return /^[5-9]/.test(phone);
+}
+
+/** "A / B" or "A; B" as separate people. */
+const PEOPLE_SPLIT = /\s*(?:\/|;|\n)\s*/;
+
+type RowParts = { name?: string; first?: string; last?: string; phones: string[]; emails: string[]; company?: string; title?: string; note?: string; address?: string };
+
+function build(key: string, parts: RowParts, region?: string, person?: { index: number; of: number; names: string[] }): Candidate | null {
   const issues: Issue[] = [];
-  let name = (parts.name ?? '').trim() || [parts.first, parts.last].filter(Boolean).join(' ').trim();
+  let name = (person ? person.names[person.index] : parts.name ?? '')?.trim() || [parts.first, parts.last].filter(Boolean).join(' ').trim();
   const company = (parts.company ?? '').trim();
-  const title = (parts.title ?? '').trim();
+  let title = (parts.title ?? '').trim();
+  if (person && person.of > 1) {
+    const titles = title.split(PEOPLE_SPLIT).filter(Boolean);
+    if (titles.length === person.of) title = titles[person.index] ?? title;
+  }
   if (!name && company) name = company;
 
+  // Mobiles first, then the rest; each person in the row takes the next one.
+  const numbers = parts.phones.flatMap(numbersIn);
+  const ordered = [...numbers.filter((n) => isMobile(n, region)), ...numbers.filter((n) => !isMobile(n, region))];
   let dial: string | undefined;
   let phone: string | undefined;
-  for (const raw of parts.phones) {
+  const mine = person && person.of > 1 ? (ordered[person.index] ? [ordered[person.index] as string] : []) : ordered;
+  for (const raw of mine) {
     const text = phoneText(raw);
     if (text.replace(/\D/g, '').length < 7) continue;
     const split = splitDialled(text, region);
@@ -138,17 +180,18 @@ function build(
       break;
     }
   }
-  if (parts.phones.some((p) => p.trim()) && !phone) issues.push('bad-phone');
+  if (!person && parts.phones.some((p) => p.trim()) && !phone) issues.push('bad-phone');
 
+  // Addresses may be several in a cell; with several people, the one that carries their name.
+  const addresses = parts.emails.flatMap((cell) => cell.split(/[\s,;]+/).filter((e) => EMAIL.test(e)));
   let email: string | undefined;
-  for (const raw of parts.emails) {
-    const found = EMAIL.exec(raw)?.[0];
-    if (found) {
-      email = found.toLowerCase();
-      break;
-    }
+  if (person && person.of > 1) {
+    const tokens = (name || '').toLowerCase().split(/\s+/).filter((t) => t.length >= 3);
+    email = (addresses.find((e) => tokens.some((t) => e.toLowerCase().split('@')[0]?.includes(t))) ?? addresses[person.index])?.toLowerCase();
+  } else {
+    email = addresses[0]?.toLowerCase();
   }
-  if (parts.emails.some((e) => e.trim()) && !email) issues.push('bad-email');
+  if (!person && parts.emails.some((e) => e.trim()) && !email) issues.push('bad-email');
 
   if (!name) {
     // A row with nothing but a blank name and nothing to reach is not a contact.
@@ -156,7 +199,17 @@ function build(
     issues.push('no-name');
   }
   const role = title && company && company !== name ? `${title} · ${company}` : title || (company !== name ? company : '') || undefined;
-  return { key, name, role: role || undefined, dial, phone, email, issues };
+  return {
+    key,
+    name,
+    role: role || undefined,
+    dial,
+    phone,
+    email,
+    ...(parts.note ? { note: parts.note } : {}),
+    ...(parts.address ? { address: parts.address } : {}),
+    issues,
+  };
 }
 
 /** Candidates from a table of cells, with or without a header row. */
@@ -165,19 +218,27 @@ export function readTable(rows: string[][], region?: string): { candidates: Cand
   const { roles, header } = layoutOf(rows);
   const candidates: Candidate[] = [];
   rows.slice(header ? 1 : 0).forEach((row, i) => {
-    const candidate = build(
-      `r${i}`,
-      {
-        name: cellOf(row, roles, 'name')[0],
-        first: cellOf(row, roles, 'first')[0],
-        last: cellOf(row, roles, 'last')[0],
-        phones: cellOf(row, roles, 'phone'),
-        emails: cellOf(row, roles, 'email'),
-        company: cellOf(row, roles, 'company')[0],
-        title: cellOf(row, roles, 'title')[0],
-      },
-      region
-    );
+    const parts: RowParts = {
+      name: cellOf(row, roles, 'name')[0],
+      first: cellOf(row, roles, 'first')[0],
+      last: cellOf(row, roles, 'last')[0],
+      phones: cellOf(row, roles, 'phone'),
+      emails: cellOf(row, roles, 'email'),
+      company: cellOf(row, roles, 'company')[0],
+      title: cellOf(row, roles, 'title')[0],
+      note: cellOf(row, roles, 'note').join(' · ') || undefined,
+      address: cellOf(row, roles, 'address')[0],
+    };
+    // "Lisa Blake / Jayadeep Paliath" in one cell is two people, not one long name.
+    const names = (parts.name ?? '').split(PEOPLE_SPLIT).map((n) => n.trim()).filter(Boolean);
+    if (names.length > 1) {
+      names.forEach((_, j) => {
+        const one = build(`r${i}-${j}`, parts, region, { index: j, of: names.length, names });
+        if (one) candidates.push(one);
+      });
+      return;
+    }
+    const candidate = build(`r${i}`, parts, region);
     if (candidate) candidates.push(candidate);
   });
   return { candidates, header };

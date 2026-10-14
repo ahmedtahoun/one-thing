@@ -197,3 +197,40 @@ describe('candidatesFromFile', () => {
     assert.deepEqual(await candidatesFromFile(file('empty.csv', 'Name,Phone\n'), []), { error: 'empty' });
   });
 });
+
+describe('readTable — a sales prospect sheet', () => {
+  const rows = [
+    ['Company Name', 'Contact Person', 'Title', 'STATUS', 'Phone', 'Email', 'Website'],
+    ['Aachi Masala Foods', 'Ashok S', 'Operations Manager', 'NO RESPONSE', '=+91 9940348619, +971 875 6383', 'ashok.s@aachigroup.com', 'www.aachigroup.com'],
+    ['Chefs Palette / Kerry', 'Jovana Opricovic', 'Foodservice Marketing Specialist', 'NO RESPONSE', '—', 'jovana.opricovic@kerry.com', 'www.kerry.com'],
+    ['Choitrams / Flora', 'Lisa Blake / Jayadeep Paliath', 'MENA Brand Manager / Sales Manager', 'Send Catalogue in mail', '=+971 4 5473437, +971 55 857 9607', 'Lisa.blake@florafg.com, jayadeep.paliath@choithrams.com', 'www.x.com'],
+    ['dmg events', 'Hassan', '—', '', '=+971 4 4380355, +971 56 8360993', 'aysehassan@dmgeventsme.com', '—'],
+    ['Arab Marketing', 'Simon Bakht', '—', '', '=+961-1-740378 / 741223 / 751262', 'SBakht@amfime.com', '—'],
+  ];
+  const { candidates } = readTable(rows, 'AE');
+  it('reads one number out of a cell that holds several, ignoring the stray =', () => {
+    assert.equal(candidates[0]?.dial, '+91');
+    assert.equal(candidates[0]?.phone, '9940348619');
+  });
+  it('keeps the status as the contact’s note and treats a dash as empty', () => {
+    assert.equal(candidates[0]?.note, 'NO RESPONSE');
+    assert.equal(candidates[1]?.phone, undefined);
+    assert.deepEqual(candidates[1]?.issues, []);
+    assert.equal(candidates[4]?.role, 'dmg events');
+  });
+  it('makes two people of "A / B", with their own title and email, the mobile to the first', () => {
+    const [lisa, jay] = [candidates[2], candidates[3]];
+    assert.equal(lisa?.name, 'Lisa Blake');
+    assert.equal(lisa?.role, 'MENA Brand Manager · Choitrams / Flora');
+    assert.equal(lisa?.email, 'lisa.blake@florafg.com');
+    assert.equal(lisa?.phone, '558579607');
+    assert.equal(jay?.name, 'Jayadeep Paliath');
+    assert.equal(jay?.role, 'Sales Manager · Choitrams / Flora');
+    assert.equal(jay?.email, 'jayadeep.paliath@choithrams.com');
+  });
+  it('drops a short tail after a slash as an extension, not a second number', () => {
+    const simon = candidates.find((c) => c.name === 'Simon Bakht');
+    assert.equal(simon?.dial, '+961');
+    assert.equal(simon?.phone, '1740378');
+  });
+});
