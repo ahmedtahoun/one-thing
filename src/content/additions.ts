@@ -111,6 +111,10 @@ export type Added = {
     doneBody: string;
     back: string;
     after: string;
+    opened: string;
+    goBack: string;
+    emailStart: string;
+    emailEnd: string;
   };
   /** The chips on People, and the favorites that go with them. */
   filters: {
@@ -400,9 +404,9 @@ const ADDED: Record<Lang, Added> = {
       message: 'Message',
       messagePh: 'Write your message…',
       insertName: 'Insert {name}',
-      waNote: 'WhatsApp opens one chat at a time. You press send in each, so nothing goes out without you.',
+      waNote: 'WhatsApp opens one chat at a time. You press send in each and the next one is ready when you come back.',
       bccNote: 'Goes as one email. Nobody can see the other recipients.',
-      personalNote: 'Your message uses {name}, so each person gets their own email.',
+      personalNote: 'Each person gets their own email, addressed by name. It moves on by itself once you send.',
       recipients: 'Who gets it',
       selectAll: 'Select all',
       clear: 'Clear',
@@ -424,6 +428,10 @@ const ADDED: Record<Lang, Added> = {
       doneBody: '{n} opened. Nothing was sent for you.',
       back: 'Back to People',
       after: 'Opened. Send it there, then tap Next.',
+      opened: 'Opened for {n}.',
+      goBack: 'Didn’t send? Go back',
+      emailStart: 'Dear {name},',
+      emailEnd: 'Kind regards,',
     },
     filters: {
       all: 'All',
@@ -686,9 +694,9 @@ const ADDED: Record<Lang, Added> = {
       message: 'الرسالة',
       messagePh: 'اكتب رسالتك…',
       insertName: 'أدرج {الاسم}',
-      waNote: 'واتساب يفتح محادثة وحدة كل مرة. أنت تضغط إرسال في كل وحدة، فما يُرسل شي بدونك.',
+      waNote: 'واتساب يفتح محادثة وحدة كل مرة. تضغط إرسال وترجع، والتالي يكون جاهز.',
       bccNote: 'تروح إيميل واحد. ما أحد يشوف باقي المستلمين.',
-      personalNote: 'رسالتك فيها {الاسم}، فكل شخص ياخذ إيميل خاص فيه.',
+      personalNote: 'كل شخص ياخذ إيميل خاص فيه باسمه. وينتقل للي بعده تلقائيًا بعد ما ترسل.',
       recipients: 'لمين تروح',
       selectAll: 'اختر الكل',
       clear: 'مسح',
@@ -710,6 +718,10 @@ const ADDED: Record<Lang, Added> = {
       doneBody: 'فتحنا {n}. وما أُرسل شي عنك.',
       back: 'رجوع للأشخاص',
       after: 'انفتح. أرسلها هناك، ثم اضغط التالي.',
+      opened: 'انفتحت لـ{n}.',
+      goBack: 'ما أرسلت؟ ارجع',
+      emailStart: 'السلام عليكم {الاسم}،',
+      emailEnd: 'مع خالص التحية،',
     },
     filters: {
       all: 'الكل',

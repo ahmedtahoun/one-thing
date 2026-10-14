@@ -5,12 +5,14 @@
  * rule is that the person presses send — so a bulk send is a *queue*: one
  * prepared message per person, opened one after another, each sent by the
  * person themselves. Email is the one place a single message can reach
- * everyone, as one email with the recipients hidden (BCC), unless the message
- * uses {name}, which makes each email personal and so one each.
+ * everyone, but people answer an email that is written to them, so email is a
+ * queue too: one each, opened in the mail app, and the run moves on by itself
+ * once it is sent.
  *
  * Pure: who can be reached, the personalised text, the links.
  */
 import { DEFAULT_DIAL } from '@/content/countries';
+import { greetingName } from '@/features/compose/drafts';
 import { emailValid, mailtoUrl, phoneValid, whatsAppUrl } from '@/features/compose/recipient';
 import type { Contact } from '@/lib/model-types';
 
@@ -28,7 +30,8 @@ export function reachable(channel: BulkChannel, contact: Contact): boolean {
   return channel === 'whatsapp' ? phoneValid(contact.phone ?? '') : emailValid((contact.email ?? '').trim());
 }
 
-const firstName = (contact: Contact): string => contact.name.trim().split(/\s+/)[0] ?? '';
+/** "Sara" for Sara Khan, "Dr. Haddad" for Dr. Sara Haddad: what a person would write after Dear. */
+const firstName = (contact: Contact): string => greetingName(contact.name, /[\u0600-\u06FF]/.test(contact.name) ? 'ar' : 'en');
 
 /** Whether the message addresses people by name, which rules out one shared email. */
 export function usesName(template: string): boolean {

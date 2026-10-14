@@ -26,6 +26,9 @@ describe('reachable', () => {
 });
 
 describe('personalise', () => {
+  it('keeps a title with the surname, as a letter would', () => {
+    assert.equal(personalise('Dear {name},', person('a', 'Dr. Sara Haddad')), 'Dear Dr. Haddad,');
+  });
   it('puts the first name in, in either language', () => {
     assert.equal(personalise('Hi {name}, quick update', person('a', 'Sara Haddad')), 'Hi Sara, quick update');
     assert.equal(personalise('أهلًا {الاسم}، عندي خبر', person('a', 'سارة حداد')), 'أهلًا سارة، عندي خبر');

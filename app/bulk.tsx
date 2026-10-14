@@ -1,31 +1,22 @@
 /**
  * Send to many — one message, a list of people, and a queue.
  *
- * The app never sends anything for the person. WhatsApp can only open one
- * chat at a time, so a bulk send is a queue: the next person's chat opens
- * with the message already written, the person presses send there, and comes
- * back for the next. Email is one message with the recipients hidden (BCC),
- * unless it uses {name}, which makes it one email each.
+ * The app never sends anything for the person. Both channels are a queue, one
+ * message each: the person's chat or email opens with the message written to
+ * them, they press send there, and coming back the next person is already
+ * waiting — one tap per person, so fifty in a day stays quick. An email that
+ * the mail app reports sent moves the queue on by itself; for WhatsApp, which
+ * reports nothing, coming back to the app is the signal, with a way to step
+ * back if it was not sent.
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Linking, Pressable, ScrollView, TextInput, View } from 'react-native';
+import { AppState, Linking, Pressable, ScrollView, TextInput, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
 import * as MailComposer from 'expo-mail-composer';
 
 import { added } from '@/content/additions';
-import {
-  bccMailto,
-  chunk,
-  MAILTO_CHUNK,
-  MAX_RECIPIENTS,
-  personalise,
-  reachable,
-  recipientsOf,
-  usesName,
-  whatsAppLink,
-  type BulkChannel,
-} from '@/features/bulk/plan';
+import { MAX_RECIPIENTS, personalise, reachable, recipientsOf, usesName, whatsAppLink, type BulkChannel } from '@/features/bulk/plan';
 import { mailtoUrl } from '@/features/compose/recipient';
 import { FilterChips } from '@/features/people/FilterChips';
 import { BULK_CHIPS, filterCounts, filterPeople, type PeopleFilter } from '@/features/people/filters';
@@ -42,25 +33,30 @@ import { type Contact } from '@/lib/model-types';
 import { useFavorites } from '@/lib/favorites';
 import { usePeople } from '@/lib/people';
 
-type Item = { key: string; title: string; preview: string; run: () => Promise<void> };
+/** What opening a step came to: sent (the mail app said so), opened (left the app), or cancelled (stay on this person). */
+type Outcome = 'sent' | 'opened' | 'cancelled';
+type Item = { key: string; title: string; preview: string; run: () => Promise<Outcome> };
 
 export default function Bulk() {
   const { t, lang, a11y } = useLanguage();
   const dir = useDirection();
   const copy = added(lang).bulk;
-  const { contacts, followUps } = usePeople();
+  const { contacts, followUps, addHistory } = usePeople();
   const favorites = useFavorites();
   const toast = useToast();
   const params = useLocalSearchParams<{ channel?: string }>();
 
   const [channel, setChannel] = useState<BulkChannel>(params.channel === 'email' ? 'email' : 'whatsapp');
   const [subject, setSubject] = useState('');
-  const [body, setBody] = useState('');
+  const starter = (c: BulkChannel) => (c === 'email' ? `${copy.emailStart}\n\n\n\n${copy.emailEnd}` : '');
+  const [body, setBody] = useState(() => starter(params.channel === 'email' ? 'email' : 'whatsapp'));
   const [query, setQuery] = useState('');
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
   const [queue, setQueue] = useState<Item[] | null>(null);
   const [index, setIndex] = useState(0);
   const [opened, setOpened] = useState(false);
+  /** Who was just opened, so a run that moved on by itself can be stepped back. */
+  const [justOpened, setJustOpened] = useState<string | null>(null);
   const bodyRef = useRef<TextInput>(null);
   const [mailAvailable, setMailAvailable] = useState(false);
   useEffect(() => {
@@ -74,7 +70,6 @@ export default function Bulk() {
   const list = useMemo(() => filterPeople(filter, contacts, context).filter((c) => matchContact(c, query)), [contacts, context, filter, query]);
   const people = list.filter((c) => reachable(channel, c));
   const chosen = recipientsOf(channel, contacts, selected);
-  const personal = channel === 'email' && usesName(body);
   const colour = typeColour[channel];
 
   const toggle = (id: string) =>
@@ -90,51 +85,35 @@ export default function Bulk() {
   const back = () => (router.canGoBack() ? router.back() : router.replace('/people'));
 
   /** What each step of the run does when its button is pressed. */
-  const buildQueue = (): Item[] => {
-    if (channel === 'whatsapp') {
-      return chosen.map((c) => ({
+  const buildQueue = (): Item[] =>
+    chosen.map((c) => {
+      const text = personalise(body, c);
+      if (channel === 'whatsapp') {
+        return {
+          key: c.id,
+          title: c.name,
+          preview: text,
+          run: async () => {
+            await Linking.openURL(whatsAppLink(c, body)).catch(() => {});
+            return 'opened';
+          },
+        };
+      }
+      return {
         key: c.id,
         title: c.name,
-        preview: personalise(body, c),
-        run: async () => void (await Linking.openURL(whatsAppLink(c, body)).catch(() => {})),
-      }));
-    }
-    const mailOne = (c: Contact): Item => ({
-      key: c.id,
-      title: c.name,
-      preview: personalise(body, c),
-      run: async () => {
-        const text = personalise(body, c);
-        if (mailAvailable) await MailComposer.composeAsync({ recipients: [c.email ?? ''], subject, body: text }).catch(() => null);
-        else {
+        preview: text,
+        run: async () => {
+          if (mailAvailable) {
+            const result = await MailComposer.composeAsync({ recipients: [c.email ?? ''], subject, body: text }).catch(() => null);
+            return result?.status === 'sent' ? 'sent' : result?.status === 'undetermined' ? 'opened' : 'cancelled';
+          }
           await Clipboard.setStringAsync(text).catch(() => {});
           await Linking.openURL(mailtoUrl(c.email ?? '', subject, text)).catch(() => {});
-        }
-      },
-    });
-    if (personal) return chosen.map(mailOne);
-    const addresses = chosen.map((c) => (c.email ?? '').trim());
-    if (mailAvailable) {
-      return [
-        {
-          key: 'bcc',
-          title: copy.openBcc.replace('{n}', String(addresses.length)),
-          preview: body,
-          run: async () => void (await MailComposer.composeAsync({ bccRecipients: addresses, subject, body }).catch(() => null)),
+          return 'opened';
         },
-      ];
-    }
-    // No mail composer: links, in batches short enough not to be cut off.
-    return chunk(addresses, MAILTO_CHUNK).map((group, i) => ({
-      key: `bcc-${i}`,
-      title: copy.openBcc.replace('{n}', String(group.length)),
-      preview: body,
-      run: async () => {
-        await Clipboard.setStringAsync(body).catch(() => {});
-        await Linking.openURL(bccMailto(group, subject, body)).catch(() => {});
-      },
-    }));
-  };
+      };
+    });
 
   const start = () => {
     if (!body.trim()) return toast.show(copy.needMessage, { undo: false });
@@ -142,19 +121,48 @@ export default function Bulk() {
     setQueue(buildQueue());
     setIndex(0);
     setOpened(false);
+    setJustOpened(null);
   };
 
   const step = queue?.[index];
   const finished = queue !== null && index >= queue.length;
+
+  /** Moves on. `reached` is true when the message went (or was opened) to this person: it counts as a moment with them. */
+  const advance = (reached: boolean) => {
+    if (!step) return;
+    if (reached) {
+      const contact = contacts.find((c) => c.id === step.key);
+      if (contact) addHistory({ contactId: contact.id, kind: channel, text: subject || contact.name, at: new Date().toISOString() });
+    }
+    setJustOpened(reached ? step.title : null);
+    setIndex((i) => i + 1);
+    setOpened(false);
+  };
+  const advanceRef = useRef(advance);
+  advanceRef.current = advance;
+  const openedRef = useRef(false);
+  openedRef.current = opened;
+
+  // WhatsApp cannot say whether the message was sent, only that the person
+  // left and came back — which is when the next one should be ready.
+  useEffect(() => {
+    let leftApp = false;
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'background') leftApp = true;
+      if (state === 'active' && leftApp && openedRef.current) {
+        leftApp = false;
+        advanceRef.current(true);
+      }
+    });
+    return () => sub.remove();
+  }, []);
+
   const press = async () => {
     if (!step) return;
-    if (!opened) {
-      await step.run();
-      setOpened(true);
-    } else {
-      setIndex((i) => i + 1);
-      setOpened(false);
-    }
+    if (opened) return advance(true);
+    const outcome = await step.run();
+    if (outcome === 'sent') advance(true);
+    else if (outcome === 'opened') setOpened(true);
   };
 
   const pill = (value: BulkChannel, label: string) => {
@@ -164,6 +172,8 @@ export default function Bulk() {
         key={value}
         testID={`bulk-${value}`}
         onPress={() => {
+          // Switching channel swaps the starter text, but never one the person has written.
+          if (!body.trim() || body === starter(channel)) setBody(starter(value));
           setChannel(value);
           setSelected(new Set());
         }}
@@ -256,6 +266,23 @@ export default function Bulk() {
                 <Text token="caption" color={ink.s3}>
                   {copy.after}
                 </Text>
+              ) : justOpened ? (
+                <Pressable
+                  testID="bulk-went"
+                  onPress={() => {
+                    setIndex((i) => Math.max(0, i - 1));
+                    setJustOpened(null);
+                  }}
+                  accessibilityRole="button"
+                  style={{ gap: 2 }}
+                >
+                  <Text token="caption" color={ink.s3}>
+                    {copy.opened.replace('{n}', justOpened)}
+                  </Text>
+                  <Text token="caption" weight="600" color={colour.fg}>
+                    {copy.goBack}
+                  </Text>
+                </Pressable>
               ) : null}
               <View style={{ gap: 10 }}>
                 <Button
@@ -314,7 +341,7 @@ export default function Bulk() {
             </Pressable>
           )}
           <Text token="caption" color={ink.s3} testID="bulk-note">
-            {channel === 'whatsapp' ? copy.waNote : personal ? copy.personalNote : copy.bccNote}
+            {channel === 'whatsapp' ? copy.waNote : copy.personalNote}
           </Text>
 
           <View style={{ flexDirection: dir.row, alignItems: 'center', justifyContent: 'space-between', marginTop: 6 }}>
