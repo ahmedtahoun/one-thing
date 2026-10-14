@@ -24,6 +24,7 @@ export type Added = {
     added: string;
     addPerson: string;
     someoneElse: string;
+    search: string;
     noOne: string;
     tomorrowAt: string;
     keepTime: string;
@@ -303,6 +304,16 @@ export type Added = {
     saveNew: string;
     needName: string;
   };
+  /** "Send later": a reminder at the chosen time, with the draft waiting. */
+  later: {
+    button: string;
+    title: string;
+    hour: string;
+    evening: string;
+    tomorrow: string;
+    pick: string;
+    toast: string;
+  };
   /** A person's page: the history like a chat thread, a box to write in, the ways to reach them. */
   thread: {
     details: string;
@@ -355,6 +366,7 @@ const ADDED: Record<Lang, Added> = {
       added: 'Added {n} to People. You can add their number when you message them.',
       addPerson: 'Add {n}',
       someoneElse: 'Someone else',
+      search: 'Search',
       noOne: 'No one',
       tomorrowAt: 'Tomorrow {t}',
       keepTime: 'Keep {t}',
@@ -481,6 +493,15 @@ const ADDED: Record<Lang, Added> = {
       recentNone: 'Nobody in the last 7 days.',
       favorite: 'Favorite',
       followups: 'Follow-ups',
+    },
+    later: {
+      button: 'Send later',
+      title: 'When should I remind you to send it?',
+      hour: 'In 1 hour',
+      evening: 'This evening',
+      tomorrow: 'Tomorrow morning',
+      pick: 'Pick a time',
+      toast: 'Okay. I’ll remind you {w}, with the draft ready.',
     },
     thread: {
       details: 'Details',
@@ -676,6 +697,7 @@ const ADDED: Record<Lang, Added> = {
       added: 'ضفت {n} للأشخاص. تقدر تضيف رقمه وقت ما تراسله.',
       addPerson: 'أضف {n}',
       someoneElse: 'شخص ثاني',
+      search: 'ابحث',
       noOne: 'ولا أحد',
       tomorrowAt: 'بكرة {t}',
       keepTime: 'خلّها {t}',
@@ -797,6 +819,15 @@ const ADDED: Record<Lang, Added> = {
       recentNone: 'ما فيه أحد آخر ٧ أيام.',
       favorite: 'مفضّل',
       followups: 'المتابعات',
+    },
+    later: {
+      button: 'أرسلها لاحقًا',
+      title: 'متى أذكّرك ترسلها؟',
+      hour: 'بعد ساعة',
+      evening: 'هذا المساء',
+      tomorrow: 'بكرة الصبح',
+      pick: 'اختر وقت',
+      toast: 'تمام. بذكّرك {w}، والمسودة جاهزة.',
     },
     thread: {
       details: 'التفاصيل',

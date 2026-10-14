@@ -20,6 +20,7 @@ export type AskAction =
   | { kind: 'who'; contact: Contact | null }
   | { kind: 'add'; name: string }
   | { kind: 'elsewhere' }
+  | { kind: 'search' }
   | { kind: 'when'; iso: string };
 
 export type AskOption = { key: string; label: string; action: AskAction };
@@ -50,6 +51,7 @@ export function optionsFor(
   quick: readonly QuickWhen[],
   now: Date
 ): AskOption[] {
+  const search: AskOption = { key: 'search', label: copy.ask.search, action: { kind: 'search' } };
   const noOne: AskOption = { key: 'no-one', label: copy.ask.noOne, action: { kind: 'who', contact: null } };
   const person = (c: Contact, withRole: boolean): AskOption => ({
     key: `who-${c.id}`,
@@ -64,7 +66,7 @@ export function optionsFor(
       if (gap.fuzzy && gap.options.length === 1) {
         return [...shown, { key: 'elsewhere', label: copy.ask.someoneElse, action: { kind: 'elsewhere' } }, noOne];
       }
-      return [...shown, noOne];
+      return [...shown, search, noOne];
     }
     case 'who-unknown':
       return [
@@ -73,7 +75,7 @@ export function optionsFor(
         noOne,
       ];
     case 'who-missing':
-      return [...gap.suggestions.slice(0, MAX_PEOPLE).map((c) => person(c, false)), noOne];
+      return [...gap.suggestions.slice(0, MAX_PEOPLE).map((c) => person(c, false)), search, noOne];
     case 'when': {
       const options: AskOption[] = [];
       const at = new Date(draft.when);

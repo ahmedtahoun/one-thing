@@ -19,6 +19,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 
 import { added } from '@/content/additions';
 import { AskChips } from '@/features/capture/AskChips';
+import { PersonSearchSheet } from '@/features/capture/PersonSearchSheet';
 import { ContactCard, type ContactEdit } from '@/features/capture/ContactCard';
 import { emailInvalid, findDuplicate, nameValid, phoneInvalid } from '@/features/contact/form-rules';
 import { optionsFor, questionFor, type AskAction, type AskOption } from '@/features/capture/ask';
@@ -185,6 +186,7 @@ export default function Assistant() {
     ]);
   };
 
+  const [searchFor, setSearchFor] = useState<Ask | null>(null);
   const choose = (ask: Ask, option: AskOption) => {
     const action: AskAction = option.action;
     if (action.kind === 'who') {
@@ -195,6 +197,8 @@ export default function Assistant() {
       answer(ask, option.label, withWho(ask.draft, person), { ...ask.settled, who: true }, copy.ask.added.replace('{n}', action.name));
     } else if (action.kind === 'elsewhere') {
       reask(ask, option.label, { kind: 'who-missing', suggestions: suggestWho(ask.draft.type, world()) });
+    } else if (action.kind === 'search') {
+      setSearchFor(ask);
     } else {
       answer(ask, option.label, withWhen(ask.draft, action.iso), { ...ask.settled, when: true });
     }
@@ -654,6 +658,16 @@ export default function Assistant() {
           />
         </View>
       </Screen>
+      <PersonSearchSheet
+        open={searchFor !== null}
+        title={searchFor ? questionFor(searchFor.gap, searchFor.draft, copy) : ''}
+        onClose={() => setSearchFor(null)}
+        onPick={(contact) => {
+          const ask = searchFor;
+          setSearchFor(null);
+          if (ask) choose(ask, { key: `who-${contact.id}`, label: contact.name, action: { kind: 'who', contact } });
+        }}
+      />
       <Toast />
     </>
   );

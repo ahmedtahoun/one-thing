@@ -11,6 +11,7 @@ import { Pressable, TextInput, View } from 'react-native';
 import { router } from 'expo-router';
 
 import { AskChips } from '@/features/capture/AskChips';
+import { PersonSearchSheet } from '@/features/capture/PersonSearchSheet';
 import { optionsFor, questionFor, type AskOption } from '@/features/capture/ask';
 import { NOBODY, whenText } from '@/features/capture/labels';
 import { Bars, Pulse } from '@/features/capture/Listening';
@@ -92,6 +93,7 @@ export default function Capture() {
     return clarify(text, parsed, { contacts, tasks, followUps, now }, edits.settled);
   }, [parsed, text, contacts, tasks, followUps, edits]);
 
+  const [searching, setSearching] = useState(false);
   const choose = (option: AskOption) => {
     const action = option.action;
     if (action.kind === 'who') {
@@ -101,6 +103,8 @@ export default function Capture() {
       setEdits((e) => ({ ...e, who: person, settled: { ...e.settled, who: true } }));
     } else if (action.kind === 'elsewhere') {
       setEdits((e) => ({ ...e, elsewhere: true }));
+    } else if (action.kind === 'search') {
+      setSearching(true);
     } else {
       setEdits((e) => ({ ...e, when: action.iso, settled: { ...e.settled, when: true } }));
     }
@@ -361,6 +365,15 @@ export default function Capture() {
           </View>
         ) : null}
       </Screen>
+      <PersonSearchSheet
+        open={searching}
+        title={gap ? questionFor(gap, parsed ?? ({ type: 'call' } as never), copy) : ''}
+        onClose={() => setSearching(false)}
+        onPick={(contact) => {
+          setSearching(false);
+          choose({ key: `who-${contact.id}`, label: contact.name, action: { kind: 'who', contact } });
+        }}
+      />
       <Toast />
     </>
   );

@@ -60,10 +60,10 @@ describe('questions', () => {
 });
 
 describe('options', () => {
-  it('shows the role to tell two people with one name apart, and always offers "No one"', () => {
+  it('shows the role to tell two people with one name apart, and always offers Search and "No one"', () => {
     const gap: Gap = { kind: 'who-ambiguous', name: 'Daina', options: [person('a', 'Daina Partner', 'Partner'), person('b', 'Daina Khoury', 'Dentist')] };
     const options = optionsFor(gap, draft(), added('en'), QUICK, NOW);
-    assert.deepEqual(options.map((o) => o.label), ['Daina Partner · Partner', 'Daina Khoury · Dentist', 'No one']);
+    assert.deepEqual(options.map((o) => o.label), ['Daina Partner · Partner', 'Daina Khoury · Dentist', 'Search', 'No one']);
   });
 
   it('offers to add a stranger, pick someone else, or skip', () => {
@@ -72,9 +72,9 @@ describe('options', () => {
     assert.equal(options[0]?.label, 'Add Layla');
   });
 
-  it('lists the suggestions by name, then "No one"', () => {
+  it('lists the suggestions by name, then Search and "No one"', () => {
     const options = optionsFor({ kind: 'who-missing', suggestions: [person('a', 'Noura'), person('b', 'Sara')] }, draft(), added('en'), QUICK, NOW);
-    assert.deepEqual(options.map((o) => o.label), ['Noura', 'Sara', 'No one']);
+    assert.deepEqual(options.map((o) => o.label), ['Noura', 'Sara', 'Search', 'No one']);
   });
 
   it('offers only times still ahead, and never a dead end', () => {

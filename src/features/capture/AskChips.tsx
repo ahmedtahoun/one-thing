@@ -4,6 +4,7 @@
  */
 import { Pressable, View } from 'react-native';
 
+import { Icon } from '@/ui/Icon';
 import { Text } from '@/ui/Text';
 import { ink, surface } from '@/design/tokens';
 import { useDirection } from '@/i18n/LanguageProvider';
@@ -34,9 +35,13 @@ export function AskChips({
             borderWidth: 1,
             borderColor: surface.line,
             backgroundColor: surface.white,
+            flexDirection: dir.row,
+            alignItems: 'center',
+            gap: 6,
             opacity: pressed ? 0.8 : 1,
           })}
         >
+          {option.action.kind === 'search' ? <Icon name="search" size={14} color={ink.base} strokeWidth={2} /> : null}
           <Text token="caption" color={ink.base} numberOfLines={1}>
             {option.label}
           </Text>

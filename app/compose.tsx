@@ -38,6 +38,8 @@ import { Icon } from '@/ui/Icon';
 import { Screen } from '@/ui/Screen';
 import { Text } from '@/ui/Text';
 import { Toast, useToast } from '@/ui/Toast';
+import { Sheet } from '@/ui/Sheet';
+import { whenText } from '@/features/capture/labels';
 import { DEFAULT_DIAL } from '@/content/countries';
 import { type IconName } from '@/design/icon-paths';
 import { fontFamily, ink, surface, typeColour } from '@/design/tokens';
@@ -224,6 +226,44 @@ function ComposeTask({ task }: { task: Task }) {
     }
     askAfter(HANDOFF_DELAY);
   };
+
+  /**
+   * "Send later". WhatsApp has no way to schedule, and the mail sheet's own is
+   * out of this app's hands, so the app does the part it can: it keeps the
+   * draft, reminds at the chosen time, and the reminder opens this screen, one
+   * tap from send. Nothing is ever sent for the person.
+   */
+  const [laterOpen, setLaterOpen] = useState(false);
+  const sendLater = (at: Date) => {
+    const iso = at.toISOString();
+    updateTask(task.id, {
+      dueAt: iso,
+      remind: 'at',
+      remindAt: iso,
+      status: 'open',
+      snoozedUntil: null,
+      draft: { subject: isEmail ? subject : task.draft?.subject, body: draft },
+    });
+    setLaterOpen(false);
+    toast.show(added(lang).later.toast.replace('{w}', whenText(iso, t)), { undo: false });
+    const reached = contact?.id ?? task.contactIds[0];
+    setTimeout(() => router.dismissTo(from === 'contact' && reached ? `/contact?id=${reached}` : '/today'), 700);
+  };
+  const laterOptions = (() => {
+    const now = new Date();
+    const hour = new Date(now.getTime() + 3600000);
+    const evening = new Date(now);
+    evening.setHours(18, 0, 0, 0);
+    const tomorrow = new Date(now);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(9, 0, 0, 0);
+    const copy = added(lang).later;
+    return [
+      { key: 'hour', label: copy.hour, at: hour },
+      ...(evening.getTime() - now.getTime() > 2 * 3600000 ? [{ key: 'evening', label: copy.evening, at: evening }] : []),
+      { key: 'tomorrow', label: copy.tomorrow, at: tomorrow },
+    ];
+  })();
 
   const callNow = () => {
     toast.show(inline.calling, { undo: false });
@@ -581,13 +621,16 @@ function ComposeTask({ task }: { task: Task }) {
         ) : null}
 
         {isWa ? (
-          <PrimaryButton
-            testID="compose-send-wa"
-            icon="msg"
-            label={t.sendWa}
-            colour={phoneValid(phone) ? typeColour.whatsapp.fg : ink.s7}
-            onPress={sendWhatsApp}
-          />
+          <View style={{ gap: 8 }}>
+            <PrimaryButton
+              testID="compose-send-wa"
+              icon="msg"
+              label={t.sendWa}
+              colour={phoneValid(phone) ? typeColour.whatsapp.fg : ink.s7}
+              onPress={sendWhatsApp}
+            />
+            <SendLaterButton onPress={() => setLaterOpen(true)} />
+          </View>
         ) : null}
         {isEmail ? (
           <View style={{ gap: 8 }}>
@@ -617,6 +660,7 @@ function ComposeTask({ task }: { task: Task }) {
               <Icon name="mail" size={16} strokeWidth={1.7} />
               <Text token="bodyS">{t.openMailApp}</Text>
             </Pressable>
+            <SendLaterButton onPress={() => setLaterOpen(true)} />
           </View>
         ) : null}
         {type === 'call' ? (
@@ -626,8 +670,55 @@ function ComposeTask({ task }: { task: Task }) {
           <PrimaryButton testID="compose-done" label={t.nDone} colour={ink.base} onPress={markReminderDone} />
         ) : null}
       </Screen>
+      <Sheet open={laterOpen} onClose={() => setLaterOpen(false)} testID="later-sheet" padding={{ paddingTop: 10, paddingHorizontal: 20, paddingBottom: 30 }} gap={10}>
+        <Text token="title">{added(lang).later.title}</Text>
+        {laterOptions.map((o) => (
+          <Pressable
+            key={o.key}
+            testID={`later-${o.key}`}
+            onPress={() => sendLater(o.at)}
+            accessibilityRole="button"
+            style={({ pressed }) => ({ height: 52, borderRadius: 16, paddingHorizontal: 16, justifyContent: 'center', backgroundColor: pressed ? surface.line : surface.fill })}
+          >
+            <Text token="body" weight="500">
+              {o.label}
+            </Text>
+          </Pressable>
+        ))}
+        <Pressable
+          testID="later-pick"
+          onPress={() => {
+            setLaterOpen(false);
+            updateTask(task.id, { draft: { subject: isEmail ? subject : task.draft?.subject, body: draft } });
+            router.push(`/reschedule?id=${task.id}`);
+          }}
+          accessibilityRole="button"
+          style={({ pressed }) => ({ height: 52, borderRadius: 16, paddingHorizontal: 16, justifyContent: 'center', backgroundColor: pressed ? surface.line : surface.fill })}
+        >
+          <Text token="body" weight="500">
+            {added(lang).later.pick}
+          </Text>
+        </Pressable>
+      </Sheet>
       <Toast />
     </>
+  );
+}
+
+/** The quiet button under Send: keep the draft and be reminded at a time. */
+function SendLaterButton({ onPress }: { onPress: () => void }) {
+  const { lang } = useLanguage();
+  const dir = useDirection();
+  return (
+    <Pressable
+      testID="compose-send-later"
+      onPress={onPress}
+      accessibilityRole="button"
+      style={{ height: 46, borderRadius: 23, borderWidth: 1, borderColor: surface.line, backgroundColor: surface.white, flexDirection: dir.row, alignItems: 'center', justifyContent: 'center', gap: 8 }}
+    >
+      <Icon name="clock" size={16} strokeWidth={1.8} />
+      <Text token="bodyS">{added(lang).later.button}</Text>
+    </Pressable>
   );
 }
 
