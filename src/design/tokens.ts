@@ -54,6 +54,9 @@ export const surface = {
   fill: '#F3F2EE',
   /** Grouped-screen background (Settings, Profile), task row bg. */
   fill2: '#F6F6F3',
+  /** The wallpaper behind a person's thread, and the faint marks drawn on it. */
+  thread: '#EEE8DC',
+  threadMark: 'rgba(110,90,60,0.11)',
   /** Toggle off, inactive dots. */
   trackOff: '#D6D6D2',
   /** Cards, screen bg. */

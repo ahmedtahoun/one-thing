@@ -52,6 +52,8 @@ const DARK: Palette = {
     lineFaint: '#1A262D',
     fill: '#202C33',
     fill2: '#0B141A',
+    thread: '#0B141A',
+    threadMark: 'rgba(255,255,255,0.045)',
     trackOff: '#3B4A54',
     white: '#111B21',
     checkbox: '#3B4A54',

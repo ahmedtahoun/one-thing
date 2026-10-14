@@ -18,6 +18,7 @@ import { buildTimeline, type TimelineItem } from '@/features/contact/timeline';
 import { mapsUrl } from '@/features/people/maps';
 import { useStartTask } from '@/features/people/start-task';
 import { Avatar } from '@/ui/Avatar';
+import { ThreadBackground } from '@/features/contact/ThreadBackground';
 import { Icon } from '@/ui/Icon';
 import { PhotoSheet } from '@/features/people/PhotoSheet';
 import { Screen } from '@/ui/Screen';
@@ -207,7 +208,8 @@ function Profile({ contact }: { contact: Contact }) {
 
   return (
     <>
-      <Screen background="grouped" paddingTop={4} paddingBottom={0}>
+      <Screen background={surface.thread} paddingTop={4} paddingBottom={0}>
+        <ThreadBackground />
         <View style={{ flexDirection: dir.row, alignItems: 'center', gap: 10, paddingBottom: 8 }}>
           <Pressable testID="contact-back" onPress={back} accessibilityRole="button" accessibilityLabel={a11y.back} hitSlop={10} style={{ paddingVertical: 6 }}>
             <View style={{ transform: [{ scaleX: dir.isRTL ? -1 : 1 }] }}>
