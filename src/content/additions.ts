@@ -311,6 +311,9 @@ export type Added = {
     onlyComposer: string;
     chooseApp: string;
     defaultApp: string;
+    share: string;
+    shareSub: string;
+    shared: string;
     note: string;
   };
   /** The person's own saved messages. */
@@ -541,7 +544,10 @@ const ADDED: Record<Lang, Added> = {
       onlyComposer: 'Attachments only go with “Send email”, in the Mail composer.',
       chooseApp: 'Open in another mail app',
       defaultApp: 'Default mail app',
-      note: 'Accounts you added to Mail, like Zoho or Gmail, work with “Send email”, attachments included.',
+      share: 'Zoho, Spark or another app',
+      shareSub: 'Takes the subject, the message and a file. Pick the app, then paste the address.',
+      shared: '{to} is copied. Paste it into “To”.',
+      note: 'Zoho opens a mail link empty, so use “Zoho, Spark or another app”. Or add your Zoho account to iPhone Mail and use “Send email”, which keeps everything.',
     },
     saved: {
       title: 'Saved messages',
@@ -906,7 +912,10 @@ const ADDED: Record<Lang, Added> = {
       onlyComposer: 'المرفقات تروح فقط مع «أرسل الإيميل»، في نافذة البريد.',
       chooseApp: 'افتحه في تطبيق بريد ثاني',
       defaultApp: 'تطبيق البريد الافتراضي',
-      note: 'الحسابات اللي أضفتها لتطبيق البريد، مثل Zoho أو Gmail، تشتغل مع «أرسل الإيميل» ومعها المرفقات.',
+      share: 'Zoho أو Spark أو تطبيق ثاني',
+      shareSub: 'ينقل العنوان والرسالة وملف. اختر التطبيق، ثم الصق الإيميل.',
+      shared: 'نسخنا {to}. الصقه في خانة «إلى».',
+      note: 'Zoho يفتح رابط البريد فاضي، فاستخدم «Zoho أو Spark أو تطبيق ثاني». أو أضف حساب Zoho لتطبيق البريد في الآيفون واستخدم «أرسل الإيميل»، وكل شي يوصل.',
     },
     saved: {
       title: 'الرسائل المحفوظة',

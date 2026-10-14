@@ -13,7 +13,7 @@
  */
 import { clockOf } from '@/lib/clock-format';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AppState, Linking, Pressable, TextInput, View } from 'react-native';
+import { AppState, Linking, Pressable, Share, TextInput, View } from 'react-native';
 import { Redirect, router, useLocalSearchParams } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
 import * as DocumentPicker from 'expo-document-picker';
@@ -255,6 +255,28 @@ function ComposeTask({ task }: { task: Task }) {
     else Linking.openURL(mailtoUrl(email, subject, draft)).catch(() => {});
     if (files.length > 0) toast.show(added(lang).attach.onlyComposer, { undo: false });
     else toast.show(t.toastHand.replace('{app}', app === 'default' ? inline.mailAppName : app), { undo: false });
+    armSent();
+  };
+
+  /**
+   * Zoho, Spark and others open a `mailto:` link empty when they start cold,
+   * and no link carries files. Their share extensions do take text and a
+   * file, so this hands the draft over through the share sheet, with the
+   * subject as the share's subject. A share cannot name the recipient, so the
+   * address is left on the clipboard to paste into "To".
+   */
+  const shareToApp = async () => {
+    setAppsOpen(false);
+    if (!emailValid(email)) return setTried(true);
+    remember({ email });
+    await Clipboard.setStringAsync(draft).catch(() => {});
+    const result = await Share.share(
+      { message: draft, title: subject, ...(files[0] ? { url: files[0].uri } : {}) },
+      { subject, dialogTitle: subject }
+    ).catch(() => null);
+    if (!result || result.action === Share.dismissedAction) return;
+    await Clipboard.setStringAsync(email).catch(() => {});
+    toast.show(added(lang).attach.shared.replace('{to}', email), { undo: false });
     armSent();
   };
 
@@ -886,6 +908,14 @@ function ComposeTask({ task }: { task: Task }) {
         <Pressable testID="mail-app-default" onPress={() => void openInApp('default')} accessibilityRole="button" style={({ pressed }) => ({ height: 52, borderRadius: 16, paddingHorizontal: 16, justifyContent: 'center', backgroundColor: pressed ? surface.line : surface.fill })}>
           <Text token="body" weight="500">
             {added(lang).attach.defaultApp}
+          </Text>
+        </Pressable>
+        <Pressable testID="mail-app-share" onPress={() => void shareToApp()} accessibilityRole="button" style={({ pressed }) => ({ minHeight: 52, borderRadius: 16, paddingHorizontal: 16, paddingVertical: 8, justifyContent: 'center', backgroundColor: pressed ? surface.line : surface.fill })}>
+          <Text token="body" weight="500">
+            {added(lang).attach.share}
+          </Text>
+          <Text token="micro" color={ink.s4}>
+            {added(lang).attach.shareSub}
           </Text>
         </Pressable>
         <Text token="caption" color={ink.s4}>
