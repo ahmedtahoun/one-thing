@@ -73,7 +73,12 @@ function Profile({ contact }: { contact: Contact }) {
 
   const hasPhone = Boolean(contact.phone);
   const hasEmail = Boolean(contact.email);
-  const tags = [hasPhone ? `${contact.dial ?? ''} ${contact.phone}`.trim() : null, contact.email || null].filter(
+  const tags = [
+    hasPhone ? `${contact.dial ?? ''} ${contact.phone}`.trim() : null,
+    contact.phone2 ? `${contact.dial2 ?? contact.dial ?? ''} ${contact.phone2}`.trim() : null,
+    contact.email || null,
+    contact.email2 || null,
+  ].filter(
     (tag): tag is string => Boolean(tag)
   );
 
@@ -191,6 +196,17 @@ function Profile({ contact }: { contact: Contact }) {
               {contact.role ?? ''}
             </Text>
           </View>
+          {contact.labels && contact.labels.length > 0 ? (
+            <View testID="contact-labels" style={{ flexDirection: dir.row, flexWrap: 'wrap', justifyContent: 'center', gap: 6 }}>
+              {contact.labels.map((label) => (
+                <View key={label} style={{ paddingVertical: 5, paddingHorizontal: 12, borderRadius: 999, backgroundColor: ink.solid }}>
+                  <Text token="micro" weight="600" color={surface.white}>
+                    {label}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          ) : null}
           {tags.length ? (
             <View style={{ flexDirection: dir.row, flexWrap: 'wrap', justifyContent: 'center', gap: 6 }}>
               {tags.map((tag) => (

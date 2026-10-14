@@ -7,12 +7,24 @@
  */
 import { followUpStatus, type Contact, type FollowUp } from '@/lib/model-types';
 
-export type PeopleFilter = 'all' | 'waiting' | 'favorites' | 'recent' | 'followups';
+export type BaseFilter = 'all' | 'waiting' | 'favorites' | 'recent' | 'followups';
+/** A label is a chip too: `label:Client` shows everyone labelled Client. */
+export type PeopleFilter = BaseFilter | `label:${string}`;
+
+export const labelFilter = (label: string): PeopleFilter => `label:${label}`;
+export const isLabelFilter = (filter: PeopleFilter): filter is `label:${string}` => filter.startsWith('label:');
+
+/** Every label in use, the most used first. */
+export function labelsIn(contacts: readonly Contact[]): string[] {
+  const counts = new Map<string, number>();
+  for (const c of contacts) for (const l of c.labels ?? []) counts.set(l, (counts.get(l) ?? 0) + 1);
+  return [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([l]) => l);
+}
 
 /** People's chips. "Follow-ups" is the whole follow-ups panel, not a filtered list. */
-export const PEOPLE_CHIPS: readonly PeopleFilter[] = ['all', 'favorites', 'recent', 'followups'];
+export const PEOPLE_CHIPS: readonly BaseFilter[] = ['all', 'favorites', 'recent', 'followups'];
 /** Send to many's chips: "Waiting" there picks the people who owe you a reply. */
-export const BULK_CHIPS: readonly PeopleFilter[] = ['all', 'waiting', 'favorites', 'recent'];
+export const BULK_CHIPS: readonly BaseFilter[] = ['all', 'waiting', 'favorites', 'recent'];
 
 /** "Recent" is the last week: long enough to include last Sunday's call, short enough to mean something. */
 export const RECENT_DAYS = 7;
@@ -54,6 +66,10 @@ export function isRecent(contact: Contact, now: Date): boolean {
 
 /** The people a chip shows, in the order worth reading them in. */
 export function filterPeople(filter: PeopleFilter, contacts: readonly Contact[], context: FilterContext): Contact[] {
+  if (isLabelFilter(filter)) {
+    const label = filter.slice('label:'.length);
+    return contacts.filter((c) => c.labels?.includes(label));
+  }
   switch (filter) {
     case 'all':
       return [...contacts];

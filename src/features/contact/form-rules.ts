@@ -45,22 +45,23 @@ export function phoneKey(phone: string): string {
   return phone.replace(/\D/g, '').replace(/^0+/, '');
 }
 
-/** Why two contacts are the same person, or null. */
-export function sameContact(
-  a: { name: string; phone?: string; email?: string },
-  b: { name: string; phone?: string; email?: string }
-): 'phone' | 'email' | 'name' | null {
-  const pa = phoneKey(a.phone ?? '');
-  if (pa.length > 6 && pa === phoneKey(b.phone ?? '')) return 'phone';
-  const ea = (a.email ?? '').trim().toLowerCase();
-  if (ea.length > 0 && ea === (b.email ?? '').trim().toLowerCase()) return 'email';
+type Reach = { name: string; phone?: string; phone2?: string; email?: string; email2?: string };
+
+/** Why two contacts are the same person, or null. Either number and either email count. */
+export function sameContact(a: Reach, b: Reach): 'phone' | 'email' | 'name' | null {
+  const phones = (c: Reach) => [phoneKey(c.phone ?? ''), phoneKey(c.phone2 ?? '')].filter((p) => p.length > 6);
+  const emails = (c: Reach) => [c.email, c.email2].map((e) => (e ?? '').trim().toLowerCase()).filter(Boolean);
+  const theirPhones = phones(b);
+  if (phones(a).some((p) => theirPhones.includes(p))) return 'phone';
+  const theirEmails = emails(b);
+  if (emails(a).some((e) => theirEmails.includes(e))) return 'email';
   const na = nameKey(a.name);
   if (na.length > 2 && na === nameKey(b.name)) return 'name';
   return null;
 }
 
 export function findDuplicate(
-  form: { name: string; phone: string; email: string },
+  form: { name: string; phone: string; email: string; phone2?: string; email2?: string },
   contacts: Contact[],
   selfId?: string
 ): Contact | undefined {

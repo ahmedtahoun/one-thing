@@ -14,7 +14,7 @@ import { normalizeArabic } from '@/lib/parse/names';
 import { westernDigits } from '@/lib/parse/spoken';
 import type { VcfRow } from './vcf';
 
-type Role = 'demo' | 'name' | 'first' | 'last' | 'phone' | 'email' | 'company' | 'title' | 'note' | 'address';
+type Role = 'labels' | 'demo' | 'name' | 'first' | 'last' | 'phone' | 'email' | 'company' | 'title' | 'note' | 'address';
 
 /** What can be wrong with a row. `no-name` stops it being imported; the others only drop that one detail. */
 export type Issue = 'no-name' | 'bad-email' | 'bad-phone' | 'test';
@@ -31,6 +31,11 @@ export type Candidate = {
   /** A status or notes column, kept on the contact as "Remember for next time". */
   note?: string;
   address?: string;
+  /** A second number and email, when the row has more than one. */
+  dial2?: string;
+  phone2?: string;
+  email2?: string;
+  labels?: string[];
   /** The sheet of a workbook it came from. */
   sheet?: string;
   issues: Issue[];
@@ -56,6 +61,7 @@ const HEADER_RULES: [Role, RegExp][] = [
   ['last', /\b(last|surname|family)\b|العايل|العائل|الكني|اللقب/],
   ['title', /\b(title|position|role|job|designation)\b|الوظيف|المسمي|المنصب/],
   ['company', /\b(company|organi[sz]ation|org|business|employer)\b|الشرك|المؤسس|جهه العمل/],
+  ['labels', /\b(tags?|labels?|category|categories|group|segment)\b|تصنيف|وسوم/],
   ['demo', /\b(demo|test)( account)?\b|تجريبي/],
   ['note', /\b(status|notes?|comments?|remarks?)\b|ملاحظ|حاله|الحاله/],
   ['address', /\b(address|address ?\d|location|city|street)\b|عنوان|موقع|مدين/],
@@ -167,7 +173,7 @@ function isMobile(raw: string, region?: string): boolean {
 /** "A / B" or "A; B" as separate people. */
 const PEOPLE_SPLIT = /\s*(?:\/|;|\n)\s*/;
 
-type RowParts = { name?: string; first?: string; last?: string; phones: string[]; emails: string[]; company?: string; title?: string; note?: string; address?: string; demo?: boolean };
+type RowParts = { name?: string; first?: string; last?: string; phones: string[]; emails: string[]; company?: string; title?: string; note?: string; address?: string; demo?: boolean; labels?: string[] };
 
 function build(key: string, parts: RowParts, region?: string, person?: { index: number; of: number; names: string[] }): Candidate | null {
   const issues: Issue[] = [];
@@ -196,6 +202,19 @@ function build(key: string, parts: RowParts, region?: string, person?: { index: 
       break;
     }
   }
+  // A second number, when the row has one: the next valid one that is not the first.
+  let dial2: string | undefined;
+  let phone2: string | undefined;
+  if (!person || person.of <= 1) {
+    for (const raw of mine.slice(1)) {
+      const split = splitDialled(phoneText(raw), region);
+      if (split.phone.length >= 5 && !(split.phone === phone && (split.dial ?? dial) === dial)) {
+        dial2 = split.dial;
+        phone2 = split.phone;
+        break;
+      }
+    }
+  }
   if (!person && parts.phones.some((p) => p.trim()) && !phone) issues.push('bad-phone');
   if (parts.demo) issues.push('test');
 
@@ -208,6 +227,7 @@ function build(key: string, parts: RowParts, region?: string, person?: { index: 
   } else {
     email = addresses[0]?.toLowerCase();
   }
+  const email2 = !person || person.of <= 1 ? addresses.map((e) => e.toLowerCase()).find((e) => e !== email) : undefined;
   if (!person && parts.emails.some((e) => e.trim()) && !email) issues.push('bad-email');
 
   if (!name) {
@@ -225,6 +245,9 @@ function build(key: string, parts: RowParts, region?: string, person?: { index: 
     email,
     ...(parts.note ? { note: parts.note } : {}),
     ...(parts.address ? { address: parts.address } : {}),
+    ...(phone2 ? { dial2, phone2 } : {}),
+    ...(email2 ? { email2 } : {}),
+    ...(parts.labels && parts.labels.length > 0 ? { labels: parts.labels } : {}),
     issues,
   };
 }
@@ -249,6 +272,7 @@ export function readTable(rows: string[][], region?: string): { candidates: Cand
       note: cellOf(row, roles, 'note').join(' · ') || undefined,
       address: [...new Set(cellOf(row, roles, 'address'))].join(', ') || undefined,
       // Read raw: "Yes" is exactly what the cleaner treats as an empty cell.
+      labels: [...new Set(cellOf(row, roles, 'labels').flatMap((v) => v.split(/[,;|]/)).map((v) => v.trim()).filter(Boolean))],
       demo: roles.some((r, col) => r === 'demo' && /^(yes|true|y|1|نعم)$/i.test((row[col] ?? '').trim())),
     };
     if (indexCol >= 0) {
@@ -280,7 +304,14 @@ export function readVcf(people: VcfRow[], region?: string): Candidate[] {
 
 /** Marks the ones already in People, or repeated earlier in the same file, and says what matched. */
 export function flagDuplicates(candidates: Candidate[], existing: readonly Contact[]): Candidate[] {
-  const seen: { name: string; phone?: string; email?: string; from: 'people' | 'file' }[] = existing.map((c) => ({ name: c.name, phone: c.phone, email: c.email, from: 'people' }));
+  const seen: { name: string; phone?: string; phone2?: string; email?: string; email2?: string; from: 'people' | 'file' }[] = existing.map((c) => ({
+    name: c.name,
+    phone: c.phone,
+    phone2: c.phone2,
+    email: c.email,
+    email2: c.email2,
+    from: 'people',
+  }));
   return candidates.map((c) => {
     let hit: { name: string; from: 'people' | 'file'; by: 'phone' | 'email' | 'name' } | undefined;
     for (const other of seen) {
@@ -290,7 +321,7 @@ export function flagDuplicates(candidates: Candidate[], existing: readonly Conta
         break;
       }
     }
-    seen.push({ name: c.name, phone: c.phone, email: c.email, from: 'file' });
+    seen.push({ name: c.name, phone: c.phone, phone2: c.phone2, email: c.email, email2: c.email2, from: 'file' });
     return hit ? { ...c, duplicateOf: hit.name, duplicateIn: hit.from, duplicateBy: hit.by } : c;
   });
 }

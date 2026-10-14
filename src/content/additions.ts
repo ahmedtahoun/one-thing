@@ -63,6 +63,13 @@ export type Added = {
     address: string;
     positionPh: string;
     companyPh: string;
+    addNumber2: string;
+    addEmail2: string;
+    phone2Ph: string;
+    email2Ph: string;
+    labelsTitle: string;
+    labelPh: string;
+    labelAdd: string;
     openMap: string;
     badPhone: string;
     badEmail: string;
@@ -382,6 +389,13 @@ const ADDED: Record<Lang, Added> = {
       address: 'Address or location',
       positionPh: 'Position, e.g. Purchasing Manager',
       companyPh: 'Company',
+      addNumber2: 'Add another number',
+      addEmail2: 'Add another email',
+      phone2Ph: 'Second number (add +code if it differs)',
+      email2Ph: 'Second email',
+      labelsTitle: 'Labels',
+      labelPh: 'New label, e.g. Client',
+      labelAdd: 'Add',
       openMap: 'Open in Maps',
       badPhone: 'A number needs at least 7 digits.',
       badEmail: 'That email doesn’t look right.',
@@ -683,6 +697,13 @@ const ADDED: Record<Lang, Added> = {
       address: 'العنوان أو الموقع',
       positionPh: 'المنصب، مثلًا: مدير مشتريات',
       companyPh: 'الشركة',
+      addNumber2: 'أضف رقم ثاني',
+      addEmail2: 'أضف إيميل ثاني',
+      phone2Ph: 'الرقم الثاني (أضف +الرمز لو يختلف)',
+      email2Ph: 'الإيميل الثاني',
+      labelsTitle: 'التصنيفات',
+      labelPh: 'تصنيف جديد، مثلًا: عميل',
+      labelAdd: 'أضف',
       openMap: 'افتح في الخرائط',
       badPhone: 'الرقم لازم يكون 7 أرقام على الأقل.',
       badEmail: 'الإيميل مو صحيح.',

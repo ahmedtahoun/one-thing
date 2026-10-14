@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { filterCounts, filterPeople, floatFavorites, followUpStates, isRecent } from './filters';
+import { filterCounts, filterPeople, floatFavorites, followUpStates, isRecent, labelFilter, labelsIn } from './filters';
 import type { Contact, FollowUp } from '@/lib/model-types';
 
 const NOW = new Date('2026-10-13T09:00:00');
@@ -86,5 +86,22 @@ describe('isRecent', () => {
 describe('floatFavorites', () => {
   it('puts the starred first and keeps the rest in order', () => {
     assert.deepEqual(floatFavorites(ALL, new Set(['c'])).map((c) => c.id), ['c', 'a', 'b']);
+  });
+});
+
+describe('labels', () => {
+  const contacts = [
+    person('a', 'Sara', { labels: ['Client', 'VIP'] }),
+    person('b', 'Omar', { labels: ['Client'] }),
+    person('c', 'Reem', { labels: ['Lead'] }),
+    person('d', 'Noura'),
+  ];
+  const context = { followUps: [], favorites: new Set<string>(), now: NOW };
+  it('lists the labels in use, the most used first', () => {
+    assert.deepEqual(labelsIn(contacts), ['Client', 'Lead', 'VIP']);
+  });
+  it('shows everyone with the label, and only them', () => {
+    assert.deepEqual(filterPeople(labelFilter('Client'), contacts, context).map((c) => c.name), ['Sara', 'Omar']);
+    assert.deepEqual(filterPeople(labelFilter('Nobody'), contacts, context), []);
   });
 });

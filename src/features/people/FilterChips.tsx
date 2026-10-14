@@ -6,7 +6,7 @@
 import { Pressable, ScrollView } from 'react-native';
 
 import type { Added } from '@/content/additions';
-import type { PeopleFilter } from '@/features/people/filters';
+import { isLabelFilter, type PeopleFilter } from '@/features/people/filters';
 import { Text } from '@/ui/Text';
 import { ink, surface } from '@/design/tokens';
 import { useDirection } from '@/i18n/LanguageProvider';
@@ -58,7 +58,7 @@ export function FilterChips({
             }}
           >
             <Text token="bodyS" weight="600" color={on ? surface.white : ink.s2}>
-              {labels[filter]}
+              {isLabelFilter(filter) ? filter.slice('label:'.length) : labels[filter]}
             </Text>
             {(filter === 'waiting' || filter === 'followups') && dueCount > 0 ? (
               <Text testID={`${testID}-badge`} token="bodyS" weight="600" color={on ? ink.onInkSoft : ink.s4}>

@@ -21,6 +21,11 @@ import { Text } from '@/ui/Text';
 import { Toast, useToast } from '@/ui/Toast';
 import { added } from '@/content/additions';
 import { joinRole, splitRole } from '@/features/contact/role';
+import { labelsIn } from '@/features/people/filters';
+import { PhotoSheet } from '@/features/people/PhotoSheet';
+import { Avatar } from '@/ui/Avatar';
+import { usePhotos } from '@/lib/photos';
+import { splitDialled } from '@/lib/parse/contact';
 import { DEFAULT_DIAL } from '@/content/countries';
 import { TYPE_ICON } from '@/design/icon-paths';
 import { fontFamily, ink, status, surface, typeColour } from '@/design/tokens';
@@ -81,18 +86,35 @@ function ContactForm({ contact }: { contact?: Contact }) {
     setEmail(draft.email);
     if (!draft.phone && draft.email) setPref('email');
   };
+  const [dial2, setDial2] = useState(contact?.dial2 ?? '');
+  const [phone2, setPhone2] = useState(contact?.phone2 ?? '');
+  const [email2, setEmail2] = useState(contact?.email2 ?? '');
+  const [moreNumber, setMoreNumber] = useState(Boolean(contact?.phone2));
+  const [moreEmail, setMoreEmail] = useState(Boolean(contact?.email2));
+  const [labels, setLabels] = useState<string[]>(contact?.labels ?? []);
+  const [newLabel, setNewLabel] = useState('');
+  const [photoOpen, setPhotoOpen] = useState(false);
+  const hasPhoto = usePhotos().has(contact?.id ?? '');
   const [address, setAddress] = useState(contact?.address ?? '');
   const [notes, setNotes] = useState(contact?.rememberNote ?? '');
   const [tried, setTried] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
 
   const nameOk = nameValid(name);
-  const detailsBad = emailInvalid(email) || phoneInvalid(phone);
+  const detailsBad = emailInvalid(email) || phoneInvalid(phone) || emailInvalid(email2) || phoneInvalid(phone2);
   const duplicate = useMemo(
-    () => findDuplicate({ name, phone, email }, contacts, contact?.id),
-    [name, phone, email, contacts, contact?.id]
+    () => findDuplicate({ name, phone, email, phone2, email2 }, contacts, contact?.id),
+    [name, phone, email, phone2, email2, contacts, contact?.id]
   );
   const saveColour = nameOk ? ink.base : ink.disabledBtn;
+
+  const known = useMemo(() => labelsIn(contacts), [contacts]);
+  const toggleLabel = (label: string) => setLabels((current) => (current.includes(label) ? current.filter((l) => l !== label) : [...current, label]));
+  const addLabel = () => {
+    const label = newLabel.trim();
+    if (label && !labels.some((l) => l.toLowerCase() === label.toLowerCase())) setLabels((current) => [...current, known.find((k) => k.toLowerCase() === label.toLowerCase()) ?? label]);
+    setNewLabel('');
+  };
 
   const toPeople = () => router.dismissTo('/people');
 
@@ -102,6 +124,14 @@ function ContactForm({ contact }: { contact?: Contact }) {
       setTried(true);
       return null;
     }
+    // A second number may carry its own code (+20…); otherwise it shares the first one's.
+    const typed2 = phone2.replace(/[^\d+]/g, '');
+    const split2 = /^(\+|00)/.test(typed2) ? splitDialled(typed2) : { dial: dial2 || dial, phone: typed2.replace(/^0+/, '') };
+    const second = {
+      dial2: split2.phone ? split2.dial ?? dial : undefined,
+      phone2: split2.phone || undefined,
+      email2: email2.trim() || undefined,
+    };
     const fields = {
       name: name.trim(),
       role: joinRole(position, company),
@@ -110,6 +140,8 @@ function ContactForm({ contact }: { contact?: Contact }) {
       email: email.trim() || undefined,
       preferredChannel: pref,
       address: address.trim() || undefined,
+      ...second,
+      labels: labels.length > 0 ? labels : undefined,
       rememberNote: notes.trim() || undefined,
     };
     if (contact) {
@@ -200,20 +232,43 @@ function ContactForm({ contact }: { contact?: Contact }) {
           contentContainerStyle={{ flexGrow: 1, paddingTop: 20, paddingHorizontal: 20, paddingBottom: 44, gap: 18 }}
         >
           <View style={{ alignItems: 'center' }}>
-            <View
-              style={{
-                width: 76,
-                height: 76,
-                borderRadius: 38,
-                backgroundColor: surface.avatarPeople,
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <Text token="h2" align="center" testID="contact-form-initials">
-                {name.trim() ? initials(name.trim()) : '+'}
-              </Text>
-            </View>
+            {editing && contact ? (
+              <Pressable testID="contact-form-photo" onPress={() => setPhotoOpen(true)} accessibilityRole="button" accessibilityLabel={added(lang).photo.title}>
+                <Avatar name={name || contact.name} contactId={contact.id} size={76} />
+                <View
+                  style={{
+                    position: 'absolute',
+                    right: -2,
+                    bottom: -2,
+                    width: 28,
+                    height: 28,
+                    borderRadius: 14,
+                    borderWidth: 2,
+                    borderColor: surface.fill2,
+                    backgroundColor: ink.solid,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <Icon name="camera" size={14} color={surface.white} strokeWidth={2} />
+                </View>
+              </Pressable>
+            ) : (
+              <View
+                style={{
+                  width: 76,
+                  height: 76,
+                  borderRadius: 38,
+                  backgroundColor: surface.avatarPeople,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Text token="h2" align="center" testID="contact-form-initials">
+                  {name.trim() ? initials(name.trim()) : '+'}
+                </Text>
+              </View>
+            )}
             {!editing && canPickFromPhone ? (
               <Pressable
                 testID="contact-form-fill"
@@ -365,9 +420,51 @@ function ContactForm({ contact }: { contact?: Contact }) {
                 autoCapitalize="none"
                 autoCorrect={false}
                 textContentType="emailAddress"
-                style={{ ...ltrField, borderBottomLeftRadius: 16, borderBottomRightRadius: 16 }}
+                style={{ ...ltrField, borderBottomLeftRadius: moreNumber || moreEmail ? 0 : 16, borderBottomRightRadius: moreNumber || moreEmail ? 0 : 16 }}
               />
+              {moreNumber ? (
+                <TextInput
+                  testID="contact-form-phone2"
+                  value={phone2}
+                  onChangeText={setPhone2}
+                  placeholder={added(lang).contact.phone2Ph}
+                  placeholderTextColor={ink.s5}
+                  keyboardType="phone-pad"
+                  style={{ ...ltrField, borderTopWidth: 1, borderTopColor: surface.lineSoft }}
+                />
+              ) : null}
+              {moreEmail ? (
+                <TextInput
+                  testID="contact-form-email2"
+                  value={email2}
+                  onChangeText={setEmail2}
+                  placeholder={added(lang).contact.email2Ph}
+                  placeholderTextColor={ink.s5}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  style={{ ...ltrField, borderTopWidth: 1, borderTopColor: surface.lineSoft, borderBottomLeftRadius: 16, borderBottomRightRadius: 16 }}
+                />
+              ) : null}
             </View>
+            {!moreNumber || !moreEmail ? (
+              <View style={{ flexDirection: dir.row, gap: 16, paddingHorizontal: 4, paddingTop: 2 }}>
+                {!moreNumber ? (
+                  <Pressable testID="contact-form-add-number" onPress={() => setMoreNumber(true)} accessibilityRole="button" hitSlop={8}>
+                    <Text token="bodyS" weight="600" color={ink.solid}>
+                      + {added(lang).contact.addNumber2}
+                    </Text>
+                  </Pressable>
+                ) : null}
+                {!moreEmail ? (
+                  <Pressable testID="contact-form-add-email" onPress={() => setMoreEmail(true)} accessibilityRole="button" hitSlop={8}>
+                    <Text token="bodyS" weight="600" color={ink.solid}>
+                      + {added(lang).contact.addEmail2}
+                    </Text>
+                  </Pressable>
+                ) : null}
+              </View>
+            ) : null}
           </View>
 
           <View style={{ gap: 6 }}>
@@ -405,6 +502,53 @@ function ContactForm({ contact }: { contact?: Contact }) {
                   </Pressable>
                 );
               })}
+            </View>
+          </View>
+
+          <View style={{ gap: 8 }}>
+            <Text token="micro" color={ink.s4}>
+              {added(lang).contact.labelsTitle}
+            </Text>
+            <View style={{ flexDirection: dir.row, flexWrap: 'wrap', gap: 8 }}>
+              {[...new Set([...known, ...labels])].map((label) => {
+                const on = labels.includes(label);
+                return (
+                  <Pressable
+                    key={label}
+                    testID={`contact-form-label-${label}`}
+                    onPress={() => toggleLabel(label)}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: on }}
+                    style={{ height: 36, paddingHorizontal: 14, borderRadius: 999, justifyContent: 'center', backgroundColor: on ? ink.solid : surface.fill }}
+                  >
+                    <Text token="bodyS" weight="600" color={on ? surface.white : ink.s2}>
+                      {label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+            <View style={{ flexDirection: dir.row, gap: 8 }}>
+              <TextInput
+                testID="contact-form-label-new"
+                value={newLabel}
+                onChangeText={setNewLabel}
+                onSubmitEditing={addLabel}
+                placeholder={added(lang).contact.labelPh}
+                placeholderTextColor={ink.s5}
+                returnKeyType="done"
+                style={{ ...field, flex: 1, borderWidth: 1, borderColor: surface.line, borderRadius: 14, backgroundColor: surface.white }}
+              />
+              <Pressable
+                testID="contact-form-label-add"
+                onPress={addLabel}
+                accessibilityRole="button"
+                style={{ height: 48, paddingHorizontal: 18, borderRadius: 14, justifyContent: 'center', backgroundColor: surface.fill }}
+              >
+                <Text token="bodyS" weight="600">
+                  {added(lang).contact.labelAdd}
+                </Text>
+              </Pressable>
             </View>
           </View>
 
@@ -514,6 +658,7 @@ function ContactForm({ contact }: { contact?: Contact }) {
           </View>
         </ScrollView>
       </Screen>
+      {contact ? <PhotoSheet open={photoOpen} contactId={contact.id} hasPhoto={hasPhoto} onClose={() => setPhotoOpen(false)} /> : null}
       <Toast />
     </>
   );

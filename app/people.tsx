@@ -24,6 +24,9 @@ import {
   filterPeople,
   floatFavorites,
   followUpStates,
+  isLabelFilter,
+  labelFilter,
+  labelsIn,
   PEOPLE_CHIPS,
   type PeopleFilter,
 } from '@/features/people/filters';
@@ -79,6 +82,12 @@ export default function People() {
 
   const context = useMemo(() => ({ followUps, favorites, now }), [followUps, favorites, now]);
   const counts = useMemo(() => filterCounts(contacts, context), [contacts, context]);
+  // The labels people have put on each other are chips beside the built-in ones.
+  const chips = useMemo<PeopleFilter[]>(() => [...PEOPLE_CHIPS, ...labelsIn(contacts).map(labelFilter)], [contacts]);
+  // A label nobody has any more is not a place to stay.
+  useEffect(() => {
+    if (isLabelFilter(filter) && !chips.includes(filter)) setFilter('all');
+  }, [chips, filter]);
   const states = useMemo(() => followUpStates(contacts, followUps, now), [contacts, followUps, now]);
   // How each person was last reached, for the small icon on their picture.
   const lastChannels = useMemo(() => {
@@ -224,7 +233,7 @@ export default function People() {
           </View>
         ) : null}
 
-        <FilterChips options={PEOPLE_CHIPS} value={filter} onChange={setFilter} dueCount={counts.due} labels={filters} />
+        <FilterChips options={chips} value={filter} onChange={setFilter} dueCount={counts.due} labels={filters} />
 
         {filter === 'followups' ? (
           <FollowUpsPanel />

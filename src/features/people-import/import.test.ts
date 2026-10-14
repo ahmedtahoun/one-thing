@@ -354,3 +354,24 @@ describe('people there is no way to reach', () => {
     assert.equal(result.skipped, 1);
   });
 });
+
+describe('a second number, a second email, labels', () => {
+  it('keeps the second number and email of a row', () => {
+    const rows = [
+      ['Name', 'Phone', 'Email', 'Tags'],
+      ['Sara Haddad', '+971 55 123 4567, +971 4 320 0101', 'sara@x.com, sara.h@y.com', 'Client, VIP'],
+    ];
+    const [sara] = readTable(rows, 'AE').candidates;
+    assert.equal(sara?.phone, '551234567');
+    assert.equal(sara?.dial2, '+971');
+    assert.equal(sara?.phone2, '43200101');
+    assert.equal(sara?.email, 'sara@x.com');
+    assert.equal(sara?.email2, 'sara.h@y.com');
+    assert.deepEqual(sara?.labels, ['Client', 'VIP']);
+  });
+  it('counts the second number when looking for the same person', () => {
+    const saved: Contact = { id: 'c1', name: 'Someone', phone: '501111111', phone2: '552222222', createdAt: '' };
+    const flagged = flagDuplicates([{ key: 'a', name: 'Another name', phone: '0552222222', issues: [] }], [saved]);
+    assert.equal(flagged[0]?.duplicateBy, 'phone');
+  });
+});

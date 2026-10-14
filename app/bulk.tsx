@@ -19,7 +19,7 @@ import { added } from '@/content/additions';
 import { MAX_RECIPIENTS, personalise, reachable, recipientsOf, usesName, whatsAppLink, type BulkChannel } from '@/features/bulk/plan';
 import { mailtoUrl } from '@/features/compose/recipient';
 import { FilterChips } from '@/features/people/FilterChips';
-import { BULK_CHIPS, filterCounts, filterPeople, type PeopleFilter } from '@/features/people/filters';
+import { BULK_CHIPS, filterCounts, filterPeople, labelFilter, labelsIn, type PeopleFilter } from '@/features/people/filters';
 import { matchContact } from '@/features/people/search';
 import { Button } from '@/ui/Button';
 import { Avatar } from '@/ui/Avatar';
@@ -64,6 +64,7 @@ export default function Bulk() {
   }, []);
 
   const [filter, setFilter] = useState<PeopleFilter>('all');
+  const bulkChips = useMemo<PeopleFilter[]>(() => [...BULK_CHIPS, ...labelsIn(contacts).map(labelFilter)], [contacts]);
   const [now] = useState(() => new Date());
   const context = useMemo(() => ({ followUps, favorites, now }), [followUps, favorites, now]);
   const counts = useMemo(() => filterCounts(contacts, context), [contacts, context]);
@@ -352,7 +353,7 @@ export default function Bulk() {
               </Text>
             </Pressable>
           </View>
-          <FilterChips options={BULK_CHIPS} value={filter} onChange={setFilter} dueCount={counts.due} labels={added(lang).filters} testID="bulk-filters" />
+          <FilterChips options={bulkChips} value={filter} onChange={setFilter} dueCount={counts.due} labels={added(lang).filters} testID="bulk-filters" />
           {field({ height: 44 }, query, setQuery, t.pp_ph, 'bulk-search')}
 
           <View>
