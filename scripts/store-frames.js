@@ -84,6 +84,12 @@ const SLIDES = [
     en: { pre: 'Know who', hi: 'owes you a reply', post: '', sub: 'Nudge in two taps. Nothing is sent for you.' },
     ar: { pre: 'اعرف مين', hi: 'ينتظر ردك', post: '', sub: 'ذكّره بضغطتين. وما يُرسل شي عنك.' },
   },
+  {
+    name: '7-language', path: '/settings', seed: { tasks: true },
+    bg: '#EAF1FF', accent: '#2F6BFF',
+    en: { pre: 'English and', hi: 'العربية', post: '', sub: 'Switch language in one tap, right-to-left included.' },
+    ar: { pre: 'العربية و', hi: 'English', post: '', sub: 'بدّل اللغة بضغطة، والاتجاه من اليمين لليسار.' },
+  },
 ];
 
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.png': 'image/png', '.ttf': 'font/ttf', '.woff2': 'font/woff2', '.svg': 'image/svg+xml' };

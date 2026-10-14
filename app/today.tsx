@@ -14,7 +14,6 @@ import { EveningCard } from '@/features/today/EveningCard';
 import { FirstRunCard } from '@/features/today/FirstRunCard';
 import { HabitRow } from '@/features/today/HabitRow';
 import { starterIdeas } from '@/features/today/starter-ideas';
-import { OneThingCard } from '@/features/today/OneThingCard';
 import { OneThingSheet } from '@/features/today/OneThingSheet';
 import { QuickActions } from '@/features/today/QuickActions';
 import { quickActionRoute } from '@/features/today/quick-route';
@@ -123,7 +122,6 @@ export default function Today() {
   }, []);
 
   const showFirstRun = Boolean(session?.firstRun) && !isEvening;
-  const showOneThing = !showFirstRun && !isEvening && oneThing !== null;
 
   return (
     <>
@@ -180,16 +178,6 @@ export default function Today() {
           />
         ) : showFirstRun ? (
           <FirstRunCard onSet={setFirstOneThing} onLater={skipFirstRun} suggestions={ownSuggestions} />
-        ) : showOneThing && oneThing ? (
-          <OneThingCard
-            title={oneThing.title}
-            focusMinutes={oneThing.focusMinutes}
-            done={oneThing.done}
-            progress={{ done: todaysTasks.length - openCount, total: todaysTasks.length }}
-            onEdit={() => setOneOpen(true)}
-            onLockIn={() => router.push('/focus')}
-            onShrink={() => router.push('/overwhelm')}
-          />
         ) : null}
 
         {!showFirstRun && !isEvening && oneThing === null ? (
