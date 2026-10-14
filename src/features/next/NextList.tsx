@@ -127,9 +127,10 @@ export function NextList({ now, onNothing, hideWhenNothing = false }: { now: Dat
 
   return (
     <View style={{ gap: 12 }}>
-      {shown.map((card) => (
+      {shown.map((card, i) => (
         <NextCardView
           key={card.id}
+          compact={i > 0}
           card={card}
           copy={copy}
           onPrimary={() => open(card)}

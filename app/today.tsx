@@ -14,6 +14,8 @@ import { EveningCard } from '@/features/today/EveningCard';
 import { FirstRunCard } from '@/features/today/FirstRunCard';
 import { HabitRow } from '@/features/today/HabitRow';
 import { starterIdeas } from '@/features/today/starter-ideas';
+import { PickSheet } from '@/features/today/PickSheet';
+import { useStartTask } from '@/features/people/start-task';
 import { QuickActions } from '@/features/today/QuickActions';
 import { quickActionRoute } from '@/features/today/quick-route';
 import { AllTasks } from '@/features/home/AllTasks';
@@ -32,7 +34,7 @@ import { Toast, useToast } from '@/ui/Toast';
 import { type IconName } from '@/design/icon-paths';
 import { ink, space, surface, type TaskType } from '@/design/tokens';
 import { useDirection, useLanguage } from '@/i18n/LanguageProvider';
-import { dateKey, isOnDay } from '@/lib/model-types';
+import { dateKey, isOnDay, type Channel } from '@/lib/model-types';
 import { useNotifications } from '@/lib/notifications/NotificationsProvider';
 import { usePrefs } from '@/lib/prefs';
 import { streakOf } from '@/lib/streak';
@@ -112,10 +114,12 @@ export default function Today() {
     update({ firstRun: false });
   }, [update]);
 
+  const start = useStartTask();
+  const [pickFor, setPickFor] = useState<Channel | null>(null);
   const onQuickAction = useCallback((type: TaskType) => {
-    // Call / Email / WhatsApp pick a contact first (People in its pick mode,
-    // which then opens Compose); Remind captures; the four event types open
-    // the event form.
+    // Call / Email / WhatsApp ask who in a sheet and go straight to the draft;
+    // Remind captures; the event types open the event form.
+    if (type === 'call' || type === 'email' || type === 'whatsapp') return setPickFor(type);
     router.push(quickActionRoute(type));
   }, []);
 
@@ -127,7 +131,7 @@ export default function Today() {
         scroll
         paddingTop={8}
         paddingBottom={space.tabBarInset}
-        style={{ gap: 24 }}
+        style={{ gap: 20 }}
         background={surface.white}
       >
         <View style={{ flexDirection: dir.row, justifyContent: 'space-between', alignItems: 'center' }}>
@@ -195,6 +199,15 @@ export default function Today() {
           </>
         ) : null}
       </Screen>
+
+      <PickSheet
+        channel={pickFor}
+        onClose={() => setPickFor(null)}
+        onPick={(contact, channel) => {
+          setPickFor(null);
+          start(contact, channel);
+        }}
+      />
 
       <AddSheet
         open={addOpen}

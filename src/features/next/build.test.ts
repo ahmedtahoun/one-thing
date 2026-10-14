@@ -190,3 +190,22 @@ describe('tomorrowMorning', () => {
     assert.equal(d.getMinutes(), 0);
   });
 });
+
+describe('one card per person', () => {
+  it('folds several things with the same person into one card', () => {
+    const now = new Date('2026-10-14T09:00:00');
+    const late = (id: string, title: string, minsAgo: number) =>
+      ({ id, type: 'whatsapp', title, status: 'open', contactIds: ['p1'], who: 'Daina', dueAt: new Date(now.getTime() - minsAgo * 60000).toISOString() }) as never;
+    const { cards } = buildNext({
+      tasks: [late('a', 'Message Daina', 1500), late('b', 'Email Daina', 3000)],
+      followUps: [],
+      contacts: [{ id: 'p1', name: 'Daina', createdAt: now.toISOString() }] as never,
+      favorites: new Set(),
+      hidden: new Map(),
+      now,
+    });
+    assert.equal(cards.length, 1);
+    assert.equal(cards[0]?.also, 1);
+    assert.equal(cards[0]?.title, 'Email Daina');
+  });
+});

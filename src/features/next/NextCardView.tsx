@@ -3,6 +3,7 @@
  * The action button wears the channel's colour (WhatsApp green, email blue,
  * call orange), the same colours as the rest of the app.
  */
+import { useState } from 'react';
 import { Pressable, View } from 'react-native';
 
 import type { Added } from '@/content/additions';
@@ -23,24 +24,100 @@ export function NextCardView({
   onPrimary,
   onDone,
   onLater,
+  compact = false,
 }: {
   card: NextCard;
   copy: Added['next'];
   onPrimary: () => void;
   onDone: () => void;
   onLater: () => void;
+  /** The quieter row for everything after the first card: one line, the actions a tap away. */
+  compact?: boolean;
 }) {
   const { t } = useLanguage();
   const dir = useDirection();
   const urgent = isUrgent(card.reason);
   const channel = card.channel;
 
-  const label = channel ? t.types[channel] : card.source === 'quiet' ? copy.message : card.source === 'followup' ? copy.nudge : copy.open;
-  const icon = (channel ? TYPE_ICON[channel as TaskType] : card.source === 'followup' ? 'send' : 'chevR') as IconName;
+  // A call, message or email opens its draft. A task that is none of those (a reminder, a meeting)
+  // has nothing to open, so finishing it is the action.
+  const finishes = card.source === 'task' && !channel;
+  const label = finishes ? copy.doneShort : channel ? t.types[channel] : card.source === 'quiet' ? copy.message : copy.nudge;
+  const icon = (finishes ? 'check' : channel ? TYPE_ICON[channel as TaskType] : card.source === 'quiet' ? 'msg' : 'send') as IconName;
   const bg = channel ? typeColour[channel].fg : ink.solid;
+  const [open, setOpen] = useState(false);
 
   // Numbers and clock times inside Arabic text keep their own order.
-  const reason = reasonText(card.reason, copy).replace(/\d[\d:]*/g, (n) => ltr(n));
+  const reason =
+    reasonText(card.reason, copy).replace(/\d[\d:]*/g, (n) => ltr(n)) +
+    (card.also ? ` · ${copy.alsoMore.replace('{n}', String(card.also))}` : '');
+  const primary = finishes ? onDone : onPrimary;
+
+  if (compact) {
+    const small = (id: string, text: string, name: IconName, press: () => void) => (
+      <Pressable
+        testID={`next-${card.id}-${id}`}
+        onPress={press}
+        accessibilityRole="button"
+        hitSlop={6}
+        style={{ height: 38, paddingHorizontal: 12, borderRadius: 19, flexDirection: dir.row, alignItems: 'center', gap: 6, backgroundColor: surface.fill }}
+      >
+        <Icon name={name} size={15} color={ink.s2} strokeWidth={2} />
+        <Text token="bodyS" weight="600" color={ink.s2} numberOfLines={1}>
+          {text}
+        </Text>
+      </Pressable>
+    );
+    return (
+      <View
+        testID={`next-${card.id}`}
+        style={{ backgroundColor: surface.white, borderWidth: 1, borderColor: urgent ? status.dangerBg : surface.cardLine, borderRadius: 18, padding: 12, gap: 10 }}
+      >
+        <View style={{ flexDirection: dir.row, alignItems: 'center', gap: 12 }}>
+          <Pressable
+            testID={`next-${card.id}-row`}
+            onPress={() => setOpen((v) => !v)}
+            accessibilityRole="button"
+            accessibilityState={{ expanded: open }}
+            style={{ flex: 1, minWidth: 0, flexDirection: dir.row, alignItems: 'center', gap: 12 }}
+          >
+            <Avatar name={card.who || card.title} contactId={card.contactId} size={44} channel={channel} />
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text token="body" weight="600" numberOfLines={1}>
+                {card.who || card.title}
+              </Text>
+              <Text testID={`next-${card.id}-why`} token="caption" weight="500" color={urgent ? status.overdueFg : ink.s4} numberOfLines={1}>
+                {reason}
+              </Text>
+            </View>
+          </Pressable>
+          <Pressable
+            testID={`next-${card.id}-go`}
+            onPress={primary}
+            accessibilityRole="button"
+            accessibilityLabel={label}
+            style={({ pressed }) => ({
+              width: 44,
+              height: 44,
+              borderRadius: 22,
+              backgroundColor: bg,
+              alignItems: 'center',
+              justifyContent: 'center',
+              transform: [{ scale: pressed ? 0.94 : 1 }],
+            })}
+          >
+            <Icon name={icon} size={19} color={surface.white} strokeWidth={2} />
+          </Pressable>
+        </View>
+        {open ? (
+          <View style={{ flexDirection: dir.row, gap: 8 }}>
+            {small('later', copy.later, 'clock', onLater)}
+            {!finishes && card.source !== 'quiet' ? small('done', copy.doneShort, 'check', onDone) : null}
+          </View>
+        ) : null}
+      </View>
+    );
+  }
 
   return (
     <View
@@ -50,8 +127,8 @@ export function NextCardView({
         borderWidth: 1,
         borderColor: urgent ? status.dangerBg : surface.cardLine,
         borderRadius: 20,
-        padding: 16,
-        gap: 14,
+        padding: 14,
+        gap: 12,
       }}
     >
       <View style={{ flexDirection: dir.row, alignItems: 'center', gap: 14 }}>
@@ -86,7 +163,7 @@ export function NextCardView({
               {copy.later}
             </Text>
           </Pressable>
-          {card.source !== 'quiet' ? (
+          {card.source !== 'quiet' && !finishes ? (
             <Pressable
               testID={`next-${card.id}-done`}
               onPress={onDone}
@@ -104,7 +181,7 @@ export function NextCardView({
         </View>
         <Pressable
           testID={`next-${card.id}-go`}
-          onPress={onPrimary}
+          onPress={primary}
           accessibilityRole="button"
           style={({ pressed }) => ({
             height: 46,

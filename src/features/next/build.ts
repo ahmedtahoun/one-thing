@@ -51,6 +51,8 @@ export type NextCard = {
   taskId?: string;
   followUpId?: string;
   contactId?: string;
+  /** How many other cards about the same person are folded into this one. */
+  also?: number;
 };
 
 export type NextInput = {
@@ -184,7 +186,20 @@ export function buildNext({ tasks, followUps, contacts, favorites, cadence, hidd
 
   out.sort((a, b) => b.score - a.score || a.id.localeCompare(b.id));
   const urgent = out.filter((c) => c.reason.kind === 'late' || c.reason.kind === 'reply').length;
-  return { cards: out, urgent };
+
+  // One card per person: three things with Daina are one card about Daina, the most pressing first,
+  // not three that look like three people. Finishing it brings the next one up.
+  const lead = new Map<string, NextCard>();
+  const cards: NextCard[] = [];
+  for (const card of out) {
+    const first = card.contactId ? lead.get(card.contactId) : undefined;
+    if (first) first.also = (first.also ?? 0) + 1;
+    else {
+      cards.push(card);
+      if (card.contactId) lead.set(card.contactId, card);
+    }
+  }
+  return { cards, urgent };
 }
 
 /** Tomorrow at 09:00 in the device's own time zone: where "Later" puts something. */

@@ -165,6 +165,7 @@ export type Added = {
     message: string;
     done: string;
     doneShort: string;
+    alsoMore: string;
     more: string;
     less: string;
     emptyTitle: string;
@@ -177,7 +178,7 @@ export type Added = {
     add: string;
   };
   /** Small lines on Today. */
-  today: { setOne: string; tryIt: string; open: string; me: string; home: string; add: string; darkMode: string; lightMode: string };
+  today: { pickEmpty: string; pickAdd: string; setOne: string; tryIt: string; open: string; me: string; home: string; add: string; darkMode: string; lightMode: string };
   /** The picture on a person: where it comes from. */
   photo: {
     title: string;
@@ -491,6 +492,7 @@ const ADDED: Record<Lang, Added> = {
       message: 'Message',
       done: 'Mark done',
       doneShort: 'Done',
+      alsoMore: '+{n} more',
       more: 'Show {n} more',
       less: 'Show less',
       emptyTitle: 'You are clear',
@@ -541,7 +543,7 @@ const ADDED: Record<Lang, Added> = {
       reschedule: 'New time',
       replaced: 'Draft replaced',
     },
-    today: { setOne: 'Set your One Thing', tryIt: 'Try saying it', open: 'Open', me: 'Me', home: 'Home', add: 'Add', darkMode: 'Dark mode', lightMode: 'Light mode' },
+    today: { pickEmpty: 'No one saved with this yet.', pickAdd: 'Add someone', setOne: 'Set your One Thing', tryIt: 'Try saying it', open: 'Open', me: 'Me', home: 'Home', add: 'Add', darkMode: 'Dark mode', lightMode: 'Light mode' },
     addPeople: {
       button: 'Add',
       title: 'Add people',
@@ -781,6 +783,7 @@ const ADDED: Record<Lang, Added> = {
       message: 'راسله',
       done: 'تم',
       doneShort: 'تم',
+      alsoMore: '+{n} أخرى',
       more: 'أظهر {n} إضافية',
       less: 'أقل',
       emptyTitle: 'ما عليك شي',
@@ -831,7 +834,7 @@ const ADDED: Record<Lang, Added> = {
       reschedule: 'وقت جديد',
       replaced: 'تغيّرت المسودة',
     },
-    today: { setOne: 'حدّد شيئك الواحد', tryIt: 'جرّب تقولها', open: 'المفتوحة', me: 'أنا', home: 'الرئيسية', add: 'إضافة', darkMode: 'الوضع الداكن', lightMode: 'الوضع الفاتح' },
+    today: { pickEmpty: 'ما عندك أحد محفوظ بهذا.', pickAdd: 'أضف شخص', setOne: 'حدّد شيئك الواحد', tryIt: 'جرّب تقولها', open: 'المفتوحة', me: 'أنا', home: 'الرئيسية', add: 'إضافة', darkMode: 'الوضع الداكن', lightMode: 'الوضع الفاتح' },
     addPeople: {
       button: 'إضافة',
       title: 'أضف أشخاص',
