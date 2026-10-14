@@ -982,7 +982,7 @@ const ACC_en = {
     "opt": "(optional)",
     "err": "Please accept the Terms and Privacy Policy to continue.",
     "note": "We collect your name, phone, job title and how you use the app to run it and improve it. Marketing only if you opt in — change anytime in Settings.",
-    "updated": "Last updated 9 October 2026",
+    "updated": "Last updated 14 October 2026",
     "fail": "We couldn’t sign you in. Please try again."
   },
   "su": {
@@ -1055,7 +1055,11 @@ const ACC_en = {
     ],
     [
       "People you add",
-      "When you save a contact, we store their name, position, phone and email so the app can work for you. They can ask us to remove their details at privacy@onlyonething.app."
+      "When you save a contact, we store their name, position, company, phone numbers, emails, address, labels and your notes about them so the app can work for you. They can ask us to remove their details at privacy@onlyonething.app."
+    ],
+    [
+      "Pictures and files",
+      "A picture you choose for a person or for yourself is copied into the app and stays on your phone; it is not uploaded. A photo of a business card is read on your phone and not kept; only the text you confirm becomes a contact. A spreadsheet, PDF or contacts file you import is read on your phone and the file itself is not uploaded."
     ],
     [
       "Your choices",
@@ -1091,7 +1095,7 @@ const ACC_ar: typeof ACC_en = {
     "opt": "(اختياري)",
     "err": "وافق على الشروط وسياسة الخصوصية عشان تكمّل.",
     "note": "نجمع اسمك ورقمك ومسمّاك الوظيفي وطريقة استخدامك للتطبيق لتشغيله وتحسينه. التسويق فقط إذا وافقت — وتقدر تغيّرها من الإعدادات.",
-    "updated": "آخر تحديث ٩ أكتوبر ٢٠٢٦",
+    "updated": "آخر تحديث ١٤ أكتوبر ٢٠٢٦",
     "fail": "ما قدرنا نسجّل دخولك. جرّب مرة ثانية."
   },
   "su": {
@@ -1164,7 +1168,11 @@ const ACC_ar: typeof ACC_en = {
     ],
     [
       "الأشخاص اللي تضيفهم",
-      "لما تحفظ جهة اتصال نخزّن اسمه ومنصبه ورقمه وإيميله عشان يشتغل التطبيق لك. ويقدر يطلب حذف بياناته على privacy@onlyonething.app."
+      "لما تحفظ جهة اتصال نخزّن اسمه ومنصبه وشركته وأرقامه وإيميلاته وعنوانه وتصنيفاته وملاحظاتك عنه عشان يشتغل التطبيق لك. ويقدر يطلب حذف بياناته على privacy@onlyonething.app."
+    ],
+    [
+      "الصور والملفات",
+      "الصورة اللي تختارها لشخص أو لنفسك تنحفظ داخل التطبيق وتبقى على جوالك ولا تُرفع. وصورة بطاقة العمل تُقرأ على جوالك ولا تنحفظ؛ بس النص اللي تأكّده يصير جهة اتصال. وأي ملف جدول أو PDF أو جهات اتصال تستورده يُقرأ على جوالك ولا يُرفع الملف نفسه."
     ],
     [
       "خياراتك",
