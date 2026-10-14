@@ -316,6 +316,15 @@ export type Added = {
     shared: string;
     note: string;
   };
+  /** Today's tasks on the Lock Screen (iPhone). */
+  bar: {
+    heading: string;
+    next: string;
+    late: string;
+    allDone: string;
+    toggle: string;
+    toggleSub: string;
+  };
   /** The person's own saved messages. */
   saved: {
     title: string;
@@ -548,6 +557,14 @@ const ADDED: Record<Lang, Added> = {
       shareSub: 'Takes the subject, the message and a file. Pick the app, then paste the address.',
       shared: '{to} is copied. Paste it into “To”.',
       note: 'Zoho opens a mail link empty, so use “Zoho, Spark or another app”. Or add your Zoho account to iPhone Mail and use “Send email”, which keeps everything.',
+    },
+    bar: {
+      heading: 'Today · {done} of {total} done',
+      next: 'Next: {title}',
+      late: 'Late: {title}',
+      allDone: 'All done for today',
+      toggle: 'Today on the Lock Screen',
+      toggleSub: 'A bar with today’s tasks. Each one turns red when its time passes and it isn’t done.',
     },
     saved: {
       title: 'Saved messages',
@@ -916,6 +933,14 @@ const ADDED: Record<Lang, Added> = {
       shareSub: 'ينقل العنوان والرسالة وملف. اختر التطبيق، ثم الصق الإيميل.',
       shared: 'نسخنا {to}. الصقه في خانة «إلى».',
       note: 'Zoho يفتح رابط البريد فاضي، فاستخدم «Zoho أو Spark أو تطبيق ثاني». أو أضف حساب Zoho لتطبيق البريد في الآيفون واستخدم «أرسل الإيميل»، وكل شي يوصل.',
+    },
+    bar: {
+      heading: 'اليوم · {done} من {total} خلصت',
+      next: 'التالي: {title}',
+      late: 'متأخر: {title}',
+      allDone: 'خلصت كل مهام اليوم',
+      toggle: 'مهام اليوم على شاشة القفل',
+      toggleSub: 'شريط فيه مهام اليوم. كل مهمة تصير حمراء إذا جا وقتها وما خلصت.',
     },
     saved: {
       title: 'الرسائل المحفوظة',

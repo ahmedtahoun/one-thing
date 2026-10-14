@@ -17,8 +17,10 @@
         "NSPhotoLibraryUsageDescription": "Used only when you choose a photo of a business card to read. The One Thing never reads your other photos.",
         "CFBundleAllowMixedLocalizations": true,
         "ITSAppUsesNonExemptEncryption": false,
-        "NSCameraUsageDescription": "Used only when you take a photo of a business card, so it can be read on your phone to add the contact."
-      }
+        "NSCameraUsageDescription": "Used only when you take a photo of a business card, so it can be read on your phone to add the contact.",
+        "NSSupportsLiveActivities": true
+      },
+      "appleTeamId": "55BRQ92599"
     },
     "android": {
       "package": "app.onlyonething",
@@ -87,7 +89,8 @@
           "photosPermission": "Used only when you choose a photo of a business card to read. The One Thing never reads your other photos."
         }
       ],
-      "expo-document-picker"
+      "expo-document-picker",
+      "@bacons/apple-targets"
     ],
     "extra": {
       "router": {}

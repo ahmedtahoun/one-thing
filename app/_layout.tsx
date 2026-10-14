@@ -19,6 +19,7 @@ import { PrefsProvider } from '@/lib/prefs';
 import { SessionProvider } from '@/lib/session';
 import { SyncProvider } from '@/lib/sync/SyncProvider';
 import { TasksProvider } from '@/lib/tasks';
+import { TodayBarSync } from '@/features/today-bar/TodayBarSync';
 import { motion, surface } from '@/design/tokens';
 
 SplashScreen.preventAutoHideAsync().catch(() => {
@@ -77,6 +78,7 @@ export default function RootLayout() {
                       pending reminders in step with them. */}
                   <NotificationsProvider>
                     <ThemedStack />
+                    <TodayBarSync />
                   </NotificationsProvider>
                 </SyncProvider>
               </PeopleProvider>

@@ -46,6 +46,7 @@ import type { Channel, NudgeStyle, Prefs } from '@/lib/model-types';
 import { useNotifications } from '@/lib/notifications/NotificationsProvider';
 import { usePrefs } from '@/lib/prefs';
 import { CHASE_SETTINGS, setChase, useChase } from '@/lib/chase';
+import { barSupported, setBarOn, useBarOn } from '@/lib/today-bar';
 import { useSession } from '@/lib/session';
 import { useTasks } from '@/lib/tasks';
 import { isPro } from '@/policy/entitlements';
@@ -76,6 +77,7 @@ export default function Settings() {
   const { signOut, deleteAccount } = useAccount();
   const toast = useToast();
   const chase = useChase();
+  const barOn = useBarOn();
   const st = setx.st;
 
   const [open, setOpen] = useState<Panel | null>(null);
@@ -495,6 +497,17 @@ export default function Settings() {
             onToggle={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
             lead={<RowTile icon={theme === 'dark' ? 'moon' : 'sun'} bg={surface.fill} fg={ink.s2} />}
           />
+
+          {barSupported ? (
+            <ToggleRow
+              testID="settings-today-bar"
+              label={added(lang).bar.toggle}
+              sub={added(lang).bar.toggleSub}
+              on={barOn !== false}
+              onToggle={() => void setBarOn(barOn === false)}
+              lead={<RowTile icon="clock" bg={surface.fill} fg={ink.s2} />}
+            />
+          ) : null}
 
           <LinkRow
             testID="settings-saved"
