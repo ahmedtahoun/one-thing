@@ -175,6 +175,7 @@ export type Added = {
     message: string;
     done: string;
     doneShort: string;
+    replied: string;
     alsoMore: string;
     more: string;
     less: string;
@@ -303,6 +304,39 @@ export type Added = {
     update: string;
     saveNew: string;
     needName: string;
+  };
+  /** The person's own saved messages. */
+  saved: {
+    title: string;
+    hint: string;
+    empty: string;
+    add: string;
+    titlePh: string;
+    subjectPh: string;
+    bodyPh: string;
+    chase: string;
+    chaseHint: string;
+    save: string;
+    remove: string;
+    saveAs: string;
+    saved: string;
+    nameIt: string;
+    done: string;
+  };
+  /** What follows a send: marked sent, a chase if there is one, undo. */
+  sent: {
+    pending: string;
+    iSent: string;
+    cancel: string;
+    plain: string;
+    withChase: string;
+    change: string;
+    undo: string;
+    none: string;
+    replied: string;
+    chaseTitle: string;
+    chaseHint: string;
+    chaseOptions: { auto: string; off: string; d1: string; d2: string; d3: string; d7: string };
   };
   /** "Send later": a reminder at the chosen time, with the draft waiting. */
   later: {
@@ -494,6 +528,37 @@ const ADDED: Record<Lang, Added> = {
       favorite: 'Favorite',
       followups: 'Follow-ups',
     },
+    saved: {
+      title: 'Saved messages',
+      hint: 'Your own words, ready to use again. Write {name} where their name goes. Nothing is sent for you.',
+      empty: 'Nothing yet. Add the message you write most.',
+      add: 'New message',
+      titlePh: 'Name, e.g. Follow-up',
+      subjectPh: 'Subject (for email)',
+      bodyPh: 'Hi {name}, just checking you saw my message…',
+      chase: 'Use for follow-ups',
+      chaseHint: 'When a follow-up is due, this is the message that’s ready.',
+      save: 'Save',
+      remove: 'Delete',
+      saveAs: 'Save as a message',
+      saved: 'Saved to your messages.',
+      nameIt: 'Name this message',
+      done: 'Done',
+    },
+    sent: {
+      pending: 'Opened. I’ll mark it sent when you’re back.',
+      iSent: 'I sent it',
+      cancel: 'Not yet',
+      plain: 'Sent',
+      withChase: 'Sent. No reply {w}? I’ll remind you.',
+      change: 'Change',
+      undo: 'Undo',
+      none: 'No follow-up',
+      replied: 'Replied',
+      chaseTitle: 'If there’s no reply',
+      chaseHint: 'After you send, I remind you to check back. Close it with one tap when they reply.',
+      chaseOptions: { auto: 'Auto', off: 'Off', d1: '1 day', d2: '2 days', d3: '3 days', d7: '1 week' },
+    },
     later: {
       button: 'Send later',
       title: 'When should I remind you to send it?',
@@ -556,6 +621,7 @@ const ADDED: Record<Lang, Added> = {
       message: 'Message',
       done: 'Mark done',
       doneShort: 'Done',
+      replied: 'Replied',
       alsoMore: '+{n} more',
       more: 'Show {n} more',
       less: 'Show less',
@@ -820,6 +886,37 @@ const ADDED: Record<Lang, Added> = {
       favorite: 'مفضّل',
       followups: 'المتابعات',
     },
+    saved: {
+      title: 'الرسائل المحفوظة',
+      hint: 'كلامك أنت، جاهز تستخدمه مرة ثانية. اكتب {الاسم} مكان اسم الشخص. ما يُرسل شي عنك.',
+      empty: 'ما فيه شي للحين. أضف الرسالة اللي تكتبها كثير.',
+      add: 'رسالة جديدة',
+      titlePh: 'اسم، مثلًا: متابعة',
+      subjectPh: 'العنوان (للإيميل)',
+      bodyPh: 'أهلًا {الاسم}، بس أتأكد إنك شفت رسالتي…',
+      chase: 'استخدمها للمتابعة',
+      chaseHint: 'لما يحين وقت المتابعة، هذي الرسالة تكون جاهزة.',
+      save: 'احفظ',
+      remove: 'احذف',
+      saveAs: 'احفظها كرسالة',
+      saved: 'انحفظت في رسائلك.',
+      nameIt: 'سمّ هذي الرسالة',
+      done: 'تم',
+    },
+    sent: {
+      pending: 'انفتحت. بعلّمها مرسلة لما ترجع.',
+      iSent: 'أرسلتها',
+      cancel: 'مو الحين',
+      plain: 'أُرسلت',
+      withChase: 'أُرسلت. ما رد {w}؟ بذكّرك.',
+      change: 'غيّر',
+      undo: 'تراجع',
+      none: 'بدون متابعة',
+      replied: 'رد',
+      chaseTitle: 'إذا ما فيه رد',
+      chaseHint: 'بعد ما ترسل، أذكّرك ترجع تتابع. وتقفلها بضغطة لما يردون.',
+      chaseOptions: { auto: 'تلقائي', off: 'مغلق', d1: 'يوم', d2: 'يومين', d3: '3 أيام', d7: 'أسبوع' },
+    },
     later: {
       button: 'أرسلها لاحقًا',
       title: 'متى أذكّرك ترسلها؟',
@@ -882,6 +979,7 @@ const ADDED: Record<Lang, Added> = {
       message: 'راسله',
       done: 'تم',
       doneShort: 'تم',
+      replied: 'رد',
       alsoMore: '+{n} أخرى',
       more: 'أظهر {n} إضافية',
       less: 'أقل',

@@ -2,6 +2,8 @@ import { useCallback } from 'react';
 import { router } from 'expo-router';
 
 import { emailDraft } from '@/features/compose/drafts';
+import { fillSaved } from '@/features/compose/saved';
+import { chaseMessage, useSaved } from '@/lib/templates';
 import { useLanguage } from '@/i18n/LanguageProvider';
 import { displayName, type FollowUp } from '@/lib/model-types';
 import { usePeople } from '@/lib/people';
@@ -18,11 +20,14 @@ export function useNudge() {
   const { session } = useSession();
   const { addTask } = useTasks();
   const { updateFollowUp } = usePeople();
+  const saved = useSaved();
 
   return useCallback(
     (f: FollowUp) => {
       const what = f.what.toLowerCase();
       const first = displayName(f.who).split(' ')[0] ?? '';
+      const own = chaseMessage(saved);
+      const ownMessage = own ? { ...fillSaved(own, displayName(f.who), lang), title: own.title } : null;
       const task = addTask({
         type: f.channel,
         title: inline.nudgeTitle.replace('{what}', f.what),
@@ -32,8 +37,10 @@ export function useNudge() {
         goal: inline.nudgeGoal.replace('{what}', what),
         points: [...inline.nudgePoints],
         // An email chaser is written as an email; a chat one stays a line.
-        draft:
-          f.channel === 'email'
+        // The person's own follow-up message, if they wrote one; otherwise ours.
+        draft: ownMessage
+          ? { ...(f.channel === 'email' ? { subject: ownMessage.subject ?? ownMessage.title } : {}), body: ownMessage.body }
+          : f.channel === 'email'
             ? emailDraft('chase', { name: displayName(f.who), what: f.what, sender: session?.name, lang })
             : { body: inline.nudgeDraft.replace('{n}', first).replace('{what}', what) },
         createdVia: 'followup',
@@ -41,6 +48,6 @@ export function useNudge() {
       updateFollowUp(f.id, { taskId: task.id, lastAction: 'nudged', lastActionAt: new Date().toISOString() });
       router.push(`/compose?id=${task.id}`);
     },
-    [addTask, updateFollowUp, inline, lang, session?.name]
+    [addTask, updateFollowUp, inline, lang, session?.name, saved]
   );
 }

@@ -45,6 +45,7 @@ import { POLICY_VERSION, recordConsent } from '@/lib/consent';
 import type { Channel, NudgeStyle, Prefs } from '@/lib/model-types';
 import { useNotifications } from '@/lib/notifications/NotificationsProvider';
 import { usePrefs } from '@/lib/prefs';
+import { CHASE_SETTINGS, setChase, useChase } from '@/lib/chase';
 import { useSession } from '@/lib/session';
 import { useTasks } from '@/lib/tasks';
 import { isPro } from '@/policy/entitlements';
@@ -74,6 +75,7 @@ export default function Settings() {
   const { setFocusMinutes } = useTasks();
   const { signOut, deleteAccount } = useAccount();
   const toast = useToast();
+  const chase = useChase();
   const st = setx.st;
 
   const [open, setOpen] = useState<Panel | null>(null);
@@ -306,6 +308,33 @@ export default function Settings() {
                   onPick={pickFocus}
                 />
               </View>
+              <View style={{ gap: 6, paddingVertical: 14, paddingHorizontal: 16, ...rowRule }}>
+                <Text token="body">{added(lang).sent.chaseTitle}</Text>
+                <Text token="caption" color={ink.s4}>
+                  {added(lang).sent.chaseHint}
+                </Text>
+                <View style={{ flexDirection: dir.row, flexWrap: 'wrap', gap: 8, paddingTop: 4 }}>
+                  {CHASE_SETTINGS.map((option) => {
+                    const on = chase === option;
+                    const o = added(lang).sent.chaseOptions;
+                    const label = option === 'auto' ? o.auto : option === 'off' ? o.off : option === 1 ? o.d1 : option === 2 ? o.d2 : option === 3 ? o.d3 : o.d7;
+                    return (
+                      <Pressable
+                        key={String(option)}
+                        testID={`settings-chase-${option}`}
+                        onPress={() => void setChase(option)}
+                        accessibilityRole="button"
+                        accessibilityState={{ selected: on }}
+                        style={{ paddingVertical: 8, paddingHorizontal: 14, borderRadius: 999, backgroundColor: on ? ink.solid : surface.fill }}
+                      >
+                        <Text token="bodyS" weight="600" color={on ? surface.white : ink.s2}>
+                          {label}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              </View>
               <View
                 style={{
                   flexDirection: dir.row,
@@ -465,6 +494,13 @@ export default function Settings() {
             on={theme === 'dark'}
             onToggle={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
             lead={<RowTile icon={theme === 'dark' ? 'moon' : 'sun'} bg={surface.fill} fg={ink.s2} />}
+          />
+
+          <LinkRow
+            testID="settings-saved"
+            label={added(lang).saved.title}
+            onPress={() => router.push('/templates')}
+            tile={<RowTile icon="note" bg={surface.fill} fg={ink.s2} />}
           />
 
           <AccordionRow

@@ -52,6 +52,8 @@ export function NextCardView({
     reasonText(card.reason, copy).replace(/\d[\d:]*/g, (n) => ltr(n)) +
     (card.also ? ` · ${copy.alsoMore.replace('{n}', String(card.also))}` : '');
   const primary = finishes ? onDone : onPrimary;
+  // For a reply they owe, the close is "Replied": it is what you tap when they answer.
+  const doneLabel = card.source === 'followup' ? copy.replied : copy.doneShort;
 
   if (compact) {
     const small = (id: string, text: string, name: IconName, press: () => void) => (
@@ -112,7 +114,7 @@ export function NextCardView({
         {open ? (
           <View style={{ flexDirection: dir.row, gap: 8 }}>
             {small('later', copy.later, 'clock', onLater)}
-            {!finishes && card.source !== 'quiet' ? small('done', copy.doneShort, 'check', onDone) : null}
+            {!finishes && card.source !== 'quiet' ? small('done', doneLabel, 'check', onDone) : null}
           </View>
         ) : null}
       </View>
@@ -174,7 +176,7 @@ export function NextCardView({
             >
               <Icon name="check" size={16} color={ink.s3} strokeWidth={2.2} />
               <Text token="bodyS" weight="600" color={ink.s3} numberOfLines={1}>
-                {copy.doneShort}
+                {doneLabel}
               </Text>
             </Pressable>
           ) : null}

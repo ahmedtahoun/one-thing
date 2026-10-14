@@ -51,7 +51,8 @@ type PeopleValue = {
    * top of People. Returns the contact's id.
    */
   saveContact: (input: { id?: string; name: string; role?: string; lastLabel: string }, patch: Partial<Contact>) => string;
-  addFollowUp: (followUp: Omit<FollowUp, 'id' | 'createdAt'>) => void;
+  /** Returns the new follow-up's id, so the screen that made it can change or take it back. */
+  addFollowUp: (followUp: Omit<FollowUp, 'id' | 'createdAt'>) => string;
   updateContact: (id: string, patch: Partial<Contact>) => void;
   /** A new contact from the contact form, at the top of People. Returns it. */
   addContact: (contact: Omit<Contact, 'id' | 'createdAt'>) => Contact;
@@ -67,6 +68,8 @@ type PeopleValue = {
   updateFollowUp: (id: string, patch: Partial<FollowUp>) => void;
   /** Replaces the whole list — used by Undo, which restores a snapshot. */
   restoreFollowUps: (followUps: FollowUp[]) => void;
+  /** Replaces the whole history — used by Undo, which restores a snapshot. */
+  restoreHistory: (history: HistoryEntry[]) => void;
   reset: () => void;
   /** For the sync engine only — see the task store's own. */
   applySync: (update: {
@@ -154,8 +157,10 @@ export function PeopleProvider({ children }: { children: ReactNode }) {
 
   const addFollowUp = useCallback<PeopleValue['addFollowUp']>(
     (followUp) => {
-      setFollowUps((list) => [{ ...followUp, id: newId(), createdAt: new Date().toISOString() }, ...list]);
+      const id = newId();
+      setFollowUps((list) => [{ ...followUp, id, createdAt: new Date().toISOString() }, ...list]);
       track({ name: 'followup_created' });
+      return id;
     },
     [setFollowUps]
   );
@@ -194,6 +199,7 @@ export function PeopleProvider({ children }: { children: ReactNode }) {
       addHistory,
       updateFollowUp,
       restoreFollowUps: setFollowUps,
+      restoreHistory: setHistory,
       reset,
       applySync,
     }),

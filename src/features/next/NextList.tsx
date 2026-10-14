@@ -39,7 +39,7 @@ export function NextList({ now, onNothing, hideWhenNothing = false }: { now: Dat
   const toast = useToast();
 
   const { tasks, toggleDone, updateTask, restore } = useTasks();
-  const { contacts, followUps, updateFollowUp, restoreFollowUps } = usePeople();
+  const { contacts, followUps, history, updateFollowUp, restoreFollowUps, addHistory, restoreHistory } = usePeople();
   const favorites = useFavorites();
   const cadence = useCadence();
   const hidden = useHiddenCards();
@@ -75,11 +75,20 @@ export function NextList({ now, onNothing, hideWhenNothing = false }: { now: Dat
         toast.show(t.toastDone, { undo: () => restore(before) });
       } else if (card.source === 'followup' && card.followUpId) {
         const before = followUps;
-        updateFollowUp(card.followUpId, { status: 'done', lastAction: 'closed', lastActionAt: new Date().toISOString() });
-        toast.show(t.toastDone, { undo: () => restoreFollowUps(before) });
+        const historyBefore = history;
+        const at = new Date().toISOString();
+        updateFollowUp(card.followUpId, { status: 'done', lastAction: 'closed', lastActionAt: at });
+        // They replied: a moment in the thread, so the page shows how it went.
+        if (card.contactId) addHistory({ contactId: card.contactId, kind: 'note', text: copy.replied, at });
+        toast.show(t.toastDone, {
+          undo: () => {
+            restoreFollowUps(before);
+            restoreHistory(historyBefore);
+          },
+        });
       }
     },
-    [tasks, followUps, toggleDone, updateFollowUp, restore, restoreFollowUps, toast, t.toastDone]
+    [tasks, followUps, history, toggleDone, updateFollowUp, restore, restoreFollowUps, addHistory, restoreHistory, toast, t.toastDone, copy.replied]
   );
 
   const later = useCallback(

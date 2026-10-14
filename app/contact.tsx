@@ -59,7 +59,7 @@ function Profile({ contact }: { contact: Contact }) {
   const { t, pfx, lang, a11y, inline } = useLanguage();
   const dir = useDirection();
   const copy = added(lang);
-  const { contacts, history, followUps, updateContact, addHistory, updateFollowUp, restoreFollowUps } = usePeople();
+  const { contacts, history, followUps, updateContact, addHistory, updateFollowUp, restoreFollowUps, restoreHistory } = usePeople();
   const { tasks, toggleDone, addTask, restore } = useTasks();
   const toast = useToast();
   const start = useStartTask();
@@ -156,11 +156,20 @@ function Profile({ contact }: { contact: Contact }) {
   };
   const finishWaiting = (id: string) => {
     const before = followUps;
-    updateFollowUp(id, { status: 'done', lastAction: 'closed', lastActionAt: new Date().toISOString() });
-    toast.show(t.toastDone, { undo: () => restoreFollowUps(before) });
+    const historyBefore = history;
+    const at = new Date().toISOString();
+    updateFollowUp(id, { status: 'done', lastAction: 'closed', lastActionAt: at });
+    // They replied: a moment in the thread.
+    addHistory({ contactId: contact.id, kind: 'note', text: copy.sent.replied, at });
+    toast.show(t.toastDone, {
+      undo: () => {
+        restoreFollowUps(before);
+        restoreHistory(historyBefore);
+      },
+    });
   };
 
-  const pinned = [
+  const pinned: { key: string; testID: string; title: string; sub: string; icon: IconName; bg: string; fg: string; finish: () => void; label?: string }[] = [
     ...openTasks.map((task) => ({
       key: task.id,
       testID: `contact-next-${task.id}`,
@@ -180,6 +189,7 @@ function Profile({ contact }: { contact: Contact }) {
       bg: typeColour[f.channel].bg,
       fg: typeColour[f.channel].fg,
       finish: () => finishWaiting(f.id),
+      label: copy.sent.replied,
     })),
   ];
 
@@ -269,8 +279,20 @@ function Profile({ contact }: { contact: Contact }) {
                     {row.sub}
                   </LTRText>
                 </View>
-                <Pressable testID={`${row.testID}-done`} onPress={row.finish} accessibilityRole="button" accessibilityLabel={t.nDone} hitSlop={8} style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: surface.fill, alignItems: 'center', justifyContent: 'center' }}>
+                <Pressable
+                  testID={`${row.testID}-done`}
+                  onPress={row.finish}
+                  accessibilityRole="button"
+                  accessibilityLabel={row.label ?? t.nDone}
+                  hitSlop={8}
+                  style={{ minWidth: 34, height: 34, borderRadius: 17, paddingHorizontal: row.label ? 12 : 0, backgroundColor: surface.fill, flexDirection: dir.row, alignItems: 'center', justifyContent: 'center', gap: 5 }}
+                >
                   <Icon name="check" size={16} color={ink.s2} strokeWidth={2.2} />
+                  {row.label ? (
+                    <Text token="caption" weight="600" color={ink.s2}>
+                      {row.label}
+                    </Text>
+                  ) : null}
                 </Pressable>
               </View>
             ))}

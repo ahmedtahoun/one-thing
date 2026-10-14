@@ -13,7 +13,7 @@
  */
 import { clockOf } from '@/lib/clock-format';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Linking, Pressable, TextInput, View } from 'react-native';
+import { AppState, Linking, Pressable, TextInput, View } from 'react-native';
 import { Redirect, router, useLocalSearchParams } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
 import * as MailComposer from 'expo-mail-composer';
@@ -39,12 +39,15 @@ import { Screen } from '@/ui/Screen';
 import { Text } from '@/ui/Text';
 import { Toast, useToast } from '@/ui/Toast';
 import { Sheet } from '@/ui/Sheet';
+import { fillSaved, toSaved, type Saved } from '@/features/compose/saved';
+import { addSaved, useSaved } from '@/lib/templates';
+import { CHASE_CHOICES, chaseDays, inDays, useChase } from '@/lib/chase';
 import { whenText } from '@/features/capture/labels';
 import { DEFAULT_DIAL } from '@/content/countries';
 import { type IconName } from '@/design/icon-paths';
 import { fontFamily, ink, surface, typeColour } from '@/design/tokens';
 import { useDirection, useLanguage } from '@/i18n/LanguageProvider';
-import { displayName, type Channel, type Contact, type Task } from '@/lib/model-types';
+import { displayName, type Channel, type Contact, type FollowUp, type HistoryEntry, type Task } from '@/lib/model-types';
 import { contactForTask, usePeople } from '@/lib/people';
 import { pickFromPhone } from '@/lib/phone-contacts';
 import { whenLabel } from '@/lib/task-labels';
@@ -52,14 +55,8 @@ import { useSession } from '@/lib/session';
 import { useTasks } from '@/lib/tasks';
 
 
-/** How long after handing off before "Did you send it?" appears, as in the prototype. */
-const HANDOFF_DELAY = 700;
-const CALL_DELAY = 900;
-
-/** Tomorrow / In 2 days / Next week, in days; "No need" sets nothing. */
-const FOLLOW_UP_DAYS = [1, 2, 7] as const;
-/** The follow-up the one-tap button sets: index into the options, "In 2 days". */
-const DEFAULT_FOLLOW_UP = 1;
+/** What a send did, kept so it can be changed or taken back. */
+type Sent = { days: number; before: { tasks: Task[]; followUps: FollowUp[]; history: HistoryEntry[] } };
 
 /** 7 rows of 15 pt text at 1.55, plus 14 pt padding and a 1 pt border, each side. */
 const DRAFT_HEIGHT = 7 * 15 * 1.55 + 28 + 2;
@@ -79,11 +76,14 @@ function ComposeTask({ task }: { task: Task }) {
   const { t, inline, a11y, lang } = useLanguage();
   const lockCopy = added(lang).lock;
   const loopCopy = added(lang).loop;
+  const sentCopy = added(lang).sent;
+  const mySaved = useSaved();
   const draftCopy = added(lang).drafts;
   const dir = useDirection();
   const { from } = useLocalSearchParams<{ from?: string }>();
   const { tasks, updateTask, restore } = useTasks();
-  const { contacts, history, saveContact, addFollowUp, addHistory } = usePeople();
+  const { contacts, history, followUps, saveContact, addFollowUp, addHistory, updateFollowUp, restoreFollowUps, restoreHistory } = usePeople();
+  const chase = useChase();
   const { session } = useSession();
   const toast = useToast();
 
@@ -97,16 +97,15 @@ function ComposeTask({ task }: { task: Task }) {
   const [draft, setDraft] = useState(task.draft?.body ?? '');
   const [tried, setTried] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
-  const [afterSend, setAfterSend] = useState(false);
+  // After a message goes out, the page asks nothing: it marks it sent, sets the chase if there is one, and leaves.
+  const [sent, setSent] = useState<Sent | null>(null);
+  const [changeOpen, setChangeOpen] = useState(false);
+  const [pending, setPending] = useState(false);
   // A number or address already on file is shown, not asked for again.
   const [changing, setChanging] = useState(false);
 
-  const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
-  useEffect(() => {
-    const pending = timers.current;
-    return () => pending.forEach(clearTimeout);
-  }, []);
-  const askAfter = (delay: number) => timers.current.push(setTimeout(() => setAfterSend(true), delay));
+  const leaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => void (leaveTimer.current && clearTimeout(leaveTimer.current)), []);
 
   const type = task.type;
 
@@ -175,6 +174,35 @@ function ComposeTask({ task }: { task: Task }) {
       });
     }
   };
+  /** One of the person's own saved messages: their wording, with this person's name in it. */
+  const startFromSaved = (item: Saved) => {
+    const before = { body: draft, subject };
+    const next = fillSaved(item, contact?.name ?? name, lang);
+    editDraft(next.body);
+    if (isEmail) editSubject(next.subject ?? item.title);
+    if (before.body.trim() && before.body !== next.body) {
+      toast.show(draftCopy.replaced, {
+        undo: () => {
+          editDraft(before.body);
+          if (isEmail) editSubject(before.subject);
+        },
+      });
+    }
+  };
+  const [savingOpen, setSavingOpen] = useState(false);
+  const [saveTitle, setSaveTitle] = useState('');
+  const saveAsMessage = async () => {
+    const title = saveTitle.trim();
+    if (!title || !draft.trim()) return;
+    await addSaved({
+      title,
+      body: toSaved(draft, contact?.name ?? name, lang),
+      ...(isEmail ? { subject: toSaved(subject, contact?.name ?? name, lang) } : {}),
+    });
+    setSavingOpen(false);
+    setSaveTitle('');
+    toast.show(added(lang).saved.saved, { undo: false });
+  };
   const editSubject = (next: string) => {
     setSubject(next);
     updateTask(task.id, { draft: { body: draft, ...task.draft, subject: next } });
@@ -195,7 +223,7 @@ function ComposeTask({ task }: { task: Task }) {
     remember({ dial, phone });
     Linking.openURL(whatsAppUrl(dial, phone, draft)).catch(() => {});
     toast.show(t.toastWa.replace('{to}', name), { undo: false });
-    askAfter(HANDOFF_DELAY);
+    armSent();
   };
 
   const openMailApp = async () => {
@@ -206,7 +234,7 @@ function ComposeTask({ task }: { task: Task }) {
     await Clipboard.setStringAsync(draft).catch(() => {});
     Linking.openURL(mailtoUrl(email, subject, draft)).catch(() => {});
     toast.show(t.toastHand.replace('{app}', inline.mailAppName), { undo: false });
-    askAfter(HANDOFF_DELAY);
+    armSent();
   };
 
   /**
@@ -223,8 +251,10 @@ function ComposeTask({ task }: { task: Task }) {
     if (!result || result.status === MailComposer.MailComposerStatus.CANCELLED) return;
     if (result.status === MailComposer.MailComposerStatus.SENT) {
       toast.show(t.toastSentTo.replace('{to}', email), { undo: false });
+      return confirmSent();
     }
-    askAfter(HANDOFF_DELAY);
+    // The mail sheet cannot always say; a saved draft is not a send.
+    if (result.status !== MailComposer.MailComposerStatus.SAVED) armSent();
   };
 
   /**
@@ -270,7 +300,7 @@ function ComposeTask({ task }: { task: Task }) {
     if (contact?.phone && phoneValid(contact.phone)) {
       Linking.openURL(telUrl(contact.dial ?? DEFAULT_DIAL, contact.phone)).catch(() => {});
     }
-    askAfter(CALL_DELAY);
+    armSent();
   };
 
   const markReminderDone = () => {
@@ -279,44 +309,97 @@ function ComposeTask({ task }: { task: Task }) {
     toast.show(t.toastDone, { undo: () => restore(before) });
   };
 
-  /** "Did you send it?" — Tomorrow, In 2 days, Next week, or No need. */
-  const answer = (index: number, label: string) => {
-    const now = new Date();
-    updateTask(task.id, { status: 'done', sentConfirmedAt: now.toISOString() });
-    track({ name: 'send_confirmed' });
-    const channel: Channel = type === 'email' || type === 'whatsapp' ? type : 'call';
-    const reached = contact?.id ?? task.contactIds[0];
-    // A dated moment with them, so People can show how you last got in touch.
-    // What the moment says: the email's subject, the first line of the WhatsApp message, else the task's own title.
-    const gist =
-      channel === 'email' ? subject.trim() : channel === 'whatsapp' ? draft.trim().replace(/\s+/g, ' ').slice(0, 90) : '';
-    if (reached) addHistory({ contactId: reached, kind: channel, text: gist || task.title, at: now.toISOString() });
-    const days = FOLLOW_UP_DAYS[index];
-    if (days !== undefined) {
-      const nextAt = new Date(now);
-      nextAt.setDate(nextAt.getDate() + days);
-      addFollowUp({
-        contactId: contact?.id ?? task.contactIds[0] ?? null,
-        taskId: task.id,
-        channel,
-        who: who || task.title,
-        what: task.title,
-        status: 'waiting',
-        since: inline.sentFollowUp.replace('{w}', label.toLowerCase()),
-        nextAt: nextAt.toISOString(),
-        lastAction: null,
-      });
-      toast.show(t.toastFu.replace('{w}', label), { undo: false });
-    } else {
-      toast.show(t.toastDone, { undo: false });
-    }
-    // Started from their page: back to it, so the next thing (a note, another channel) is right there.
-    router.dismissTo(from === 'contact' && reached ? `/contact?id=${reached}` : '/today');
+  const channelOfTask: Channel = type === 'email' || type === 'whatsapp' ? type : 'call';
+  const reachedId = contact?.id ?? task.contactIds[0];
+  const leave = () => router.dismissTo(from === 'contact' && reachedId ? `/contact?id=${reachedId}` : '/today');
+  const leaveSoon = (ms: number) => {
+    if (leaveTimer.current) clearTimeout(leaveTimer.current);
+    leaveTimer.current = setTimeout(leave, ms);
+  };
+  const stopLeaving = () => {
+    if (leaveTimer.current) clearTimeout(leaveTimer.current);
+    leaveTimer.current = null;
   };
 
-  const notSent = () => {
-    setAfterSend(false);
-    toast.show(inline.draftSavedToast, { undo: false });
+  /** A waiting item that comes back on its date: "if there is no reply, remind me". */
+  const startChase = (days: number, from: Date): void => {
+    const nextAt = new Date(from);
+    nextAt.setDate(nextAt.getDate() + days);
+    addFollowUp({
+      contactId: reachedId ?? null,
+      taskId: task.id,
+      channel: channelOfTask,
+      who: who || task.title,
+      what: task.title,
+      status: 'waiting',
+      since: inline.sentFollowUp.replace('{w}', inDays(days, lang)),
+      nextAt: nextAt.toISOString(),
+      lastAction: null,
+    });
+  };
+
+  // The newest of these, for the places that run later than the render that made them (the app coming back to the front).
+  const latest = useRef({ tasks, followUps, history });
+  latest.current = { tasks, followUps, history };
+  const sentOnce = useRef(false);
+
+  /** It went. Mark it, log it, set the chase the person's setting asks for, and leave in a moment. */
+  const confirmSent = () => {
+    if (sentOnce.current) return;
+    sentOnce.current = true;
+    setPending(false);
+    const now = new Date();
+    const before = { tasks: latest.current.tasks, followUps: latest.current.followUps, history: latest.current.history };
+    updateTask(task.id, { status: 'done', sentConfirmedAt: now.toISOString() });
+    track({ name: 'send_confirmed' });
+    // What the moment says: the email's subject, the first line of the WhatsApp message, else the task's own title.
+    const gist =
+      channelOfTask === 'email' ? subject.trim() : channelOfTask === 'whatsapp' ? draft.trim().replace(/\s+/g, ' ').slice(0, 90) : '';
+    if (reachedId) addHistory({ contactId: reachedId, kind: channelOfTask, text: gist || task.title, at: now.toISOString() });
+    const days = chaseDays(chase, channelOfTask);
+    if (days > 0) startChase(days, now);
+    setSent({ days, before });
+    leaveSoon(5500);
+  };
+  const confirmRef = useRef(confirmSent);
+  confirmRef.current = confirmSent;
+
+  /** A WhatsApp chat, the Mail app or the dialler took over: when the person is back, it was sent. */
+  const armSent = () => setPending(true);
+  const pendingRef = useRef(false);
+  pendingRef.current = pending;
+  useEffect(() => {
+    let left = false;
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'background') left = true;
+      if (state === 'active' && left && pendingRef.current) {
+        left = false;
+        confirmRef.current();
+      }
+    });
+    return () => subscription.remove();
+  }, []);
+
+  /** Another time for the chase, or none. The follow-up is rewritten, not stacked. */
+  const changeChase = (days: number) => {
+    if (!sent) return;
+    restoreFollowUps(sent.before.followUps);
+    if (days > 0) startChase(days, new Date());
+    setSent({ ...sent, days });
+    setChangeOpen(false);
+    leaveSoon(2200);
+  };
+
+  /** Not sent after all: everything the send did is put back, and the draft is still here. */
+  const undoSent = () => {
+    if (!sent) return;
+    stopLeaving();
+    restore(sent.before.tasks);
+    restoreFollowUps(sent.before.followUps);
+    restoreHistory(sent.before.history);
+    sentOnce.current = false;
+    setSent(null);
+    setChangeOpen(false);
   };
 
   const back = () => (router.canGoBack() ? router.back() : router.replace('/today'));
@@ -530,6 +613,26 @@ function ComposeTask({ task }: { task: Task }) {
                   </Text>
                 </Pressable>
               ))}
+              {mySaved.map((item) => (
+                <Pressable
+                  key={item.id}
+                  testID={`compose-saved-${item.id}`}
+                  onPress={() => startFromSaved(item)}
+                  accessibilityRole="button"
+                  style={({ pressed }) => ({
+                    paddingVertical: 7,
+                    paddingHorizontal: 12,
+                    borderRadius: 999,
+                    backgroundColor: pressed ? surface.line : surface.fill,
+                    borderWidth: 1,
+                    borderColor: surface.line,
+                  })}
+                >
+                  <Text token="caption" weight="600" color={ink.s2}>
+                    {item.title}
+                  </Text>
+                </Pressable>
+              ))}
             </View>
             <TextInput
               testID="compose-draft"
@@ -552,75 +655,84 @@ function ComposeTask({ task }: { task: Task }) {
                 textAlign: dir.textAlign,
               }}
             />
+            {draft.trim().length > 8 ? (
+              <Pressable testID="compose-save-template" onPress={() => setSavingOpen(true)} accessibilityRole="button" hitSlop={8} style={{ alignSelf: 'flex-start' }}>
+                <Text token="caption" weight="600" color={ink.s3}>
+                  + {added(lang).saved.saveAs}
+                </Text>
+              </Pressable>
+            ) : null}
           </View>
         ) : null}
 
         <View style={{ flex: 1 }} />
 
-        {afterSend ? (
-          <View testID="compose-after" style={{ gap: 10, padding: 16, borderWidth: 1.5, borderColor: ink.base, borderRadius: 18 }}>
-            <Text token="body" weight="600">
-              {t.afterQ}
+        {pending && !sent ? (
+          <View testID="compose-pending" style={{ flexDirection: dir.row, alignItems: 'center', gap: 10 }}>
+            <Text token="caption" color={ink.s4} style={{ flex: 1 }}>
+              {sentCopy.pending}
             </Text>
-            {/* One tap does the usual thing: it was sent, and check on it in two days. */}
-            <Pressable
-              testID="compose-after-1"
-              onPress={() => answer(DEFAULT_FOLLOW_UP, t.fuOpts[DEFAULT_FOLLOW_UP] ?? '')}
-              accessibilityRole="button"
-              style={({ pressed }) => ({
-                height: 48,
-                borderRadius: 24,
-                backgroundColor: ink.solid,
-                alignItems: 'center',
-                justifyContent: 'center',
-                transform: [{ scale: pressed ? 0.98 : 1 }],
-              })}
-            >
-              <Text token="body" weight="600" color={surface.white}>
-                {loopCopy.sentYes.replace('{w}', (t.fuOpts[DEFAULT_FOLLOW_UP] ?? '').toLowerCase())}
+            <Pressable testID="compose-i-sent" onPress={confirmSent} accessibilityRole="button" hitSlop={8}>
+              <Text token="caption" weight="600" color={ink.solid}>
+                {sentCopy.iSent}
               </Text>
             </Pressable>
-            <View style={{ flexDirection: dir.row, flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
+            <Pressable testID="compose-not-sent" onPress={() => setPending(false)} accessibilityRole="button" hitSlop={8}>
               <Text token="caption" color={ink.s4}>
-                {loopCopy.sentOther}
-              </Text>
-              {t.fuOpts.map((label, i) =>
-                i === DEFAULT_FOLLOW_UP ? null : (
-                  <Pressable
-                    key={label}
-                    testID={`compose-after-${i}`}
-                    onPress={() => answer(i, label)}
-                    accessibilityRole="button"
-                    style={({ pressed }) => ({
-                      paddingVertical: 8,
-                      paddingHorizontal: 14,
-                      borderRadius: 999,
-                      borderWidth: 1,
-                      borderColor: surface.line,
-                      backgroundColor: pressed ? surface.fill : surface.white,
-                    })}
-                  >
-                    <Text token="bodyS" color={ink.base}>
-                      {label}
-                    </Text>
-                  </Pressable>
-                )
-              )}
-            </View>
-            <Pressable
-              testID="compose-not-sent"
-              onPress={notSent}
-              accessibilityRole="button"
-              style={{ alignSelf: 'flex-start', paddingVertical: 4 }}
-            >
-              <Text token="caption" color={ink.s4} style={{ textDecorationLine: 'underline' }}>
-                {inline.notSentYet}
+                {sentCopy.cancel}
               </Text>
             </Pressable>
           </View>
         ) : null}
 
-        {isWa ? (
+        {sent ? (
+          <View testID="compose-sent" style={{ gap: 10, padding: 14, borderRadius: 16, backgroundColor: surface.fill }}>
+            <View style={{ flexDirection: dir.row, alignItems: 'center', gap: 10 }}>
+              <Icon name="check" size={18} color={typeColour.whatsapp.fg} strokeWidth={2.4} />
+              <Text token="bodyS" weight="500" style={{ flex: 1 }}>
+                {sent.days > 0 ? sentCopy.withChase.replace('{w}', inDays(sent.days, lang)) : sentCopy.plain}
+              </Text>
+              <Pressable
+                testID="compose-sent-change"
+                onPress={() => {
+                  stopLeaving();
+                  setChangeOpen((v) => !v);
+                }}
+                accessibilityRole="button"
+                hitSlop={8}
+              >
+                <Text token="bodyS" weight="600" color={ink.solid}>
+                  {sentCopy.change}
+                </Text>
+              </Pressable>
+              <Pressable testID="compose-sent-undo" onPress={undoSent} accessibilityRole="button" hitSlop={8}>
+                <Text token="bodyS" color={ink.s3}>
+                  {sentCopy.undo}
+                </Text>
+              </Pressable>
+            </View>
+            {changeOpen ? (
+              <View style={{ flexDirection: dir.row, flexWrap: 'wrap', gap: 8 }}>
+                {CHASE_CHOICES.map((days) => (
+                  <Pressable
+                    key={days}
+                    testID={`compose-sent-days-${days}`}
+                    onPress={() => changeChase(days)}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: sent.days === days }}
+                    style={{ paddingVertical: 8, paddingHorizontal: 14, borderRadius: 999, backgroundColor: sent.days === days ? ink.solid : surface.white }}
+                  >
+                    <Text token="bodyS" weight="600" color={sent.days === days ? surface.white : ink.s2}>
+                      {days === 0 ? sentCopy.none : inDays(days, lang)}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            ) : null}
+          </View>
+        ) : null}
+
+        {isWa && !sent ? (
           <View style={{ gap: 8 }}>
             <PrimaryButton
               testID="compose-send-wa"
@@ -632,7 +744,7 @@ function ComposeTask({ task }: { task: Task }) {
             <SendLaterButton onPress={() => setLaterOpen(true)} />
           </View>
         ) : null}
-        {isEmail ? (
+        {isEmail && !sent ? (
           <View style={{ gap: 8 }}>
             <PrimaryButton
               testID="compose-send-email"
@@ -663,13 +775,37 @@ function ComposeTask({ task }: { task: Task }) {
             <SendLaterButton onPress={() => setLaterOpen(true)} />
           </View>
         ) : null}
-        {type === 'call' ? (
+        {type === 'call' && !sent ? (
           <PrimaryButton testID="compose-call" icon="phone" label={t.callNow} colour={ink.base} onPress={callNow} />
         ) : null}
         {type === 'reminder' ? (
           <PrimaryButton testID="compose-done" label={t.nDone} colour={ink.base} onPress={markReminderDone} />
         ) : null}
       </Screen>
+      <Sheet open={savingOpen} onClose={() => setSavingOpen(false)} testID="save-template-sheet" padding={{ paddingTop: 10, paddingHorizontal: 20, paddingBottom: 30 }} gap={12}>
+        <Text token="title">{added(lang).saved.nameIt}</Text>
+        <TextInput
+          testID="save-template-title"
+          value={saveTitle}
+          onChangeText={setSaveTitle}
+          onSubmitEditing={() => void saveAsMessage()}
+          placeholder={added(lang).saved.titlePh}
+          placeholderTextColor={ink.s5}
+          autoFocus
+          returnKeyType="done"
+          style={{ height: 48, borderRadius: 14, paddingHorizontal: 14, backgroundColor: surface.fill, fontFamily: `${fontFamily}_400Regular`, fontSize: 15, color: ink.base, textAlign: dir.textAlign, writingDirection: dir.isRTL ? 'rtl' : 'ltr' }}
+        />
+        <Pressable
+          testID="save-template-save"
+          onPress={() => void saveAsMessage()}
+          accessibilityRole="button"
+          style={{ height: 50, borderRadius: 25, alignItems: 'center', justifyContent: 'center', backgroundColor: saveTitle.trim() ? ink.solid : ink.disabledBtn }}
+        >
+          <Text token="body" weight="600" color={surface.white}>
+            {added(lang).saved.save}
+          </Text>
+        </Pressable>
+      </Sheet>
       <Sheet open={laterOpen} onClose={() => setLaterOpen(false)} testID="later-sheet" padding={{ paddingTop: 10, paddingHorizontal: 20, paddingBottom: 30 }} gap={10}>
         <Text token="title">{added(lang).later.title}</Text>
         {laterOptions.map((o) => (
