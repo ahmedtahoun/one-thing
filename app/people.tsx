@@ -249,9 +249,10 @@ export default function People() {
                   favorite={favorites.has(contact.id)}
                   followUp={states.get(contact.id)}
                   lastChannel={lastChannels.get(contact.id) ?? null}
-                  onOpen={() => (pick ? start(contact, pick) : setMenuFor(contact))}
+                  // A tap opens the person's page (their thread); press and hold is the quick way to reach them.
+                  onOpen={() => (pick ? start(contact, pick) : router.push(`/contact?id=${contact.id}`))}
                   onHold={() => {
-                    // Press and hold: the same quick options as a tap, felt as a hold, so call / message / email is one gesture away.
+                    // Press and hold: call / message / email without opening the page.
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
                     setMenuFor(contact);
                   }}

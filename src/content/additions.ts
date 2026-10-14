@@ -303,6 +303,15 @@ export type Added = {
     saveNew: string;
     needName: string;
   };
+  /** A person's page: the history like a chat thread, a box to write in, the ways to reach them. */
+  thread: {
+    details: string;
+    added: string;
+    empty: string;
+    remindAlso: string;
+    waiting: string;
+    openWith: string;
+  };
   /** The sheet that opens when a person is tapped on People. */
   menu: {
     addNumber: string;
@@ -472,6 +481,14 @@ const ADDED: Record<Lang, Added> = {
       recentNone: 'Nobody in the last 7 days.',
       favorite: 'Favorite',
       followups: 'Follow-ups',
+    },
+    thread: {
+      details: 'Details',
+      added: 'Added to People',
+      empty: 'Nothing yet. Write the first note below.',
+      remindAlso: 'Also remind me {w}',
+      waiting: 'Waiting for a reply',
+      openWith: 'Open with {n}',
     },
     menu: {
       addNumber: 'Add a number',
@@ -780,6 +797,14 @@ const ADDED: Record<Lang, Added> = {
       recentNone: 'ما فيه أحد آخر ٧ أيام.',
       favorite: 'مفضّل',
       followups: 'المتابعات',
+    },
+    thread: {
+      details: 'التفاصيل',
+      added: 'انضاف للأشخاص',
+      empty: 'ما فيه شي للحين. اكتب أول ملاحظة تحت.',
+      remindAlso: 'ذكّرني كمان {w}',
+      waiting: 'بانتظار الرد',
+      openWith: 'المفتوح مع {n}',
     },
     menu: {
       addNumber: 'أضف رقم',

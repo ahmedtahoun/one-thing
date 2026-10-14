@@ -184,10 +184,12 @@ const SESSION = { userId: 'smoke', name: 'Khalid Al-Mansouri', firstName: 'Khali
   await page.waitForTimeout(300);
   check('no number: WhatsApp and Call do nothing', (await read('ot.tasks')).length === taskCount && page.url().endsWith('/contact?id=c1'));
 
+  await page.getByTestId('contact-details-toggle').click();
   await page.getByTestId('contact-note').fill('Prefers mornings');
   await page.waitForTimeout(200);
   check('the note saves as it is typed', (await read('ot.contacts')).find((c) => c.id === 'c1').rememberNote === 'Prefers mornings');
   await open('/contact?id=c1');
+  await page.getByTestId('contact-details-toggle').click();
   check('…and is there next time', (await page.getByTestId('contact-note').inputValue()) === 'Prefers mornings');
 
   check('Coming up lists their open task', await page.getByTestId('contact-next-t1').isVisible());
@@ -196,14 +198,14 @@ const SESSION = { userId: 'smoke', name: 'Khalid Al-Mansouri', firstName: 'Khali
   await page.getByTestId('contact-log').click();
   await page.waitForTimeout(200);
   check('an empty log adds nothing', (await read('ot.history')).length === demoHistory('en').length);
-  await page.getByTestId('contact-log-kind-call').click();
   await page.getByTestId('contact-log-text').fill('Called about delivery');
   await page.getByTestId('contact-log').click();
   await page.waitForTimeout(300);
   const logged = (await read('ot.history'))[0];
-  check('the quick log adds a dated moment', logged.contactId === 'c1' && logged.kind === 'call' && logged.text === 'Called about delivery');
+  check('the quick log adds a dated moment', logged.contactId === 'c1' && logged.kind === 'note' && logged.text === 'Called about delivery');
   check('…which the count includes', (await text('contact-history-count')) === '5 moments');
-  check('…shown under Today, as a call at the time', (await page.getByTestId(`moment-${logged.id}`).innerText()).includes('Call · 09:20'));
+  const bubble = await page.getByTestId(`moment-${logged.id}`).innerText();
+  check('…shown in the thread, with its time', bubble.includes('Called about delivery') && bubble.includes('09:20'), bubble);
   check('…and the field clears', (await page.getByTestId('contact-log-text').inputValue()) === '');
 
   await page.getByTestId('contact-action-email').click();
