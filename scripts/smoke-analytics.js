@@ -133,14 +133,7 @@ const ONE_THING = { en: 'Finish the investor proposal', ar: 'أخلّص عرض �
   check('and marketing recorded separately, unticked', consent.some((c) => c.kind === 'marketing' && c.granted === false), JSON.stringify(consent));
 
   // ------------------------------------------------------------ the events
-  await seed('en', { oneThing: false });
-  await open('/today');
-  await page.getByTestId('today-set-one').click();
-  await page.getByTestId('onething-input').fill('Rewrite the pricing page');
-  await page.getByTestId('onething-save').click();
-  await page.waitForTimeout(700);
-  check('setting the One Thing records one_thing_set', (await names()).includes('one_thing_set'));
-
+  await seed('en');
   await open('/today');
   const firstTick = page.locator('[data-testid^="next-"][data-testid$="-done"]').first();
   await firstTick.click();

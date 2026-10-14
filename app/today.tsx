@@ -14,7 +14,6 @@ import { EveningCard } from '@/features/today/EveningCard';
 import { FirstRunCard } from '@/features/today/FirstRunCard';
 import { HabitRow } from '@/features/today/HabitRow';
 import { starterIdeas } from '@/features/today/starter-ideas';
-import { OneThingSheet } from '@/features/today/OneThingSheet';
 import { QuickActions } from '@/features/today/QuickActions';
 import { quickActionRoute } from '@/features/today/quick-route';
 import { AllTasks } from '@/features/home/AllTasks';
@@ -55,7 +54,6 @@ export default function Today() {
   const wins = useWins();
 
   const [now] = useState(() => new Date());
-  const [oneOpen, setOneOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   // Two views: Today, and All — the full list, whose own filters are the second row.
   const [view, setView] = useState<HomeView>('today');
@@ -180,20 +178,6 @@ export default function Today() {
           <FirstRunCard onSet={setFirstOneThing} onLater={skipFirstRun} suggestions={ownSuggestions} />
         ) : null}
 
-        {!showFirstRun && !isEvening && oneThing === null ? (
-          <Pressable
-            testID="today-set-one"
-            onPress={() => setOneOpen(true)}
-            accessibilityRole="button"
-            style={{ flexDirection: dir.row, alignItems: 'center', gap: 10, paddingVertical: 4 }}
-          >
-            <Icon name="target" size={18} color={ink.s3} strokeWidth={1.9} />
-            <Text token="bodyS" weight="600" color={ink.s3}>
-              {added(lang).today.setOne}
-            </Text>
-          </Pressable>
-        ) : null}
-
         {showFirstRun ? null : (
           <View style={{ gap: 10 }}>
             <View style={{ flexDirection: dir.row, justifyContent: 'space-between', alignItems: 'baseline' }}>
@@ -211,18 +195,6 @@ export default function Today() {
           </>
         ) : null}
       </Screen>
-
-      <OneThingSheet
-        key={String(oneOpen)}
-        open={oneOpen}
-        initial={oneThing?.title}
-        suggestions={ownSuggestions}
-        onClose={() => setOneOpen(false)}
-        onSave={(title) => {
-          setOneThing(title, prefs.focusMinutes);
-          setOneOpen(false);
-        }}
-      />
 
       <AddSheet
         open={addOpen}

@@ -90,21 +90,6 @@ const ONE_THING = { en: 'Finish the investor proposal', ar: 'أخلّص عرض �
   const read = (key) => page.evaluate((k) => JSON.parse(localStorage.getItem(k) || 'null'), key);
   const text = (id) => page.getByTestId(id).innerText();
 
-  // ------------------------------------------- 05 Set the One Thing (a sheet on Today)
-  await seed('en', { oneThing: false });
-  await open('/today');
-  await page.getByTestId('today-set-one').click();
-  await page.waitForTimeout(300);
-  await page.getByTestId('onething-suggestion-1').click();
-  await page.waitForTimeout(200);
-  check('picking a suggestion fills the box', (await page.getByTestId('onething-input').inputValue()).length > 0);
-  await page.getByTestId('onething-input').fill('Rewrite the pricing page');
-  await page.getByTestId('onething-save').click();
-  await page.waitForTimeout(600);
-  const one = await read('ot.oneThing');
-  check('saving sets the One Thing to what was typed', one?.title === 'Rewrite the pricing page', String(one?.title));
-  check('and stays on Today', page.url().endsWith('/today'), page.url());
-
   // -------------------------------------------------------- 09 Event form
   await seed('en');
   await open('/new?type=meeting');
