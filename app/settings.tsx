@@ -22,7 +22,9 @@ import {
   ToggleRow,
   rowRule,
 } from '@/features/settings/parts';
+import { PhotoSheet } from '@/features/people/PhotoSheet';
 import { DeleteSheet, TipSheet } from '@/features/settings/sheets';
+import { Avatar } from '@/ui/Avatar';
 import { ForwardChevron } from '@/ui/ForwardChevron';
 import { Icon } from '@/ui/Icon';
 import { Screen } from '@/ui/Screen';
@@ -32,9 +34,10 @@ import { ink, settingsTile, status, surface, typeColour } from '@/design/tokens'
 import { useDirection, useLanguage } from '@/i18n/LanguageProvider';
 import type { Lang } from '@/content/strings';
 import { useAccount } from '@/lib/account';
-import { TIP_PRODUCTS, buyTip, manageSubscription as openStoreSubscriptions, restorePurchases } from '@/features/paywall/purchases';
+import { TIP_PRODUCTS, buyTip, manageSubscription as openStoreSubscriptions } from '@/features/paywall/purchases';
 import { added } from '@/content/additions';
 import { track } from '@/lib/analytics/track';
+import { ME_PHOTO, usePhotos } from '@/lib/photos';
 import { requestExport } from '@/lib/privacy-request';
 import { requestAppReview } from '@/lib/store-review';
 import { SUPPORT_EMAIL, supportMailUrl } from '@/lib/support';
@@ -63,7 +66,7 @@ const STORE_SUBSCRIPTIONS = Platform.select({
 });
 
 export default function Settings() {
-  const { t, acc, setx, inline, a11y, lang, setLang } = useLanguage();
+  const { t, acc, setx, inline, a11y, lang, setLang, theme, setTheme } = useLanguage();
   const dir = useDirection();
   const { session } = useSession();
   const { prefs, setPrefs } = usePrefs();
@@ -76,6 +79,8 @@ export default function Settings() {
   const [open, setOpen] = useState<Panel | null>(null);
   const [tipOpen, setTipOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [photoOpen, setPhotoOpen] = useState(false);
+  const hasPhoto = usePhotos().has(ME_PHOTO);
 
   const pro = isPro(session?.plan ?? 'free');
   const firstName = session?.firstName ?? '';
@@ -137,12 +142,6 @@ export default function Settings() {
     }
   };
 
-  const restore = async () => {
-    const result = await restorePurchases();
-    const message = result === 'restored' ? added(lang).restored : result === 'failed' ? added(lang).storeFailed : setx.pw.toastRestore;
-    toast.show(message, { undo: false });
-  };
-
   const onSignOut = async () => {
     await signOut();
     router.replace('/sign-in');
@@ -188,20 +187,31 @@ export default function Settings() {
             padding: 14,
           }}
         >
-          <View
-            style={{
-              width: 48,
-              height: 48,
-              borderRadius: 24,
-              backgroundColor: ink.base,
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
+          <Pressable
+            testID="settings-photo"
+            onPress={() => setPhotoOpen(true)}
+            accessibilityRole="button"
+            accessibilityLabel={added(lang).photo.hint}
           >
-            <Text token="title" size={19} color={surface.white}>
-              {firstName.slice(0, 1).toUpperCase()}
-            </Text>
-          </View>
+            <Avatar name={session?.name ?? firstName} contactId={ME_PHOTO} size={56} />
+            <View
+              style={{
+                position: 'absolute',
+                bottom: -2,
+                ...(dir.isRTL ? { left: -2 } : { right: -2 }),
+                width: 22,
+                height: 22,
+                borderRadius: 11,
+                borderWidth: 2,
+                borderColor: surface.white,
+                backgroundColor: ink.solid,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Icon name="camera" size={11} color={surface.white} strokeWidth={2.2} />
+            </View>
+          </Pressable>
           <View style={{ flex: 1, gap: 2 }}>
             <Text token="title" numberOfLines={1} testID="settings-name">
               {session?.name ?? ''}
@@ -220,7 +230,7 @@ export default function Settings() {
               paddingVertical: 5,
               paddingHorizontal: 10,
               borderRadius: 999,
-              backgroundColor: pro ? ink.base : surface.fill,
+              backgroundColor: pro ? ink.solid : surface.fill,
             }}
           >
             <Text token="micro" weight="600" color={pro ? surface.white : ink.s4}>
@@ -238,7 +248,7 @@ export default function Settings() {
               flexDirection: dir.row,
               alignItems: 'center',
               gap: 14,
-              backgroundColor: ink.base,
+              backgroundColor: ink.solid,
               borderRadius: 18,
               paddingVertical: 14,
               paddingHorizontal: 16,
@@ -250,7 +260,7 @@ export default function Settings() {
                 width: 36,
                 height: 36,
                 borderRadius: 11,
-                backgroundColor: 'rgba(255,255,255,0.12)',
+                backgroundColor: surface.onInkTile,
                 alignItems: 'center',
                 justifyContent: 'center',
               }}
@@ -436,7 +446,7 @@ export default function Settings() {
                       paddingVertical: 6,
                       paddingHorizontal: 12,
                       borderRadius: 999,
-                      backgroundColor: on ? ink.base : 'transparent',
+                      backgroundColor: on ? ink.solid : 'transparent',
                     }}
                   >
                     <Text token="caption" color={on ? surface.white : ink.base}>
@@ -447,6 +457,15 @@ export default function Settings() {
               })}
             </View>
           </View>
+
+          {/* Dark mode lives with the person's own settings, not on the Home header. */}
+          <ToggleRow
+            testID="settings-dark"
+            label={added(lang).today.darkMode}
+            on={theme === 'dark'}
+            onToggle={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+            lead={<RowTile icon={theme === 'dark' ? 'moon' : 'sun'} bg={surface.fill} fg={ink.s2} />}
+          />
 
           <AccordionRow
             testID="settings-privacy"
@@ -497,7 +516,7 @@ export default function Settings() {
               paddingVertical: 14,
               paddingHorizontal: 16,
               backgroundColor: surface.white,
-              ...rowRule,
+              ...(pro ? rowRule : null),
             }}
           >
             <View
@@ -522,17 +541,9 @@ export default function Settings() {
             </View>
             <ForwardChevron />
           </Pressable>
-          {pro ? (
-            <LinkRow label={st.manage} onPress={manageSubscription} background={surface.white} last />
-          ) : (
-            <LinkRow
-              testID="settings-restore"
-              label={st.restore}
-              onPress={restore}
-              background={surface.white}
-              last
-            />
-          )}
+          {/* Restore purchases lives on the paywall, where a purchase is made; the
+              store requires it be reachable there, and it only clutters here. */}
+          {pro ? <LinkRow label={st.manage} onPress={manageSubscription} background={surface.white} last /> : null}
         </SettingsCard>
 
         <SettingsCard>
@@ -541,12 +552,14 @@ export default function Settings() {
             label={added(lang).rateApp}
             onPress={rateApp}
             background={surface.white}
+            tile={<RowTile icon="star" filled {...settingsTile.rate} />}
           />
           <LinkRow
             testID="settings-help"
             label={added(lang).helpFeedback}
             onPress={helpAndFeedback}
             background={surface.white}
+            tile={<RowTile icon="msg" {...settingsTile.help} />}
             last
           />
         </SettingsCard>
@@ -615,6 +628,7 @@ export default function Settings() {
       />
       <DeleteSheet open={deleteOpen} onCancel={() => setDeleteOpen(false)} onConfirm={onDelete} />
 
+      <PhotoSheet open={photoOpen} contactId={ME_PHOTO} hasPhoto={hasPhoto} onClose={() => setPhotoOpen(false)} />
       <Toast />
     </>
   );

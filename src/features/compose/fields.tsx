@@ -8,6 +8,7 @@
  */
 import { Pressable, TextInput, View } from 'react-native';
 
+import { Avatar } from '@/ui/Avatar';
 import { CountryButton, CountryList } from '@/ui/CountryPicker';
 import { Icon } from '@/ui/Icon';
 import { LTRText, Text } from '@/ui/Text';
@@ -23,7 +24,10 @@ const PHONE_PLACEHOLDER = '5X XXX XXXX';
 
 const inputText = {
   fontFamily: `${fontFamily}_400Regular`,
-  color: ink.base,
+  // A getter, so the colour is read when a field renders (and follows the theme), not once at import.
+  get color() {
+    return ink.base;
+  },
   paddingVertical: 0,
   writingDirection: 'ltr' as const,
   textAlign: 'left' as const,
@@ -272,6 +276,103 @@ function Suggestions({
           </Pressable>
         ))}
       </View>
+    </View>
+  );
+}
+
+/**
+ * Who it is going to, shown rather than asked for: their picture, name and the
+ * number or address already on file. Nothing to type; "Change" opens the field
+ * for the rare time it is wrong.
+ */
+export function LockedRecipient({
+  contact,
+  value,
+  channel,
+  changeLabel,
+  onChange,
+}: {
+  contact: Contact;
+  /** The number (with dial code) or the email address, as it will be used. */
+  value: string;
+  channel: 'whatsapp' | 'email' | 'call';
+  changeLabel: string;
+  /** Omitted for a call, which has nothing to change here. */
+  onChange?: () => void;
+}) {
+  const dir = useDirection();
+  return (
+    <View
+      testID="compose-recipient"
+      style={{
+        flexDirection: dir.row,
+        alignItems: 'center',
+        gap: 14,
+        padding: 12,
+        borderRadius: 18,
+        backgroundColor: surface.fill,
+      }}
+    >
+      <Avatar name={contact.name} contactId={contact.id} size={48} channel={channel} />
+      <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
+        <Text token="body" weight="600" numberOfLines={1}>
+          {contact.name}
+        </Text>
+        <LTRText token="bodyS" color={ink.s3} numberOfLines={1} align={dir.textAlign}>
+          {value}
+        </LTRText>
+      </View>
+      {onChange ? (
+        <Pressable
+          testID="compose-recipient-change"
+          onPress={onChange}
+          accessibilityRole="button"
+          hitSlop={8}
+          style={{ paddingVertical: 8, paddingHorizontal: 12, borderRadius: 999, backgroundColor: surface.white }}
+        >
+          <Text token="caption" weight="600">
+            {changeLabel}
+          </Text>
+        </Pressable>
+      ) : null}
+    </View>
+  );
+}
+
+/** The subject on its own, for when the address is already on file and shown above. */
+export function SubjectField({ subject, onChange }: { subject: string; onChange: (subject: string) => void }) {
+  const { t } = useLanguage();
+  const dir = useDirection();
+  return (
+    <View
+      style={{
+        flexDirection: dir.row,
+        alignItems: 'center',
+        gap: 10,
+        height: 52,
+        paddingHorizontal: 14,
+        borderWidth: 1.5,
+        borderColor: surface.line,
+        borderRadius: 14,
+        backgroundColor: surface.white,
+      }}
+    >
+      <Text token="caption" color={ink.s4} style={{ width: 58 }}>
+        {t.c_subject}
+      </Text>
+      <TextInput
+        testID="compose-subject"
+        value={subject}
+        onChangeText={onChange}
+        style={{
+          ...inputText,
+          flex: 1,
+          minWidth: 0,
+          fontSize: 15,
+          writingDirection: dir.isRTL ? 'rtl' : 'ltr',
+          textAlign: dir.textAlign,
+        }}
+      />
     </View>
   );
 }

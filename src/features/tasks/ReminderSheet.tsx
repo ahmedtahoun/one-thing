@@ -7,6 +7,7 @@
  * carries two more — "30 minutes before" and "Morning of · 08:00" — so all
  * five are offered, plus None and the custom picker.
  */
+import { clockOf } from '@/lib/clock-format';
 import { Pressable, View } from 'react-native';
 
 import { Icon } from '@/ui/Icon';
@@ -17,7 +18,7 @@ import { useDirection, useLanguage } from '@/i18n/LanguageProvider';
 import type { RemindOffset, Task } from '@/lib/model-types';
 import { remindOptionLabel, SHEET_OFFSETS } from '@/lib/reminders';
 import { whenLabel } from '@/lib/task-labels';
-import { timeLabel } from '@/lib/model-types';
+
 
 export function ReminderSheet({
   task,
@@ -37,7 +38,7 @@ export function ReminderSheet({
   const { t, inline } = useLanguage();
   const dir = useDirection();
 
-  const subtitle = task ? `${task.title} · ${whenLabel(task, t, inline, now) || timeLabel(task.dueAt)}` : '';
+  const subtitle = task ? `${task.title} · ${whenLabel(task, t, inline, now) || clockOf(task.dueAt)}` : '';
 
   const options: { key: string; label: string; chosen: boolean; pick: () => void }[] = task
     ? [

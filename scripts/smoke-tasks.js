@@ -45,8 +45,10 @@ const check = (name, ok, detail='') => checks.push({ name, ok: !!ok, detail });
   await page.goto(`http://127.0.0.1:${port}/`, { waitUntil:'domcontentloaded' });
   await page.evaluate((d)=>{ const put=(k,v)=>v?localStorage.setItem(k,JSON.stringify(v)):localStorage.removeItem(k); put('ot.session',d.s); put('ot.tasks',d.t); put('ot.oneThing',null); },
     { s:{userId:'smoke',name:'Khalid Al-Mansouri',firstName:'Khalid',jobTitle:'Founder',authProvider:'apple',plan:'free',firstRun:false}, t: demoTasks('en', new Date()) });
-  await page.goto(`http://127.0.0.1:${port}/tasks`, { waitUntil:'networkidle' });
+  // The list is Home's "All" button now.
+  await page.goto(`http://127.0.0.1:${port}/today`, { waitUntil:'networkidle' });
   await page.waitForTimeout(800);
+  await page.getByTestId('home-view-all').click(); await page.waitForTimeout(300);
   const store = () => page.evaluate(()=>JSON.parse(localStorage.getItem('ot.tasks')||'[]'));
 
   // 1. Filters narrow the list.
@@ -97,7 +99,7 @@ const check = (name, ok, detail='') => checks.push({ name, ok: !!ok, detail });
   check('ticked task leaves the list once the pause ends', (await page.getByTestId('task-row-t2').count()) === 0);
 
   // 6. The add sheet opens and closes.
-  await page.getByTestId('tasks-add').click(); await page.waitForTimeout(300);
+  await page.getByTestId('home-add').click(); await page.waitForTimeout(300);
   check('add sheet opens', await page.getByTestId('add-sheet').isVisible());
   await page.getByTestId('add-sheet-scrim').click({ position: { x: 200, y: 60 } }); await page.waitForTimeout(300);
   check('tapping the scrim closes it', (await page.getByTestId('add-sheet').count()) === 0);

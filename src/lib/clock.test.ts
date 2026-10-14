@@ -44,3 +44,30 @@ describe('nextSlot', () => {
     assert.deepEqual(nextSlot('23:10'), { time: '09:00', dayOffset: 1 });
   });
 });
+
+describe('parseClock with AM and PM', () => {
+  it('reads 12-hour times', () => {
+    assert.equal(parseClock('5:45 pm'), '17:45');
+    assert.equal(parseClock('5pm'), '17:00');
+    assert.equal(parseClock('9 AM'), '09:00');
+    assert.equal(parseClock('11:59 p.m.'), '23:59');
+    assert.equal(parseClock('7.05am'), '07:05');
+  });
+  it('treats 12 AM as midnight and 12 PM as noon', () => {
+    assert.equal(parseClock('12 am'), '00:00');
+    assert.equal(parseClock('12:30 PM'), '12:30');
+  });
+  it('reads ص and م, in Arabic digits too', () => {
+    assert.equal(parseClock('5:45 م'), '17:45');
+    assert.equal(parseClock('٩ ص'), '09:00');
+  });
+  it('rejects an hour that cannot be on the 12-hour clock', () => {
+    assert.equal(parseClock('13 pm'), null);
+    assert.equal(parseClock('0 am'), null);
+    assert.equal(parseClock('5:75 pm'), null);
+  });
+  it('still reads 24-hour times', () => {
+    assert.equal(parseClock('17:45'), '17:45');
+    assert.equal(parseClock('9'), '09:00');
+  });
+});

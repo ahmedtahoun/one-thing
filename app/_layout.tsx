@@ -12,18 +12,36 @@ import {
 } from '@expo-google-fonts/ibm-plex-sans-arabic';
 
 import { startPurchases } from '@/features/paywall/purchases';
-import { LanguageProvider } from '@/i18n/LanguageProvider';
+import { LanguageProvider, useLanguage } from '@/i18n/LanguageProvider';
 import { NotificationsProvider } from '@/lib/notifications/NotificationsProvider';
 import { PeopleProvider } from '@/lib/people';
 import { PrefsProvider } from '@/lib/prefs';
 import { SessionProvider } from '@/lib/session';
 import { SyncProvider } from '@/lib/sync/SyncProvider';
 import { TasksProvider } from '@/lib/tasks';
-import { motion } from '@/design/tokens';
+import { motion, surface } from '@/design/tokens';
 
 SplashScreen.preventAutoHideAsync().catch(() => {
   // Already hidden, or unavailable on this platform — nothing to recover from.
 });
+
+/** The screens' frame, in the colours of the current theme. */
+function ThemedStack() {
+  const { theme } = useLanguage();
+  return (
+    <>
+      <StatusBar style={theme === 'dark' ? 'light' : 'dark'} />
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          animation: 'fade',
+          animationDuration: motion.screenChange,
+          contentStyle: { backgroundColor: surface.white },
+        }}
+      />
+    </>
+  );
+}
 
 export default function RootLayout() {
   // The design uses IBM Plex Sans Arabic for both languages, so nothing can
@@ -58,15 +76,7 @@ export default function RootLayout() {
                   {/* Below the stores it reads, so it can keep the OS's
                       pending reminders in step with them. */}
                   <NotificationsProvider>
-                    <StatusBar style="dark" />
-                    <Stack
-                      screenOptions={{
-                        headerShown: false,
-                        animation: 'fade',
-                        animationDuration: motion.screenChange,
-                        contentStyle: { backgroundColor: '#FFFFFF' },
-                      }}
-                    />
+                    <ThemedStack />
                   </NotificationsProvider>
                 </SyncProvider>
               </PeopleProvider>

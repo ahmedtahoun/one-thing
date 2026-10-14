@@ -90,29 +90,20 @@ const ONE_THING = { en: 'Finish the investor proposal', ar: 'أخلّص عرض �
   const read = (key) => page.evaluate((k) => JSON.parse(localStorage.getItem(k) || 'null'), key);
   const text = (id) => page.getByTestId(id).innerText();
 
-  // -------------------------------------------------- 05 Morning priority
+  // ------------------------------------------- 05 Set the One Thing (a sheet on Today)
   await seed('en', { oneThing: false });
-  await open('/priority');
-  // The tick is what the person sees, so it is what the test reads.
-  const ticked = async (i) => (await page.getByTestId(`priority-tick-${i}`).count()) === 1;
-  check('the first suggestion starts chosen', await ticked(0));
-  await page.getByTestId('priority-suggestion-1').click();
+  await open('/today');
+  await page.getByTestId('today-set-one').click();
+  await page.waitForTimeout(300);
+  await page.getByTestId('onething-suggestion-1').click();
   await page.waitForTimeout(200);
-  check('picking another moves the tick', (await ticked(1)) && !(await ticked(0)));
-  await page.getByTestId('priority-input').fill('Rewrite the pricing page');
-  await page.waitForTimeout(250);
-  check('typing clears the chosen suggestion', !(await ticked(1)));
-  await page.getByTestId('priority-save').click();
+  check('picking a suggestion fills the box', (await page.getByTestId('onething-input').inputValue()).length > 0);
+  await page.getByTestId('onething-input').fill('Rewrite the pricing page');
+  await page.getByTestId('onething-save').click();
   await page.waitForTimeout(600);
   const one = await read('ot.oneThing');
   check('saving sets the One Thing to what was typed', one?.title === 'Rewrite the pricing page', String(one?.title));
-  check('saving lands on Today', page.url().endsWith('/today'), page.url());
-
-  await seed('en', { oneThing: false });
-  await open('/priority');
-  await page.getByTestId('priority-save').click();
-  await page.waitForTimeout(600);
-  check('saving with nothing typed takes the chosen suggestion', (await read('ot.oneThing'))?.title === 'Finish the investor proposal');
+  check('and stays on Today', page.url().endsWith('/today'), page.url());
 
   // -------------------------------------------------------- 09 Event form
   await seed('en');

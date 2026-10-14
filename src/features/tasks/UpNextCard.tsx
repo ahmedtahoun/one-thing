@@ -44,7 +44,7 @@ export function UpNextCard({
   return (
     <View
       testID="up-next"
-      style={{ backgroundColor: ink.base, borderRadius: 22, padding: 18, gap: 14 }}
+      style={{ backgroundColor: ink.card, borderRadius: 22, padding: 18, gap: 14 }}
     >
       <View style={{ flexDirection: dir.row, justifyContent: 'space-between', alignItems: 'center' }}>
         <Text token="eyebrow" weight="400" color={ink.s6}>
@@ -73,7 +73,7 @@ export function UpNextCard({
           <Icon name={TYPE_ICON[task.type]} size={22} color={colour.fg} strokeWidth={1.9} />
         </View>
         <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
-          <Text token="bodyL" size={18} lh={22.5} weight="600" color={surface.white} numberOfLines={2}>
+          <Text token="bodyL" size={18} lh={22.5} weight="600" color={surface.onCard} numberOfLines={2}>
             {task.title}
           </Text>
           <Text token="caption" color={ink.onInk} numberOfLines={1}>
@@ -138,7 +138,7 @@ function CircleButton({
         justifyContent: 'center',
       }}
     >
-      <Icon name={icon} size={16} color={surface.white} strokeWidth={strokeWidth} />
+      <Icon name={icon} size={16} color={surface.onCard} strokeWidth={strokeWidth} />
     </Pressable>
   );
 }

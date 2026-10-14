@@ -104,23 +104,6 @@ const PROBES = {
       firstRow: { en: 'Follow up on price quote', ar: 'متابعة عرض السعر' },
     },
   },
-  tasks: {
-    app: '/tasks',
-    proto: '10',
-    state: { signedIn: true, firstRun: false, seedTasks: true, oneThing: true },
-    labels: {
-      title: { en: 'Tasks', ar: 'المهام' },
-      progress: { en: '2 of 12 done today', ar: '2 من 12 تمّت اليوم' },
-      upNextEyebrow: { en: 'UP NEXT', ar: 'الجاي' },
-      upNextTitle: { en: 'Follow up on price quote', ar: 'متابعة عرض السعر' },
-      upNextAction: { en: 'Open WhatsApp draft', ar: 'افتح مسودة الواتساب' },
-      morning: { en: 'This morning', ar: 'الصبح' },
-      afternoon: { en: 'This afternoon', ar: 'الظهر والعصر' },
-      firstAfternoonRow: { en: 'Confirm Friday catering order', ar: 'تأكيد طلب ضيافة الجمعة' },
-      evening: { en: 'This evening', ar: 'المسا' },
-      tomorrow: { en: 'Tomorrow', ar: 'بكرة' },
-    },
-  },
   settings: {
     app: '/settings',
     proto: '13',
@@ -205,20 +188,6 @@ const PROBES = {
       pref: { en: 'Usually reach them by', ar: 'عادةً تتواصل معه عن طريق' },
       notes: { en: 'Notes for next time', ar: 'ملاحظات للمرة الجاية' },
       save: { en: 'Save contact', ar: 'احفظ جهة الاتصال' },
-    },
-  },
-  priority: {
-    app: '/priority',
-    proto: '08',
-    state: { signedIn: true, firstRun: false },
-    labels: {
-      question: {
-        en: 'If you finish one thing today, which one makes it a good day?',
-        ar: 'لو خلّصت شي واحد بس اليوم، وش اللي بيخلّي يومك ناجح؟',
-      },
-      fromYourWeek: { en: 'From your week', ar: 'من أسبوعك' },
-      firstSuggestion: { en: 'Finish the investor proposal', ar: 'أخلّص عرض المستثمرين' },
-      cta: { en: 'Make it my One Thing', ar: 'خلّه شغلي الأساسي اليوم' },
     },
   },
   event: {

@@ -75,6 +75,223 @@ export type Added = {
     streakKeep: string;
     streakFresh: string;
   };
+  /** Sending one message to many people, one press of send at a time. */
+  bulk: {
+    entry: string;
+    title: string;
+    whatsapp: string;
+    email: string;
+    subject: string;
+    message: string;
+    messagePh: string;
+    insertName: string;
+    waNote: string;
+    bccNote: string;
+    personalNote: string;
+    recipients: string;
+    selectAll: string;
+    clear: string;
+    selected: string;
+    noNumber: string;
+    noEmail: string;
+    start: string;
+    needMessage: string;
+    needPeople: string;
+    limit: string;
+    progress: string;
+    openWa: string;
+    openMail: string;
+    openBcc: string;
+    next: string;
+    skip: string;
+    stop: string;
+    done: string;
+    doneBody: string;
+    back: string;
+    after: string;
+  };
+  /** The chips on People, and the favorites that go with them. */
+  filters: {
+    all: string;
+    waiting: string;
+    favorites: string;
+    recent: string;
+    favAdded: string;
+    favRemoved: string;
+    favHint: string;
+    waitingNone: string;
+    recentNone: string;
+    favorite: string;
+    followups: string;
+  };
+  /** The People screen itself: the search, its empty states, the ⋯ menu. */
+  peopleScreen: {
+    searchAll: string;
+    searchFavorites: string;
+    searchRecent: string;
+    favTitle: string;
+    favBody: string;
+    favLink: string;
+    noneTitle: string;
+    noneBody: string;
+    noneLink: string;
+    more: string;
+  };
+  /** The Next tab: what needs doing now, with the reason on each card. */
+  next: {
+    agenda: string;
+    seeAll: string;
+    tab: string;
+    title: string;
+    all: string;
+    lateMin: string;
+    lateHour: string;
+    lateDay: string;
+    lateDays: string;
+    today: string;
+    reply0: string;
+    reply1: string;
+    reply: string;
+    quiet: string;
+    later: string;
+    nudge: string;
+    open: string;
+    message: string;
+    done: string;
+    doneShort: string;
+    more: string;
+    less: string;
+    emptyTitle: string;
+    emptyBody: string;
+    emptyAdd: string;
+    firstTitle: string;
+    firstBody: string;
+    toastLater: string;
+    toastQuiet: string;
+    add: string;
+  };
+  /** Small lines on Today. */
+  today: { setOne: string; tryIt: string; open: string; me: string; home: string; add: string; darkMode: string; lightMode: string };
+  /** The picture on a person: where it comes from. */
+  photo: {
+    title: string;
+    take: string;
+    choose: string;
+    remove: string;
+    denied: string;
+    hint: string;
+  };
+  /** Compose and the event form, kept short: the recipient is shown, not asked for again. */
+  lock: {
+    to: string;
+    change: string;
+    moreOptions: string;
+    fewerOptions: string;
+  };
+  /** Promises and waiting, said out loud: the tags on the card and what is said after saving. */
+  loop: {
+    promise: string;
+    waiting: string;
+    checkIn: string;
+    waitSince: string;
+    savedWait: string;
+    sentYes: string;
+    sentOther: string;
+    chipPromise: string;
+    chipWait: string;
+    hint: string;
+  };
+  /** How often someone should hear from you, set on their profile. */
+  rhythm: {
+    title: string;
+    hint: string;
+    /** One label for each of the rhythms, in order: off, weekly, every 2 weeks, monthly, quarterly. */
+    options: readonly string[];
+  };
+  /** The one-tap first drafts offered above the message box. */
+  drafts: {
+    label: string;
+    chase: string;
+    checkin: string;
+    thanks: string;
+    reschedule: string;
+    replaced: string;
+  };
+  /** The one "Add" button on People, and what it offers. */
+  addPeople: {
+    button: string;
+    title: string;
+    newContact: string;
+    newSub: string;
+    scan: string;
+    scanSub: string;
+    file: string;
+    fileSub: string;
+    phone: string;
+    phoneSub: string;
+  };
+  /** Importing a spreadsheet or contacts file. */
+  importer: {
+    title: string;
+    intro: string;
+    formats: string;
+    choose: string;
+    reading: string;
+    oldExcel: string;
+    unknown: string;
+    empty: string;
+    failed: string;
+    found: string;
+    ready: string;
+    selectAll: string;
+    clear: string;
+    already: string;
+    noName: string;
+    skippedEmail: string;
+    skippedPhone: string;
+    importN: string;
+    doneTitle: string;
+    doneBody: string;
+    back: string;
+    another: string;
+  };
+  /** Scanning a business card. */
+  scan: {
+    title: string;
+    intro: string;
+    take: string;
+    choose: string;
+    reading: string;
+    unsupported: string;
+    androidNote: string;
+    nothing: string;
+    cameraOff: string;
+    name: string;
+    role: string;
+    phone: string;
+    email: string;
+    save: string;
+    another: string;
+    read: string;
+    saved: string;
+    exists: string;
+    update: string;
+    saveNew: string;
+    needName: string;
+  };
+  /** The sheet that opens when a person is tapped on People. */
+  menu: {
+    addNumber: string;
+    addEmail: string;
+    usual: string;
+    meeting: string;
+    meetingSub: string;
+    profile: string;
+    profileSub: string;
+    favAdd: string;
+    favRemove: string;
+    close: string;
+  };
   listening: string;
   micStart: string;
   micStop: string;
@@ -123,7 +340,7 @@ const ADDED: Record<Lang, Added> = {
     micFailed: 'Couldn’t hear that. Try again, or type it instead.',
     /** Reschedule: a time that is not one of the half-hour chips. */
     customTime: 'Or type a time',
-    customTimeBad: 'Use 24-hour time, like 17:45.',
+    customTimeBad: 'Type a time like 5:45 PM.',
     customTimePast: 'That time has already passed — pick a later one.',
     /** The Assistant saving a person: asks for what is missing, one thing at a time. */
     contact: {
@@ -170,6 +387,208 @@ const ADDED: Record<Lang, Added> = {
       streakKeep: 'Finish one task today to keep your {n}-day streak.',
       streakFresh: 'Fresh start. One finished task today begins a new streak.',
     },
+    bulk: {
+      entry: 'Send to many',
+      title: 'Send to many',
+      whatsapp: 'WhatsApp',
+      email: 'Email',
+      subject: 'Subject',
+      message: 'Message',
+      messagePh: 'Write your message…',
+      insertName: 'Insert {name}',
+      waNote: 'WhatsApp opens one chat at a time. You press send in each, so nothing goes out without you.',
+      bccNote: 'Goes as one email. Nobody can see the other recipients.',
+      personalNote: 'Your message uses {name}, so each person gets their own email.',
+      recipients: 'Who gets it',
+      selectAll: 'Select all',
+      clear: 'Clear',
+      selected: '{n} selected',
+      noNumber: 'No number',
+      noEmail: 'No email',
+      start: 'Start · {n} people',
+      needMessage: 'Write a message first.',
+      needPeople: 'Pick at least one person.',
+      limit: 'Up to {n} people at a time.',
+      progress: '{i} of {n}',
+      openWa: 'Open WhatsApp for {n}',
+      openMail: 'Open email for {n}',
+      openBcc: 'Open email to {n} people',
+      next: 'Next',
+      skip: 'Skip',
+      stop: 'Stop',
+      done: 'All done',
+      doneBody: '{n} opened. Nothing was sent for you.',
+      back: 'Back to People',
+      after: 'Opened. Send it there, then tap Next.',
+    },
+    filters: {
+      all: 'All',
+      waiting: 'Waiting',
+      favorites: 'Favorites',
+      recent: 'Recent',
+      favAdded: '{n} added to Favorites',
+      favRemoved: '{n} removed from Favorites',
+      favHint: 'Press and hold a person to add them here.',
+      waitingNone: 'Nobody owes you a reply.',
+      recentNone: 'Nobody in the last 7 days.',
+      favorite: 'Favorite',
+      followups: 'Follow-ups',
+    },
+    menu: {
+      addNumber: 'Add a number',
+      addEmail: 'Add an email',
+      usual: 'Usual',
+      meeting: 'Schedule a meeting',
+      meetingSub: 'Pick a time together',
+      profile: 'Open profile',
+      profileSub: 'History and notes',
+      favAdd: 'Add to Favorites',
+      favRemove: 'Remove from Favorites',
+      close: 'Close',
+    },
+    peopleScreen: {
+      searchAll: 'Search people',
+      searchFavorites: 'Search favorites',
+      searchRecent: 'Search recent',
+      favTitle: 'Add to your Favorites',
+      favBody: 'Press and hold a person to add them. Favorites come first when you pick someone to message.',
+      favLink: 'Choose people',
+      noneTitle: 'No one here yet',
+      noneBody: 'Add a person, scan a business card, or import a file.',
+      noneLink: 'Add people',
+      more: 'More',
+    },
+    next: {
+      agenda: 'Agenda',
+      seeAll: 'All tasks',
+      tab: 'Next',
+      title: 'Next',
+      all: 'All tasks',
+      lateMin: '{n} min late',
+      lateHour: '{n} h late',
+      lateDay: '1 day late',
+      lateDays: '{n} days late',
+      today: 'Today at {t}',
+      reply0: 'Time to follow up',
+      reply1: 'Waiting 1 day for a reply',
+      reply: 'Waiting {n} days for a reply',
+      quiet: 'No contact for {n} days',
+      later: 'Later',
+      nudge: 'Nudge',
+      open: 'Open',
+      message: 'Message',
+      done: 'Mark done',
+      doneShort: 'Done',
+      more: 'Show {n} more',
+      less: 'Show less',
+      emptyTitle: 'You are clear',
+      emptyBody: 'Nothing needs you right now. Add a task, or say it with the mic.',
+      emptyAdd: 'Add a task',
+      firstTitle: 'What to do next shows up here',
+      firstBody: 'Add your people and tasks. I will bring up what is late, who owes you a reply, and who you have not spoken to in a while.',
+      toastLater: 'Moved to tomorrow morning',
+      toastQuiet: 'Back in a week',
+      add: 'Add',
+    },
+    photo: {
+      title: 'Picture',
+      take: 'Take a photo',
+      choose: 'Choose from photos',
+      remove: 'Remove picture',
+      denied: 'The camera is off. Turn it on in Settings, or choose a photo instead.',
+      hint: 'Add a picture',
+    },
+    lock: {
+      to: 'To',
+      change: 'Change',
+      moreOptions: 'More options',
+      fewerOptions: 'Fewer options',
+    },
+    loop: {
+      promise: 'Promise',
+      waiting: 'Waiting for a reply',
+      checkIn: 'Check in',
+      waitSince: 'Waiting · check in {w}',
+      savedWait: 'Waiting on {n}. I will bring it back {w}.',
+      sentYes: 'Sent · follow up {w}',
+      sentOther: 'Or follow up',
+      chipPromise: 'I told Sara I’d send the proposal Thursday',
+      chipWait: 'Waiting for Omar to reply about the contract',
+      hint: 'Try: “I told Sara I’d send the proposal Thursday” or “Waiting for Omar to reply”.',
+    },
+    rhythm: {
+      title: 'Keep in touch',
+      hint: 'I will bring them up on Today when it has been that long.',
+      options: ['Off', 'Weekly', 'Every 2 weeks', 'Monthly', 'Quarterly'],
+    },
+    drafts: {
+      label: 'Start from',
+      chase: 'Follow up',
+      checkin: 'Check in',
+      thanks: 'Thank you',
+      reschedule: 'New time',
+      replaced: 'Draft replaced',
+    },
+    today: { setOne: 'Set your One Thing', tryIt: 'Try saying it', open: 'Open', me: 'Me', home: 'Home', add: 'Add', darkMode: 'Dark mode', lightMode: 'Light mode' },
+    addPeople: {
+      button: 'Add',
+      title: 'Add people',
+      newContact: 'New contact',
+      newSub: 'Type it in',
+      scan: 'Scan a business card',
+      scanSub: 'Take a photo of a card',
+      file: 'Import from a file',
+      fileSub: 'CSV, Excel or vCard',
+      phone: 'From your phone contacts',
+      phoneSub: 'Pick one from your phone',
+    },
+    importer: {
+      title: 'Import contacts',
+      intro: 'Choose a spreadsheet or contacts file. I’ll match the columns and show you everyone before anything is saved.',
+      formats: 'CSV, Excel (.xlsx) or vCard (.vcf)',
+      choose: 'Choose a file',
+      reading: 'Reading your file…',
+      oldExcel: 'That’s an old Excel file (.xls). Save it as .xlsx or CSV and try again.',
+      unknown: 'I can read CSV, Excel (.xlsx) and vCard (.vcf) files.',
+      empty: 'I couldn’t find any contacts in that file.',
+      failed: 'I couldn’t open that file.',
+      found: '{n} found',
+      ready: '{n} ready',
+      selectAll: 'Select all',
+      clear: 'Clear',
+      already: 'Already in People · {n}',
+      noName: 'No name, can’t import',
+      skippedEmail: 'email skipped',
+      skippedPhone: 'number skipped',
+      importN: 'Import {n}',
+      doneTitle: 'Imported',
+      doneBody: '{n} added to People.',
+      back: 'Back to People',
+      another: 'Import another file',
+    },
+    scan: {
+      title: 'Scan a business card',
+      intro: 'Take a photo of a card. It’s read on your phone and the details are filled in. You check them before saving.',
+      take: 'Take a photo',
+      choose: 'Choose a photo',
+      reading: 'Reading the card…',
+      unsupported: 'Reading cards needs the phone app. Fill the details in by hand.',
+      androidNote: 'On Android, cards in Latin letters are read. For Arabic cards, fill the details in by hand.',
+      nothing: 'I couldn’t read any text. Try a clearer photo, or type it in.',
+      cameraOff: 'Camera access is off. Turn it on in Settings, or choose a photo instead.',
+      name: 'Name',
+      role: 'Company or role',
+      phone: 'Number',
+      email: 'Email',
+      save: 'Save contact',
+      another: 'Try another photo',
+      read: 'What was read',
+      saved: 'Saved {n} to People.',
+      exists: '{n} is already in People.',
+      update: 'Update {n}',
+      saveNew: 'Save as new',
+      needName: 'Add a name first.',
+    },
     listening: 'Listening…',
     micStart: 'Speak',
     micStop: 'Stop listening',
@@ -206,7 +625,7 @@ const ADDED: Record<Lang, Added> = {
     micOff: 'الميكروفون مقفل. شغّله من الإعدادات، أو اكتب بدالها.',
     micFailed: 'ما قدرت أسمع. جرّب مرة ثانية، أو اكتب بدالها.',
     customTime: 'أو اكتب وقت',
-    customTimeBad: 'اكتب الوقت بنظام 24 ساعة، مثل 17:45.',
+    customTimeBad: 'اكتب الوقت مثل 5:45 م.',
     customTimePast: 'هذا الوقت فات — اختر وقت أبعد.',
     contact: {
       chip: 'احفظ جهة اتصال',
@@ -251,6 +670,208 @@ const ADDED: Record<Lang, Added> = {
       streak: 'سلسلة {n} يوم',
       streakKeep: 'خلّص مهمة وحدة اليوم عشان تحافظ على سلسلة {n} يوم.',
       streakFresh: 'بداية جديدة. مهمة وحدة تخلّصها اليوم تبدأ سلسلة جديدة.',
+    },
+    bulk: {
+      entry: 'أرسل لعدة أشخاص',
+      title: 'أرسل لعدة أشخاص',
+      whatsapp: 'واتساب',
+      email: 'إيميل',
+      subject: 'العنوان',
+      message: 'الرسالة',
+      messagePh: 'اكتب رسالتك…',
+      insertName: 'أدرج {الاسم}',
+      waNote: 'واتساب يفتح محادثة وحدة كل مرة. أنت تضغط إرسال في كل وحدة، فما يُرسل شي بدونك.',
+      bccNote: 'تروح إيميل واحد. ما أحد يشوف باقي المستلمين.',
+      personalNote: 'رسالتك فيها {الاسم}، فكل شخص ياخذ إيميل خاص فيه.',
+      recipients: 'لمين تروح',
+      selectAll: 'اختر الكل',
+      clear: 'مسح',
+      selected: '{n} مختار',
+      noNumber: 'بدون رقم',
+      noEmail: 'بدون إيميل',
+      start: 'ابدأ · {n} أشخاص',
+      needMessage: 'اكتب الرسالة أولًا.',
+      needPeople: 'اختر شخص واحد على الأقل.',
+      limit: 'حتى {n} شخص في المرة.',
+      progress: '{i} من {n}',
+      openWa: 'افتح واتساب لـ{n}',
+      openMail: 'افتح الإيميل لـ{n}',
+      openBcc: 'افتح الإيميل لـ{n} أشخاص',
+      next: 'التالي',
+      skip: 'تخطّ',
+      stop: 'أوقف',
+      done: 'خلصنا',
+      doneBody: 'فتحنا {n}. وما أُرسل شي عنك.',
+      back: 'رجوع للأشخاص',
+      after: 'انفتح. أرسلها هناك، ثم اضغط التالي.',
+    },
+    filters: {
+      all: 'الكل',
+      waiting: 'ينتظرون',
+      favorites: 'المفضلة',
+      recent: 'الأخيرة',
+      favAdded: 'ضفنا {n} للمفضلة',
+      favRemoved: 'شلنا {n} من المفضلة',
+      favHint: 'اضغط مطولًا على أي شخص عشان تضيفه هنا.',
+      waitingNone: 'ما أحد ينتظر منك ردًا.',
+      recentNone: 'ما فيه أحد آخر ٧ أيام.',
+      favorite: 'مفضّل',
+      followups: 'المتابعات',
+    },
+    menu: {
+      addNumber: 'أضف رقم',
+      addEmail: 'أضف إيميل',
+      usual: 'المعتاد',
+      meeting: 'حدّد موعد',
+      meetingSub: 'اختاروا وقت مع بعض',
+      profile: 'افتح الملف',
+      profileSub: 'السجل والملاحظات',
+      favAdd: 'أضف للمفضلة',
+      favRemove: 'شلها من المفضلة',
+      close: 'إغلاق',
+    },
+    peopleScreen: {
+      searchAll: 'ابحث في الأشخاص',
+      searchFavorites: 'ابحث في المفضلة',
+      searchRecent: 'ابحث في الأخيرة',
+      favTitle: 'أضف إلى المفضلة',
+      favBody: 'اضغط مطولًا على أي شخص عشان تضيفه. المفضلة تطلع أولًا لما تختار شخص تراسله.',
+      favLink: 'اختر أشخاص',
+      noneTitle: 'ما فيه أحد هنا بعد',
+      noneBody: 'أضف شخص، أو امسح بطاقة عمل، أو استورد ملف.',
+      noneLink: 'أضف أشخاص',
+      more: 'المزيد',
+    },
+    next: {
+      agenda: 'الأجندة',
+      seeAll: 'كل المهام',
+      tab: 'التالي',
+      title: 'التالي',
+      all: 'كل المهام',
+      lateMin: 'متأخر {n} دقيقة',
+      lateHour: 'متأخر {n} ساعة',
+      lateDay: 'متأخر يوم',
+      lateDays: 'متأخر {n} أيام',
+      today: 'اليوم الساعة {t}',
+      reply0: 'وقت المتابعة',
+      reply1: 'تنتظر الرد من يوم',
+      reply: 'تنتظر الرد من {n} أيام',
+      quiet: 'ما تواصلتم من {n} يوم',
+      later: 'لاحقًا',
+      nudge: 'ذكّره',
+      open: 'افتح',
+      message: 'راسله',
+      done: 'تم',
+      doneShort: 'تم',
+      more: 'أظهر {n} إضافية',
+      less: 'أقل',
+      emptyTitle: 'ما عليك شي',
+      emptyBody: 'ما فيه شي يحتاجك الحين. أضف مهمة، أو قلها بالمايك.',
+      emptyAdd: 'أضف مهمة',
+      firstTitle: 'هنا يطلع لك وش تسوي بعدين',
+      firstBody: 'أضف أشخاصك ومهامك. أطلع لك المتأخر، ومن ينتظر ردك، ومن ما كلمته من فترة.',
+      toastLater: 'انتقلت لبكرة الصبح',
+      toastQuiet: 'ترجع بعد أسبوع',
+      add: 'أضف',
+    },
+    photo: {
+      title: 'الصورة',
+      take: 'التقط صورة',
+      choose: 'اختر من الصور',
+      remove: 'احذف الصورة',
+      denied: 'الكاميرا مقفلة. شغّلها من الإعدادات، أو اختر صورة بدالها.',
+      hint: 'أضف صورة',
+    },
+    lock: {
+      to: 'إلى',
+      change: 'تغيير',
+      moreOptions: 'خيارات أكثر',
+      fewerOptions: 'خيارات أقل',
+    },
+    loop: {
+      promise: 'وعد',
+      waiting: 'ننتظر الرد',
+      checkIn: 'تابع',
+      waitSince: 'ننتظر · تابع {w}',
+      savedWait: 'تمام، ننتظر {n}. أرجّعها لك {w}.',
+      sentYes: 'أُرسلت · تابع {w}',
+      sentOther: 'أو تابع',
+      chipPromise: 'وعدت سارة اني ارسل لها العرض الخميس',
+      chipWait: 'مستني رد عمر على العقد',
+      hint: 'جرّب: «وعدت سارة اني ارسل لها العرض الخميس» أو «مستني رد عمر».',
+    },
+    rhythm: {
+      title: 'خلّك على تواصل',
+      hint: 'أطلعه لك في اليوم لما تمر هالمدة بدون تواصل.',
+      options: ['بدون', 'كل أسبوع', 'كل أسبوعين', 'كل شهر', 'كل 3 أشهر'],
+    },
+    drafts: {
+      label: 'ابدأ من',
+      chase: 'متابعة',
+      checkin: 'اطمئنان',
+      thanks: 'شكر',
+      reschedule: 'وقت جديد',
+      replaced: 'تغيّرت المسودة',
+    },
+    today: { setOne: 'حدّد شيئك الواحد', tryIt: 'جرّب تقولها', open: 'المفتوحة', me: 'أنا', home: 'الرئيسية', add: 'إضافة', darkMode: 'الوضع الداكن', lightMode: 'الوضع الفاتح' },
+    addPeople: {
+      button: 'إضافة',
+      title: 'أضف أشخاص',
+      newContact: 'جهة اتصال جديدة',
+      newSub: 'اكتبها بنفسك',
+      scan: 'امسح بطاقة عمل',
+      scanSub: 'صوّر البطاقة',
+      file: 'استيراد من ملف',
+      fileSub: 'CSV أو Excel أو vCard',
+      phone: 'من جهات اتصال جوالك',
+      phoneSub: 'اختر وحدة من جوالك',
+    },
+    importer: {
+      title: 'استيراد جهات الاتصال',
+      intro: 'اختر ملف جدول أو جهات اتصال. أطابق الأعمدة وأعرض لك الكل قبل ما يُحفظ شي.',
+      formats: 'CSV أو Excel (.xlsx) أو vCard (.vcf)',
+      choose: 'اختر ملف',
+      reading: 'أقرأ ملفك…',
+      oldExcel: 'هذا ملف Excel قديم (.xls). احفظه بصيغة .xlsx أو CSV وجرّب مرة ثانية.',
+      unknown: 'أقدر أقرأ ملفات CSV وExcel (.xlsx) وvCard (.vcf).',
+      empty: 'ما لقيت أي جهة اتصال في هذا الملف.',
+      failed: 'ما قدرت أفتح هذا الملف.',
+      found: '{n} موجود',
+      ready: '{n} جاهز',
+      selectAll: 'اختر الكل',
+      clear: 'مسح',
+      already: 'موجود في الأشخاص · {n}',
+      noName: 'بدون اسم، ما ينفع',
+      skippedEmail: 'تجاهلنا الإيميل',
+      skippedPhone: 'تجاهلنا الرقم',
+      importN: 'استورد {n}',
+      doneTitle: 'تم الاستيراد',
+      doneBody: 'انضاف {n} للأشخاص.',
+      back: 'رجوع للأشخاص',
+      another: 'استورد ملف ثاني',
+    },
+    scan: {
+      title: 'امسح بطاقة عمل',
+      intro: 'صوّر البطاقة. تنقرأ على جوالك وتتعبّى البيانات، وأنت تراجعها قبل الحفظ.',
+      take: 'التقط صورة',
+      choose: 'اختر صورة',
+      reading: 'أقرأ البطاقة…',
+      unsupported: 'قراءة البطاقات تحتاج تطبيق الجوال. عبّي البيانات بنفسك.',
+      androidNote: 'على أندرويد تنقرأ البطاقات بالأحرف اللاتينية. للبطاقات العربية، عبّي البيانات بنفسك.',
+      nothing: 'ما قدرت أقرأ أي نص. جرّب صورة أوضح، أو اكتبها.',
+      cameraOff: 'الكاميرا مقفلة. شغّلها من الإعدادات، أو اختر صورة بدالها.',
+      name: 'الاسم',
+      role: 'الشركة أو الدور',
+      phone: 'الرقم',
+      email: 'الإيميل',
+      save: 'حفظ الجهة',
+      another: 'جرّب صورة ثانية',
+      read: 'اللي انقرأ',
+      saved: 'تم حفظ {n} في الأشخاص.',
+      exists: '{n} موجود في الأشخاص.',
+      update: 'حدّث {n}',
+      saveNew: 'احفظ كجديد',
+      needName: 'أضف الاسم أولًا.',
     },
     listening: 'أسمعك…',
     micStart: 'تحدّث',

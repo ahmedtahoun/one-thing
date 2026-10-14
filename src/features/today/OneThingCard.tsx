@@ -93,7 +93,7 @@ export function OneThingCard({
               flex: 1,
               height: 46,
               borderRadius: 23,
-              backgroundColor: ink.base,
+              backgroundColor: ink.solid,
               alignItems: 'center',
               justifyContent: 'center',
               opacity: pressed ? 0.85 : 1,
@@ -131,7 +131,7 @@ export function OneThingCard({
       {progress && progress.total > 0 ? (
         <View testID="one-thing-progress" style={{ gap: 6 }}>
           <View style={{ height: 4, borderRadius: 2, backgroundColor: surface.line, overflow: 'hidden' }}>
-            <View style={{ width: `${Math.round(share * 100)}%`, height: 4, backgroundColor: ink.base }} />
+            <View style={{ width: `${Math.round(share * 100)}%`, height: 4, backgroundColor: ink.solid }} />
           </View>
           <Text token="micro" color={ink.s4}>
             {t.tk_sum.replace('{a}', String(progress.total - progress.done)).replace('{b}', String(progress.done))}

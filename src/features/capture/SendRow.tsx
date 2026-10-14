@@ -68,8 +68,8 @@ export const SendRow = forwardRef<
             height: 50,
             borderRadius: 25,
             borderWidth: 1,
-            borderColor: mic.listening ? ink.base : surface.line,
-            backgroundColor: mic.listening ? ink.base : surface.white,
+            borderColor: mic.listening ? ink.solid : surface.line,
+            backgroundColor: mic.listening ? ink.solid : surface.white,
             alignItems: 'center',
             justifyContent: 'center',
           }}
@@ -82,7 +82,7 @@ export const SendRow = forwardRef<
         onPress={onSend}
         accessibilityRole="button"
         accessibilityLabel={sendLabel}
-        style={{ width: 50, height: 50, borderRadius: 25, backgroundColor: ink.base, alignItems: 'center', justifyContent: 'center' }}
+        style={{ width: 50, height: 50, borderRadius: 25, backgroundColor: ink.solid, alignItems: 'center', justifyContent: 'center' }}
       >
         <Icon name="send" size={18} color={surface.white} strokeWidth={1.7} />
       </Pressable>

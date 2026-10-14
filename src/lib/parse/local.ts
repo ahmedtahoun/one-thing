@@ -21,6 +21,7 @@
  * part of the day ("tomorrow morning", "tonight", "بالليل", "العصر").
  */
 import { ar, arw, AR_LETTER, firstNameOf, mentions } from './names';
+import { loopOf, type Loop } from './promise';
 import type { AssistantIntent, ParseContext, ParsedTask, ParsedType, TextParser } from './types';
 
 export { firstNameOf, mentions };
@@ -285,7 +286,37 @@ export function intentOf(text: string): 'plan' | 'followups' | 'task' {
   return 'task';
 }
 
+/** When to check on someone: the day said, else in two days, at the time said, else 09:00. */
+function checkInWhen(text: string, now: Date): string {
+  const day = dayOf(text, now);
+  if (!day.said) day.date.setDate(day.date.getDate() + 2);
+  const [h, m] = timeOf(text) ?? partOf(text) ?? [9, 0];
+  day.date.setHours(h, m, 0, 0);
+  return day.date.toISOString();
+}
+
+const CHANNEL_TYPES: readonly ParsedType[] = ['call', 'email', 'whatsapp'];
+
+/** A promise is a task with the lead-in taken off; a waiting is a check-in with someone. */
+function fromLoop(loop: Loop, text: string, ctx: ParseContext): ParsedTask {
+  const found = whoOf(text, ctx.contacts);
+  if (loop.kind === 'promise') {
+    return { type: typeOf(loop.body), title: titleOf(loop.body), ...found, when: whenOf(text, ctx.now), kind: 'promise' };
+  }
+  const channel = typeOf(text);
+  return {
+    type: CHANNEL_TYPES.includes(channel) ? channel : 'whatsapp',
+    title: loop.body ? titleOf(loop.body) : ctx.lang === 'ar' ? 'رد' : 'Reply',
+    who: found.who ?? loop.name,
+    contactId: found.contactId,
+    when: checkInWhen(text, ctx.now),
+    kind: 'waiting',
+  };
+}
+
 function parseNow(text: string, ctx: ParseContext): ParsedTask {
+  const loop = loopOf(text, ctx.contacts);
+  if (loop) return fromLoop(loop, text, ctx);
   return {
     type: typeOf(text),
     title: titleOf(text),
@@ -302,6 +333,8 @@ export const localParser: TextParser = {
     return splitDump(text).map((piece) => parseNow(piece, ctx));
   },
   async interpret(text, ctx): Promise<AssistantIntent> {
+    // "Waiting for Sara…" with a person in it is something to remember, not the follow-ups list.
+    if (loopOf(text, ctx.contacts)) return { kind: 'task', task: parseNow(text, ctx) };
     const kind = intentOf(text);
     return kind === 'task' ? { kind, task: parseNow(text, ctx) } : { kind };
   },

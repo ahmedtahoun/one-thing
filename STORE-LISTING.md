@@ -63,6 +63,8 @@ Collected, linked to the account, not used for tracking:
 Not collected: location, photos, health, browsing history, financial info, advertising ID.
 Microphone and speech recognition: used on the device's own recogniser only while recording a note; audio is not stored by the app.
 Contacts: only a contact the person picks is read; the address book is never read on its own.
+Camera and photos: used only to read a business card on the device. The photo is never uploaded or kept by the app, and the text read from it goes into a contact the person confirms.
+Files: a spreadsheet or contacts file the person chooses is read on the device to import contacts; the file itself is not uploaded.
 Deletion: in Settings, and at `onlyonething.app/delete`.
 The app does not use Photos. `NSPhotoLibraryUsageDescription` exists only because a linked framework references it.
 

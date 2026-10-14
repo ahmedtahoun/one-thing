@@ -60,6 +60,8 @@ export default function EventForm() {
     return index >= 0 ? { ...base, who: [index] } : base;
   });
 
+  const [more, setMore] = useState(false);
+
   const set = useCallback((patch: Partial<EventDraft>) => setDraft((d) => ({ ...d, ...patch })), []);
 
   const show = visibleFields(draft);
@@ -200,25 +202,6 @@ export default function EventForm() {
             />
           </Labelled>
 
-          {show.platform ? (
-            <Labelled label={evx.l.plat}>
-              <ChipRow options={platforms} selected={draft.platform} onSelect={(platform) => set({ platform })} testID="event-platform" />
-            </Labelled>
-          ) : null}
-
-          {show.link ? (
-            <Labelled label={evx.l.link}>
-              <Field
-                testID="event-link"
-                value={draft.link}
-                onChangeText={(link) => set({ link })}
-                placeholder={evx.linkPh[type as keyof typeof evx.linkPh] ?? ''}
-                keyboardType="url"
-                forceLTR
-              />
-            </Labelled>
-          ) : null}
-
           {show.host ? (
             <Labelled label={evx.l.host}>
               <Field testID="event-host" value={draft.host} onChangeText={(host) => set({ host })} placeholder={evx.l.hostPh} />
@@ -316,12 +299,6 @@ export default function EventForm() {
             />
           </Labelled>
 
-          {show.duration ? (
-            <Labelled label={evx.l.dur}>
-              <ChipRow options={evx.durs} selected={draft.duration} onSelect={(duration) => set({ duration })} testID="event-duration" />
-            </Labelled>
-          ) : null}
-
           {show.progress ? (
             <Labelled
               label={evx.l.prog}
@@ -340,6 +317,65 @@ export default function EventForm() {
             </Labelled>
           ) : null}
 
+          <Pressable
+            testID="event-more"
+            onPress={() => setMore((v) => !v)}
+            accessibilityRole="button"
+            accessibilityState={{ expanded: more }}
+            style={{
+              flexDirection: dir.row,
+              alignItems: 'center',
+              gap: 10,
+              paddingVertical: 14,
+              paddingHorizontal: 16,
+              borderRadius: radius.input,
+              backgroundColor: surface.fill,
+            }}
+          >
+            <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
+              <Text token="body" weight="600">
+                {more ? added(lang).lock.fewerOptions : added(lang).lock.moreOptions}
+              </Text>
+              {!more ? (
+                <Text token="micro" color={ink.s4} numberOfLines={1}>
+                  {[show.platform ? platforms[draft.platform] : '', show.duration ? evx.durs[draft.duration] : '', evx.rems[draft.remind]]
+                    .filter(Boolean)
+                    .join(' · ')}
+                </Text>
+              ) : null}
+            </View>
+            <View style={{ transform: [{ rotate: more ? '-90deg' : '90deg' }] }}>
+              <Icon name="chevR" size={18} color={ink.s4} strokeWidth={2} />
+            </View>
+          </Pressable>
+
+          {more ? (
+            <View style={{ gap: 20 }}>
+          {show.platform ? (
+            <Labelled label={evx.l.plat}>
+              <ChipRow options={platforms} selected={draft.platform} onSelect={(platform) => set({ platform })} testID="event-platform" />
+            </Labelled>
+          ) : null}
+
+          {show.link ? (
+            <Labelled label={evx.l.link}>
+              <Field
+                testID="event-link"
+                value={draft.link}
+                onChangeText={(link) => set({ link })}
+                placeholder={evx.linkPh[type as keyof typeof evx.linkPh] ?? ''}
+                keyboardType="url"
+                forceLTR
+              />
+            </Labelled>
+          ) : null}
+
+          {show.duration ? (
+            <Labelled label={evx.l.dur}>
+              <ChipRow options={evx.durs} selected={draft.duration} onSelect={(duration) => set({ duration })} testID="event-duration" />
+            </Labelled>
+          ) : null}
+
           <Labelled label={evx.l.remind}>
             <ChipRow options={evx.rems} selected={draft.remind} onSelect={(remind) => set({ remind })} testID="event-remind" />
           </Labelled>
@@ -355,6 +391,9 @@ export default function EventForm() {
             />
           </Labelled>
 
+            </View>
+          ) : null}
+
           <Pressable
             testID="event-save"
             onPress={save}
@@ -363,7 +402,7 @@ export default function EventForm() {
             style={{
               height: 56,
               borderRadius: radius.button,
-              backgroundColor: valid ? ink.base : ink.disabledBtn,
+              backgroundColor: valid ? ink.solid : ink.disabledBtn,
               alignItems: 'center',
               justifyContent: 'center',
             }}

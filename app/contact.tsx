@@ -6,20 +6,27 @@
  * which saves as it is typed; what is coming up with them; and their dated
  * history, with a quick log on top.
  */
+import { clockOf } from '@/lib/clock-format';
 import { useMemo, useState } from 'react';
 import { Pressable, TextInput, View } from 'react-native';
 import { Redirect, router, useLocalSearchParams } from 'expo-router';
 
+import { added } from '@/content/additions';
 import { buildTimeline, type TimelineItem } from '@/features/contact/timeline';
 import { useStartTask } from '@/features/people/start-task';
+import { Avatar } from '@/ui/Avatar';
 import { Icon } from '@/ui/Icon';
+import { PhotoSheet } from '@/features/people/PhotoSheet';
 import { Screen } from '@/ui/Screen';
 import { LTRText, Text } from '@/ui/Text';
 import { Toast } from '@/ui/Toast';
 import { TYPE_ICON, type IconName } from '@/design/icon-paths';
 import { fontFamily, ink, noteColour, status, surface, typeColour, type TaskType } from '@/design/tokens';
 import { useDirection, useLanguage } from '@/i18n/LanguageProvider';
-import { initials, timeLabel, type Contact, type HistoryKind } from '@/lib/model-types';
+import { type Contact, type HistoryKind } from '@/lib/model-types';
+import { toggleFavorite, useFavorites } from '@/lib/favorites';
+import { CADENCES, setCadence, useCadence } from '@/lib/cadence';
+import { usePhotos } from '@/lib/photos';
 import { contactForTask, usePeople } from '@/lib/people';
 import { whenLabel } from '@/lib/task-labels';
 import { useTasks } from '@/lib/tasks';
@@ -52,7 +59,13 @@ function Profile({ contact }: { contact: Contact }) {
   const { tasks } = useTasks();
   const start = useStartTask();
 
+  const favorite = useFavorites().has(contact.id);
+  const rhythmCopy = added(lang).rhythm;
+  // What applies now: their own rhythm, else two weeks for a favourite, else none.
+  const rhythm = useCadence().get(contact.id) ?? (favorite ? 14 : 0);
   const [note, setNote] = useState(contact.rememberNote ?? '');
+  const [photoOpen, setPhotoOpen] = useState(false);
+  const hasPhoto = usePhotos().has(contact.id);
   const [logKind, setLogKind] = useState<LogKind>('note');
   const [logText, setLogText] = useState('');
   const [now] = useState(() => new Date());
@@ -118,33 +131,57 @@ function Profile({ contact }: { contact: Contact }) {
               <Icon name="back" size={22} strokeWidth={1.7} />
             </View>
           </Pressable>
-          <Pressable
-            testID="contact-edit"
-            onPress={() => router.push(`/contact-edit?id=${contact.id}`)}
-            accessibilityRole="button"
-            style={{ paddingVertical: 8, paddingHorizontal: 14, borderRadius: 999, backgroundColor: surface.white }}
-          >
-            <Text token="bodyS" weight="500">
-              {pfx.l.edit}
-            </Text>
-          </Pressable>
+          <View style={{ flexDirection: dir.row, alignItems: 'center', gap: 8 }}>
+            <Pressable
+              testID="contact-favorite"
+              onPress={() => void toggleFavorite(contact.id)}
+              accessibilityRole="button"
+              accessibilityLabel={added(lang).filters.favorite}
+              accessibilityState={{ selected: favorite }}
+              hitSlop={6}
+              style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: surface.white, alignItems: 'center', justifyContent: 'center' }}
+            >
+              <Icon name="star" size={18} color={favorite ? typeColour.visit.fg : ink.s4} filled={favorite} strokeWidth={1.8} />
+            </Pressable>
+            <Pressable
+              testID="contact-edit"
+              onPress={() => router.push(`/contact-edit?id=${contact.id}`)}
+              accessibilityRole="button"
+              style={{ paddingVertical: 8, paddingHorizontal: 14, borderRadius: 999, backgroundColor: surface.white }}
+            >
+              <Text token="bodyS" weight="500">
+                {pfx.l.edit}
+              </Text>
+            </Pressable>
+          </View>
         </View>
 
         <View style={{ alignItems: 'center', gap: 10 }}>
-          <View
-            style={{
-              width: 76,
-              height: 76,
-              borderRadius: 38,
-              backgroundColor: ink.base,
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
+          <Pressable
+            testID="contact-photo"
+            onPress={() => setPhotoOpen(true)}
+            accessibilityRole="button"
+            accessibilityLabel={added(lang).photo.hint}
           >
-            <Text token="h2" color={surface.white} align="center">
-              {initials(contact.name)}
-            </Text>
-          </View>
+            <Avatar name={contact.name} contactId={contact.id} size={84} />
+            <View
+              style={{
+                position: 'absolute',
+                bottom: -2,
+                ...(dir.isRTL ? { left: -2 } : { right: -2 }),
+                width: 28,
+                height: 28,
+                borderRadius: 14,
+                borderWidth: 2,
+                borderColor: surface.fill2,
+                backgroundColor: ink.solid,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Icon name="camera" size={14} color={surface.white} strokeWidth={2} />
+            </View>
+          </Pressable>
           <View style={{ gap: 4, alignItems: 'center' }}>
             <Text token="h3" align="center" testID="contact-name">
               {contact.name}
@@ -238,6 +275,41 @@ function Profile({ contact }: { contact: Contact }) {
           />
         </View>
 
+        <View testID="contact-rhythm" style={{ gap: 10, paddingVertical: 14, paddingHorizontal: 16, borderRadius: 18, backgroundColor: surface.white }}>
+          <View style={{ gap: 2 }}>
+            <Text token="body" weight="600">
+              {rhythmCopy.title}
+            </Text>
+            <Text token="caption" color={ink.s4}>
+              {rhythmCopy.hint}
+            </Text>
+          </View>
+          <View style={{ flexDirection: dir.row, flexWrap: 'wrap', gap: 8 }}>
+            {CADENCES.map((days, i) => {
+              const on = rhythm === days;
+              return (
+                <Pressable
+                  key={days}
+                  testID={`contact-rhythm-${days}`}
+                  onPress={() => void setCadence(contact.id, days)}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: on }}
+                  style={{
+                    paddingVertical: 8,
+                    paddingHorizontal: 14,
+                    borderRadius: 999,
+                    backgroundColor: on ? ink.solid : surface.fill,
+                  }}
+                >
+                  <Text token="bodyS" weight="600" color={on ? surface.white : ink.s2}>
+                    {rhythmCopy.options[i]}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
+
         {comingUp.length ? (
           <View style={{ gap: 8 }}>
             <Text token="micro" color={ink.s4} style={{ paddingHorizontal: 4 }}>
@@ -282,7 +354,7 @@ function Profile({ contact }: { contact: Contact }) {
                       </Text>
                     </View>
                     <LTRText token="caption" weight="600" tabular>
-                      {whenLabel(task, t, inline, now) || timeLabel(task.dueAt)}
+                      {whenLabel(task, t, inline, now) || clockOf(task.dueAt)}
                     </LTRText>
                   </View>
                 );
@@ -318,7 +390,7 @@ function Profile({ contact }: { contact: Contact }) {
                       height: 34,
                       borderRadius: 10,
                       borderWidth: 1.5,
-                      borderColor: on ? ink.base : surface.cardLine,
+                      borderColor: on ? ink.solid : surface.cardLine,
                       backgroundColor: on ? surface.fill : surface.white,
                       flexDirection: dir.row,
                       alignItems: 'center',
@@ -365,7 +437,7 @@ function Profile({ contact }: { contact: Contact }) {
                   height: 44,
                   paddingHorizontal: 16,
                   borderRadius: 12,
-                  backgroundColor: logText.trim() ? ink.base : ink.disabledBtn,
+                  backgroundColor: logText.trim() ? ink.solid : ink.disabledBtn,
                   justifyContent: 'center',
                 }}
               >
@@ -390,6 +462,7 @@ function Profile({ contact }: { contact: Contact }) {
           </View>
         </View>
       </Screen>
+      <PhotoSheet open={photoOpen} contactId={contact.id} hasPhoto={hasPhoto} onClose={() => setPhotoOpen(false)} />
       <Toast />
     </>
   );

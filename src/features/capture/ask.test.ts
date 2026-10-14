@@ -40,7 +40,7 @@ describe('questions', () => {
 
   it('says which time has gone', () => {
     const q = questionFor({ kind: 'when', why: 'past' }, draft({ when: new Date('2026-10-10T09:00:00').toISOString() }), added('en'));
-    assert.ok(q.startsWith('09:00 has already passed'), q);
+    assert.ok(q.startsWith('9:00 AM has already passed'), q);
   });
 
   it('has no unfilled placeholders in either language', () => {
@@ -90,7 +90,7 @@ describe('options', () => {
   it('puts "tomorrow at the same time" first when the time has gone', () => {
     const gone = draft({ when: new Date('2026-10-10T09:00:00').toISOString() });
     const [first, , ...rest] = optionsFor({ kind: 'when', why: 'past' }, gone, added('en'), QUICK, NOW);
-    assert.equal(first?.label, 'Tomorrow 09:00');
+    assert.equal(first?.label, 'Tomorrow 9:00 AM');
     assert.ok(!rest.some((o) => o.key === 'keep'));
     if (first?.action.kind === 'when') assert.equal(new Date(first.action.iso).getDate(), 11);
   });

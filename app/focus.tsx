@@ -154,7 +154,7 @@ export default function Focus() {
         onPress={wake}
         style={{
           flex: 1,
-          backgroundColor: ink.base,
+          backgroundColor: ink.card,
           direction: dir.isRTL ? 'rtl' : 'ltr',
           alignItems: 'center',
           paddingTop: 66,
@@ -172,7 +172,7 @@ export default function Focus() {
             opacity: dim,
           }}
         >
-          <BackButton testID="focus-back" onPress={() => router.back()} color={surface.white} />
+          <BackButton testID="focus-back" onPress={() => router.back()} color={surface.onCard} />
 
           <Text token="eyebrow" color={ink.s6} style={{ letterSpacing: 1.76 }}>
             {t.f_k}
@@ -190,7 +190,7 @@ export default function Focus() {
               paddingHorizontal: 12,
             }}
           >
-            <Text token="micro" color={surface.white}>
+            <Text token="micro" color={surface.onCard}>
               {t.stuck}
             </Text>
           </Pressable>
@@ -200,7 +200,7 @@ export default function Focus() {
           token="h3"
           size={22}
           lh={28.6}
-          color={surface.white}
+          color={surface.onCard}
           align="center"
           style={{ paddingTop: 8, paddingHorizontal: 8 }}
         >
@@ -224,7 +224,7 @@ export default function Focus() {
               justifyContent: 'center',
             }}
           >
-            <Text token="bodyL" color={surface.white} numberOfLines={1}>
+            <Text token="bodyL" color={surface.onCard} numberOfLines={1}>
               {running ? t.pause : `${inline.resumePrefix}${clock(remaining)}${inline.resumeSuffix}`}
             </Text>
           </Pressable>
@@ -237,12 +237,12 @@ export default function Focus() {
               flex: 1,
               height: 52,
               borderRadius: 26,
-              backgroundColor: surface.white,
+              backgroundColor: surface.onCard,
               alignItems: 'center',
               justifyContent: 'center',
             }}
           >
-            <Text token="bodyL" weight="500">
+            <Text token="bodyL" weight="500" color={ink.card}>
               {t.finish}
             </Text>
           </Pressable>
@@ -277,15 +277,15 @@ export default function Focus() {
               width: 42,
               height: 42,
               borderRadius: 21,
-              backgroundColor: surface.white,
+              backgroundColor: surface.onCard,
               alignItems: 'center',
               justifyContent: 'center',
             }}
           >
-            <Icon name="mic" size={22} strokeWidth={1.9} />
+            <Icon name="mic" size={22} color={ink.card} strokeWidth={1.9} />
           </View>
           <View style={{ gap: 2, flex: 1, minWidth: 0 }}>
-            <Text token="body" weight="500" color={surface.white}>
+            <Text token="body" weight="500" color={surface.onCard}>
               {t.f_cap}
             </Text>
             <Text token="micro" color={ink.s6}>

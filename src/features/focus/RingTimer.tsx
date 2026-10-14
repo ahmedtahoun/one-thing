@@ -85,7 +85,7 @@ export function RingTimer({
           cy={130}
           r={RADIUS}
           fill="none"
-          stroke={surface.white}
+          stroke={surface.onCard}
           strokeWidth={3}
           strokeLinecap="round"
           strokeDasharray={CIRCUMFERENCE}
@@ -99,7 +99,7 @@ export function RingTimer({
           size={56}
           lh={84}
           weight="500"
-          color={surface.white}
+          color={surface.onCard}
           tabular
           align="center"
           testID="focus-time"

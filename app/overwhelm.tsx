@@ -80,9 +80,9 @@ export default function Overwhelm() {
       {allDone ? (
         <View
           testID="overwhelm-all-done"
-          style={{ backgroundColor: ink.base, borderRadius: 22, padding: 22, gap: 12 }}
+          style={{ backgroundColor: ink.card, borderRadius: 22, padding: 22, gap: 12 }}
         >
-          <Text token="h3" size={20} lh={27} weight="600" color={surface.white}>
+          <Text token="h3" size={20} lh={27} weight="600" color={surface.onCard}>
             {t.s_all}
           </Text>
           <Pressable
@@ -96,10 +96,10 @@ export default function Overwhelm() {
               paddingHorizontal: 14,
               borderRadius: radius.pill,
               borderWidth: 1,
-              borderColor: surface.white,
+              borderColor: surface.onCard,
             }}
           >
-            <Text token="caption" color={surface.white}>
+            <Text token="caption" color={surface.onCard}>
               ↺
             </Text>
           </Pressable>
@@ -142,7 +142,7 @@ export default function Overwhelm() {
             style={{
               height: 52,
               borderRadius: 26,
-              backgroundColor: ink.base,
+              backgroundColor: ink.solid,
               alignItems: 'center',
               justifyContent: 'center',
             }}
@@ -196,7 +196,7 @@ function SmallButton({
         height: 44,
         borderRadius: 22,
         borderWidth: strong ? 1.5 : 1,
-        borderColor: strong ? ink.base : surface.line,
+        borderColor: strong ? ink.solid : surface.line,
         backgroundColor: surface.white,
         alignItems: 'center',
         justifyContent: 'center',

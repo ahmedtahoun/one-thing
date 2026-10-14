@@ -12,7 +12,7 @@
 import { splitNumber } from '@/lib/phone-contacts/draft';
 import { COUNTRIES, DEFAULT_DIAL } from '@/content/countries';
 import { AR_LETTER, arx, normalizeArabic } from './names';
-import { extractEmail, extractPhone, spokenDigits } from './spoken';
+import { extractEmail, extractPhone, spokenDigits, westernDigits } from './spoken';
 
 export type ContactFields = {
   name?: string;
@@ -226,6 +226,25 @@ export function mergeFields(draft: ContactFields, patch: ContactFields): Contact
  */
 export function looksLikeTask(text: string): boolean {
   return TASK_VERB.test(text) || tokensOf(text).length > 6;
+}
+
+/** One field typed into a contact card. A typed number is split into its code and national part. */
+export type ContactEdit = Partial<Pick<ContactFields, 'name' | 'email' | 'role'>> & { phoneText?: string };
+
+export function applyEdit(fields: ContactFields, edit: ContactEdit, region?: string): ContactFields {
+  let next: ContactFields = { ...fields };
+  if (edit.name !== undefined) next.name = edit.name;
+  if (edit.email !== undefined) {
+    next.email = edit.email;
+    delete next.guessedEmail;
+  }
+  if (edit.role !== undefined) next.role = edit.role;
+  if (edit.phoneText !== undefined) {
+    const typed = westernDigits(edit.phoneText).replace(/[^\d+]/g, '');
+    if (/^(\+|00)/.test(typed)) next = { ...next, ...splitDialled(typed, region) };
+    else next.phone = typed.replace(/^0+/, '');
+  }
+  return next;
 }
 
 /** What is still needed: a name first, then at least a number or an email. */

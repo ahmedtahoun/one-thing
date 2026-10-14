@@ -125,7 +125,7 @@ export function DeleteSheet({
       <View style={{ gap: 6 }}>
         {st.delList.map((line) => (
           <View key={line} style={{ flexDirection: dir.row, alignItems: 'center', gap: 8 }}>
-            <View style={{ width: 5, height: 5, borderRadius: 2.5, backgroundColor: ink.base }} />
+            <View style={{ width: 5, height: 5, borderRadius: 2.5, backgroundColor: ink.solid }} />
             <Text token="caption" color={ink.s2} style={{ flexShrink: 1 }}>
               {line}
             </Text>

@@ -149,7 +149,7 @@ const NAME = "[A-Za-z][A-Za-z'’-]{2,}";
 const DIRECT = new RegExp(`\\b(?:call|ring|phone|message|text|whatsapp|dm)\\s+(?:to\\s+)?(${NAME})`, 'i');
 /** Other verbs and prepositions: only a Capitalised word counts ("email the quote" is not a person). */
 const MARKED =
-  /\b(?:email|e-mail|mail|send|reply(?:\s+to)?|tell|ask|remind|meet|see|visit|follow\s+up\s+with|catch\s+up\s+with|to|with|for)\s+([A-Za-z][a-z'’-]{2,})/i;
+  /\b(?:email|e-mail|mail|send|reply(?:\s+to)?|tell|told|ask|asked|promised|owe|remind|meet|see|visit|follow\s+up\s+with|catch\s+up\s+with|to|with|for)\s+([A-Za-z][a-z'’-]{2,})/i;
 
 const WORD = `[${AR_LETTER}]{2,}`;
 const NOT_IN_WORD = `(?<![${AR_LETTER}])`;

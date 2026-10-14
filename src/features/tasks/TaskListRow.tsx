@@ -1,22 +1,28 @@
 /**
  * One row in the Tasks list. SCREENS.md § 07.
  *
- * Three columns: a 64 pt time column that is itself a button (it opens the
+ * Three columns: an 82 pt time column that is itself a button (it opens the
  * reminder sheet), the title and its meta line, and a 54 pt check column.
  * Unlike Today's row this one does not swipe — the time column needs the
  * horizontal gesture.
  */
+import { clockOf } from '@/lib/clock-format';
 import { Pressable, View } from 'react-native';
 
-import type { RowMode } from './groups';
 import { Icon } from '@/ui/Icon';
 import { Text } from '@/ui/Text';
 import { TYPE_ICON } from '@/design/icon-paths';
 import { ink, radius, status, surface, typeColour } from '@/design/tokens';
 import { useDirection, useLanguage } from '@/i18n/LanguageProvider';
-import { isOverdue, timeLabel, type Task } from '@/lib/model-types';
+import { isOverdue, type Task } from '@/lib/model-types';
 import { remindTinyLabel } from '@/lib/reminders';
 import { dayLabel } from '@/lib/task-labels';
+
+/**
+ * `later` rows swap their two left-hand lines: the day ("Mon 13") sits where
+ * the time normally does, and the time moves to the line below.
+ */
+export type RowMode = 'normal' | 'later';
 
 export function TaskListRow({
   task,
@@ -43,9 +49,9 @@ export function TaskListRow({
   const later = mode === 'later';
 
   // A later row puts the day where the time goes, and the time underneath.
-  const lead = later && task.dueAt ? dayLabel(task.dueAt, t) : timeLabel(task.dueAt);
+  const lead = later && task.dueAt ? dayLabel(task.dueAt, t) : clockOf(task.dueAt);
   const hasReminder = task.remind !== null;
-  const mini = later ? timeLabel(task.dueAt) : remindTinyLabel(t, task.remind);
+  const mini = later ? clockOf(task.dueAt) : remindTinyLabel(t, task.remind);
   const miniColour = later ? ink.s4 : typeColour.reminder.fg;
 
   const pill = done
@@ -73,7 +79,7 @@ export function TaskListRow({
         accessibilityRole="button"
         accessibilityLabel={t.rem_t}
         style={{
-          width: 64,
+          width: 82,
           paddingVertical: 12,
           paddingStart: 12,
           justifyContent: 'center',
@@ -155,8 +161,8 @@ export function TaskListRow({
             height: 26,
             borderRadius: 13,
             borderWidth: 1.5,
-            borderColor: done ? ink.base : ink.s6,
-            backgroundColor: done ? ink.base : surface.white,
+            borderColor: done ? ink.solid : ink.s6,
+            backgroundColor: done ? ink.solid : surface.white,
             alignItems: 'center',
             justifyContent: 'center',
           }}

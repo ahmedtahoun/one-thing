@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { answerKind, isContactCommand, mergeFields, missingOf, readContact } from './contact';
+import { answerKind, applyEdit, isContactCommand, mergeFields, missingOf, readContact } from './contact';
 
 const read = (text: string, region?: string) => readContact(text, { command: true, region });
 
@@ -169,5 +169,18 @@ describe('answerKind', () => {
     for (const t of ['yes', 'Save it', 'ok', 'تمام', 'ايوه', 'احفظ', 'أيوه']) assert.equal(answerKind(t), 'yes', t);
     for (const t of ['no', 'cancel', 'never mind', 'لا', 'الغاء', 'بلاش']) assert.equal(answerKind(t), 'no', t);
     assert.equal(answerKind('Sara Haddad'), null);
+  });
+});
+
+describe('applyEdit', () => {
+  it('sets a typed name, email and role', () => {
+    assert.deepEqual(applyEdit({ name: 'Sara' }, { name: 'Sara H', email: 'a@b.co', role: 'CEO' }), { name: 'Sara H', email: 'a@b.co', role: 'CEO' });
+  });
+  it('splits a number typed with its code, and trims a local zero', () => {
+    assert.deepEqual(applyEdit({}, { phoneText: '+966 50 123 4567' }), { dial: '+966', phone: '501234567' });
+    assert.deepEqual(applyEdit({ dial: '+20' }, { phoneText: '0100 123 4567' }), { dial: '+20', phone: '1001234567' });
+  });
+  it('forgets the "check the spelling" note once the email is typed', () => {
+    assert.equal(applyEdit({ email: 'x@y.co', guessedEmail: true }, { email: 'z@y.co' }).guessedEmail, undefined);
   });
 });

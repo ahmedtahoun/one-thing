@@ -5,6 +5,7 @@
 import { Circle, Line, Path, Rect, Svg } from 'react-native-svg';
 
 import { ICONS, type IconName, type IconPart } from '@/design/icon-paths';
+import { EXTRA_ICONS } from '@/design/icons-extra';
 import { ink } from '@/design/tokens';
 
 export type IconProps = {
@@ -18,7 +19,7 @@ export type IconProps = {
 };
 
 export function Icon({ name, size = 20, color = ink.base, strokeWidth = 1.8, filled = false }: IconProps) {
-  const parts = ICONS[name];
+  const parts = ICONS[name] ?? EXTRA_ICONS[name];
   if (!parts) return null;
 
   const stroke = filled ? 'none' : color;

@@ -14,9 +14,13 @@ import { getLocales } from 'expo-localization';
 
 import { ACC, C, EVX, FUX, PFX, SETX, type Lang } from '@/content/strings';
 import { INLINE } from '@/content/inline-copy';
+import { twelveHour } from '@/content/twelve-hour';
 import { A11Y } from '@/content/a11y';
+import { applyTheme, type ThemeMode } from '@/design/theme';
+import { setClockLang } from '@/lib/clock-format';
 
 const STORAGE_KEY = 'ot.lang';
+const THEME_KEY = 'ot.theme';
 
 type LanguageValue = {
   lang: Lang;
@@ -24,6 +28,9 @@ type LanguageValue = {
   dir: 'ltr' | 'rtl';
   isRTL: boolean;
   setLang: (lang: Lang) => void;
+  /** Light or dark. Lives here because every screen already reads this context, so changing it redraws them all. */
+  theme: ThemeMode;
+  setTheme: (theme: ThemeMode) => void;
   /** Main screen copy for the active language. */
   t: (typeof C)['en'];
   acc: (typeof ACC)['en'];
@@ -46,6 +53,9 @@ function deviceLang(): Lang {
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
   const [lang, setLangState] = useState<Lang>(deviceLang);
+  const [theme, setThemeState] = useState<ThemeMode>('light');
+  // Nothing is drawn until the saved theme is known, so a dark user never sees a light first frame.
+  const [themeReady, setThemeReady] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -61,6 +71,26 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+    AsyncStorage.getItem(THEME_KEY)
+      .then((saved) => {
+        if (!cancelled && (saved === 'light' || saved === 'dark')) setThemeState(saved);
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setThemeReady(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const setTheme = useCallback((next: ThemeMode) => {
+    setThemeState(next);
+    AsyncStorage.setItem(THEME_KEY, next).catch(() => {});
+  }, []);
+
   const setLang = useCallback((next: Lang) => {
     setLangState(next);
     AsyncStorage.setItem(STORAGE_KEY, next).catch(() => {
@@ -68,13 +98,20 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  // Times are written for the active language wherever a label is built.
+  setClockLang(lang);
+  // The colours every screen reads, set before any of them renders.
+  applyTheme(theme);
+
   const value = useMemo<LanguageValue>(
     () => ({
       lang,
       dir: lang === 'ar' ? 'rtl' : 'ltr',
       isRTL: lang === 'ar',
       setLang,
-      t: C[lang],
+      theme,
+      setTheme,
+      t: twelveHour(C[lang], lang),
       acc: ACC[lang],
       setx: SETX[lang],
       evx: EVX[lang],
@@ -83,9 +120,10 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
       inline: INLINE[lang],
       a11y: A11Y[lang],
     }),
-    [lang, setLang]
+    [lang, setLang, theme, setTheme]
   );
 
+  if (!themeReady) return null;
   return <LanguageContext.Provider value={value}>{children}</LanguageContext.Provider>;
 }
 

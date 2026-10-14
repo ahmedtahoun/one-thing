@@ -22,6 +22,8 @@ import { Toast, useToast } from '@/ui/Toast';
 import { fontFamily, ink, radius, space, status, surface } from '@/design/tokens';
 import { useDirection, useLanguage } from '@/i18n/LanguageProvider';
 import { nextSlot, parseClock } from '@/lib/clock';
+import { onDay, toDay } from '@/lib/arabic-day';
+import { clockFromHHMM } from '@/lib/clock-format';
 import { dateKey, timeLabel } from '@/lib/model-types';
 import { dayLabel } from '@/lib/task-labels';
 import { useTasks } from '@/lib/tasks';
@@ -31,8 +33,6 @@ const TIMES = Array.from({ length: 14 * 2 }, (_, i) => {
   const hour = 8 + Math.floor(i / 2);
   return `${String(hour).padStart(2, '0')}:${i % 2 ? '30' : '00'}`;
 });
-
-const PAST = '#CFCFCB';
 
 export default function Reschedule() {
   const { t, lang } = useLanguage();
@@ -101,7 +101,10 @@ export default function Reschedule() {
     const [hour = '10', minute = '00'] = time.split(':');
     const at = new Date(selected);
     at.setHours(Number(hour), Number(minute), 0, 0);
-    const label = `${whenLabel} · ${time}`;
+    // Arabic joins the day to the sentence: لليوم, للجمعة, الجمعة (see arabic-day.ts).
+    const clock = clockFromHHMM(time);
+    const label = `${lang === 'ar' ? onDay(whenLabel, t.wk) : whenLabel} · ${clock}`;
+    const moveLabel = `${lang === 'ar' ? toDay(whenLabel, t.wk) : whenLabel} · ${clock}`;
 
     if (remindMode) {
       // A custom reminder moves the reminder, never the task.
@@ -109,10 +112,10 @@ export default function Reschedule() {
       toast.show(t.toastRem.replace('{w}', label), { undo: false });
     } else {
       updateTask(task.id, { dueAt: at.toISOString(), status: 'open', snoozedUntil: null });
-      toast.show(t.toastMoved.replace('{w}', label), { undo: false });
+      toast.show(t.toastMoved.replace(lang === 'ar' ? 'لـ{w}' : '{w}', '{w}').replace('{w}', moveLabel), { undo: false });
     }
     close();
-  }, [task, time, timeGone, selected, whenLabel, remindMode, updateTask, toast, t, close]);
+  }, [task, time, timeGone, selected, whenLabel, remindMode, updateTask, toast, t, close, lang]);
 
   return (
     <>
@@ -155,8 +158,8 @@ export default function Reschedule() {
                   paddingHorizontal: 13,
                   borderRadius: radius.pill,
                   borderWidth: 1,
-                  borderColor: on ? ink.base : surface.line,
-                  backgroundColor: on ? ink.base : surface.white,
+                  borderColor: on ? ink.solid : surface.line,
+                  backgroundColor: on ? ink.solid : surface.white,
                   justifyContent: 'center',
                 }}
               >
@@ -200,18 +203,19 @@ export default function Reschedule() {
                   accessibilityRole="button"
                   accessibilityState={{ selected: on, disabled: gone }}
                   style={{
-                    width: 64,
+                    minWidth: 80,
+                    paddingHorizontal: 8,
                     height: 40,
                     borderRadius: radius.small,
                     borderWidth: 1.5,
-                    borderColor: on ? ink.base : surface.line,
-                    backgroundColor: on ? ink.base : surface.white,
+                    borderColor: on ? ink.solid : surface.line,
+                    backgroundColor: on ? ink.solid : surface.white,
                     alignItems: 'center',
                     justifyContent: 'center',
                   }}
                 >
-                  <LTRText token="bodyS" tabular align="center" color={on ? surface.white : gone ? PAST : ink.base}>
-                    {slot}
+                  <LTRText token="bodyS" tabular align="center" color={on ? surface.white : gone ? ink.s7 : ink.base}>
+                    {clockFromHHMM(slot)}
                   </LTRText>
                 </Pressable>
               );
@@ -226,10 +230,10 @@ export default function Reschedule() {
               testID="reschedule-custom-time"
               value={custom}
               onChangeText={onCustom}
-              placeholder="17:45"
+              placeholder={clockFromHHMM('17:45')}
               placeholderTextColor={ink.s5}
               keyboardType="numbers-and-punctuation"
-              maxLength={5}
+              maxLength={8}
               returnKeyType="done"
               autoCorrect={false}
               style={{
@@ -237,7 +241,7 @@ export default function Reschedule() {
                 height: 40,
                 borderRadius: radius.small,
                 borderWidth: 1.5,
-                borderColor: customBad ? status.invalid : custom && typed ? ink.base : surface.line,
+                borderColor: customBad ? status.invalid : custom && typed ? ink.solid : surface.line,
                 paddingHorizontal: 12,
                 fontFamily: `${fontFamily}_400Regular`,
                 fontSize: 16,
@@ -262,14 +266,14 @@ export default function Reschedule() {
           style={{
             height: 54,
             borderRadius: 27,
-            backgroundColor: timeGone ? ink.disabledBtn : ink.base,
+            backgroundColor: timeGone ? ink.disabledBtn : ink.solid,
             alignItems: 'center',
             justifyContent: 'center',
             marginTop: 2,
           }}
         >
           <Text token="bodyL" weight="500" color={surface.white}>
-            {(remindMode ? t.r_remApply : t.r_move).replace('{d}', whenLabel).replace('{t}', time)}
+            {(remindMode ? t.r_remApply : t.r_move).replace(lang === 'ar' && !remindMode ? 'لـ{d}' : '{d}', '{d}').replace('{d}', lang === 'ar' ? (remindMode ? onDay(whenLabel, t.wk) : toDay(whenLabel, t.wk)) : whenLabel).replace('{t}', clockFromHHMM(time))}
           </Text>
         </Pressable>
       </Sheet>

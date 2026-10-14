@@ -10,6 +10,7 @@ import { Pressable, TextInput, View } from 'react-native';
 import { router } from 'expo-router';
 
 import { whenText } from '@/features/capture/labels';
+import { promiseDraft } from '@/features/compose/drafts';
 import { Icon } from '@/ui/Icon';
 import { added } from '@/content/additions';
 import { Screen } from '@/ui/Screen';
@@ -19,9 +20,10 @@ import { TYPE_ICON } from '@/design/icon-paths';
 import { fontFamily, ink, surface, typeColour } from '@/design/tokens';
 import { useDirection, useLanguage } from '@/i18n/LanguageProvider';
 import { textParser, type ParsedTask } from '@/lib/parse';
-import { taskFromParsed } from '@/lib/parse/to-task';
+import { followUpFromParsed, taskFromParsed } from '@/lib/parse/to-task';
 import { usePeople } from '@/lib/people';
 import { startListening } from '@/lib/speech';
+import { useSession } from '@/lib/session';
 import { useTasks } from '@/lib/tasks';
 
 type Item = ParsedTask & { keep: boolean };
@@ -32,7 +34,8 @@ const DUMP_HEIGHT = 264.3;
 export default function BrainDump() {
   const { t, a11y, lang } = useLanguage();
   const dir = useDirection();
-  const { contacts } = usePeople();
+  const { contacts, addFollowUp } = usePeople();
+  const { session } = useSession();
   const { addTask } = useTasks();
   const toast = useToast();
 
@@ -79,7 +82,11 @@ export default function BrainDump() {
 
   const save = () => {
     if (!items || kept === 0) return;
-    for (const item of items) if (item.keep) addTask(taskFromParsed(item, 'dump'));
+    for (const item of items) {
+      if (!item.keep) continue;
+      if (item.kind === 'waiting') addFollowUp(followUpFromParsed(item, added(lang).loop.waitSince.replace('{w}', whenText(item.when, t))));
+      else addTask(taskFromParsed(item, 'dump', promiseDraft(item, lang, session?.name)));
+    }
     router.dismissTo('/today');
     toast.show(t.toastDump.replace('{n}', String(kept)), { undo: false });
   };
@@ -151,7 +158,7 @@ export default function BrainDump() {
                 paddingHorizontal: 16,
                 borderRadius: 999,
                 borderWidth: 1,
-                borderColor: listening ? ink.base : surface.line,
+                borderColor: listening ? ink.solid : surface.line,
                 backgroundColor: surface.white,
               }}
             >
@@ -165,7 +172,7 @@ export default function BrainDump() {
               testID="dump-sort"
               onPress={sort}
               accessibilityRole="button"
-              style={{ height: 56, borderRadius: 28, backgroundColor: ink.base, alignItems: 'center', justifyContent: 'center' }}
+              style={{ height: 56, borderRadius: 28, backgroundColor: ink.solid, alignItems: 'center', justifyContent: 'center' }}
             >
               <Text token="title" weight="500" color={surface.white} align="center">
                 {t.d_sort}
@@ -202,7 +209,7 @@ export default function BrainDump() {
               testID="dump-save"
               onPress={save}
               accessibilityRole="button"
-              style={{ height: 56, borderRadius: 28, backgroundColor: ink.base, alignItems: 'center', justifyContent: 'center' }}
+              style={{ height: 56, borderRadius: 28, backgroundColor: ink.solid, alignItems: 'center', justifyContent: 'center' }}
             >
               <Text token="title" weight="500" color={surface.white} align="center">
                 {t.d_save.replace('{n}', String(kept))}
@@ -246,7 +253,7 @@ function DumpItem({ item, index, onToggle }: { item: Item; index: number; onTogg
           borderRadius: 6,
           borderWidth: 1.5,
           borderColor: ink.base,
-          backgroundColor: item.keep ? ink.base : surface.white,
+          backgroundColor: item.keep ? ink.solid : surface.white,
           alignItems: 'center',
           justifyContent: 'center',
         }}

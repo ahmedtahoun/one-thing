@@ -58,7 +58,7 @@ const DEVICES = {
 /** The six that show what the app is for, in the order a listing reads best. */
 const SHOTS = [
   { path: '/today', name: '1-today', seedTasks: true, oneThing: true, seedPeople: true },
-  { path: '/tasks', name: '2-tasks', seedTasks: true, oneThing: true, seedPeople: true },
+  { path: '/people', name: '2-people', seedTasks: true, oneThing: true, seedPeople: true },
   { path: '/focus', name: '3-focus', seedTasks: true, oneThing: true },
   { path: '/compose?id=t1', name: '4-compose', seedTasks: true, seedPeople: true },
   { path: '/assistant', name: '5-assistant', seedTasks: true, seedPeople: true, oneThing: true },

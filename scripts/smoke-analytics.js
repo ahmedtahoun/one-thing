@@ -134,14 +134,15 @@ const ONE_THING = { en: 'Finish the investor proposal', ar: 'أخلّص عرض �
 
   // ------------------------------------------------------------ the events
   await seed('en', { oneThing: false });
-  await open('/priority');
-  await page.getByTestId('priority-input').fill('Rewrite the pricing page');
-  await page.getByTestId('priority-save').click();
+  await open('/today');
+  await page.getByTestId('today-set-one').click();
+  await page.getByTestId('onething-input').fill('Rewrite the pricing page');
+  await page.getByTestId('onething-save').click();
   await page.waitForTimeout(700);
   check('setting the One Thing records one_thing_set', (await names()).includes('one_thing_set'));
 
-  await open('/tasks');
-  const firstTick = page.getByTestId(/^task-check-/).first();
+  await open('/today');
+  const firstTick = page.locator('[data-testid^="next-"][data-testid$="-done"]').first();
   await firstTick.click();
   await page.waitForTimeout(500);
   check('finishing a task records task_done', (await names()).includes('task_done'));

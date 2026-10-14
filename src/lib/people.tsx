@@ -8,7 +8,11 @@
 import { createContext, useCallback, useContext, useMemo, type ReactNode } from 'react';
 
 import { track } from './analytics/track';
+import { clearCadence } from './cadence';
+import { clearFavorites } from './favorites';
 import { newId } from './ids';
+import { clearNextState } from './next-state';
+import { clearPhotos } from './photos';
 import { displayName, type Contact, type FollowUp, type HistoryEntry, type Task } from './model-types';
 import { usePersisted } from './persisted';
 
@@ -51,6 +55,8 @@ type PeopleValue = {
   updateContact: (id: string, patch: Partial<Contact>) => void;
   /** A new contact from the contact form, at the top of People. Returns it. */
   addContact: (contact: Omit<Contact, 'id' | 'createdAt'>) => Contact;
+  /** Many at once — an import — in the order given, as one change. Returns them. */
+  addContacts: (contacts: Omit<Contact, 'id' | 'createdAt'>[]) => Contact[];
   /**
    * Deletes a contact and their history ("Their history goes too"). Returns
    * a function that puts both back, for the toast's Undo.
@@ -116,6 +122,16 @@ export function PeopleProvider({ children }: { children: ReactNode }) {
     [setContacts]
   );
 
+  const addContacts = useCallback<PeopleValue['addContacts']>(
+    (inputs) => {
+      const createdAt = new Date().toISOString();
+      const made: Contact[] = inputs.map((input) => ({ ...input, id: newId(), createdAt }));
+      setContacts((list) => [...made, ...list]);
+      return made;
+    },
+    [setContacts]
+  );
+
   const deleteContact = useCallback<PeopleValue['deleteContact']>(
     (id) => {
       const contactsBefore = contacts;
@@ -148,6 +164,10 @@ export function PeopleProvider({ children }: { children: ReactNode }) {
     resetContacts();
     resetFollowUps();
     resetHistory();
+    clearFavorites();
+    clearNextState();
+    clearPhotos();
+    clearCadence();
   }, [resetContacts, resetFollowUps, resetHistory]);
 
   const applySync = useCallback<PeopleValue['applySync']>(
@@ -169,6 +189,7 @@ export function PeopleProvider({ children }: { children: ReactNode }) {
       addFollowUp,
       updateContact,
       addContact,
+      addContacts,
       deleteContact,
       addHistory,
       updateFollowUp,
@@ -187,6 +208,7 @@ export function PeopleProvider({ children }: { children: ReactNode }) {
       addFollowUp,
       updateContact,
       addContact,
+      addContacts,
       deleteContact,
       addHistory,
       updateFollowUp,

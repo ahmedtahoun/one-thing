@@ -1,10 +1,9 @@
 /**
- * Today's quick-action grid: 4 × 2 tiles, 76 pt tall, radius 18, filled with
+ * Today's quick-action row: four tiles, 76 pt tall, radius 18, filled with
  * the type's tile colour. SCREENS.md § 06.
  *
  * Routing (ACCEPTANCE § Core): Call / Email / WhatsApp open the contact picker
- * and then Compose; Remind opens Quick capture; the four event types open the
- * event form.
+ * and then Compose; Remind opens Quick capture.
  */
 import { Pressable, View } from 'react-native';
 
@@ -14,20 +13,16 @@ import { TYPE_ICON } from '@/design/icon-paths';
 import { ink, radius, space, typeColour, type TaskType } from '@/design/tokens';
 import { useLanguage } from '@/i18n/LanguageProvider';
 
-/** Grid order, left to right then down, exactly as the design lays it out. */
-export const QUICK_ACTION_ORDER: TaskType[] = [
-  'call',
-  'email',
-  'whatsapp',
-  'reminder',
-  'visit',
-  'meeting',
-  'webinar',
-  'course',
-];
+/**
+ * The four things people do every day, in one row. The handoff has eight —
+ * visit, meeting, webinar and course as well — but eight tiles is a menu to
+ * choose from before anything is done. Those four types still exist and open
+ * wherever they already are; only the way in from here is gone.
+ */
+export const QUICK_ACTION_ORDER: TaskType[] = ['call', 'email', 'whatsapp', 'reminder'];
 
-/** The grid is 4 x 2; rows are explicit so a tile can never wrap. */
-const ROWS: TaskType[][] = [QUICK_ACTION_ORDER.slice(0, 4), QUICK_ACTION_ORDER.slice(4)];
+/** Rows of four, explicit so a tile can never wrap; an empty row is never drawn. */
+const ROWS: TaskType[][] = [QUICK_ACTION_ORDER.slice(0, 4), QUICK_ACTION_ORDER.slice(4)].filter((row) => row.length > 0);
 
 export function QuickActions({ onPress }: { onPress: (type: TaskType) => void }) {
   const { t } = useLanguage();

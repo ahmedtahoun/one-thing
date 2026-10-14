@@ -14,6 +14,8 @@ import { AskChips } from '@/features/capture/AskChips';
 import { optionsFor, questionFor, type AskOption } from '@/features/capture/ask';
 import { NOBODY, whenText } from '@/features/capture/labels';
 import { Bars, Pulse } from '@/features/capture/Listening';
+import { LoopTag } from '@/features/capture/LoopTag';
+import { promiseDraft } from '@/features/compose/drafts';
 import { SendRow } from '@/features/capture/SendRow';
 import { Icon } from '@/ui/Icon';
 import { added } from '@/content/additions';
@@ -26,9 +28,10 @@ import { textParser, type ParsedTask } from '@/lib/parse';
 import { isContactCommand } from '@/lib/parse/contact';
 import { clarify, suggestWho, withWhen, withWho, type Gap, type QuickWhen, type Settled } from '@/lib/parse/clarify';
 import type { Contact } from '@/lib/model-types';
-import { taskFromParsed } from '@/lib/parse/to-task';
+import { followUpFromParsed, taskFromParsed } from '@/lib/parse/to-task';
 import { usePeople } from '@/lib/people';
 import { startListening } from '@/lib/speech';
+import { useSession } from '@/lib/session';
 import { useTasks } from '@/lib/tasks';
 
 type Stage = 'idle' | 'listening' | 'done';
@@ -36,8 +39,9 @@ type Stage = 'idle' | 'listening' | 'done';
 export default function Capture() {
   const { t, a11y, lang } = useLanguage();
   const dir = useDirection();
-  const { contacts, followUps, addContact } = usePeople();
+  const { contacts, followUps, addContact, addFollowUp } = usePeople();
   const { tasks, addTask } = useTasks();
+  const { session } = useSession();
   const toast = useToast();
 
   const [stage, setStage] = useState<Stage>('idle');
@@ -147,7 +151,15 @@ export default function Capture() {
 
   const save = () => {
     if (!parsed) return;
-    addTask(taskFromParsed(parsed, 'capture'));
+    if (parsed.kind === 'waiting') {
+      // Someone owes a reply: it comes back as a follow-up when it is time to check.
+      const when = whenText(parsed.when, t);
+      addFollowUp(followUpFromParsed(parsed, copy.loop.waitSince.replace('{w}', when)));
+      close();
+      toast.show(copy.loop.savedWait.replace('{n}', parsed.who ?? '').replace('{w}', when), { undo: false });
+      return;
+    }
+    addTask(taskFromParsed(parsed, 'capture', promiseDraft(parsed, lang, session?.name)));
     close();
     toast.show(t.toastSaved, { undo: false });
   };
@@ -156,7 +168,7 @@ export default function Capture() {
     ? [
         [t.what, parsed.title],
         [t.who, parsed.who ?? NOBODY],
-        [t.when, whenText(parsed.when, t)],
+        [parsed.kind === 'waiting' ? copy.loop.checkIn : t.when, whenText(parsed.when, t)],
         [t.via, t.types[parsed.type]],
       ]
     : [];
@@ -218,6 +230,7 @@ export default function Capture() {
                   textAlign: dir.textAlign,
                 }}
               />
+              {parsed?.kind ? <LoopTag kind={parsed.kind} copy={copy.loop} /> : null}
               {rows.length ? (
                 <View testID="capture-card" style={{ borderWidth: 1, borderColor: surface.line, borderRadius: 16, overflow: 'hidden' }}>
                   {rows.map(([k, v]) => (
@@ -259,7 +272,7 @@ export default function Capture() {
               style={{
                 height: 56,
                 borderRadius: 28,
-                backgroundColor: parsed ? ink.base : ink.disabledBtn,
+                backgroundColor: parsed ? ink.solid : ink.disabledBtn,
                 alignItems: 'center',
                 justifyContent: 'center',
               }}
@@ -283,7 +296,7 @@ export default function Capture() {
                   width: 120,
                   height: 120,
                   borderRadius: 60,
-                  backgroundColor: ink.base,
+                  backgroundColor: ink.solid,
                   alignItems: 'center',
                   justifyContent: 'center',
                   transform: [{ scale: pressed ? 0.96 : 1 }],
@@ -293,6 +306,9 @@ export default function Capture() {
               </Pressable>
             </View>
             <View style={{ gap: 10 }}>
+              <Text testID="capture-hint" token="caption" color={ink.s5} align="center" style={{ paddingHorizontal: 12 }}>
+                {copy.loop.hint}
+              </Text>
               <Text token="caption" color={ink.s4} align="center">
                 {t.orType}
               </Text>
@@ -325,7 +341,7 @@ export default function Capture() {
                   right: 0,
                   bottom: 0,
                   borderRadius: 60,
-                  backgroundColor: ink.base,
+                  backgroundColor: ink.solid,
                   alignItems: 'center',
                   justifyContent: 'center',
                 }}

@@ -28,7 +28,7 @@ export function Pulse() {
         right: 0,
         bottom: 0,
         borderRadius: 60,
-        backgroundColor: ink.base,
+        backgroundColor: ink.solid,
         opacity: t.interpolate({ inputRange: [0, 1], outputRange: [0.35, 0] }),
         transform: [{ scale: t.interpolate({ inputRange: [0, 1], outputRange: [1, 1.9] }) }],
       }}
@@ -59,7 +59,7 @@ function Bar({ index }: { index: number }) {
         width: 4,
         height: 36,
         borderRadius: 2,
-        backgroundColor: ink.base,
+        backgroundColor: ink.solid,
         transform: [{ scaleY: t.interpolate({ inputRange: [0, 1], outputRange: [0.3, 1] }) }],
       }}
     />

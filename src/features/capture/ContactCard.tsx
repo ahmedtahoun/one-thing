@@ -11,9 +11,9 @@ import { Icon } from '@/ui/Icon';
 import { Text } from '@/ui/Text';
 import { fontFamily, ink, status, surface } from '@/design/tokens';
 import { useDirection } from '@/i18n/LanguageProvider';
-import type { ContactFields } from '@/lib/parse/contact';
+import type { ContactEdit, ContactFields } from '@/lib/parse/contact';
 
-export type ContactEdit = Partial<Pick<ContactFields, 'name' | 'email' | 'role'>> & { phoneText?: string };
+export type { ContactEdit };
 
 type Props = {
   fields: ContactFields;
@@ -95,7 +95,7 @@ export function ContactCard(props: Props) {
         alignItems: 'center',
         justifyContent: 'center',
         paddingHorizontal: 16,
-        backgroundColor: kind === 'primary' ? (enabled ? ink.base : ink.disabledBtn) : surface.white,
+        backgroundColor: kind === 'primary' ? (enabled ? ink.solid : ink.disabledBtn) : surface.white,
         borderWidth: kind === 'primary' ? 0 : 1,
         borderColor: surface.line,
       }}

@@ -45,7 +45,7 @@ export function FirstRunCard({
     <View
       testID="first-run-card"
       style={{
-        backgroundColor: ink.base,
+        backgroundColor: ink.card,
         borderRadius: radius.oneThing,
         paddingTop: 16,
         paddingHorizontal: 18,
@@ -72,7 +72,7 @@ export function FirstRunCard({
       {/* The question is one of the few places the prototype sets a
           line-height, and it balances its wrap; smaller here than the
           prototype's 26 so the card stays short. */}
-      <BalancedText token="h2" size={21} lh={26} color={surface.white}>
+      <BalancedText token="h2" size={21} lh={26} color={surface.onCard}>
         {inline.firstRunQuestion}
       </BalancedText>
 
@@ -80,7 +80,7 @@ export function FirstRunCard({
         style={{
           flexDirection: dir.row,
           alignItems: 'center',
-          backgroundColor: '#1F1F1E',
+          backgroundColor: surface.onInkFill,
           borderRadius: radius.cardTight,
           padding: 4,
           gap: 8,
@@ -101,7 +101,7 @@ export function FirstRunCard({
             minWidth: 0,
             height: 40,
             paddingHorizontal: 10,
-            color: surface.white,
+            color: surface.onCard,
             fontSize: 16,
             fontFamily: `${fontFamily}_400Regular`,
             textAlign: dir.textAlign,
@@ -145,10 +145,10 @@ export function FirstRunCard({
               paddingVertical: 8,
               borderRadius: radius.pill,
               borderWidth: 1,
-              borderColor: '#3A3A38',
+              borderColor: surface.onInkLine,
             }}
           >
-            <Text token="caption" color={surface.white} numberOfLines={1}>
+            <Text token="caption" color={surface.onCard} numberOfLines={1}>
               {label}
             </Text>
           </Pressable>

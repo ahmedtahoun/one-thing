@@ -157,7 +157,7 @@ export default function Paywall() {
                 }}
               >
                 <View style={{ width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: edge, alignItems: 'center', justifyContent: 'center' }}>
-                  <View style={{ width: 11, height: 11, borderRadius: 5.5, backgroundColor: on ? ink.base : 'transparent' }} />
+                  <View style={{ width: 11, height: 11, borderRadius: 5.5, backgroundColor: on ? ink.solid : 'transparent' }} />
                 </View>
                 <View style={{ flex: 1, gap: 2 }}>
                   <Text token="bodyL" weight="600">
@@ -206,7 +206,7 @@ export default function Paywall() {
             style={({ pressed }) => ({
               height: 56,
               borderRadius: 28,
-              backgroundColor: ink.base,
+              backgroundColor: ink.solid,
               alignItems: 'center',
               justifyContent: 'center',
               transform: [{ scale: pressed ? 0.98 : 1 }],

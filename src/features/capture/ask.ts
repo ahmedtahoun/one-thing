@@ -7,8 +7,9 @@
  * screen's: an option carries an `action`, and `withWho` / `withWhen` in
  * ../../lib/parse/clarify turn it into the next proposal.
  */
+import { clockOf } from '@/lib/clock-format';
 import type { Added } from '@/content/additions';
-import { timeLabel, type Contact } from '@/lib/model-types';
+import { type Contact } from '@/lib/model-types';
 import { whenOptions, type Gap, type QuickWhen } from '@/lib/parse/clarify';
 import type { ParsedTask } from '@/lib/parse/types';
 
@@ -38,7 +39,7 @@ export function questionFor(gap: Gap, draft: ParsedTask, copy: Added): string {
     case 'who-missing':
       return copy.pickWho[draft.type === 'reminder' ? 'call' : draft.type];
     case 'when':
-      return gap.why === 'past' ? copy.ask.whenPast.replace('{t}', timeLabel(draft.when)) : copy.ask.whenMissing;
+      return gap.why === 'past' ? copy.ask.whenPast.replace('{t}', clockOf(draft.when)) : copy.ask.whenMissing;
   }
 }
 
@@ -82,7 +83,7 @@ export function optionsFor(
         next.setDate(next.getDate() + 1);
         options.push({
           key: 'tomorrow-same',
-          label: copy.ask.tomorrowAt.replace('{t}', timeLabel(draft.when)),
+          label: copy.ask.tomorrowAt.replace('{t}', clockOf(draft.when)),
           action: { kind: 'when', iso: next.toISOString() },
         });
       }
@@ -93,7 +94,7 @@ export function optionsFor(
       if (gap.why === 'missing' && at.getTime() > now.getTime()) {
         options.push({
           key: 'keep',
-          label: copy.ask.keepTime.replace('{t}', timeLabel(draft.when)),
+          label: copy.ask.keepTime.replace('{t}', clockOf(draft.when)),
           action: { kind: 'when', iso: draft.when },
         });
       }

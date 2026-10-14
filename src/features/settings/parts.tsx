@@ -17,7 +17,13 @@ import { type IconName } from '@/design/icon-paths';
 import { ink, motion, surface } from '@/design/tokens';
 import { useDirection } from '@/i18n/LanguageProvider';
 
-const rule = { borderBottomWidth: 1, borderBottomColor: surface.lineSoft } as const;
+// A getter, so the colour is read when a row renders (and follows the theme), not once at import.
+const rule = {
+  borderBottomWidth: 1,
+  get borderBottomColor() {
+    return surface.lineSoft;
+  },
+} as const;
 
 /** White, radius 16, clipped — the two grouped cards. */
 export function SettingsCard({ children }: { children: ReactNode }) {
@@ -25,12 +31,12 @@ export function SettingsCard({ children }: { children: ReactNode }) {
 }
 
 /** A 32 pt rounded tile holding a 17 pt icon, at the start of a row. */
-export function RowTile({ icon, bg, fg }: { icon: IconName; bg: string; fg: string }) {
+export function RowTile({ icon, bg, fg, filled = false }: { icon: IconName; bg: string; fg: string; filled?: boolean }) {
   return (
     <View
       style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: bg, alignItems: 'center', justifyContent: 'center' }}
     >
-      <Icon name={icon} size={17} color={fg} strokeWidth={2} />
+      <Icon name={icon} size={17} color={fg} strokeWidth={2} filled={filled} />
     </View>
   );
 }
@@ -222,12 +228,15 @@ export function LinkRow({
   onPress,
   last = false,
   background,
+  tile,
 }: {
   testID?: string;
   label: string;
   onPress: () => void;
   last?: boolean;
   background?: string;
+  /** An icon tile at the start of the row, as on the accordion rows. */
+  tile?: ReactNode;
 }) {
   const dir = useDirection();
   return (
@@ -245,6 +254,7 @@ export function LinkRow({
         ...(last ? null : rule),
       }}
     >
+      {tile}
       <Text token="body" style={{ flex: 1 }}>
         {label}
       </Text>

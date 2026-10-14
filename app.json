@@ -14,9 +14,10 @@
       "infoPlist": {
         "NSMicrophoneUsageDescription": "Used only while you're recording a note, so you can capture a task by speaking instead of typing.",
         "NSSpeechRecognitionUsageDescription": "Used to turn the note you just spoke into a task. Nothing is recorded in the background.",
-        "NSPhotoLibraryUsageDescription": "Not used. The One Thing never reads your photos.",
+        "NSPhotoLibraryUsageDescription": "Used only when you choose a photo of a business card to read. The One Thing never reads your other photos.",
         "CFBundleAllowMixedLocalizations": true,
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSCameraUsageDescription": "Used only when you take a photo of a business card, so it can be read on your phone to add the contact."
       }
     },
     "android": {
@@ -33,7 +34,9 @@
         "SCHEDULE_EXACT_ALARM"
       ],
       "blockedPermissions": [
-        "android.permission.WRITE_CONTACTS"
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_CONTACTS",
+        "android.permission.WRITE_EXTERNAL_STORAGE"
       ],
       "versionCode": 5
     },
@@ -75,7 +78,15 @@
             "com.google.android.googlequicksearchbox"
           ]
         }
-      ]
+      ],
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "Used only when you take a photo of a business card, so it can be read on your phone to add the contact.",
+          "photosPermission": "Used only when you choose a photo of a business card to read. The One Thing never reads your other photos."
+        }
+      ],
+      "expo-document-picker"
     ],
     "extra": {
       "router": {}

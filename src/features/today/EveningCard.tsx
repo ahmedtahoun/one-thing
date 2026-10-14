@@ -29,7 +29,7 @@ export function EveningCard({
     <View
       testID="evening-card"
       style={{
-        backgroundColor: ink.base,
+        backgroundColor: ink.card,
         borderRadius: radius.oneThing,
         paddingTop: 24,
         paddingHorizontal: 22,
@@ -45,15 +45,15 @@ export function EveningCard({
       </View>
 
       {/* 28 / 1.2, balanced — same treatment as the One Thing title. */}
-      <BalancedText token="h1" lh={33.6} color={surface.white}>
+      <BalancedText token="h1" lh={33.6} color={surface.onCard}>
         {t.ev_t}
       </BalancedText>
 
       <View style={{ gap: 4 }}>
-        <Text token="bodyS" color="#C9C9C5">
+        <Text token="bodyS" color={ink.onInk}>
           {oneThingLine}
         </Text>
-        <Text token="bodyS" color="#C9C9C5">
+        <Text token="bodyS" color={ink.onInk}>
           {keptLine}
         </Text>
       </View>

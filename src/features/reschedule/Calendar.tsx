@@ -13,7 +13,6 @@ import { ink, radius, surface } from '@/design/tokens';
 import { useDirection, useLanguage } from '@/i18n/LanguageProvider';
 
 /** Grey for a day that has already gone. */
-const PAST = '#CFCFCB';
 
 export function Calendar({
   view,
@@ -92,8 +91,8 @@ export function Calendar({
                   height: 38,
                   borderRadius: 19,
                   borderWidth: 1.5,
-                  borderColor: isSelected || isToday ? ink.base : 'transparent',
-                  backgroundColor: isSelected ? ink.base : 'transparent',
+                  borderColor: isSelected || isToday ? ink.solid : 'transparent',
+                  backgroundColor: isSelected ? ink.solid : 'transparent',
                   alignItems: 'center',
                   justifyContent: 'center',
                 }}
@@ -103,7 +102,7 @@ export function Calendar({
                   tabular
                   align="center"
                   weight={isToday || isSelected ? '600' : '400'}
-                  color={isSelected ? surface.white : past ? PAST : ink.base}
+                  color={isSelected ? surface.white : past ? ink.s7 : ink.base}
                 >
                   {String(day)}
                 </LTRText>

@@ -6,8 +6,9 @@
  * the quick log), and follow-ups with this person that were closed — "Closed
  * follow-ups appear automatically". Those are derived, not stored twice.
  */
+import { clockOf } from '@/lib/clock-format';
 import type { Lang } from '@/content/strings';
-import { dateKey, displayName, timeLabel, type Contact, type FollowUp, type HistoryEntry, type HistoryKind } from '@/lib/model-types';
+import { dateKey, displayName, type Contact, type FollowUp, type HistoryEntry, type HistoryKind } from '@/lib/model-types';
 
 export type TimelineItem = {
   key: string;
@@ -58,7 +59,7 @@ export function buildTimeline({
   const moments = [
     ...history
       .filter((h) => h.contactId === contact.id)
-      .map((h) => ({ key: h.id, kind: h.kind, text: h.text, at: h.at, time: timeLabel(h.at) })),
+      .map((h) => ({ key: h.id, kind: h.kind, text: h.text, at: h.at, time: clockOf(h.at) })),
     ...followUps
       .filter((f) => f.status === 'done' && isTheirs(f, contact))
       // The prototype shows these with a tick and no time.

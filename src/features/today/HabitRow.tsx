@@ -57,7 +57,7 @@ export function HabitRow({ streak, nudgesOff, onTurnOn }: { streak: Streak; nudg
             testID="today-nudges-on"
             onPress={onTurnOn}
             accessibilityRole="button"
-            style={{ paddingVertical: 7, paddingHorizontal: 14, borderRadius: 999, backgroundColor: ink.base }}
+            style={{ paddingVertical: 7, paddingHorizontal: 14, borderRadius: 999, backgroundColor: ink.solid }}
           >
             <Text token="caption" weight="600" color={surface.white}>
               {copy.nudgesTurnOn}

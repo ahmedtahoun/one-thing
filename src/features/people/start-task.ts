@@ -1,8 +1,10 @@
 import { useCallback } from 'react';
 import { router } from 'expo-router';
 
+import { greetingName, writeDraft, type DraftKind } from '@/features/compose/drafts';
 import { useLanguage } from '@/i18n/LanguageProvider';
 import type { Channel, Contact } from '@/lib/model-types';
+import { useSession } from '@/lib/session';
 import { useTasks } from '@/lib/tasks';
 
 /**
@@ -13,22 +15,26 @@ import { useTasks } from '@/lib/tasks';
  * clock, so here they are due now.
  */
 export function useStartTask() {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const { addTask } = useTasks();
+  const { session } = useSession();
 
   return useCallback(
-    (contact: Contact, type: Channel) => {
-      const first = contact.name.split(' ')[0] ?? contact.name;
+    (contact: Contact, type: Channel, draftKind?: DraftKind) => {
+      // "Email Omar", and "Email Dr. Hassan" for a titled name, never "Email Dr.".
+      const first = greetingName(contact.name, lang) || contact.name;
       const task = addTask({
         type,
         title: t.newMsg[type].replace('{n}', first),
         who: contact.role ? `${contact.name} · ${contact.role}` : contact.name,
         contactIds: [contact.id],
         dueAt: new Date().toISOString(),
+        // A message that starts from a reason (it has been a while) arrives with its first line written.
+        draft: type === 'call' || (!draftKind && type !== 'email') ? undefined : writeDraft(type, draftKind ?? 'blank', { name: contact.name, sender: session?.name, lang }),
         createdVia: 'quick',
       });
       router.push(`/compose?id=${task.id}`);
     },
-    [addTask, t.newMsg]
+    [addTask, t.newMsg, lang, session?.name]
   );
 }

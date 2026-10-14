@@ -1,19 +1,29 @@
 /**
  * Typed times for the pickers, and the first sensible time to offer.
  *
- * Times are 24-hour "HH:MM" strings everywhere in the app (`timeLabel`), so
- * they compare correctly as text.
+ * Times are stored as 24-hour "HH:MM" strings (`timeLabel`), so they compare
+ * correctly as text; what is shown is on the 12-hour clock (`clock-format.ts`).
  */
 
 const ARABIC_INDIC = '٠١٢٣٤٥٦٧٨٩';
 
-/** "17:45", "7:05", "1745", "17.45" and "9" (an hour on its own) → "HH:MM", or null. */
+/**
+ * What a person types into a time box, as "HH:MM": "5:45 pm", "5pm", "5:45 م",
+ * "9 AM", and also 24-hour "17:45", "7:05", "1745", "17.45" or "9" (an hour on
+ * its own). With AM or PM (ص / م) the hour is 1–12; "12 AM" is midnight.
+ */
 export function parseClock(text: string): string | null {
   const ascii = text.trim().replace(/[٠-٩]/g, (d) => String(ARABIC_INDIC.indexOf(d)));
-  const match = /^(\d{1,2})(?:[:.](\d{2})|(\d{2}))?$/.exec(ascii);
+  const match = /^(\d{1,2})(?:[:.](\d{2})|(\d{2}))?\s*(a\.?m\.?|p\.?m\.?|ص|م)?$/i.exec(ascii);
   if (!match) return null;
-  const hour = Number(match[1]);
+  let hour = Number(match[1]);
   const minute = Number(match[2] ?? match[3] ?? '0');
+  const meridiem = match[4]?.toLowerCase();
+  if (meridiem) {
+    if (hour < 1 || hour > 12) return null;
+    const pm = meridiem.startsWith('p') || meridiem === 'م';
+    hour = (hour % 12) + (pm ? 12 : 0);
+  }
   if (hour > 23 || minute > 59) return null;
   return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
 }

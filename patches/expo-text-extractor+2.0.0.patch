@@ -1,0 +1,36 @@
+diff --git a/node_modules/expo-text-extractor/ios/ExpoTextExtractorModule.swift b/node_modules/expo-text-extractor/ios/ExpoTextExtractorModule.swift
+index 102a7a0..ddac091 100644
+--- a/node_modules/expo-text-extractor/ios/ExpoTextExtractorModule.swift
++++ b/node_modules/expo-text-extractor/ios/ExpoTextExtractorModule.swift
+@@ -23,12 +23,30 @@ public class ExpoTextExtractorModule: Module {
+                         return promise.resolve([])
+                     }
+ 
+-                    let recognizedTexts = observations.compactMap { observation in
++                    // Top of the card first (Vision's origin is the bottom left), then left to right.
++                    let ordered = observations.sorted {
++                        abs($0.boundingBox.midY - $1.boundingBox.midY) > 0.02
++                            ? $0.boundingBox.midY > $1.boundingBox.midY
++                            : $0.boundingBox.minX < $1.boundingBox.minX
++                    }
++                    let recognizedTexts = ordered.compactMap { observation in
+                         observation.topCandidates(1).first?.string
+                     }
+ 
+                     promise.resolve(recognizedTexts)
+                 }
++                // Accurate, and no "correction": a name or an address is not a dictionary word.
++                request.recognitionLevel = .accurate
++                request.usesLanguageCorrection = false
++                if #available(iOS 16.0, *) {
++                    request.revision = VNRecognizeTextRequestRevision3
++                    request.automaticallyDetectsLanguage = true
++                }
++                // English and Arabic, as far as this iPhone's recogniser knows them.
++                if let supported = try? request.supportedRecognitionLanguages() {
++                    let wanted = ["en-US", "ar-SA"].filter { supported.contains($0) }
++                    if !wanted.isEmpty { request.recognitionLanguages = wanted }
++                }
+ 
+                 try requestHandler.perform([request])
+             } catch {

@@ -109,7 +109,7 @@ export default function DailyReview() {
             width: 64,
             height: 64,
             borderRadius: 32,
-            backgroundColor: ink.base,
+            backgroundColor: ink.solid,
             alignItems: 'center',
             justifyContent: 'center',
           }}
@@ -125,25 +125,6 @@ export default function DailyReview() {
         <Text token="caption" color={ink.s4} align="center" style={{ marginTop: 6 }}>
           {summary}
         </Text>
-        <Pressable
-          testID="review-plan-tomorrow"
-          onPress={() => router.replace('/priority')}
-          accessibilityRole="button"
-          style={{
-            marginTop: 20,
-            paddingVertical: 12,
-            paddingHorizontal: 22,
-            borderRadius: radius.pill,
-            borderWidth: 1,
-            borderColor: ink.base,
-          }}
-        >
-          {/* SCREENS.md § 20 calls this "Plan tomorrow →". No such string
-              exists in either language, and the prototype renders the
-              Morning-priority eyebrow here by mistake — BUILD-REVIEW.md
-              §2.30. */}
-          <Text token="bodyS">{t.tomorrow} →</Text>
-        </Pressable>
       </Screen>
     );
   }
@@ -231,7 +212,7 @@ export default function DailyReview() {
         style={{
           height: 56,
           borderRadius: radius.button,
-          backgroundColor: ink.base,
+          backgroundColor: ink.solid,
           alignItems: 'center',
           justifyContent: 'center',
         }}
@@ -268,7 +249,7 @@ function Choice({
         borderRadius: 22,
         borderWidth: 1.5,
         borderColor: ink.base,
-        backgroundColor: on ? ink.base : surface.white,
+        backgroundColor: on ? ink.solid : surface.white,
         alignItems: 'center',
         justifyContent: 'center',
       }}

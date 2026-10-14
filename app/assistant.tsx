@@ -12,6 +12,7 @@
  * Each message sent spends one of the Free plan's 10 a day. The eleventh opens
  * the paywall instead of sending — BUILD-REVIEW.md §2.34.
  */
+import { clockOf } from '@/lib/clock-format';
 import { useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -31,7 +32,7 @@ import { TYPE_ICON } from '@/design/icon-paths';
 import { ink, surface, typeColour } from '@/design/tokens';
 import { useDirection, useLanguage } from '@/i18n/LanguageProvider';
 import { useAssistantMeter } from '@/lib/assistant-meter';
-import { dateKey, followUpStatus, isOnDay, timeLabel, type Task } from '@/lib/model-types';
+import { dateKey, followUpStatus, isOnDay, type Task } from '@/lib/model-types';
 import { AssistLimitError, textParser, type AssistantIntent, type ParsedTask } from '@/lib/parse';
 import {
   answerFromText,
@@ -47,6 +48,7 @@ import {
 } from '@/lib/parse/clarify';
 import {
   answerKind,
+  applyEdit,
   dialFor,
   hasFields,
   isContactCommand,
@@ -54,12 +56,12 @@ import {
   mergeFields,
   missingOf,
   readContact,
-  splitDialled,
   type ContactFields,
 } from '@/lib/parse/contact';
 import { smallTalk } from '@/lib/parse/small';
-import { westernDigits } from '@/lib/parse/spoken';
-import { taskFromParsed } from '@/lib/parse/to-task';
+import { followUpFromParsed, taskFromParsed } from '@/lib/parse/to-task';
+import { LoopTag } from '@/features/capture/LoopTag';
+import { promiseDraft } from '@/features/compose/drafts';
 import { usePeople } from '@/lib/people';
 import { useSession } from '@/lib/session';
 import { deviceRegion, startListening } from '@/lib/speech';
@@ -118,7 +120,7 @@ export default function Assistant() {
   const dir = useDirection();
   const { session } = useSession();
   const { tasks, oneThing, addTask } = useTasks();
-  const { contacts, followUps, addContact, updateContact } = usePeople();
+  const { contacts, followUps, addContact, updateContact, addFollowUp } = usePeople();
   const meter = useAssistantMeter();
   const toast = useToast();
   // Quick capture hands over a sentence that is really "save this person".
@@ -286,21 +288,8 @@ export default function Assistant() {
     ]);
 
   /** Typing into the card itself. */
-  const editContact = (msg: ContactMsg, edit: ContactEdit) => {
-    let fields: ContactFields = { ...msg.fields };
-    if (edit.name !== undefined) fields.name = edit.name;
-    if (edit.email !== undefined) {
-      fields.email = edit.email;
-      delete fields.guessedEmail;
-    }
-    if (edit.role !== undefined) fields.role = edit.role;
-    if (edit.phoneText !== undefined) {
-      const typed = westernDigits(edit.phoneText).replace(/[^\d+]/g, '');
-      if (/^(\+|00)/.test(typed)) fields = { ...fields, ...splitDialled(typed, region) };
-      else fields.phone = typed.replace(/^0+/, '');
-    }
-    patchContact(msg.id, { fields, duplicate: undefined, error: undefined });
-  };
+  const editContact = (msg: ContactMsg, edit: ContactEdit) =>
+    patchContact(msg.id, { fields: applyEdit(msg.fields, edit, region), duplicate: undefined, error: undefined });
 
   /**
    * The next message while a card is open: an answer, a correction, "yes" or
@@ -449,10 +438,19 @@ export default function Assistant() {
   }, [say, meter.ready]);
 
   const confirm = (id: string, task: ParsedTask) => {
-    addTask(taskFromParsed(task, 'assistant'));
+    if (task.kind === 'waiting') {
+      const when = whenText(task.when, t);
+      addFollowUp(followUpFromParsed(task, copy.loop.waitSince.replace('{w}', when)));
+      setMessages((list) => [
+        ...list.map((m) => (m.id === id ? { ...m, confirmed: true } : m)),
+        { id: newId(), from: 'bot', kind: 'note', text: copy.loop.savedWait.replace('{n}', task.who ?? '').replace('{w}', when) },
+      ]);
+      return;
+    }
+    addTask(taskFromParsed(task, 'assistant', promiseDraft(task, lang, session?.name)));
     setMessages((list) => [
       ...list.map((m) => (m.id === id ? { ...m, confirmed: true } : m)),
-      { id: newId(), from: 'bot', kind: 'saved', time: timeLabel(task.when) },
+      { id: newId(), from: 'bot', kind: 'saved', time: clockOf(task.when) },
     ]);
   };
 
@@ -501,7 +499,7 @@ export default function Assistant() {
               <Icon name="back" size={22} strokeWidth={1.7} />
             </View>
           </Pressable>
-          <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: ink.base, alignItems: 'center', justifyContent: 'center' }}>
+          <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: ink.solid, alignItems: 'center', justifyContent: 'center' }}>
             <Icon name="spark" size={15} color={surface.white} strokeWidth={1.7} />
           </View>
           <View style={{ flexShrink: 1 }}>
@@ -529,7 +527,7 @@ export default function Assistant() {
                 style={{
                   alignSelf: 'flex-end',
                   maxWidth: '78%',
-                  backgroundColor: ink.base,
+                  backgroundColor: ink.solid,
                   paddingVertical: 11,
                   paddingHorizontal: 14,
                   borderRadius: 18,
@@ -617,7 +615,7 @@ export default function Assistant() {
           style={{ flexGrow: 0 }}
           contentContainerStyle={{ gap: 8, paddingHorizontal: 16, paddingBottom: 10 }}
         >
-          {[copy.contact.chip, ...t.chips].map((chip, i) => (
+          {[copy.contact.chip, ...t.chips, copy.loop.chipPromise, copy.loop.chipWait].map((chip, i) => (
             <Pressable
               key={chip}
               testID={`assistant-chip-${i}`}
@@ -672,11 +670,12 @@ function Bubble({ children }: { children: string }) {
 }
 
 function TaskCard({ task, confirmed, onConfirm }: { task: ParsedTask; confirmed: boolean; onConfirm: () => void }) {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const dir = useDirection();
   const colour = typeColour[task.type];
   return (
     <View testID="assistant-card" style={{ borderWidth: 1, borderColor: surface.line, borderRadius: 16, padding: 14, gap: 10, backgroundColor: surface.white }}>
+      {task.kind ? <LoopTag kind={task.kind} copy={added(lang).loop} /> : null}
       <View style={{ flexDirection: dir.row, gap: 10, alignItems: 'center' }}>
         <Icon name={TYPE_ICON[task.type]} size={18} color={colour.fg} strokeWidth={1.9} />
         <Text token="body" weight="600" style={{ flex: 1 }}>
@@ -687,7 +686,7 @@ function TaskCard({ task, confirmed, onConfirm }: { task: ParsedTask; confirmed:
         <Text token="caption" weight="600" color={colour.fg}>
           {t.types[task.type]}
         </Text>
-        {` · ${task.who ?? NOBODY} · ${whenText(task.when, t)}`}
+        {` · ${task.who ?? NOBODY} · ${task.kind === 'waiting' ? `${added(lang).loop.checkIn} ` : ''}${whenText(task.when, t)}`}
       </Text>
       {confirmed ? (
         <View testID="assistant-kept" style={{ flexDirection: dir.row, gap: 6, alignItems: 'center' }}>
@@ -701,7 +700,7 @@ function TaskCard({ task, confirmed, onConfirm }: { task: ParsedTask; confirmed:
           testID="assistant-confirm"
           onPress={onConfirm}
           accessibilityRole="button"
-          style={{ height: 40, borderRadius: 20, backgroundColor: ink.base, alignItems: 'center', justifyContent: 'center' }}
+          style={{ height: 40, borderRadius: 20, backgroundColor: ink.solid, alignItems: 'center', justifyContent: 'center' }}
         >
           <Text token="bodyS" color={surface.white} align="center">
             {t.ok}
@@ -719,7 +718,7 @@ function Plan({ oneThing, tasks }: { oneThing: { title: string; meta: string } |
     ...(oneThing ? [{ key: 'one', time: ONE_THING_SLOT, title: oneThing.title, sub: oneThing.meta, icon: <Icon name="target" size={16} strokeWidth={1.7} /> }] : []),
     ...tasks.map((task) => ({
       key: task.id,
-      time: timeLabel(task.dueAt),
+      time: clockOf(task.dueAt),
       title: task.title,
       sub: [t.types[task.type], task.who].filter(Boolean).join(' · '),
       icon: <Icon name={TYPE_ICON[task.type]} size={16} color={typeColour[task.type].fg} strokeWidth={1.9} />,

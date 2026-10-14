@@ -41,8 +41,8 @@ export function StepBreakdown({
                 height: 20,
                 borderRadius: 10,
                 borderWidth: 1.5,
-                borderColor: isDone || isCurrent ? ink.base : surface.trackOff,
-                backgroundColor: isDone ? ink.base : surface.white,
+                borderColor: isDone || isCurrent ? ink.solid : surface.trackOff,
+                backgroundColor: isDone ? ink.solid : surface.white,
                 alignItems: 'center',
                 justifyContent: 'center',
               }}

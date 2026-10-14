@@ -169,7 +169,9 @@ function isDefaultWhen(iso: string, now: Date): boolean {
  * The next thing to ask, or null when the proposal is ready for "Looks
  * right". Who comes before when: a call is worth little until you know who.
  */
-export function clarify(text: string, draft: ParsedTask, world: World, settled: Settled = {}): Gap | null {
+export function clarify(text: string, draft: ParsedTask, world: World, settledIn: Settled = {}): Gap | null {
+  // A check-in already has its day (two days on, unless one was said): never ask "when?".
+  const settled: Settled = draft.kind === 'waiting' ? { ...settledIn, when: true } : settledIn;
   if (!settled.who) {
     const read = readWho(text, world.contacts);
     if (read?.kind === 'several') {
