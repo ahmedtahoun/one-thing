@@ -249,6 +249,7 @@ export type Added = {
     oldExcel: string;
     unknown: string;
     empty: string;
+    locked: string;
     failed: string;
     found: string;
     ready: string;
@@ -563,12 +564,13 @@ const ADDED: Record<Lang, Added> = {
     importer: {
       title: 'Import contacts',
       intro: 'Choose a spreadsheet or contacts file. I’ll match the columns and show you everyone before anything is saved.',
-      formats: 'CSV, Excel (.xlsx) or vCard (.vcf)',
+      formats: 'CSV, Excel (.xlsx), PDF or vCard (.vcf)',
       choose: 'Choose a file',
       reading: 'Reading your file…',
       oldExcel: 'That’s an old Excel file (.xls). Save it as .xlsx or CSV and try again.',
-      unknown: 'I can read CSV, Excel (.xlsx) and vCard (.vcf) files.',
-      empty: 'I couldn’t find any contacts in that file.',
+      unknown: 'I can read CSV, Excel (.xlsx), PDF and vCard (.vcf) files.',
+      empty: 'I couldn’t find any contacts in that file. A scanned PDF is a picture, so try the original sheet or an export.',
+      locked: 'That PDF is password-protected. Remove the password and try again.',
       failed: 'I couldn’t open that file.',
       found: '{n} found',
       ready: '{n} ready',
@@ -856,12 +858,13 @@ const ADDED: Record<Lang, Added> = {
     importer: {
       title: 'استيراد جهات الاتصال',
       intro: 'اختر ملف جدول أو جهات اتصال. أطابق الأعمدة وأعرض لك الكل قبل ما يُحفظ شي.',
-      formats: 'CSV أو Excel (.xlsx) أو vCard (.vcf)',
+      formats: 'CSV أو Excel (.xlsx) أو PDF أو vCard (.vcf)',
       choose: 'اختر ملف',
       reading: 'أقرأ ملفك…',
       oldExcel: 'هذا ملف Excel قديم (.xls). احفظه بصيغة .xlsx أو CSV وجرّب مرة ثانية.',
-      unknown: 'أقدر أقرأ ملفات CSV وExcel (.xlsx) وvCard (.vcf).',
-      empty: 'ما لقيت أي جهة اتصال في هذا الملف.',
+      unknown: 'أقدر أقرأ ملفات CSV وExcel (.xlsx) وPDF وvCard (.vcf).',
+      empty: 'ما لقيت أي جهة اتصال في هذا الملف. ملف PDF الممسوح ضوئيًا صورة، فجرّب الملف الأصلي أو تصدير منه.',
+      locked: 'ملف PDF هذا محمي بكلمة مرور. أزلها وجرّب مرة ثانية.',
       failed: 'ما قدرت أفتح هذا الملف.',
       found: '{n} موجود',
       ready: '{n} جاهز',

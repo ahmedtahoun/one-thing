@@ -52,16 +52,24 @@ const HEADER_RULES: [Role, RegExp][] = [
   ['title', /\b(title|position|role|job|designation)\b|الوظيف|المسمي|المنصب/],
   ['company', /\b(company|organi[sz]ation|org|business|employer)\b|الشرك|المؤسس|جهه العمل/],
   ['note', /\b(status|notes?|comments?|remarks?)\b|ملاحظ|حاله|الحاله/],
-  ['address', /\b(address|location)\b|عنوان|موقع/],
+  ['address', /\b(address|address ?\d|location|city|street)\b|عنوان|موقع|مدين/],
   ['name', /\b(name|contact)\b|الاسم|اسم/],
 ];
 /** "Phone 1 - Type" holds "Mobile", not a number. */
-const NOT_A_VALUE = /\b(type|label)\b|نوع/;
+const NOT_A_VALUE = /\b(type|label|accepts|subscribed|opt)\b|نوع/;
+/** Parts of an address column that are not the street: "Province Code", "Zip", "Country". */
+const NOT_STREET = /\b(code|zip|postal|postcode|province|state|country|company|phone|email)\b/;
+/** A column that numbers the entries, filled only on the first row of each company. */
+const INDEX_HEADER = /^(#|no|s no|sno|sr|sr no|serial|index|id)$/;
 
 function roleOfHeader(header: string): Role | null {
   const h = fold(header);
   if (!h || NOT_A_VALUE.test(h)) return null;
-  for (const [role, rule] of HEADER_RULES) if (rule.test(h)) return role;
+  for (const [role, rule] of HEADER_RULES) {
+    if (!rule.test(h)) continue;
+    if (role === 'address' && NOT_STREET.test(h)) return null;
+    return role;
+  }
   return null;
 }
 
@@ -118,8 +126,10 @@ function layoutOf(rows: string[][]): Layout {
 }
 
 /** A dash, "N/A" or a blank where a cell has nothing. */
-const EMPTY = /^[\s\-–—−_.?*]+$|^(?:n\/?a|none|null|nil|tbd)$/i;
-const clean = (v: string): string => (EMPTY.test(v.trim()) ? '' : v.trim());
+const EMPTY = /^[\s\-–—−_.?*]+$|^(?:n\/?a|none|null|nil|tbd|yes|no|true|false)$|^(?:contact (?:via|through|by)\b.*|key contact|unknown|general|website|email not found)$/i;
+/** A number with its digits masked ("+971 50 XXX XXXX") is not a number. */
+const MASKED = /x{2,}/i;
+const clean = (v: string): string => (EMPTY.test(v.trim()) || MASKED.test(v) ? '' : v.trim().replace(/^'+/, ''));
 
 const cellOf = (row: string[], roles: (Role | null)[], role: Role): string[] =>
   roles.flatMap((r, col) => {
@@ -217,6 +227,9 @@ export function readTable(rows: string[][], region?: string): { candidates: Cand
   if (rows.length === 0) return { candidates: [], header: false };
   const { roles, header } = layoutOf(rows);
   const candidates: Candidate[] = [];
+  // A sheet grouped by company numbers each company once; the rows beneath it (more people, more numbers) are its own.
+  const indexCol = header ? (rows[0] ?? []).findIndex((h) => INDEX_HEADER.test(fold(h))) : -1;
+  let groupCompany: string | undefined;
   rows.slice(header ? 1 : 0).forEach((row, i) => {
     const parts: RowParts = {
       name: cellOf(row, roles, 'name')[0],
@@ -227,8 +240,12 @@ export function readTable(rows: string[][], region?: string): { candidates: Cand
       company: cellOf(row, roles, 'company')[0],
       title: cellOf(row, roles, 'title')[0],
       note: cellOf(row, roles, 'note').join(' · ') || undefined,
-      address: cellOf(row, roles, 'address')[0],
+      address: [...new Set(cellOf(row, roles, 'address'))].join(', ') || undefined,
     };
+    if (indexCol >= 0) {
+      if ((row[indexCol] ?? '').trim() && parts.company) groupCompany = parts.company;
+      else if (!parts.company) parts.company = groupCompany;
+    }
     // "Lisa Blake / Jayadeep Paliath" in one cell is two people, not one long name.
     const names = (parts.name ?? '').split(PEOPLE_SPLIT).map((n) => n.trim()).filter(Boolean);
     if (names.length > 1) {
@@ -264,5 +281,5 @@ export function flagDuplicates(candidates: Candidate[], existing: readonly Conta
 
 /** What is ticked to begin with: everything that can be imported and is not already there. */
 export function defaultSelection(candidates: readonly Candidate[]): Set<string> {
-  return new Set(candidates.filter((c) => !c.issues.includes('no-name') && !c.duplicateOf).map((c) => c.key));
+  return new Set(candidates.filter((c) => !c.issues.includes('no-name') && !c.duplicateOf && (c.phone || c.email)).map((c) => c.key));
 }

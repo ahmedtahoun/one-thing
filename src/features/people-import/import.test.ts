@@ -234,3 +234,38 @@ describe('readTable — a sales prospect sheet', () => {
     assert.equal(simon?.phone, '1740378');
   });
 });
+
+describe('readTable — a store export and a lead sheet', () => {
+  it('ignores "Accepts … Marketing" columns, joins the street, city and apartment, and drops the codes', () => {
+    const rows = [
+      ['Customer ID', 'First Name', 'Last Name', 'Email', 'Accepts Email Marketing', 'Default Address Company', 'Default Address Address1', 'Default Address Address2', 'Default Address City', 'Default Address Province Code', 'Default Address Country Code', 'Phone', 'Accepts WhatsApp Marketing'],
+      ["'1", 'Aye', 'Min', 'aye@x.com', 'yes', 'Nikki beach hotel', 'Nikki beach', 'Villa 4', 'Dubai', 'DU', 'AE', "'+971521348661", 'no'],
+      ["'2", 'Tommy', 'Ellema', 'tommy@x.com', 'no', '', '', '', '', 'DU', 'AE', '', 'no'],
+    ];
+    const [aye, tommy] = readTable(rows, 'AE').candidates;
+    assert.equal(aye?.address, 'Nikki beach, Villa 4, Dubai');
+    assert.equal(aye?.phone, '521348661');
+    assert.deepEqual(aye?.issues, []);
+    assert.deepEqual(tommy?.issues, []);
+    assert.equal(tommy?.address, undefined);
+  });
+  it('gives the people under a company the company, ignores masked numbers and "Contact via website"', () => {
+    const rows = [
+      ['#', '', 'Company', 'Phone', 'WhatsApp', 'Email', '', '', '', '', 'Key Contact'],
+      ['2', '', 'Aramtec LLC', '971 4 347 3455', '=+971 50 XXX XXXX', 'info@aramtec.com', '', '', '', '', 'Contact via website'],
+      ['3', '', 'Restofair', 'Dubai: +971 4 333 4575', '', 'online@restofair.ae', '', '', '', '', 'Raphael Saxod'],
+      ['', '', '', 'Abu Dhabi: +971 2 550 5911', '', '', '', '', '', '', 'Ashish Sabu'],
+    ];
+    const [aramtec, raphael, ashish] = readTable(rows, 'AE').candidates;
+    assert.equal(aramtec?.name, 'Aramtec LLC');
+    assert.equal(aramtec?.phone, '43473455');
+    assert.equal(raphael?.role, 'Restofair');
+    assert.equal(ashish?.name, 'Ashish Sabu');
+    assert.equal(ashish?.role, 'Restofair');
+    assert.equal(ashish?.phone, '25505911');
+  });
+  it('does not tick someone there is no way to reach', () => {
+    const { candidates } = readTable([['Name', 'Title'], ['Steve Pyle', 'CEO']], 'AE');
+    assert.equal(defaultSelection(candidates).size, 0);
+  });
+});
