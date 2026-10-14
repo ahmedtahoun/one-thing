@@ -484,19 +484,23 @@ function Profile({ contact }: { contact: Contact }) {
               </Text>
             </Pressable>
           ) : null}
-          <View style={{ flexDirection: dir.row, gap: 8, alignItems: 'center' }}>
+          {/* Return is a new line, as in WhatsApp; the button saves. */}
+          <View style={{ flexDirection: dir.row, gap: 8, alignItems: 'flex-end' }}>
             <TextInput
               testID="contact-log-text"
               value={logText}
               onChangeText={setLogText}
-              onSubmitEditing={log}
-              returnKeyType="send"
+              multiline
               placeholder={pfx.l.logPh}
               placeholderTextColor={ink.s5}
               style={{
                 flex: 1,
                 minWidth: 0,
-                height: 46,
+                minHeight: 46,
+                maxHeight: 120,
+                paddingTop: 12,
+                paddingBottom: 12,
+                textAlignVertical: 'top',
                 borderRadius: 23,
                 backgroundColor: surface.white,
                 paddingHorizontal: 18,

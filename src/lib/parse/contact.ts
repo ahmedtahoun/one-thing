@@ -75,6 +75,7 @@ const FILLER = new Set(
     'the', 'a', 'an', 'to', 'for', 'of', 'my', 'me', 'please', 'called', 'named', 'with', 'in', 'it', 'its', "it's", 'hi', 'hey', 'assistant', 'can', 'you', 'could',
     'would', 'i', 'want', 'need', 'like', 'person', 'friend', 'colleague', 'client', 'customer', 'guy', 'him', 'them', 'also', 'plus', 'on', 'under',
     'his/her', 'telephone', 'tel', 'whatsapp', 'is:', 'number:', 'one', 'now', 'just', 'about', 'new:', 'who',
+    'persons', "person's", 'people', 'details', 'detail', 'info', 'information', 'data', 'card', 'profile',
     // Arabic (folded)
     ...[
       'احفظ', 'احفظلي', 'سجل', 'سجلي', 'ضيف', 'ضيفلي', 'اضف', 'اضيف', 'خزن', 'خزنلي', 'سيف', 'سيڤ', 'دخل', 'دخلي', 'انشئ', 'اعمل', 'اعملي', 'عمل',

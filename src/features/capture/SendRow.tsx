@@ -7,6 +7,10 @@
  * 50 its own style asks for, and the input takes what is left —
  * BUILD-REVIEW.md §2.34. The input is 52 tall: 50 plus its 1 pt border, which
  * the prototype's content-box adds.
+ *
+ * Return starts a new line, as in WhatsApp; only the button sends. The box
+ * grows with the text up to about five lines, and the buttons stay at the
+ * bottom beside the last one.
  */
 import { forwardRef } from 'react';
 import { Pressable, TextInput, View } from 'react-native';
@@ -30,20 +34,23 @@ export const SendRow = forwardRef<
 >(function SendRow({ value, onChange, onSend, placeholder, sendLabel, testID, mic }, ref) {
   const dir = useDirection();
   return (
-    <View style={{ flexDirection: dir.row, gap: 8 }}>
+    <View style={{ flexDirection: dir.row, gap: 8, alignItems: 'flex-end' }}>
       <TextInput
         ref={ref}
         testID={`${testID}-input`}
         value={value}
         onChangeText={onChange}
-        onSubmitEditing={onSend}
-        returnKeyType="send"
+        multiline
         placeholder={placeholder}
         placeholderTextColor={ink.s5}
         style={{
           flex: 1,
           minWidth: 0,
-          height: 52,
+          minHeight: 52,
+          maxHeight: 132,
+          paddingTop: 15,
+          paddingBottom: 15,
+          textAlignVertical: 'top',
           borderWidth: 1,
           borderColor: surface.line,
           borderRadius: 25,

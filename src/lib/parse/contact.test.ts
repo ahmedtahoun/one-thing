@@ -184,3 +184,12 @@ describe('applyEdit', () => {
     assert.equal(applyEdit({ email: 'x@y.co', guessedEmail: true }, { email: 'z@y.co' }).guessedEmail, undefined);
   });
 });
+
+describe('a save request with no name in it', () => {
+  it('asks for the name instead of calling them "Persons Details"', () => {
+    for (const text of ['Please save this persons details', "Save this person's details", 'add their contact info']) {
+      assert.equal(isContactCommand(text), true, text);
+      assert.equal(read(text).name, undefined, text);
+    }
+  });
+});
