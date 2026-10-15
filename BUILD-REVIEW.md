@@ -2071,3 +2071,57 @@ person's name before building a `RegExp` from it, so a contact called
 really does schedule — `remind: 'at'` derives the fire time from the
 `dueAt` it sets, and the evening option correctly disappears once 18:00 is
 less than two hours away.
+
+### 2.64 The admin panel, and one sentence the policy cannot support
+
+The panel had never been reviewed from this side. It holds every user's
+name, phone, email, tasks and contacts, and it reaches Postgres through
+`DATABASE_URL` — a direct connection, so row-level security protects
+nothing here. The code *is* the boundary. It holds up:
+
+- **Three independent conditions to be an admin**, all server-side: a
+  Supabase session at assurance level 2 (password *and* TOTP), an
+  `@onlyonething.app` address, and a row in `admin_member`. Any one missing
+  and `currentAdmin()` returns null.
+- **The configuration fails closed.** `mode()` throws when neither
+  `DATABASE_URL` nor `ADMIN_DEMO=1` is set, throws when both are, and
+  throws when live is set without the Supabase auth variables. A deployment
+  cannot drift into demo mode, where the whole of auth is a cookie.
+- **Nineteen server actions, nineteen `authorise()` calls.** Every page
+  under `(panel)` calls `requireAdmin()`, and so does the layout above
+  them. The three unguarded actions are sign-in, the code step and
+  sign-out, which is right.
+- **Least privilege where the handoff was silent.** An Analyst has
+  `overview` and the pseudonymised `dataset` and nothing else — no route to
+  a named person. Support cannot delete, suspend, grant Pro, issue codes,
+  read the audit log or change the team.
+- **The one-time /setup page** is gated on live mode, on
+  `ADMIN_SETUP_SECRET` being set *and* typed (compared with
+  `timingSafeEqual`), and on the team being empty — re-checked at both
+  steps, with the insert itself conditional on an empty table.
+
+**The gap is in the privacy policy, not the code.** It tells users:
+*"Every time a team member opens your data it is recorded."*
+
+Opening a user's **record** is recorded — the drawer's only route is
+`openUser`, which authorises and writes an audit line before returning
+anything. But the Users **list** is not. `userSelect` returns
+`name, email, phone_dial, phone_number, job_title, country` for every user,
+and the search box queries email and phone directly — so a Support account
+can browse everyone's contact details, and confirm whether a given phone
+number belongs to a user, without leaving a trace.
+
+Read strictly, the sentence is not true. Three ways to make it true, and
+the choice is the product owner's because it is a promise to users:
+
+1. **Narrow the sentence** — "every time a team member opens your record".
+   One line, accurate immediately, and a weaker promise than the one
+   currently made.
+2. **Show less in the list** — name, plan and country, with email and phone
+   only in the audited drawer. The best answer for the user, and a design
+   change.
+3. **Audit list views too.** Honest, and it would bury the log that matters
+   under a row per page load and per keystroke of a search.
+
+Recommend 2, with 1 until it is built. What should not happen is leaving a
+promise in the policy that the panel does not keep.
