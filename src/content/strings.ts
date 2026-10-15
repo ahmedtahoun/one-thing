@@ -1268,11 +1268,6 @@ const SETX_en = {
         "video",
         "Meetings, webinars & courses",
         "Links, reminders and notes in one place."
-      ],
-      [
-        "moon",
-        "Weekly recap",
-        "What you got done, and who still needs you."
       ]
     ],
     "year": "Yearly",
@@ -1361,11 +1356,6 @@ const SETX_ar: typeof SETX_en = {
         "video",
         "اجتماعات وندوات ودورات",
         "الروابط والتذكيرات والملاحظات بمكان واحد."
-      ],
-      [
-        "moon",
-        "ملخص أسبوعي",
-        "وش أنجزت، ومين لسا يحتاجك."
       ]
     ],
     "year": "سنوي",

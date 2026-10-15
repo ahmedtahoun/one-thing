@@ -1754,3 +1754,48 @@ what any parsing mistake can do; `bccMailto` keeps a shared email's
 addresses hidden from each other; the PDF reader's loops are all bounded
 `matchAll` passes over the input, with no unbounded `while` and no obvious
 catastrophic backtracking.
+
+### 2.56 Unselling the feature that does not exist, and the guard catching its author
+
+The paywall sold six things. `can()` returns `false` for `weeklyRecap` on
+every plan, Pro included — so somebody pays $35.88 and gets nothing at all
+for one of the six bullets they were shown. Unfinished is survivable;
+charged-for and absent is a 3.1.2 rejection and a refund. The bullet is now
+off the card in both languages. The capability stays in `entitlements.ts`:
+the feature is unsold, not cancelled, and the row goes back the day the
+screen exists.
+
+Getting there took a detour worth writing down.
+
+The copy is generated, so the removal belongs in `port-content.js` rather
+than in `strings.ts`. It needed a third kind of override — `PRUNINGS`,
+which drops a row from a list the handoff wrote and throws if the row is
+not there. Then the guard from §2.53 refused the write, correctly, because
+`strings.ts` still held the hand-edited privacy policy. **So I passed
+`--force`** — and it reverted the "Pictures and files" section in both
+languages, the fuller account of what a contact record holds, and the two
+Arabic sections, exactly as §2.53 predicted. Restored from git.
+
+The guard did its job and said to read the diff first. I read it after.
+Worth stating plainly, because the lesson is not "be careful with
+`--force`": it is that the escape hatch gets used by whoever is in a hurry,
+including the person who built the hatch, so the thing worth protecting
+must not depend on nobody using it.
+
+So the privacy copy is no longer a hand edit. `REPLACEMENTS` carries it in
+the generator, extracted from the file rather than retyped, and
+regenerating now reproduces it. `--force` is no longer load-bearing for
+anything true about the app. The resulting diff is two list entries in two
+languages and nothing else.
+
+One real bug surfaced on the way: `handoffDir(process.argv[2])` read
+`--force` as a path to the handoff. The flag is now skipped when looking
+for one.
+
+**What this does not settle** is whether `strings.ts` should be generated
+at all. The product has outgrown the prototype — the policy now describes
+a card scanner and a spreadsheet importer the handoff never had — and each
+such divergence adds a row to `REPLACEMENTS`. That is sustainable for a
+few and silly for twenty. RELEASE.md §9.5.1 is the matching product
+question; this is the engineering one, and it is worth answering
+deliberately rather than when the list gets long.

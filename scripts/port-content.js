@@ -19,7 +19,8 @@ const path = require('path');
 const vm = require('vm');
 const { handoffDir } = require('./handoff.js');
 
-const HANDOFF = handoffDir(process.argv[2]);
+// The first non-flag argument, so `--force` is not read as a path.
+const HANDOFF = handoffDir(process.argv.slice(2).find((a) => !a.startsWith('--')));
 const SRC = path.join(HANDOFF, 'source', 'app-content.js');
 const OUT = path.join(__dirname, '..', 'src', 'content');
 
@@ -90,6 +91,44 @@ const ADDITIONS = [
   },
 ];
 
+/**
+ * Copy this product owns outright, which the handoff no longer describes.
+ *
+ * The privacy policy is the clear case. Build 9 taught the app to read a
+ * business card, import a spreadsheet or a PDF, and keep a picture for a
+ * person, so the policy gained a "Pictures and files" section in both
+ * languages, a fuller account of what a contact record holds, and the two
+ * Arabic sections English already had. None of it is in the handoff, which
+ * describes a prototype that did none of those things.
+ *
+ * It lived as a hand edit until a --force regeneration quietly reverted it
+ * and it had to be restored from git — the exact loss the refusal below
+ * exists to prevent, walked into by the person who wrote the refusal. Text
+ * that has to be TRUE about the shipped app does not belong in a file
+ * anything can regenerate from a prototype. Here, regenerating reproduces
+ * it. These replace whatever the handoff says at the same path.
+ */
+const REPLACEMENTS = [
+  { path: ['ACC', 'en', 'si', 'updated'], value: "Last updated 14 October 2026" },
+  { path: ['ACC', 'ar', 'si', 'updated'], value: "آخر تحديث ١٤ أكتوبر ٢٠٢٦" },
+  { path: ['ACC', 'en', 'priv'], value: [["What we collect", "Your name, phone number, job title, email from your sign-in provider, the tasks, contacts and notes you add, and basic usage data (which features you use, crashes)."], ["Why we use it", "To run the app, personalise your assistant, send reminders you asked for, and improve the product. With your consent, to send tips, offers and marketing messages."], ["Sharing", "We never sell your data. We use trusted providers (hosting, analytics, payments through Apple and Google) who process it only for us."], ["Who at our company can see it", "Our support team can see your account details (name, email, phone, job title), your tasks, the contacts you save (name, position, company, phone and email) and your message drafts. We use this to troubleshoot problems, answer your support requests, keep the service secure and meet legal requests. Every time a team member opens your data it is recorded. For product analysis we use your activity with names, phone numbers and emails replaced by codes."], ["People you add", "When you save a contact, we store their name, position, company, phone numbers, emails, address, labels and your notes about them so the app can work for you. They can ask us to remove their details at privacy@onlyonething.app."], ["Pictures and files", "A picture you choose for a person or for yourself is copied into the app and stays on your phone; it is not uploaded. A photo of a business card is read on your phone and not kept; only the text you confirm becomes a contact. A spreadsheet, PDF or contacts file you import is read on your phone and the file itself is not uploaded."], ["Your choices", "Turn marketing off any time in Settings. Download or delete your data and account from Settings or at onlyonething.app/delete — deletion removes everything within 30 days."], ["Children", "The One Thing is not intended for children under 13 and we don’t knowingly collect their data."], ["Health", "The One Thing is a productivity tool. It is not a medical device and doesn’t diagnose or treat any condition."], ["Contact", "privacy@onlyonething.app"]] },
+  { path: ['ACC', 'ar', 'priv'], value: [["وش نجمع", "اسمك، رقمك، مسمّاك الوظيفي، بريدك من مزوّد الدخول، المهام وجهات الاتصال والملاحظات اللي تضيفها، وبيانات استخدام بسيطة."], ["ليش نستخدمها", "لتشغيل التطبيق وتخصيص المساعد وإرسال التذكيرات وتحسين الخدمة. وبموافقتك، لإرسال نصائح وعروض ورسائل تسويقية."], ["المشاركة", "ما نبيع بياناتك أبداً. نستخدم مزوّدين موثوقين يعالجونها لنا فقط."], ["مين يقدر يشوفها عندنا", "فريق الدعم يقدر يشوف بيانات حسابك (الاسم والإيميل والجوال والمسمى)، ومهامك، وجهات الاتصال اللي تحفظها (الاسم والمنصب والشركة والجوال والإيميل)، ومسودات رسائلك. نستخدمها لحل المشاكل والرد على طلبات الدعم وحماية الخدمة وللطلبات النظامية. وكل مرة يفتح أحد من الفريق بياناتك تنسجّل. ولتحليل المنتج نستخدم نشاطك بعد استبدال الأسماء والأرقام والإيميلات برموز."], ["الأشخاص اللي تضيفهم", "لما تحفظ جهة اتصال نخزّن اسمه ومنصبه وشركته وأرقامه وإيميلاته وعنوانه وتصنيفاته وملاحظاتك عنه عشان يشتغل التطبيق لك. ويقدر يطلب حذف بياناته على privacy@onlyonething.app."], ["الصور والملفات", "الصورة اللي تختارها لشخص أو لنفسك تنحفظ داخل التطبيق وتبقى على جوالك ولا تُرفع. وصورة بطاقة العمل تُقرأ على جوالك ولا تنحفظ؛ بس النص اللي تأكّده يصير جهة اتصال. وأي ملف جدول أو PDF أو جهات اتصال تستورده يُقرأ على جوالك ولا يُرفع الملف نفسه."], ["خياراتك", "أوقف التسويق متى ما تبي من الإعدادات. حمّل أو احذف بياناتك وحسابك من الإعدادات خلال ٣٠ يوم."], ["الأطفال", "«الشيء الواحد» غير موجّه للأطفال دون ١٣ سنة، ولا نجمع بياناتهم عن علم."], ["الصحة", "«الشيء الواحد» أداة إنتاجية. ليس جهازًا طبيًا ولا يشخّص أو يعالج أي حالة."], ["تواصل معنا", "privacy@onlyonething.app"]] },
+];
+
+/**
+ * Entries taken out of a list the handoff wrote.
+ *
+ * Only one so far. The paywall sold six things, and `can()` returns false
+ * for `weeklyRecap` on every plan including Pro — so a buyer pays and gets
+ * nothing for that bullet, which is a 3.1.2 problem and a refund problem
+ * (RELEASE.md §9.5). The feature is not cancelled, only unsold: put the row
+ * back here the day the screen exists.
+ */
+const PRUNINGS = [
+  { path: ['SETX', 'en', 'pw', 'feats'], icon: 'moon' },
+  { path: ['SETX', 'ar', 'pw', 'feats'], icon: 'moon' },
+];
+
 /** Applies a string transform to every string in the ported data, in place. */
 function mapStrings(value, fn) {
   if (typeof value === 'string') return fn(value);
@@ -116,6 +155,35 @@ for (const rule of SUBSTITUTIONS) {
     );
   }
   console.log(`  override: ${rule.from} → ${rule.to} (${hits}×)`);
+}
+
+for (const replacement of REPLACEMENTS) {
+  const keys = replacement.path.slice();
+  const leaf = keys.pop();
+  let node = d;
+  for (const k of keys) node = node?.[k];
+  if (!node || !(leaf in node)) throw new Error(`Replacement ${replacement.path.join('.')}: no such path in the handoff's data.`);
+  node[leaf] = replacement.value;
+  console.log(`  override: = ${replacement.path.join('.')}`);
+}
+
+for (const pruning of PRUNINGS) {
+  const keys = pruning.path.slice();
+  const leaf = keys.pop();
+  let node = d;
+  for (const k of keys) node = node?.[k];
+  const list = node?.[leaf];
+  if (!Array.isArray(list)) throw new Error(`Pruning ${pruning.path.join('.')}: not a list in the handoff's data.`);
+  const kept = list.filter((row) => !(Array.isArray(row) && row[0] === pruning.icon));
+  if (kept.length === list.length) {
+    throw new Error(
+      `Pruning ${pruning.path.join('.')} found no "${pruning.icon}" row to remove.\n` +
+        'The handoff may have been revised. Read why this exists before deleting it —\n' +
+        'it is the paywall bullet for a feature that does not exist yet.'
+    );
+  }
+  node[leaf] = kept;
+  console.log(`  override: − ${pruning.path.join('.')} [${pruning.icon}]`);
 }
 
 for (const addition of ADDITIONS) {
