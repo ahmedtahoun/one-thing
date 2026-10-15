@@ -11,6 +11,7 @@ import {
   useFonts,
 } from '@expo-google-fonts/ibm-plex-sans-arabic';
 
+import { startCrashReporting } from '@/lib/crash';
 import { startPurchases } from '@/features/paywall/purchases';
 import { LanguageProvider, useLanguage } from '@/i18n/LanguageProvider';
 import { NotificationsProvider } from '@/lib/notifications/NotificationsProvider';
@@ -21,6 +22,10 @@ import { SyncProvider } from '@/lib/sync/SyncProvider';
 import { TasksProvider } from '@/lib/tasks';
 import { TodayBarSync } from '@/features/today-bar/TodayBarSync';
 import { motion, surface } from '@/design/tokens';
+
+// Before anything else renders, so a crash during startup is still reported.
+// A no-op unless a DSN is configured (src/lib/crash.ts).
+startCrashReporting();
 
 SplashScreen.preventAutoHideAsync().catch(() => {
   // Already hidden, or unavailable on this platform — nothing to recover from.

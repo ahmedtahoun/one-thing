@@ -672,8 +672,32 @@ creates two accounts for one person, and there is no merge path.
   each closed evening review now goes up to `focus_session`, `review` and
   `review_item`, which is what the admin panel's focus totals read
   (BUILD-REVIEW §2.48).
-- **No crash or error reporting.** You will ship blind to anything the
-  harness cannot see, which after §9.1 is a lot.
+- ~~**No crash or error reporting.**~~ Added 15 October.
+  `@sentry/react-native` is installed and `src/lib/crash.ts` starts it from
+  `app/_layout.tsx` before anything renders, so a crash during startup is
+  still reported.
+
+  **It is off until `EXPO_PUBLIC_SENTRY_DSN` is set**, and a checkout without
+  one behaves exactly as before — no init, no network, no warning. The DSN
+  being the switch is deliberate: turning reporting off is deleting a
+  variable, not shipping a build. It is a public value, like the Supabase
+  anon key.
+
+  What it may send is narrow on purpose, because this app's content is the
+  part the Privacy Policy is careful about. No PII, no performance tracing
+  (it records screen names and route parameters), and no console or http
+  breadcrumbs — which is where a stray `console.log(task)` would otherwise
+  put a task title in a crash report. Sentry is named in the policy under
+  "Who we share it with", in both languages, because it is a recipient of
+  data and sits outside both the Kingdom and Egypt.
+
+  **One step left, when the Sentry project exists:** add the Expo config
+  plugin (`@sentry/react-native/expo`) with your organization and project
+  slugs. It was deliberately not added blind — the plugin wants an org and
+  project at prebuild, and a plugin referring to neither is a build failure
+  rather than a warning. Without it you still get JavaScript crashes, which
+  is nearly all of them; what you miss is source maps and native
+  symbolication, so a stack trace points at bundled code.
 - **Supabase tier.** A free project pauses after inactivity, which is not a
   thing a live app survives. Budget the Pro tier, and set backups with it.
 - **Store listing assets beyond screenshots** — Play's 512 icon and

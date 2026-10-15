@@ -1100,7 +1100,7 @@ const ACC_en = {
     ],
     [
       "Who we share it with",
-      "We never sell your data and never share it for advertising. Supabase host our database and servers. Apple and Google handle your sign-in and your payments under their own terms. When you use the assistant, what you typed goes to Anthropic to be read — see the next section. Nobody else receives it unless the law obliges us to hand it over."
+      "We never sell your data and never share it for advertising. Supabase host our database and servers. Apple and Google handle your sign-in and your payments under their own terms. When you use the assistant, what you typed goes to Anthropic to be read — see the next section. If the app crashes, a diagnostic report goes to Sentry: what went wrong and where in the code, not what you were working on. Nobody else receives it unless the law obliges us to hand it over."
     ],
     [
       "The assistant",
@@ -1281,7 +1281,7 @@ const ACC_ar: typeof ACC_en = {
     ],
     [
       "مع مين نشاركها",
-      "ما نبيع بياناتك أبداً ولا نشاركها للإعلانات. Supabase يستضيفون قاعدة بياناتنا وسيرفراتنا. وApple وGoogle يتولّون تسجيل دخولك ومدفوعاتك وفق شروطهم. ولما تستخدم المساعد، اللي كتبته يروح لـAnthropic عشان يُقرأ — شوف الفقرة الجاية. وما يستلمها أحد غيرهم إلا إذا ألزمنا النظام بتسليمها."
+      "ما نبيع بياناتك أبداً ولا نشاركها للإعلانات. Supabase يستضيفون قاعدة بياناتنا وسيرفراتنا. وApple وGoogle يتولّون تسجيل دخولك ومدفوعاتك وفق شروطهم. ولما تستخدم المساعد، اللي كتبته يروح لـAnthropic عشان يُقرأ — شوف الفقرة الجاية. وإذا تعطّل التطبيق يروح تقرير تشخيصي لـSentry: وش صار وفين في الكود، مو وش كنت تشتغل عليه. وما يستلمها أحد غيرهم إلا إذا ألزمنا النظام بتسليمها."
     ],
     [
       "المساعد",
