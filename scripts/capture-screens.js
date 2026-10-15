@@ -68,6 +68,10 @@ const ROUTES = [
   { path: '/today', name: '06-today-first-run', signedIn: true },
   { path: '/today', name: '06-today', signedIn: true, firstRun: false, seedTasks: true, oneThing: true },
   { path: '/today', name: '06-today-empty', signedIn: true, firstRun: false },
+  // Dropped by the redesign (fe904d7) while screen-pairs.json kept asking
+  // for it, so `compare` failed on a capture nobody was taking. The route
+  // is still there; only the screenshot went missing.
+  { path: '/tasks', name: '07-tasks', signedIn: true, firstRun: false, seedTasks: true, oneThing: true },
   { path: '/people', name: '10-people', signedIn: true, firstRun: false, seedPeople: true },
   { path: '/followups', name: '14-followups', signedIn: true, firstRun: false, seedPeople: true },
   { path: '/followups', name: '14-followups-empty', signedIn: true, firstRun: false },
