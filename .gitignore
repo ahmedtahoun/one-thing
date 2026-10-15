@@ -48,3 +48,6 @@ yarn-error.*
 .screens/
 .screens-prototype/
 all-migrations.sql
+
+# The screenshot bundle handed to the product owner; regenerate from .screens/
+one-thing-screens.zip
