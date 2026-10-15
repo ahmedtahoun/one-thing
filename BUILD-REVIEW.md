@@ -2146,3 +2146,52 @@ the choice is the product owner's because it is a promise to users:
 
 Recommend 2, with 1 until it is built. What should not happen is leaving a
 promise in the policy that the panel does not keep.
+
+### 2.65 Two permission strings that promised less than the app does
+
+Writing the App Privacy and Data safety answers down (`STORE-PRIVACY.md`)
+meant reading every permission the app asks for against the code that uses
+it, which is how these surfaced. Both say **only**, and both are false.
+
+```
+NSCameraUsageDescription
+  "Used only when you take a photo of a business card, so it can be
+   read on your phone to add the contact."
+
+NSPhotoLibraryUsageDescription
+  "Used only when you choose a photo of a business card to read.
+   The One Thing never reads your other photos."
+```
+
+The business card is one of two uses. `PhotoSheet.tsx` calls
+`launchCameraAsync` to take a picture for a person or for yourself, and
+`launchImageLibraryAsync` to choose one — the same two APIs `scan-card.tsx`
+calls for a card. So the camera and the library are each used for two things,
+and each string describes one of them and then says "only".
+
+This is the failure mode worth naming: the strings were not vague, they were
+*specific and narrow*, which reads as careful and is harder to doubt. The
+earlier review even recorded the photo-library string as "accurate for build
+9 and worth keeping accurate". It was neither — and it was checked by reading
+the string rather than the call sites.
+
+Apple rejects purpose strings that do not describe real use, and these fail
+in the direction that looks worse: a reviewer taking a profile picture sees a
+prompt that says the camera is only for business cards. Both now name both
+uses and keep the reassurance that matters, which is that nothing happens on
+its own:
+
+```
+Camera  "Used when you take a photo of a business card to read, or a
+         picture for a person or for yourself. The camera is never
+         used in the background."
+
+Photos  "Used when you choose a photo of a business card to read, or a
+         picture for a person or for yourself. The One Thing never
+         reads your other photos."
+```
+
+Four copies, because each string lives in `ios.infoPlist` and again in the
+`expo-image-picker` plugin config. `STORE-PRIVACY.md` carries the same table
+and says which call sites each permission covers, so the next person checks
+the code rather than the string.

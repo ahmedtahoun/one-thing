@@ -14,10 +14,10 @@
       "infoPlist": {
         "NSMicrophoneUsageDescription": "Used only while you're recording a note, so you can capture a task by speaking instead of typing.",
         "NSSpeechRecognitionUsageDescription": "Used to turn the note you just spoke into a task. Nothing is recorded in the background.",
-        "NSPhotoLibraryUsageDescription": "Used only when you choose a photo of a business card to read. The One Thing never reads your other photos.",
+        "NSPhotoLibraryUsageDescription": "Used when you choose a photo of a business card to read, or a picture for a person or for yourself. The One Thing never reads your other photos.",
         "CFBundleAllowMixedLocalizations": true,
         "ITSAppUsesNonExemptEncryption": false,
-        "NSCameraUsageDescription": "Used only when you take a photo of a business card, so it can be read on your phone to add the contact.",
+        "NSCameraUsageDescription": "Used when you take a photo of a business card to read, or a picture for a person or for yourself. The camera is never used in the background.",
         "NSSupportsLiveActivities": true
       },
       "appleTeamId": "55BRQ92599"
@@ -84,8 +84,8 @@
       [
         "expo-image-picker",
         {
-          "cameraPermission": "Used only when you take a photo of a business card, so it can be read on your phone to add the contact.",
-          "photosPermission": "Used only when you choose a photo of a business card to read. The One Thing never reads your other photos."
+          "cameraPermission": "Used when you take a photo of a business card to read, or a picture for a person or for yourself. The camera is never used in the background.",
+          "photosPermission": "Used when you choose a photo of a business card to read, or a picture for a person or for yourself. The One Thing never reads your other photos."
         }
       ],
       "expo-document-picker",
