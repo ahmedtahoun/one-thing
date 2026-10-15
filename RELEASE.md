@@ -89,7 +89,16 @@ worth knowing rather than discovering:
   every sync crosses a continent to reach them.
 - **PDPL.** Saudi personal data leaving the Kingdom carries transfer
   obligations, and the Privacy Policy has to say where the data actually
-  lives — which is now a sentence someone has to write (§7).
+  lives — which §7 now does.
+- **Egypt.** The controller is registered in Egypt, so Ireland is a transfer
+  out of Egypt as well. Law 151/2020's Executive Regulations took effect on
+  2 November 2025 with a compliance deadline around 1 November 2026, and
+  commentary on them describes a licence from the Personal Data Protection
+  Centre as required before processing — for a natural person as much as a
+  company. Note what this does to the move below: a Gulf region would answer
+  the Saudi point and not this one, because no region is inside both
+  countries. Whichever way it goes, the licence is a separate errand from the
+  policy text and nothing in this repo can discharge it.
 
 If a Middle East region matters, the only cheap moment to act is before there
 is live data in this one. Check the region list in Supabase rather than
@@ -350,9 +359,20 @@ neither has ever run on hardware.
   these. `privacy@onlyonething.app` has to receive mail and `/delete` has to
   resolve — both on a domain with no owner. The copy is no longer the open
   question; the website is.
-- **Legal review of that text.** What ships in `ACC` is plain-English summary
-  copy. It is good UX writing and it is not a policy that satisfies PDPL or
-  GDPR.
+- ~~**Legal review of that text.**~~ Settled. `ACC` was rewritten from summary
+  copy into a full notice: the controller named (Where To Spot, a sole
+  proprietorship on the Damanhour register, no. 101557, owned by Ahmed Salah
+  Tahoun), a legal basis for each purpose, named recipients including Anthropic
+  for the assistant, retention, the whole list of rights rather than the two
+  with buttons, and the route to a regulator. The owner's lawyer reviewed and
+  approved it; approval reported 15 October 2026. The in-app screen and the
+  public pages both render it from `src/content/strings.ts`, so they cannot
+  drift apart.
+
+  Two things that approval does **not** settle, because they are filings and
+  decisions rather than wording: the Egyptian licence in §1.3, and the
+  registered street address, which the notice still does not carry. Neither is
+  a drafting question, so neither is fixed by approving the draft.
 - **App Privacy answers** (Apple) and the **Data safety form** (Play), both
   consistent with the analytics event list in `DATA_MODEL.md` and with every
   third-party SDK you end up adding. Apple needs a `PrivacyInfo.xcprivacy`
