@@ -143,14 +143,14 @@
   "assistant/ar/chip": 719,
   "paywall/en/badge": 125,
   "paywall/en/subtitle": 236,
-  "paywall/en/firstFeature": 303,
-  "paywall/en/yearly": 499.5,
-  "paywall/en/monthly": 590.5,
-  "paywall/en/cta": 691,
+  "paywall/en/firstFeature": 582,
+  "paywall/en/yearly": 316,
+  "paywall/en/monthly": 316,
+  "paywall/en/cta": 780.5,
   "paywall/ar/badge": 125,
   "paywall/ar/subtitle": 201.5,
-  "paywall/ar/firstFeature": 246,
-  "paywall/ar/yearly": 442.5,
-  "paywall/ar/monthly": 533.5,
-  "paywall/ar/cta": 634
+  "paywall/ar/firstFeature": 525,
+  "paywall/ar/yearly": 259,
+  "paywall/ar/monthly": 259,
+  "paywall/ar/cta": 723.5
 }

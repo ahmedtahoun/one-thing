@@ -255,12 +255,26 @@ const D_SAMPLE =
   await seed();
   await open('/paywall');
   check('the title names the person', (await text('paywall-title')) === 'Never drop a promise again, Khalid.');
-  check('Yearly is selected, tagged "Save 40%"', (await page.getByTestId('paywall-plan-year').getAttribute('aria-checked')) === 'true' && (await page.getByTestId('paywall-plan-month').getAttribute('aria-checked')) === 'false' && (await text('paywall-tag-year')) === 'Save 40%' && (await count('paywall-tag-month')) === 0);
-  check('…with the yearly fine print', (await text('paywall-fine')).startsWith('Free for 7 days, then $35.88/year.'));
+  check('Yearly is selected', (await page.getByTestId('paywall-plan-year').getAttribute('aria-checked')) === 'true' && (await page.getByTestId('paywall-plan-month').getAttribute('aria-checked')) === 'false');
+  check('all three tiers are shown', (await count('paywall-tier-free')) === 1 && (await count('paywall-tier-pro')) === 1 && (await count('paywall-tier-pro_plus')) === 1);
+  // The reason the saving is computed rather than typed: the two tiers do
+  // not discount by the same amount, so no single badge could be true of
+  // both. 6.99x12 against 39.99 is 52.3%; 12.99x12 against 99.99 is 35.8%.
+  // 6.99x12 against 39.99 is 52.3%, floored. Pro+ would be 35.8%, but a
+  // saving is an offer and Pro+ is not one, so it carries a price and no badge.
+  check('Pro states its own saving, computed', (await text('paywall-save-pro')) === 'Save 52%');
+  check('…and the tier that is not for sale advertises none', (await count('paywall-save-pro_plus')) === 0);
+  check('…per month, against the annual total', (await text('paywall-price-pro')) === '$3.33' && (await text('paywall-price-pro_plus')) === '$8.33');
+  check('…with the yearly fine print', (await text('paywall-fine')).startsWith('Free for 7 days, then $39.99/year.'));
+  // Priced in full view and impossible to buy, because none of what it sells
+  // is built yet (src/features/paywall/plans.ts, FOR_SALE).
+  check('Pro+ is shown as coming, not for sale', (await count('paywall-soon-pro_plus')) === 1 && (await page.getByTestId('paywall-tier-pro_plus').getAttribute('aria-checked')) === null);
+  check('…and Pro is the one selected', (await page.getByTestId('paywall-tier-pro').getAttribute('aria-checked')) === 'true');
   await page.getByTestId('paywall-plan-month').click();
   await page.waitForTimeout(150);
   check('Monthly can be picked instead', (await page.getByTestId('paywall-plan-month').getAttribute('aria-checked')) === 'true');
-  check('the fine print follows the plan', (await text('paywall-fine')).startsWith('Free for 7 days, then $4.99/month.'));
+  check('…and the monthly price has no saving to claim', (await text('paywall-price-pro')) === '$6.99' && (await count('paywall-save-pro')) === 0);
+  check('the fine print follows the plan', (await text('paywall-fine')).startsWith('Free for 7 days, then $6.99/month.'));
   await page.getByTestId('paywall-start').click();
   await page.waitForTimeout(400);
   check('starting the trial makes nobody Pro', (await read('ot.session')).plan === 'free' && page.url().endsWith('/paywall'));

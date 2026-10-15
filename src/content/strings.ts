@@ -1406,14 +1406,59 @@ const SETX_en = {
       ]
     ],
     "year": "Yearly",
-    "yearSub": "$35.88 billed once a year",
+    "yearSub": "{price} billed once a year",
     "month": "Monthly",
     "monthSub": "Billed every month",
     "per": "/ month",
-    "save": "Save 40%",
+    "save": "Save {n}%",
+    "tierFree": "Free",
+    "tierPro": "Pro",
+    "tierPlus": "Pro+",
+    "current": "What you have now",
+    "soon": "Coming soon",
+    "soonSub": "Not on sale yet — we will not charge for it until it works.",
+    "freeFeats": [
+      [
+        "spark",
+        "Smart assistant",
+        "10 requests a day."
+      ],
+      [
+        "users",
+        "People and follow-ups",
+        "Everyone you deal with, and who owes you a reply."
+      ],
+      [
+        "mic",
+        "Brain dumps",
+        "Three a day."
+      ]
+    ],
+    "plusFeats": [
+      [
+        "users",
+        "Scan a stack of cards",
+        "A whole conference in one sitting, not one card at a time."
+      ],
+      [
+        "list",
+        "Smart lists",
+        "Groups that keep themselves up to date as people change."
+      ],
+      [
+        "send",
+        "Message a whole list",
+        "One message, written to each of them by name."
+      ],
+      [
+        "globe",
+        "Fill in the gaps",
+        "Job title and company, looked up from a name and an email."
+      ]
+    ],
     "cta": "Start 7-day free trial",
-    "fineY": "Free for 7 days, then $35.88/year. Payment is charged to your Apple ID or Google Play account when the trial ends. Renews automatically unless cancelled at least 24 hours before the end of the period. Manage or cancel in your store account settings.",
-    "fineM": "Free for 7 days, then $4.99/month. Payment is charged to your Apple ID or Google Play account when the trial ends. Renews automatically unless cancelled at least 24 hours before the end of the period. Manage or cancel in your store account settings.",
+    "fineY": "Free for 7 days, then {price}/year. Payment is charged to your Apple ID or Google Play account when the trial ends. Renews automatically unless cancelled at least 24 hours before the end of the period. Manage or cancel in your store account settings.",
+    "fineM": "Free for 7 days, then {price}/month. Payment is charged to your Apple ID or Google Play account when the trial ends. Renews automatically unless cancelled at least 24 hours before the end of the period. Manage or cancel in your store account settings.",
     "toastBuy": "Welcome to Pro 🎉",
     "toastRestore": "No previous purchases found."
   }
@@ -1484,14 +1529,59 @@ const SETX_ar: typeof SETX_en = {
       ]
     ],
     "year": "سنوي",
-    "yearSub": "35.88$ تُدفع مرة بالسنة",
+    "yearSub": "{price} تُدفع مرة بالسنة",
     "month": "شهري",
     "monthSub": "يُدفع كل شهر",
     "per": "/ شهر",
-    "save": "وفّر ٤٠٪",
+    "save": "وفّر {n}٪",
+    "tierFree": "المجاني",
+    "tierPro": "Pro",
+    "tierPlus": "Pro+",
+    "current": "اللي عندك الحين",
+    "soon": "قريباً",
+    "soonSub": "ما هو معروض للبيع بعد — وما راح ناخذ عليه فلوس قبل ما يشتغل.",
+    "freeFeats": [
+      [
+        "spark",
+        "مساعد ذكي",
+        "١٠ طلبات في اليوم."
+      ],
+      [
+        "users",
+        "الأشخاص والمتابعات",
+        "كل اللي تتعامل معهم، ومين عليه رد لك."
+      ],
+      [
+        "mic",
+        "تفريغ الأفكار",
+        "ثلاث مرات في اليوم."
+      ]
+    ],
+    "plusFeats": [
+      [
+        "users",
+        "صوّر كومة بطاقات",
+        "مؤتمر كامل بجلسة وحدة، مو بطاقة بطاقة."
+      ],
+      [
+        "list",
+        "قوائم ذكية",
+        "مجموعات تحدّث نفسها كل ما تتغيّر بيانات الناس."
+      ],
+      [
+        "send",
+        "راسل قائمة كاملة",
+        "رسالة وحدة، مكتوبة لكل واحد فيهم باسمه."
+      ],
+      [
+        "globe",
+        "كمّل الناقص",
+        "المسمى الوظيفي والشركة، تتجاب من الاسم والإيميل."
+      ]
+    ],
     "cta": "ابدأ تجربة ٧ أيام مجاناً",
-    "fineY": "مجاناً ٧ أيام، بعدها 35.88$ بالسنة. يُخصم المبلغ من حساب Apple أو Google Play بعد انتهاء التجربة، ويتجدد تلقائياً ما لم يُلغَ قبل نهاية الفترة بـ٢٤ ساعة على الأقل. تقدر تديره أو تلغيه من إعدادات حسابك في المتجر.",
-    "fineM": "مجاناً ٧ أيام، بعدها 4.99$ بالشهر. يُخصم المبلغ من حساب Apple أو Google Play بعد انتهاء التجربة، ويتجدد تلقائياً ما لم يُلغَ قبل نهاية الفترة بـ٢٤ ساعة على الأقل. تقدر تديره أو تلغيه من إعدادات حسابك في المتجر.",
+    "fineY": "مجاناً ٧ أيام، بعدها {price} بالسنة. يُخصم المبلغ من حساب Apple أو Google Play بعد انتهاء التجربة، ويتجدد تلقائياً ما لم يُلغَ قبل نهاية الفترة بـ٢٤ ساعة على الأقل. تقدر تديره أو تلغيه من إعدادات حسابك في المتجر.",
+    "fineM": "مجاناً ٧ أيام، بعدها {price} بالشهر. يُخصم المبلغ من حساب Apple أو Google Play بعد انتهاء التجربة، ويتجدد تلقائياً ما لم يُلغَ قبل نهاية الفترة بـ٢٤ ساعة على الأقل. تقدر تديره أو تلغيه من إعدادات حسابك في المتجر.",
     "toastBuy": "أهلاً فيك في Pro 🎉",
     "toastRestore": "ما لقينا مشتريات سابقة."
   }
