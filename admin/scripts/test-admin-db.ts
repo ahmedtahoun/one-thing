@@ -235,4 +235,24 @@ describe('the admin panel against Postgres', () => {
     }
     assert.ok(Number(cluster.psql(`select count(*) from admin_audit_log where target_user_id = '${U1}'`).trim()) > 0, 'the log keeps the user ID');
   });
+
+  it('lets the one-time setup make exactly one Owner, and only while the team is empty', async () => {
+    // A team exists, so setup is closed and cannot add anyone.
+    assert.equal(await db.teamIsEmpty(), false);
+    assert.equal(await db.addFirstOwner(U2, 'Omar Khalid'), false);
+    assert.equal(await db.memberById(U2), null);
+
+    // A fresh install: nobody on the team yet.
+    const fresh = '00000000-0000-4000-8000-0000000000f9';
+    cluster.psql(`delete from admin_member; insert into auth.users (id, email) values ('${fresh}', 'ahmed@onlyonething.app')`);
+    assert.equal(await db.teamIsEmpty(), true);
+    await db.confirmEmail('ahmed@onlyonething.app');
+    assert.equal(cluster.psql(`select email_confirmed_at is not null from auth.users where id = '${fresh}'`).trim(), 't');
+    assert.equal(await db.addFirstOwner(fresh, 'Ahmed Tahoun'), true);
+    assert.deepEqual(await db.memberById(fresh), { name: 'Ahmed Tahoun', role: 'Owner' });
+
+    // And closed again: a second attempt, even with the secret, adds nobody.
+    assert.equal(await db.teamIsEmpty(), false);
+    assert.equal(await db.addFirstOwner(U2, 'Omar Khalid'), false);
+  });
 });
