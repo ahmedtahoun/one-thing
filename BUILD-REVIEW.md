@@ -1940,3 +1940,42 @@ person whose screen was read over their shoulder, and that person writes
 the review. **Recommend defaulting it off and offering it after the first
 focus session**; it is one line either way, and it is a product decision,
 so it is raised here rather than changed.
+
+### 2.60 An address that steers the link it goes into
+
+`mailtoUrl` interpolates the recipient without encoding it:
+`mailto:${to}?subject=…&body=…`. `?`, `&` and `#` are exactly what separate
+a mailto's parameters, so an address carrying one appends its own.
+
+```
+emailValid('omar@x.sa?body=hello')  →  true
+mailtoUrl(…)  →  mailto:omar@x.sa?body=hello?subject=Hi&body=Body
+```
+
+The mail app reads the first `body`, so the message sent is not the message
+the app showed. That matters more here than in most apps, because the whole
+promise of Compose is that the person presses send themselves — and they
+would be pressing send on text they never saw, from their own account.
+
+**The obvious attack was already blocked, for the wrong reason.**
+`?bcc=someone@else.com` fails only because the pattern refuses a second
+`@`. Nothing was defending the parameter separators; an injection without
+an `@` in it walked through. A defence that holds by coincidence is worth
+no more than the coincidence.
+
+Addresses are not the person's own typing: build 9 taught the app to read
+them from spreadsheets, PDFs and photographed business cards, which is
+exactly the kind of file a partner hands you. So the pattern now refuses
+`?`, `&` and `#`, in `features/compose/recipient.ts` and again in the
+importer, where the row is flagged `bad-email` on the review screen rather
+than stored as a contact that cannot be used safely. Ordinary addresses —
+`a.b+tag@sub.example.co.uk` among them — are unaffected.
+
+Tightening the pattern beats encoding the recipient: `encodeURIComponent`
+would turn `@` into `%40`, which RFC 6068 allows and some mail clients
+still mishandle. The addresses worth sending to do not contain these
+characters.
+
+`maps.ts` was checked at the same time and is clean — fixed https scheme,
+the address properly encoded. `whatsAppUrl` strips everything but digits
+from the number, so it has nothing to steer.

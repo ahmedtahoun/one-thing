@@ -27,7 +27,18 @@ export function phoneState(phone: string, tried: boolean): FieldState {
   return phone ? 'typing' : 'empty';
 }
 
-const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+/**
+ * An address, and nothing that could steer the `mailto:` link it goes into.
+ *
+ * `?`, `&` and `#` are what separate a mailto's parameters, so an address
+ * carrying one can append its own: "omar@x.sa?body=hello" produced
+ * "mailto:omar@x.sa?body=hello?subject=…&body=…", and the mail app reads
+ * the attacker's body, not the one the app showed. A second `@` was already
+ * refused, which is the only reason "?bcc=someone@else" never worked —
+ * incidental, not a defence. Addresses arrive from imported spreadsheets and
+ * scanned cards, so they are not the person's own typing.
+ */
+const EMAIL = /^[^\s@?&#]+@[^\s@?&#]+\.[^\s@?&#]+$/;
 
 export function emailValid(email: string): boolean {
   return EMAIL.test(email);

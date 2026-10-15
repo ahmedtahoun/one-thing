@@ -85,7 +85,12 @@ function roleOfHeader(header: string): Role | null {
   return null;
 }
 
-const EMAIL = /[^\s@<>,;"']+@[^\s@<>,;"']+\.[^\s@<>,;"']+/;
+// `?`, `&` and `#` are excluded for the same reason as in
+// features/compose/recipient.ts: they steer the mailto link an address ends
+// up in, and a spreadsheet is not the person's own typing. Better to flag
+// the row bad-email on the import screen than to store one that cannot be
+// used safely.
+const EMAIL = /[^\s@<>,;"'?&#]+@[^\s@<>,;"'?&#]+\.[^\s@<>,;"'?&#]+/;
 const looksLikeEmail = (v: string): boolean => EMAIL.test(v);
 const looksLikePhone = (raw: string): boolean => {
   const v = westernDigits(raw);
