@@ -1707,3 +1707,50 @@ back through the toast's Undo — which is how the UI actually offers it.
 264 checks, all passing. The lesson is the same one §2.52 and §2.53 keep
 teaching: a check that cannot run, and a rule nobody reaches for, both read
 exactly like success.
+
+### 2.55 The imported number that was wrong and looked right
+
+Reviewing build 9's new surfaces, worst consequence first: the chain from a
+spreadsheet to a bulk send, because a parsing slip there reaches real
+strangers at scale.
+
+`columns.ts` knew that "Excel turns long numbers into 9.66501E+11" and
+expanded the scientific form with `Number(v).toFixed(0)`. The expansion is
+only honest while the mantissa still holds every digit, and Excel's default
+is **six significant figures**. So 966501234567 is written 9.66501E+11 and
+comes back as **966501000000** — the right length, the right country, the
+right operator prefix, the wrong person. No issue was flagged, because
+nothing about the result looks wrong: it passes the digit count, it splits
+into a plausible `+966 50...`, and the import screen shows it as an ordinary
+Saudi mobile for the person to tick.
+
+What it costs is the point. A contact imported that way is then called,
+messaged or WhatsApped — and `app/bulk.tsx` walks a column of them one tap
+at a time. The existing test covered `9.66501234567E+11`, which carries all
+twelve digits and expands correctly; the rounded form nobody had tried.
+
+The expansion is now trusted only where the mantissa's significant digits
+cover the whole number. Where they do not, the cell comes back empty, which
+is what makes `build` flag the row `bad-phone` — so the person sees a number
+that could not be read rather than one that was invented. `5.0E+8` is
+refused on the same rule: digits two through nine are unknowable, and
+guessing zeros is the same mistake in a smaller coat.
+
+My first attempt at the rule was wrong in the other direction — it compared
+both sides with trailing zeros stripped, which makes them equal by
+construction, so it passed the lossy case and rejected the safe one. The
+test caught it, which is the argument for writing the test against real
+Excel output rather than against the fix.
+
+Also found, not fixed: **`app/import.tsx` reads the whole file into memory**
+(`new Uint8Array(await (await fetch(uri)).arrayBuffer())`) with no size
+guard. A large workbook or PDF can take the app down on a phone. Picking
+the limit is a judgement about real files on real devices, so it is raised
+here rather than guessed at.
+
+Looked at and found sound: `plan.ts` never sends anything itself — every
+channel opens the person's own app with the message written, which bounds
+what any parsing mistake can do; `bccMailto` keeps a shared email's
+addresses hidden from each other; the PDF reader's loops are all bounded
+`matchAll` passes over the input, with no unbounded `while` and no obvious
+catastrophic backtracking.

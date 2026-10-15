@@ -114,6 +114,18 @@ describe('readTable', () => {
     assert.equal(candidates[0]?.phone, '501234567');
     assert.equal(candidates[1]?.phone, '501234567');
   });
+  it('refuses the ones Excel has already rounded away', () => {
+    // 9.66501E+11 is how Excel shows 966501234567 at its default six
+    // significant figures. Expanding it gives 966501000000: right length,
+    // right country, right operator, wrong person — and nothing about it
+    // looks wrong on the import screen, so it would be ticked and then
+    // called. Refusing it is the only honest answer; the digits are gone.
+    const { candidates } = readTable([['Name', 'Phone'], ['A One', '9.66501E+11'], ['B Two', '5.0E+8']], 'SA');
+    assert.equal(candidates[0]?.phone, undefined);
+    assert.deepEqual(candidates[0]?.issues, ['bad-phone']);
+    assert.equal(candidates[1]?.phone, undefined);
+    assert.deepEqual(candidates[1]?.issues, ['bad-phone']);
+  });
   it('reads numbers written in Arabic-Indic digits', () => {
     const { candidates } = readTable([['الاسم', 'الجوال'], ['نورة الحربي', '٠٥٠٩٩٩٨٨٧٧']], 'SA');
     assert.equal(candidates[0]?.phone, '509998877');

@@ -92,10 +92,29 @@ const looksLikePhone = (raw: string): boolean => {
   return /^[+()\d\s.-]{7,22}$/.test(v) && v.replace(/\D/g, '').length >= 7;
 };
 
-/** A phone cell as digits. Excel turns long numbers into "9.66501E+11" or "501234567.0". */
+/**
+ * A phone cell as digits. Excel turns long numbers into "9.66501E+11" or
+ * "501234567.0".
+ *
+ * Expanding the scientific form is only honest while the mantissa still
+ * carries every digit. Excel shows six significant figures by default, so
+ * 966501234567 is written 9.66501E+11, and `Number(...).toFixed(0)` gives
+ * 966501000000 back — the right length, the right country, the right
+ * operator prefix, and the wrong person. That is worse than refusing it:
+ * nothing about the result looks wrong, so it is ticked on the import
+ * screen and the app then calls or messages a stranger, in bulk.ts's case
+ * a column of them. Where digits are missing the cell is returned empty,
+ * which is what makes `build` flag the row `bad-phone`.
+ */
 function phoneText(value: string): string {
   const v = westernDigits(value).trim().replace(/^p:/i, '');
-  if (/^\d+(\.\d+)?e\+?\d+$/i.test(v)) return Number(v).toFixed(0);
+  if (/^\d+(\.\d+)?e\+?\d+$/i.test(v)) {
+    const expanded = Number(v).toFixed(0);
+    // Trust the expansion only where the mantissa holds as many digits as the
+    // number it claims to be: 1.23456789012E+11 does, 9.66501E+11 does not.
+    const significant = v.split(/e/i)[0]?.replace(/\D/g, '').replace(/0+$/, '').length ?? 0;
+    return expanded.length <= significant ? expanded : '';
+  }
   return v.replace(/\.0+$/, '').replace(/\s*(x|ext\.?|#)\s*\d+$/i, '');
 }
 
