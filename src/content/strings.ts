@@ -991,7 +991,7 @@ const ACC_en = {
     "opt": "(optional)",
     "err": "Please accept the Terms and Privacy Policy to continue.",
     "note": "We collect your name, phone, job title and how you use the app to run it and improve it. Marketing only if you opt in — change anytime in Settings.",
-    "updated": "Last updated 14 October 2026",
+    "updated": "Last updated 15 October 2026",
     "fail": "We couldn’t sign you in. Please try again."
   },
   "su": {
@@ -1025,12 +1025,16 @@ const ACC_en = {
   },
   "terms": [
     [
+      "Who you are agreeing with",
+      "The One Thing is run by Where To Spot, a sole proprietorship on the Egyptian commercial register in Damanhour, registration number 101557, owned by Ahmed Salah Tahoun. “We” and “us” below mean that business. You can reach us at privacy@onlyonething.app."
+    ],
+    [
       "Using the app",
       "The One Thing helps you plan your day, draft messages and remember follow-ups. You send messages yourself from your own apps; we never send on your behalf without you tapping send."
     ],
     [
       "Your account",
-      "You sign in with Apple or Google. Keep your device secure. You can delete your account at any time from Settings."
+      "You sign in with Apple or Google. Keep your device secure — anyone who can unlock it can read what is in the app. You need to be at least 13 to have an account. You can delete your account at any time from Settings."
     ],
     [
       "Your data on our servers",
@@ -1042,11 +1046,27 @@ const ACC_en = {
     ],
     [
       "Subscriptions",
-      "Pro is billed through the App Store or Google Play and renews until you cancel in your store settings. Prices are shown before you buy."
+      "Pro is billed through the App Store or Google Play and renews until you cancel in your store settings. Prices are shown before you buy. Refunds are handled by the store you bought from, under its rules, not by us."
     ],
     [
       "Acceptable use",
-      "Don’t use the app to spam, harass or break the law."
+      "Don’t use the app to spam, harass or break the law. If an account is used that way we may suspend or close it."
+    ],
+    [
+      "What the app does not promise",
+      "The One Thing helps you remember; it does not do the remembering for you. We work to keep it running and to keep what it suggests sensible, but we cannot promise it will always be available or always get something right. The commitments you make to other people stay yours, and so does the decision to act on anything the app proposes."
+    ],
+    [
+      "Where our responsibility ends",
+      "As far as the law allows, we are not responsible for losses nobody could reasonably have seen coming, or for what follows from relying on the app instead of your own judgement. Nothing here removes a responsibility the law does not let us remove."
+    ],
+    [
+      "Ending it",
+      "You can delete your account from Settings whenever you want, and these terms end with it. We may close an account that breaks these terms, and we will tell you why unless the law stops us."
+    ],
+    [
+      "Which law applies",
+      "These terms are governed by the law of the Arab Republic of Egypt, and disputes go to the Egyptian courts. If you use the app as a consumer, this does not take away any protection the law where you live gives you and does not let us contract out of."
     ],
     [
       "Changes",
@@ -1055,24 +1075,40 @@ const ACC_en = {
   ],
   "priv": [
     [
-      "What we collect",
-      "Your name, phone number, job title, email from your sign-in provider, the tasks, contacts and notes you add, and basic usage data (which features you use, crashes)."
+      "Who we are",
+      "The One Thing is run by Where To Spot, a sole proprietorship on the Egyptian commercial register in Damanhour, registration number 101557, owned by Ahmed Salah Tahoun. We decide what happens to the data described here, which in data protection law makes us its controller. Write to us at privacy@onlyonething.app."
     ],
     [
-      "Why we use it",
-      "To run the app, personalise your assistant, send reminders you asked for, and improve the product. With your consent, to send tips, offers and marketing messages."
+      "What we collect",
+      "Your name, phone number, job title and the email address your sign-in provider gives us. The tasks, contacts, follow-ups, notes and message drafts you add. And basic usage data: which features you use, and crashes."
+    ],
+    [
+      "Why we use it, and on what basis",
+      "Running the app for you — keeping your tasks on every device, putting them back if you lose your phone, sending the reminders you set — is the thing you signed up for, so our basis for it is performing our agreement with you. Keeping the service secure and working, and seeing which features get used, rests on our legitimate interest in running it properly. Marketing messages, and reaching your phone’s contacts, camera or files, happen only with your permission, and you can take that permission back at any time."
+    ],
+    [
+      "Do you have to give us this",
+      "You need an account to use the app, so your name and the email from your sign-in are required — without them there is nothing to sync and nothing to restore. Everything else is your choice: your photo, your job title, and whether the app may read your phone’s contacts, camera or files. The app works without them."
     ],
     [
       "Where your data lives",
-      "Your tasks, contacts, follow-ups and how you use the app are stored on our servers in Ireland, and travel there encrypted. That is what lets the app work on any device you sign in to, and what lets us put your data back if you lose your phone. It is how the service works rather than an extra: without it there would be nothing to sync and nothing to restore. We keep backups for the same reason, and delete them on the same 30-day clock as everything else."
+      "Your tasks, contacts, follow-ups and how you use the app are stored on our servers in Ireland, and travel there encrypted. That is what lets the app work on any device you sign in to, and what lets us put your data back if you lose your phone. It is how the service works rather than an extra: without it there would be nothing to sync and nothing to restore. We keep backups for the same reason, and delete them on the same 30-day clock as everything else. Because we are registered in Egypt and you may be somewhere else again, your data crosses borders on its way there — it stays encrypted in transit and at rest, and the providers who hold it are bound to handle it for us and for nobody else."
     ],
     [
-      "Sharing",
-      "We never sell your data. We use trusted providers (hosting, analytics, payments through Apple and Google) who process it only for us."
+      "How long we keep it",
+      "For as long as your account exists. When you delete it, everything goes within 30 days, backups included. The only exception is a record we are obliged to keep — a purchase receipt, for instance — which we keep for as long as the law requires and no longer."
+    ],
+    [
+      "Who we share it with",
+      "We never sell your data and never share it for advertising. Supabase host our database and servers. Apple and Google handle your sign-in and your payments under their own terms. When you use the assistant, what you typed goes to Anthropic to be read — see the next section. Nobody else receives it unless the law obliges us to hand it over."
+    ],
+    [
+      "The assistant",
+      "When you write something and ask the assistant to make sense of it, the words you typed are sent to Anthropic, along with your language and your time zone, and come back as a suggested task. Your contact list is not sent — but if you typed somebody’s name in the note, that name travels with the text. Nothing the assistant produces is a decision about you: it fills in a task for you to accept, change or throw away."
     ],
     [
       "Who at our company can see it",
-      "Our support team can see your account details (name, email, phone, job title), your tasks, the contacts you save (name, position, company, phone and email) and your message drafts. We use this to troubleshoot problems, answer your support requests, keep the service secure and meet legal requests. Every time a team member opens your data it is recorded. For product analysis we use your activity with names, phone numbers and emails replaced by codes."
+      "Our support team can see your account details (name, email, phone, job title), your tasks, the contacts you save (name, position, company, phone and email) and your message drafts. We use this to troubleshoot problems, answer your support requests, keep the service secure and meet legal requests. Every time someone on the team opens your record it is written down, so it can be checked afterwards. For product analysis we use your activity with names, phone numbers and emails replaced by codes."
     ],
     [
       "People you add",
@@ -1083,8 +1119,24 @@ const ACC_en = {
       "A picture you choose for a person or for yourself is copied into the app and stays on your phone; it is not uploaded. A photo of a business card is read on your phone and not kept; only the text you confirm becomes a contact. A spreadsheet, PDF or contacts file you import is read on your phone and the file itself is not uploaded."
     ],
     [
-      "Your choices",
-      "Turn marketing off any time in Settings. Download or delete your data and account from Settings or at onlyonething.app/delete — deletion removes everything within 30 days."
+      "Voice notes",
+      "When you tap the microphone, your phone’s own speech recogniser (Apple’s or Google’s, under their privacy terms) turns what you say into text. The One Thing uses that text and does not keep the audio."
+    ],
+    [
+      "Reminders",
+      "Reminders and nudges are scheduled on your phone. You can turn them off in your phone’s settings at any time."
+    ],
+    [
+      "Your rights and choices",
+      "You can ask us to show you what we hold about you, correct it, delete it, hand it over in a form you can take elsewhere, pause what we do with it, or stop a particular use altogether. Downloading and deleting are built into Settings, and into onlyonething.app/delete; for anything else write to privacy@onlyonething.app and we will answer within 30 days. Marketing can be turned off in Settings whenever you like. Where we rely on your permission, you can withdraw it at any time — that stops what comes next, and does not undo what was already done while it stood."
+    ],
+    [
+      "If you want to complain",
+      "Tell us first and we will try to put it right. You can also complain to a data protection regulator: in Egypt the Personal Data Protection Centre, in Saudi Arabia SDAIA, and in the European Union the authority in the country where you live."
+    ],
+    [
+      "If something goes wrong",
+      "If data is lost or exposed in a way that puts you at risk, we will tell the regulator that oversees us, and tell you where the law requires it — quickly, and with what we know at the time rather than waiting until we know everything."
     ],
     [
       "Children",
@@ -1095,8 +1147,12 @@ const ACC_en = {
       "The One Thing is a productivity tool. It is not a medical device and doesn’t diagnose or treat any condition."
     ],
     [
+      "Changes",
+      "If we change this policy we’ll tell you in the app before the change applies, and the date at the top will change with it."
+    ],
+    [
       "Contact",
-      "privacy@onlyonething.app"
+      "Where To Spot (Ahmed Salah Tahoun) · privacy@onlyonething.app"
     ]
   ]
 };
@@ -1116,7 +1172,7 @@ const ACC_ar: typeof ACC_en = {
     "opt": "(اختياري)",
     "err": "وافق على الشروط وسياسة الخصوصية عشان تكمّل.",
     "note": "نجمع اسمك ورقمك ومسمّاك الوظيفي وطريقة استخدامك للتطبيق لتشغيله وتحسينه. التسويق فقط إذا وافقت — وتقدر تغيّرها من الإعدادات.",
-    "updated": "آخر تحديث ١٤ أكتوبر ٢٠٢٦",
+    "updated": "آخر تحديث ١٥ أكتوبر ٢٠٢٦",
     "fail": "ما قدرنا نسجّل دخولك. جرّب مرة ثانية."
   },
   "su": {
@@ -1150,12 +1206,16 @@ const ACC_ar: typeof ACC_en = {
   },
   "terms": [
     [
+      "مع مين تتعامل",
+      "«الشيء الواحد» تشغّله مؤسسة Where To Spot، مؤسسة فردية مقيّدة في السجل التجاري المصري بدمنهور برقم ١٠١٥٥٧، ومالكها أحمد صلاح طاحون. و«نحن» في هذا النص تعني هذي المؤسسة. تقدر توصل لنا على privacy@onlyonething.app."
+    ],
+    [
       "استخدام التطبيق",
       "يساعدك التطبيق ترتّب يومك وتكتب رسايلك وتتذكّر متابعاتك. أنت اللي ترسل من تطبيقاتك، وما نرسل شي بدون ما تضغط إرسال."
     ],
     [
       "حسابك",
-      "تسجّل دخولك عن طريق Apple أو Google. وتقدر تحذف حسابك متى ما تبي من الإعدادات."
+      "تسجّل دخولك عن طريق Apple أو Google. وخلّ جهازك محمي — أي أحد يقدر يفتحه يقدر يقرأ اللي داخل التطبيق. ولازم يكون عمرك ١٣ سنة على الأقل عشان يكون لك حساب. وتقدر تحذف حسابك متى ما تبي من الإعدادات."
     ],
     [
       "بياناتك على سيرفراتنا",
@@ -1167,11 +1227,27 @@ const ACC_ar: typeof ACC_en = {
     ],
     [
       "الاشتراك",
-      "يتم الدفع عبر App Store أو Google Play ويتجدد لين تلغيه من إعدادات المتجر."
+      "يتم الدفع عبر App Store أو Google Play ويتجدد لين تلغيه من إعدادات المتجر. والأسعار تظهر لك قبل الشراء. أما الاسترجاع فيتم عن طريق المتجر اللي اشتريت منه وبحسب شروطه، مو عن طريقنا."
     ],
     [
       "الاستخدام المقبول",
-      "لا تستخدم التطبيق للإزعاج أو مخالفة النظام."
+      "لا تستخدم التطبيق للإزعاج أو مخالفة النظام. وإذا استُخدم الحساب بهذي الطريقة يمكن نوقفه أو نقفله."
+    ],
+    [
+      "وش ما يوعد فيه التطبيق",
+      "«الشيء الواحد» يساعدك تتذكّر، لكنه ما يتذكّر عنك. نشتغل عشان يظل شغّال واقتراحاته معقولة، لكن ما نقدر نوعدك إنه ما ينقطع أبداً ولا يغلط أبداً. والالتزامات اللي تقطعها للناس تبقى التزاماتك أنت، وقرار إنك تمشي على أي اقتراح من التطبيق يبقى قرارك."
+    ],
+    [
+      "حدود مسؤوليتنا",
+      "بالقدر اللي يسمح فيه النظام، ما نتحمّل الخسائر اللي ما كان أحد يقدر يتوقعها، ولا اللي يترتب على اعتمادك على التطبيق بدل حكمك أنت. وما في شي هنا يرفع عنا مسؤولية ما يسمح النظام برفعها."
+    ],
+    [
+      "إنهاء الاستخدام",
+      "تقدر تحذف حسابك من الإعدادات وقت ما تبي، وتنتهي هذي الشروط معه. ويمكن نقفل حساب يخالف هذي الشروط، وبنقول لك السبب إلا إذا كان النظام يمنعنا."
+    ],
+    [
+      "القانون المطبّق",
+      "تخضع هذي الشروط لقانون جمهورية مصر العربية، والنزاعات تنظرها المحاكم المصرية. وإذا كنت تستخدم التطبيق كمستهلك، فهذا ما يسقط أي حماية يعطيك إياها نظام بلدك ولا يسمح لنا بالتنازل عنها."
     ],
     [
       "التغييرات",
@@ -1180,24 +1256,40 @@ const ACC_ar: typeof ACC_en = {
   ],
   "priv": [
     [
-      "وش نجمع",
-      "اسمك، رقمك، مسمّاك الوظيفي، بريدك من مزوّد الدخول، المهام وجهات الاتصال والملاحظات اللي تضيفها، وبيانات استخدام بسيطة."
+      "مين نحن",
+      "«الشيء الواحد» تشغّله مؤسسة Where To Spot، مؤسسة فردية مقيّدة في السجل التجاري المصري بدمنهور برقم ١٠١٥٥٧، ومالكها أحمد صلاح طاحون. ونحن اللي نقرر وش يصير بالبيانات الموضّحة هنا، وهذا اللي يخلّينا «المتحكّم» فيها بلغة أنظمة حماية البيانات. راسلنا على privacy@onlyonething.app."
     ],
     [
-      "ليش نستخدمها",
-      "لتشغيل التطبيق وتخصيص المساعد وإرسال التذكيرات وتحسين الخدمة. وبموافقتك، لإرسال نصائح وعروض ورسائل تسويقية."
+      "وش نجمع",
+      "اسمك ورقمك ومسمّاك الوظيفي والإيميل اللي يعطينا إياه مزوّد تسجيل الدخول. والمهام وجهات الاتصال والمتابعات والملاحظات ومسودات الرسايل اللي تضيفها. وبيانات استخدام بسيطة: أي الميزات تستخدم، وأي تعطّل يصير."
+    ],
+    [
+      "ليش نستخدمها، وعلى أي أساس",
+      "تشغيل التطبيق لك — إن مهامك تكون على كل جهاز، وترجع لك إذا ضاع جوالك، وتوصلك التذكيرات اللي ضبطتها — هو الشي اللي سجّلت عشانه، فأساسنا فيه تنفيذ الاتفاق اللي بيننا وبينك. وحماية الخدمة وتشغيلها ومعرفة أي الميزات تُستخدم، أساسها مصلحتنا المشروعة في إدارتها صح. أما الرسايل التسويقية، والوصول لجهات اتصال جوالك أو الكاميرا أو الملفات، فما تصير إلا بإذنك، وتقدر تسحب الإذن وقت ما تبي."
+    ],
+    [
+      "هل لازم تعطينا هذي البيانات",
+      "تحتاج حساب عشان تستخدم التطبيق، فاسمك والإيميل اللي تدخل فيه مطلوبين — بدونهم ما فيه شي يتزامن ولا شي يترجّع. وكل اللي بعدها اختيارك أنت: صورتك، ومسمّاك الوظيفي، وهل تسمح للتطبيق يقرأ جهات اتصال جوالك أو الكاميرا أو الملفات. والتطبيق يشتغل بدونها."
     ],
     [
       "وين تنحفظ بياناتك",
-      "مهامك وجهات اتصالك ومتابعاتك وطريقة استخدامك للتطبيق تنحفظ على سيرفراتنا في أيرلندا، وتنتقل لها مشفّرة. هذا اللي يخلّي التطبيق يشتغل على أي جهاز تسجّل دخولك فيه، واللي يخلّينا نرجّع بياناتك إذا ضاع جوالك. هذي طريقة عمل الخدمة مو إضافة: بدونها ما فيه شي يتزامن ولا شي يترجّع. ونحتفظ بنسخ احتياطية لنفس السبب، ونحذفها بنفس مدة الـ٣٠ يوم."
+      "مهامك وجهات اتصالك ومتابعاتك وطريقة استخدامك للتطبيق تنحفظ على سيرفراتنا في أيرلندا، وتنتقل لها مشفّرة. هذا اللي يخلّي التطبيق يشتغل على أي جهاز تسجّل دخولك فيه، واللي يخلّينا نرجّع بياناتك إذا ضاع جوالك. هذي طريقة عمل الخدمة مو إضافة: بدونها ما فيه شي يتزامن ولا شي يترجّع. ونحتفظ بنسخ احتياطية لنفس السبب، ونحذفها بنفس مدة الـ٣٠ يوم. وبما إننا مقيّدين في مصر وإنت يمكن تكون في بلد ثالث، فبياناتك تعبر الحدود وهي رايحة لهناك — تبقى مشفّرة في الطريق وعند التخزين، والمزوّدين اللي يحتفظون فيها ملزَمين يعالجونها لنا إحنا فقط."
     ],
     [
-      "المشاركة",
-      "ما نبيع بياناتك أبداً. نستخدم مزوّدين موثوقين يعالجونها لنا فقط."
+      "كم نحتفظ فيها",
+      "طول ما حسابك موجود. ولما تحذفه يروح كل شي خلال ٣٠ يوم، والنسخ الاحتياطية معه. والاستثناء الوحيد سجل نكون ملزَمين نحتفظ فيه — فاتورة شراء مثلاً — نحتفظ فيه بالمدة اللي يفرضها النظام ولا زيادة."
+    ],
+    [
+      "مع مين نشاركها",
+      "ما نبيع بياناتك أبداً ولا نشاركها للإعلانات. Supabase يستضيفون قاعدة بياناتنا وسيرفراتنا. وApple وGoogle يتولّون تسجيل دخولك ومدفوعاتك وفق شروطهم. ولما تستخدم المساعد، اللي كتبته يروح لـAnthropic عشان يُقرأ — شوف الفقرة الجاية. وما يستلمها أحد غيرهم إلا إذا ألزمنا النظام بتسليمها."
+    ],
+    [
+      "المساعد",
+      "لما تكتب شي وتطلب من المساعد يفهمه، الكلمات اللي كتبتها تنرسل لـAnthropic، ومعها لغتك ومنطقتك الزمنية، وترجع لك على شكل مهمة مقترحة. قائمة جهات اتصالك ما تنرسل — لكن إذا كتبت اسم أحد داخل الملاحظة، الاسم يروح مع النص. وما يطلع من المساعد يعتبر قرار عنك: هو يعبّي لك مهمة أنت اللي تقبلها أو تعدّلها أو ترميها."
     ],
     [
       "مين يقدر يشوفها عندنا",
-      "فريق الدعم يقدر يشوف بيانات حسابك (الاسم والإيميل والجوال والمسمى)، ومهامك، وجهات الاتصال اللي تحفظها (الاسم والمنصب والشركة والجوال والإيميل)، ومسودات رسائلك. نستخدمها لحل المشاكل والرد على طلبات الدعم وحماية الخدمة وللطلبات النظامية. وكل مرة يفتح أحد من الفريق بياناتك تنسجّل. ولتحليل المنتج نستخدم نشاطك بعد استبدال الأسماء والأرقام والإيميلات برموز."
+      "فريق الدعم يقدر يشوف بيانات حسابك (الاسم والإيميل والجوال والمسمى)، ومهامك، وجهات الاتصال اللي تحفظها (الاسم والمنصب والشركة والجوال والإيميل)، ومسودات رسايلك. نستخدمها لحل المشاكل والرد على طلبات الدعم وحماية الخدمة وللطلبات النظامية. وكل مرة يفتح أحد من الفريق سجلك ينكتب ذلك، عشان يمكن مراجعته بعدين. ولتحليل المنتج نستخدم نشاطك بعد استبدال الأسماء والأرقام والإيميلات برموز."
     ],
     [
       "الأشخاص اللي تضيفهم",
@@ -1208,8 +1300,24 @@ const ACC_ar: typeof ACC_en = {
       "الصورة اللي تختارها لشخص أو لنفسك تنحفظ داخل التطبيق وتبقى على جوالك ولا تُرفع. وصورة بطاقة العمل تُقرأ على جوالك ولا تنحفظ؛ بس النص اللي تأكّده يصير جهة اتصال. وأي ملف جدول أو PDF أو جهات اتصال تستورده يُقرأ على جوالك ولا يُرفع الملف نفسه."
     ],
     [
-      "خياراتك",
-      "أوقف التسويق متى ما تبي من الإعدادات. حمّل أو احذف بياناتك وحسابك من الإعدادات خلال ٣٠ يوم."
+      "الملاحظات الصوتية",
+      "لما تضغط على الميكروفون، يحوّل مُتعرّف الكلام في جوالك (من آبل أو قوقل، وفق شروط خصوصيتهم) كلامك إلى نص. «الشيء الواحد» يستخدم هذا النص ولا يحتفظ بالتسجيل الصوتي."
+    ],
+    [
+      "التذكيرات",
+      "التذكيرات والتنبيهات تُجدول على جوالك. تقدر توقفها من إعدادات جوالك في أي وقت."
+    ],
+    [
+      "حقوقك وخياراتك",
+      "تقدر تطلب منا نوريك وش نحتفظ فيه عنك، أو تصحّحه، أو تحذفه، أو تسلّمه لك بصيغة تقدر تاخذها لمكان ثاني، أو توقف استخدامه مؤقتاً، أو تمنع استخدام معيّن نهائياً. التحميل والحذف موجودين داخل الإعدادات وعلى onlyonething.app/delete؛ وأي طلب ثاني راسلنا فيه على privacy@onlyonething.app وبنرد خلال ٣٠ يوم. والتسويق توقفه من الإعدادات متى ما تبي. وإذا كان أساسنا إذنك، تقدر تسحبه وقت ما تبي — والسحب يوقف اللي جاي، وما يلغي اللي صار وهو قائم."
+    ],
+    [
+      "إذا تبي تقدّم شكوى",
+      "كلّمنا أول وبنحاول نصلّح الوضع. وتقدر كمان تشتكي لجهة رقابية لحماية البيانات: في مصر «مركز حماية البيانات الشخصية»، وفي السعودية «سدايا»، وفي الاتحاد الأوروبي الجهة المختصة في البلد اللي تسكن فيه."
+    ],
+    [
+      "إذا صار شي غلط",
+      "إذا ضاعت بيانات أو انكشفت بطريقة تعرّضك للخطر، بنبلّغ الجهة الرقابية المشرفة علينا، وبنبلّغك أنت إذا كان النظام يلزمنا بذلك — بسرعة، وباللي نعرفه وقتها بدل ما ننتظر لين نعرف كل شي."
     ],
     [
       "الأطفال",
@@ -1220,8 +1328,12 @@ const ACC_ar: typeof ACC_en = {
       "«الشيء الواحد» أداة إنتاجية. ليس جهازًا طبيًا ولا يشخّص أو يعالج أي حالة."
     ],
     [
+      "التغييرات",
+      "إذا غيّرنا هذي السياسة بنبلغك داخل التطبيق قبل ما يسري التغيير، وبيتغيّر التاريخ اللي فوق معه."
+    ],
+    [
       "تواصل معنا",
-      "privacy@onlyonething.app"
+      "Where To Spot (أحمد صلاح طاحون) · privacy@onlyonething.app"
     ]
   ]
 };

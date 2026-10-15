@@ -70,27 +70,14 @@ const bilingual = (en: string, ar: string) =>
   `<section id="en" lang="en" dir="ltr">\n${en}\n</section>\n<section id="ar" class="lang" lang="ar" dir="rtl">\n${ar}\n</section>`;
 
 // --- Privacy ------------------------------------------------------------------
-const privacyExtraEn: Section[] = [
-  ['Voice notes', 'When you tap the microphone, your phone’s own speech recogniser (Apple’s or Google’s, under their privacy terms) turns what you say into text. The One Thing uses that text and does not keep the audio.'],
-  ['Reminders', 'Reminders and nudges are scheduled on your phone. You can turn them off in your phone’s settings at any time.'],
-  ['Where it is kept', 'Data you sync is stored with our hosting provider on servers in the European Union (Ireland).'],
-];
-const privacyExtraAr: Section[] = [
-  ['الملاحظات الصوتية', 'لما تضغط على الميكروفون، يحوّل مُتعرّف الكلام في جوالك (من آبل أو قوقل، وفق شروط خصوصيتهم) كلامك إلى نص. «الشيء الواحد» يستخدم هذا النص ولا يحتفظ بالتسجيل الصوتي.'],
-  ['التذكيرات', 'التذكيرات والتنبيهات تُجدول على جوالك. تقدر توقفها من إعدادات جوالك في أي وقت.'],
-  ['وين تنحفظ البيانات', 'البيانات اللي تزامنها تُخزَّن عند مزوّد الاستضافة على خوادم في الاتحاد الأوروبي (أيرلندا).'],
-];
-const priv = (lang: 'en' | 'ar', extra: Section[]) => {
-  const list = ACC[lang].priv as unknown as Section[];
-  // Extras go before "Contact", which is last.
-  return sections([...list.slice(0, -1), ...extra, ...list.slice(-1)]);
-};
+/** The site and the in-app screen say the same thing, out of the same source. */
+const priv = (lang: 'en' | 'ar') => sections(ACC[lang].priv as unknown as Section[]);
 page(
   'privacy',
   'Privacy Policy',
   'What The One Thing collects, why, and the choices you have.',
   `<h1>Privacy Policy</h1><p class="meta">${esc(ACC.en.si.updated)} · <a href="#ar">العربية</a></p>\n` +
-    bilingual(priv('en', privacyExtraEn), `<h1>سياسة الخصوصية</h1><p class="meta">${esc(ACC.ar.si.updated)}</p>\n${priv('ar', privacyExtraAr)}`)
+    bilingual(priv('en'), `<h1>سياسة الخصوصية</h1><p class="meta">${esc(ACC.ar.si.updated)}</p>\n${priv('ar')}`)
 );
 
 // --- Terms --------------------------------------------------------------------
