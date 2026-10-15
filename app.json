@@ -88,6 +88,13 @@
           "photosPermission": "Used when you choose a photo of a business card to read, or a picture for a person or for yourself. The One Thing never reads your other photos."
         }
       ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Used when you take a photo of a business card to read, or a picture for a person or for yourself. The camera is never used in the background.",
+          "recordAudioAndVideo": false
+        }
+      ],
       "expo-document-picker",
       "@bacons/apple-targets"
     ],

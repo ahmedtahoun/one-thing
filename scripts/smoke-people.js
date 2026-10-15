@@ -260,6 +260,35 @@ const SESSION = { userId: 'smoke', name: 'Khalid Al-Mansouri', firstName: 'Khali
   await open('/contact?id=nobody');
   check('an unknown contact goes to People', page.url().endsWith('/people'), page.url());
 
+  // ------------------------------------------------------------- Scan many
+  // A stack of cards is its own way in (app/scan-many.tsx), beside the single
+  // card. The camera itself cannot be driven here — the web build has no card
+  // reader at all — but the way in, the honest refusal, and what a saved batch
+  // hands on to Send to many are all this suite's business.
+  await seed();
+  await open('/people');
+  check('People offers a bulk scan beside the single one', await page.getByTestId('people-scan-many').isVisible());
+  await page.getByTestId('people-scan-many').click();
+  await page.waitForTimeout(500);
+  check('…and it opens the batch screen', page.url().endsWith('/scan-many'), page.url());
+  check('the web build says it cannot read cards, instead of opening a camera', await page.getByTestId('many-single').isVisible());
+  check('…and offers the single card screen, which can be typed into', (await page.getByTestId('many-camera').count()) === 0);
+  await page.getByTestId('many-single').click();
+  await page.waitForTimeout(500);
+  check('the way out is the one card screen', page.url().endsWith('/scan-card'), page.url());
+
+  await open('/people');
+  await page.getByTestId('people-add').click();
+  await page.waitForTimeout(400);
+  check('Add offers the stack as well as the one card', await page.getByTestId('add-many').isVisible());
+
+  // What a saved batch does next: Send to many, with those people already
+  // picked, because a stack of cards nobody writes to was a contact import.
+  await open('/bulk?ids=c2,c3');
+  check('a saved batch arrives in Send to many already picked', (await text('bulk-start')).includes('2'), await text('bulk-start'));
+  await open('/bulk');
+  check('…and Send to many on its own still starts empty', !(await text('bulk-start')).includes('2'), await text('bulk-start'));
+
   // ------------------------------------------------------------------ Form
   await seed();
   await open('/people');

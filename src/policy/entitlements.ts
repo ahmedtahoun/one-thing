@@ -33,12 +33,13 @@ export type Plan = 'free' | 'trial' | 'pro' | 'pro_plus' | 'lapsed';
 /**
  * Everything the paywall advertises, keyed to the feature list it shows.
  *
- * The last three are what Pro+ is for. None of them is built, so all three
- * answer false below, and `FOR_SALE` in src/features/paywall/plans.ts does
- * not include the tier. Note what is *not* here: bulk email. Send to many
- * already exists and is ungated (app/bulk.tsx), and sending to a *segment*
- * is that screen plus `smartLists` — giving it a capability of its own would
- * put a lock on a feature everyone already has.
+ * The last three are what Pro+ is for. `bulkCardScan` is built and metered
+ * (below); the other two are not built and answer false. `FOR_SALE` in
+ * src/features/paywall/plans.ts still does not include the tier. Note what
+ * is *not* here: bulk email. Send to many already exists and is ungated
+ * (app/bulk.tsx), and sending to a *segment* is that screen plus
+ * `smartLists` — giving it a capability of its own would put a lock on a
+ * feature everyone already has.
  */
 export type Capability =
   | 'assistant'
@@ -79,10 +80,28 @@ export const FREE_ASSISTANT_REQUESTS_PER_DAY = 10;
 /** "Unlimited brain dumps" on the card; enough on Free to use it properly. */
 export const FREE_BRAIN_DUMPS_PER_DAY = 3;
 
+/**
+ * How many cards one bulk scan saves below Pro+.
+ *
+ * Bulk scanning is sold as Pro+, and the meter is how it is sold rather than
+ * locked: the button is there for everyone, the camera and the batch review
+ * run in full, and the cap lands at the end on how many are kept. That is
+ * deliberate — the feature exists for the hour someone is standing at a
+ * conference, which is both when a new account most needs it to work and
+ * when five is most obviously not enough. A lock there would be a dead end
+ * at the exact moment the app had earned the sale.
+ *
+ * It applies to Pro as well, since the tier list puts bulk scanning in Pro+
+ * alone. Only Pro+ is uncapped.
+ */
+export const FREE_BULK_CARDS_PER_BATCH = 5;
+
 type Limits = {
   /** `null` means unlimited. */
   assistantRequestsPerDay: number | null;
   brainDumpsPerDay: number | null;
+  /** Cards kept from one bulk scan. Pro+ only is unlimited. */
+  bulkCardsPerBatch: number | null;
 };
 
 export function limitsFor(plan: Plan): Limits {
@@ -90,6 +109,7 @@ export function limitsFor(plan: Plan): Limits {
   return {
     assistantRequestsPerDay: pro ? null : FREE_ASSISTANT_REQUESTS_PER_DAY,
     brainDumpsPerDay: pro ? null : FREE_BRAIN_DUMPS_PER_DAY,
+    bulkCardsPerBatch: isProPlus(plan) ? null : FREE_BULK_CARDS_PER_BATCH,
   };
 }
 
@@ -106,16 +126,20 @@ export function can(_plan: Plan, capability: Capability): boolean {
       // No screen exists for it, so nothing should route to one. Off the
       // paywall as well now (§2.56); this stays until it is built.
       return false;
-    case 'bulkCardScan':
     case 'smartLists':
     case 'enrichment':
-      // Pro+'s reason to exist, and none of it is written: scan-card.tsx
-      // reads one card, "segment" in this codebase is a segmented control,
-      // and nothing anywhere mentions LinkedIn. They are listed so the
-      // paywall can name what the tier will be, and false so nothing routes
-      // to a screen that is not there. The tier is not on sale until at
-      // least one of them turns true.
+      // The rest of Pro+'s reason to exist, and neither is written:
+      // "segment" in this codebase is a segmented control, and nothing
+      // anywhere mentions LinkedIn. They are listed so the paywall can name
+      // what the tier will be, and false so nothing routes to a screen that
+      // is not there.
       return false;
+    case 'bulkCardScan':
+      // Built (app/scan-many.tsx) and metered rather than locked, so this is
+      // true for every plan and the number is in `limitsFor` instead. See
+      // FREE_BULK_CARDS_PER_BATCH for why a lock would have been the wrong
+      // shape for this one.
+      return true;
     case 'assistant':
     case 'clientHistory':
     case 'autoFollowUps':
@@ -169,4 +193,15 @@ export function assistantRequestsLeft(plan: Plan, usedToday: number): number {
 /** Whether one more assistant request is allowed right now. */
 export function canUseAssistant(plan: Plan, usedToday: number): boolean {
   return assistantRequestsLeft(plan, usedToday) > 0;
+}
+
+/**
+ * Cards still to be kept from the batch in hand. Pro+ is unlimited, so this
+ * returns `Infinity` — callers should check `Number.isFinite` rather than
+ * compare.
+ */
+export function bulkCardsLeft(plan: Plan, keptSoFar: number): number {
+  const limit = limitsFor(plan).bulkCardsPerBatch;
+  if (limit === null) return Infinity;
+  return Math.max(0, limit - keptSoFar);
 }

@@ -149,6 +149,7 @@ export default function People() {
         <View style={{ flexDirection: dir.row, alignItems: 'center', justifyContent: 'space-between' }}>
           {round('people-more', 'menu', copy.more, () => setMore(true))}
           <View style={{ flexDirection: dir.row, gap: 10 }}>
+            {round('people-scan-many', 'cards', added(lang).addPeople.scanMany, () => router.push('/scan-many'))}
             {round('people-scan', 'camera', added(lang).addPeople.scan, () => router.push('/scan-card'))}
             {round('people-add', 'plus', added(lang).addPeople.title, () => setAdding(true), true)}
           </View>
@@ -332,6 +333,7 @@ export default function People() {
           setAdding(false);
           if (choice === 'new') router.push('/contact-edit');
           else if (choice === 'scan') router.push('/scan-card');
+          else if (choice === 'many') router.push('/scan-many');
           else if (choice === 'file') router.push('/import');
           else void importFromPhone();
         }}

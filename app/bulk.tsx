@@ -44,14 +44,18 @@ export default function Bulk() {
   const { contacts, followUps, addHistory } = usePeople();
   const favorites = useFavorites();
   const toast = useToast();
-  const params = useLocalSearchParams<{ channel?: string }>();
+  // `ids` arrives from a bulk scan (app/scan-many.tsx): the people just saved,
+  // already picked, because a stack of cards nobody writes to was an import.
+  const params = useLocalSearchParams<{ channel?: string; ids?: string }>();
 
   const [channel, setChannel] = useState<BulkChannel>(params.channel === 'email' ? 'email' : 'whatsapp');
   const [subject, setSubject] = useState('');
   const starter = (c: BulkChannel) => (c === 'email' ? `${copy.emailStart}\n\n\n\n${copy.emailEnd}` : '');
   const [body, setBody] = useState(() => starter(params.channel === 'email' ? 'email' : 'whatsapp'));
   const [query, setQuery] = useState('');
-  const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
+  const [selected, setSelected] = useState<ReadonlySet<string>>(
+    () => new Set((params.ids ?? '').split(',').filter(Boolean).slice(0, MAX_RECIPIENTS)),
+  );
   const [queue, setQueue] = useState<Item[] | null>(null);
   const [index, setIndex] = useState(0);
   const [opened, setOpened] = useState(false);

@@ -245,6 +245,8 @@ export type Added = {
     newSub: string;
     scan: string;
     scanSub: string;
+    scanMany: string;
+    scanManySub: string;
     file: string;
     fileSub: string;
     phone: string;
@@ -304,6 +306,43 @@ export type Added = {
     update: string;
     saveNew: string;
     needName: string;
+  };
+  /** Scan a stack of cards in one go — §2.67. */
+  many: {
+    title: string;
+    permission: string;
+    allow: string;
+    cameraOff: string;
+    unsupported: string;
+    counter: string;
+    shutter: string;
+    close: string;
+    review: string;
+    hint: string;
+    reviewTitle: string;
+    keepScanning: string;
+    reading: string;
+    ready: string;
+    partial: string;
+    unreadable: string;
+    sumReady: string;
+    sumPartial: string;
+    sumNone: string;
+    inBatch: string;
+    inPeople: string;
+    selectAll: string;
+    clearAll: string;
+    labelTitle: string;
+    labelPh: string;
+    save: string;
+    saveOne: string;
+    savedN: string;
+    capped: string;
+    empty: string;
+    remove: string;
+    read: string;
+    fix: string;
+    nothing: string;
   };
   /** Attachments and the choice of mail app. */
   attach: {
@@ -729,6 +768,8 @@ const ADDED: Record<Lang, Added> = {
       newSub: 'Type it in',
       scan: 'Scan a business card',
       scanSub: 'Take a photo of a card',
+      scanMany: 'Scan many cards',
+      scanManySub: 'A stack, one after another',
       file: 'Import from a file',
       fileSub: 'CSV, Excel or vCard',
       phone: 'From your phone contacts',
@@ -786,6 +827,42 @@ const ADDED: Record<Lang, Added> = {
       update: 'Update {n}',
       saveNew: 'Save as new',
       needName: 'Add a name first.',
+    },
+    many: {
+      title: 'Scan many',
+      permission: 'Scanning a stack needs the camera. Nothing leaves your phone — the cards are read on it.',
+      allow: 'Allow the camera',
+      cameraOff: 'Camera access is off. Turn it on in Settings.',
+      unsupported: 'Reading cards needs the phone app.',
+      counter: 'Scanned: {n}',
+      shutter: 'Take a photo',
+      close: 'Stop scanning',
+      review: 'Review ({n})',
+      hint: 'Keep going. Each card is read while you take the next.',
+      reviewTitle: 'Check the cards',
+      keepScanning: 'Keep scanning',
+      reading: 'Reading {n}…',
+      ready: 'Ready',
+      partial: 'Needs a field',
+      unreadable: 'Couldn’t read',
+      sumReady: '{n} ready',
+      sumPartial: '{n} need a field',
+      sumNone: '{n} couldn’t be read',
+      inBatch: 'Scanned twice',
+      inPeople: 'Already in People',
+      selectAll: 'Select all',
+      clearAll: 'Clear',
+      labelTitle: 'Label them all',
+      labelPh: 'Conference 2026',
+      save: 'Save {n} contacts',
+      saveOne: 'Save 1 contact',
+      savedN: '{n} saved to People.',
+      capped: 'Free saves {n} cards at a time. Pro+ lifts it.',
+      empty: 'No cards yet.',
+      remove: 'Remove this card',
+      read: 'What was read',
+      fix: 'Fix the fields',
+      nothing: 'Nothing was read from this one. Type the name in, or remove it.',
     },
     listening: 'Listening…',
     micStart: 'Speak',
@@ -1108,6 +1185,8 @@ const ADDED: Record<Lang, Added> = {
       newSub: 'اكتبها بنفسك',
       scan: 'امسح بطاقة عمل',
       scanSub: 'صوّر البطاقة',
+      scanMany: 'امسح بطاقات كثيرة',
+      scanManySub: 'كومة بطاقات، واحدة ورا الثانية',
       file: 'استيراد من ملف',
       fileSub: 'CSV أو Excel أو vCard',
       phone: 'من جهات اتصال جوالك',
@@ -1165,6 +1244,42 @@ const ADDED: Record<Lang, Added> = {
       update: 'حدّث {n}',
       saveNew: 'احفظ كجديد',
       needName: 'أضف الاسم أولًا.',
+    },
+    many: {
+      title: 'مسح بطاقات',
+      permission: 'مسح كومة بطاقات يحتاج الكاميرا. ما يطلع شيء من جوالك — البطاقات تنقرأ عليه.',
+      allow: 'اسمح بالكاميرا',
+      cameraOff: 'الكاميرا مقفلة. شغّلها من الإعدادات.',
+      unsupported: 'قراءة البطاقات تحتاج تطبيق الجوال.',
+      counter: 'انمسح: {n}',
+      shutter: 'التقط صورة',
+      close: 'أوقف المسح',
+      review: 'راجع ({n})',
+      hint: 'كمّل. كل بطاقة تنقرأ وأنت تصوّر اللي بعدها.',
+      reviewTitle: 'راجع البطاقات',
+      keepScanning: 'كمّل المسح',
+      reading: 'أقرأ {n}…',
+      ready: 'جاهزة',
+      partial: 'ناقصها بيانات',
+      unreadable: 'ما انقرأت',
+      sumReady: '{n} جاهزة',
+      sumPartial: '{n} ناقصها بيانات',
+      sumNone: '{n} ما انقرأت',
+      inBatch: 'انمسحت مرتين',
+      inPeople: 'موجود في الأشخاص',
+      selectAll: 'اختر الكل',
+      clearAll: 'ألغِ الاختيار',
+      labelTitle: 'ضع تصنيفًا للكل',
+      labelPh: 'مؤتمر 2026',
+      save: 'احفظ {n} جهات',
+      saveOne: 'احفظ جهة واحدة',
+      savedN: 'تم حفظ {n} في الأشخاص.',
+      capped: 'المجاني يحفظ {n} بطاقات في المرة. برو+ يرفع الحد.',
+      empty: 'ما فيه بطاقات بعد.',
+      remove: 'احذف هذه البطاقة',
+      read: 'اللي انقرأ',
+      fix: 'عدّل البيانات',
+      nothing: 'ما انقرأ شيء من هذي. اكتب الاسم، أو احذفها.',
     },
     listening: 'أسمعك…',
     micStart: 'تحدّث',

@@ -2263,3 +2263,106 @@ deliberate is not a reason to stop knowing how far it went.
 Regenerate with `npm run drift -- --save`, and read the diff before
 committing it. Verified by nudging the card's padding 24 → 44: twelve probes
 failed reading exactly `+20`, and reverting returned it to zero.
+
+### 2.67 A stack of cards, and a camera that called a CDN
+
+Bulk card scanning is Pro+'s first built feature (`app/scan-many.tsx`,
+`src/features/scan-many/`). The brief was a conference hook: continuous
+capture, a counter, background extraction, and a batch review with
+"confidence badges (Green = perfect, Yellow = missing field, Red =
+unreadable)", gated to Pro+. Four things about it were wrong, and the
+interesting one was not in the brief at all.
+
+#### The feature is far cheaper here than it looks
+
+Reading happens on the phone — Apple's Vision, Google's ML Kit, through
+`expo-text-extractor` (`src/lib/card-reader.ts`) — and `parseCard` is a pure
+function over the lines it returns. So a batch of twenty costs nothing per
+card, works in a hall with no signal, and adds no disclosure to a privacy
+notice that has just been through a lawyer. `findDuplicate` already existed,
+so "you already have Ahmed" came free, which matters far more at twenty cards
+than at one. The only real cost was `expo-camera`, because
+`expo-image-picker` opens the system camera for one shot and closes it.
+
+#### There is no confidence to show
+
+The brief's green/yellow/red badge is a confidence score, and neither reader
+returns one — they return lines of text. A percentage would have been
+invented, and invented precision on a screen whose whole job is "check these
+before saving" is the worst place to put it.
+
+What can be said honestly is how much of a card came through, which is also
+the only thing the person can act on: a name and a way to reach them
+(`ready`), a name but nothing to reach them by or a field the contact form
+will reject (`partial`), or no usable name at all (`unreadable`, and not
+savable, because a contact cannot exist without one). Same three colours,
+same glanceability, no claim that isn't true. `Grade` in
+`src/features/scan-many/batch.ts` says so in a comment, so the next person
+does not re-add the score.
+
+#### A lock here would have been a dead end
+
+Gating it to Pro+ as written would have shipped a feature nobody could use:
+`FOR_SALE` in `src/features/paywall/plans.ts` is `['pro']`, so Pro+ cannot be
+bought. More than that, it is the wrong shape — a conference is both when a
+new account most needs this to work and when a cap is most obviously felt, so
+the lock would land at the exact moment the app had earned the sale and give
+the person nothing to buy.
+
+It is metered instead, the pattern §9.5.1 settled: `can('bulkCardScan')` is
+true for everyone, `FREE_BULK_CARDS_PER_BATCH = 5` lives in
+`src/policy/entitlements.ts` with every other limit, and the cap lands at the
+end, on how many of the batch are kept. The camera, the reading and the
+review all run in full. Pro's tier list puts bulk scanning in Pro+ alone, so
+the cap applies to Pro as well; only `pro_plus` is uncapped. The paywall's
+Pro+ row now names what the tier actually adds, with Free's number in it, the
+way the assistant row does.
+
+The cap cannot be exceeded by any route, and the tests say so one route at a
+time: ticking cards one by one, reading more ready cards in (a card is ticked
+for the person when it comes through whole — twenty cards that each need a
+tap is the typing problem again), and Select all, which takes the cards that
+came through whole first.
+
+#### What the brief left out
+
+Twenty saved contacts nobody writes to is a contact import, not a conference.
+The value is the follow-up that evening, and Send to many (`app/bulk.tsx`)
+already does exactly that — one tap per person, fifty in a day. So saving the
+batch opens it with those people already picked (`/bulk?ids=…`), and the
+cards become twenty messages before the car park. "Assign Tier" was dropped:
+there is no tier on a contact, while `labels` exists, is already a filter chip
+on People, and already works in Send to many's own filters.
+
+#### The camera called a CDN
+
+`node scripts/smoke-people.js` failed on a request nobody wrote:
+
+```
+Failed to execute 'importScripts' on 'WorkerGlobalScope': The script at
+'https://cdn.jsdelivr.net/npm/jsqr@1.2.0/dist/jsQR.min.js' failed to load.
+```
+
+`expo-camera`'s web build fetches a QR decoder from a public CDN the moment
+the module is evaluated — not when a camera mounts, which is why it fired on
+a screen that had already decided it could not open one. This app scans no QR
+codes.
+
+It would not have reached a phone, and that is the point worth keeping: a
+third-party request from a screen in an app whose policy was published last
+week is exactly the kind of thing that is found by a reviewer rather than by
+its author. The suite counts `errors` towards its exit code, which is the only
+reason anyone saw it.
+
+The viewfinder is now a file of its own
+(`src/features/scan-many/CameraStage.tsx`), required behind the reader check
+rather than imported — the same lazy-require shape as `card-reader.ts`, for
+the same reason. Where a card cannot be read, the module is never evaluated
+and the request is never made. The web build says so and offers the one-card
+screen, which can still be typed into. Verified by the same suite: 93 checks,
+no errors.
+
+`npm run drift` reports zero movement since build 9. People's header gained a
+third round button, and the row was already a fixed 42pt, so nothing below it
+moved — which is the answer the baseline exists to give, rather than something
+to take on trust.

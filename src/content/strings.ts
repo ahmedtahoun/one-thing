@@ -1436,9 +1436,9 @@ const SETX_en = {
     ],
     "plusFeats": [
       [
-        "users",
+        "cards",
         "Scan a stack of cards",
-        "A whole conference in one sitting, not one card at a time."
+        "A whole conference in one sitting. Free keeps 5 a batch."
       ],
       [
         "list",
@@ -1559,9 +1559,9 @@ const SETX_ar: typeof SETX_en = {
     ],
     "plusFeats": [
       [
-        "users",
+        "cards",
         "صوّر كومة بطاقات",
-        "مؤتمر كامل بجلسة وحدة، مو بطاقة بطاقة."
+        "مؤتمر كامل بجلسة وحدة. المجاني يحفظ ٥ في المرة."
       ],
       [
         "list",

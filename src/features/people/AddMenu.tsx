@@ -1,7 +1,7 @@
 /**
  * People's one "Add" button: everything that puts a person in the list, in
  * one sheet instead of a row of buttons — type one in, scan a business card,
- * import a file, or pick from the phone.
+ * scan a stack of them, import a file, or pick from the phone.
  */
 import { Pressable, View } from 'react-native';
 
@@ -13,7 +13,7 @@ import { type IconName } from '@/design/icon-paths';
 import { ink, surface, typeColour } from '@/design/tokens';
 import { useDirection } from '@/i18n/LanguageProvider';
 
-export type AddChoice = 'new' | 'scan' | 'file' | 'phone';
+export type AddChoice = 'new' | 'scan' | 'many' | 'file' | 'phone';
 
 export function AddMenu({
   open,
@@ -33,6 +33,7 @@ export function AddMenu({
   const rows: { key: AddChoice; label: string; sub: string; icon: IconName; fg: string; bg: string }[] = [
     { key: 'new', label: copy.newContact, sub: copy.newSub, icon: 'plus', fg: ink.base, bg: surface.fill },
     { key: 'scan', label: copy.scan, sub: copy.scanSub, icon: 'screen', fg: typeColour.webinar.fg, bg: typeColour.webinar.bg },
+    { key: 'many', label: copy.scanMany, sub: copy.scanManySub, icon: 'cards', fg: typeColour.meeting.fg, bg: typeColour.meeting.bg },
     { key: 'file', label: copy.file, sub: copy.fileSub, icon: 'list', fg: typeColour.course.fg, bg: typeColour.course.bg },
     ...(canPickFromPhone
       ? [{ key: 'phone' as const, label: copy.phone, sub: copy.phoneSub, icon: 'users' as IconName, fg: typeColour.email.fg, bg: typeColour.email.bg }]
