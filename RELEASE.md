@@ -498,6 +498,51 @@ currently gets everything except the assistant's 10-a-day limit. Advertising
 a feature the app does not have is both a metadata problem at review and a
 refund problem after it. Design it or take it off the card.
 
+**This one is not a free choice.** `can()` returns `false` for `weeklyRecap`
+on every plan, Pro included — so somebody pays $35.88 and gets nothing at all
+for one of the six bullets they were shown. That is the shape of a 3.1.2
+rejection, and it is worse than an unfinished feature because the money has
+changed hands. Taking the bullet off the card is a strings change and can
+happen today; building the screen cannot. **Recommendation: remove it now,
+add it back when the screen exists.** Note the copy lives in the generated
+`strings.ts`, so the edit goes through `scripts/port-content.js` or the next
+`content:port` reverts it (BUILD-REVIEW §2.53).
+
+### 9.5.1 The gating matrix, proposed
+
+§2.1 left everything except the assistant open, deliberately, because
+shipping a lock the design never drew would be inventing product. That was
+right then and it is the wrong place to launch from: Free currently gets
+five of the six things Pro is sold on.
+
+**The paywall's own words settle half of it.** Two bullets say *"Unlimited"*
+— the assistant and brain dumps — which only means something if Free has a
+number. The other three name a feature outright, which reads as Pro-only:
+
+| Capability | What the card promises | Free today | Proposed |
+|---|---|---|---|
+| `assistant` | "Unlimited smart assistant · Free plan: 10 requests a day" | 10/day | **unchanged** — the one limit the handoff ever specified |
+| `brainDump` | "**Unlimited** brain dumps" | open | **3 a day on Free** |
+| `autoFollowUps` | "Auto follow-ups" | open | **3 active on Free** |
+| `clientHistory` | "Client history — every call, message and meeting, by date" | open | **last 7 days on Free**, everything on Pro |
+| `events` | "Meetings, webinars & courses" | open | **meetings on Free**; webinars, courses and lesson tracking on Pro |
+| `weeklyRecap` | "What you got done, and who still needs you" | off for all | **off the card** until it exists |
+
+**Prefer a meter to a lock, wherever the choice exists.** The assistant
+already proves the pattern end to end: the count runs out, the paywall
+opens, nothing new had to be designed. Every *lock* instead needs a locked
+state drawn in the screen that holds it — which the handoff never drew for
+any of these — so a lock costs design time before it can ship, and a wrong
+one is a support ticket where a generous meter is only forgone revenue.
+That is why `clientHistory` is proposed as a window rather than a wall, and
+why `events` keeps the common case open.
+
+None of this is implemented. Every row above is one line in
+`src/policy/entitlements.ts`, which is why §2.1 put them all in one file;
+the work is the locked and metered states in the five screens, not the
+rules. Say yes, no, or different numbers, and it becomes a day's work
+rather than an open question.
+
 ### 9.6 The assistant has no server, and its limit is on the wrong side — **built by dev 2**
 `supabase/functions/assist` is now that server: the Claude key stays in the
 function's environment, the note and the contact names are fenced as data
@@ -602,8 +647,9 @@ most of it is ours:
    and the only thing that gives the admin panel's subscription screens
    anything to show.
 5. **The website**, three pages plus a Support URL (§7, §9.4).
-6. **Weekly recap and the Pro gating matrix** (§9.5), before the paywall is in
-   front of a paying customer.
+6. **Weekly recap and the Pro gating matrix** — now a proposal to approve
+   rather than a blank page (§9.5, §9.5.1). Weekly recap is the urgent half:
+   a Pro buyer gets nothing for that bullet today. **Yours.**
 
 Items 1, 2 and 6 are decisions only you can make. 3, 4 and 5 are work, and 5
 has no owner yet.
