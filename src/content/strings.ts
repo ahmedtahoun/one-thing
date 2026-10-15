@@ -1033,6 +1033,14 @@ const ACC_en = {
       "You sign in with Apple or Google. Keep your device secure. You can delete your account at any time from Settings."
     ],
     [
+      "Your data on our servers",
+      "Using The One Thing means your tasks, contacts, follow-ups and activity are kept on our servers, so they reach every device you sign in to and can be put back if you lose your phone. That is part of the service, not something extra. You can download or delete all of it from Settings at any time, and we never sell it or share it for advertising."
+    ],
+    [
+      "The people you add",
+      "When you add someone’s details — by hand, from your phone’s contacts, from a file, or by photographing a card — you are telling us you are allowed to hold them. That responsibility is yours: you decide whose details go in, and you should have a reason to keep them. We store them only so the app works for you, and anyone can ask us to remove their own details at privacy@onlyonething.app."
+    ],
+    [
       "Subscriptions",
       "Pro is billed through the App Store or Google Play and renews until you cancel in your store settings. Prices are shown before you buy."
     ],
@@ -1053,6 +1061,10 @@ const ACC_en = {
     [
       "Why we use it",
       "To run the app, personalise your assistant, send reminders you asked for, and improve the product. With your consent, to send tips, offers and marketing messages."
+    ],
+    [
+      "Where your data lives",
+      "Your tasks, contacts, follow-ups and how you use the app are stored on our servers in Ireland, and travel there encrypted. That is what lets the app work on any device you sign in to, and what lets us put your data back if you lose your phone. It is how the service works rather than an extra: without it there would be nothing to sync and nothing to restore. We keep backups for the same reason, and delete them on the same 30-day clock as everything else."
     ],
     [
       "Sharing",
@@ -1146,6 +1158,14 @@ const ACC_ar: typeof ACC_en = {
       "تسجّل دخولك عن طريق Apple أو Google. وتقدر تحذف حسابك متى ما تبي من الإعدادات."
     ],
     [
+      "بياناتك على سيرفراتنا",
+      "استخدامك لـ«الشيء الواحد» يعني إن مهامك وجهات اتصالك ومتابعاتك ونشاطك تنحفظ على سيرفراتنا، عشان توصل لكل جهاز تسجّل دخولك فيه وتقدر ترجّعها إذا ضاع جوالك. هذا جزء من الخدمة مو شي زايد. وتقدر تحمّلها أو تحذفها كلها من الإعدادات وقت ما تبي، وما نبيعها ولا نشاركها للإعلانات أبداً."
+    ],
+    [
+      "الأشخاص اللي تضيفهم",
+      "لما تضيف بيانات شخص — بيدك، أو من جهات اتصال جوالك، أو من ملف، أو بتصوير بطاقة — أنت تقول لنا إنك مخوّل بالاحتفاظ فيها. وهذي مسؤوليتك أنت: أنت اللي تقرر بيانات مين تدخل، والمفروض يكون عندك سبب للاحتفاظ فيها. نحنا نحفظها عشان يشتغل التطبيق لك فقط، ويقدر أي شخص يطلب حذف بياناته على privacy@onlyonething.app."
+    ],
+    [
       "الاشتراك",
       "يتم الدفع عبر App Store أو Google Play ويتجدد لين تلغيه من إعدادات المتجر."
     ],
@@ -1166,6 +1186,10 @@ const ACC_ar: typeof ACC_en = {
     [
       "ليش نستخدمها",
       "لتشغيل التطبيق وتخصيص المساعد وإرسال التذكيرات وتحسين الخدمة. وبموافقتك، لإرسال نصائح وعروض ورسائل تسويقية."
+    ],
+    [
+      "وين تنحفظ بياناتك",
+      "مهامك وجهات اتصالك ومتابعاتك وطريقة استخدامك للتطبيق تنحفظ على سيرفراتنا في أيرلندا، وتنتقل لها مشفّرة. هذا اللي يخلّي التطبيق يشتغل على أي جهاز تسجّل دخولك فيه، واللي يخلّينا نرجّع بياناتك إذا ضاع جوالك. هذي طريقة عمل الخدمة مو إضافة: بدونها ما فيه شي يتزامن ولا شي يترجّع. ونحتفظ بنسخ احتياطية لنفس السبب، ونحذفها بنفس مدة الـ٣٠ يوم."
     ],
     [
       "المشاركة",
