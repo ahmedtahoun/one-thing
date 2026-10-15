@@ -3,7 +3,13 @@
  * the drawing is targets/today-bar. Elsewhere — Android, the web, an older
  * build without the module — every call here does nothing.
  *
- * Whether it shows is the person's choice in Settings, kept on the device.
+ * Whether it shows is the person's choice in Settings, kept on the device,
+ * and it starts off. The bar puts task titles on a screen anyone can read
+ * without unlocking the phone, and this app's titles are "Call the lawyer"
+ * and "Chase the loan" (BUILD-REVIEW.md § 2.59). Defaulting on costs the one
+ * person whose screen is read over their shoulder; defaulting off costs a
+ * feature some people would have liked, which the Settings toggle names
+ * plainly enough to find.
  */
 import { useEffect, useState } from 'react';
 import { Platform } from 'react-native';
@@ -26,14 +32,15 @@ export function syncBar(state: BarState | null): Promise<void> {
 }
 
 const KEY = 'one-thing.today-bar.v1';
-let on = true;
+let on = false;
 let loaded: Promise<void> | null = null;
 const listeners = new Set<(v: boolean) => void>();
 
 function load(): Promise<void> {
   loaded ??= AsyncStorage.getItem(KEY)
     .then((raw) => {
-      if (raw === 'off') on = false;
+      // Only an explicit 'on' turns it on, so an unset key means off.
+      if (raw === 'on') on = true;
     })
     .catch(() => {})
     .then(() => listeners.forEach((l) => l(on)));

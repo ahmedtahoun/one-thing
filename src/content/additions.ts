@@ -571,7 +571,7 @@ const ADDED: Record<Lang, Added> = {
       late: 'Late: {title}',
       allDone: 'All done for today',
       toggle: 'Today on the Lock Screen',
-      toggleSub: 'A bar with today’s tasks. Each one turns red when its time passes and it isn’t done.',
+      toggleSub: 'A bar with today’s tasks, readable without unlocking the phone. Each one turns red when its time passes and it isn’t done.',
     },
     saved: {
       title: 'Saved messages',
@@ -950,7 +950,7 @@ const ADDED: Record<Lang, Added> = {
       late: 'متأخر: {title}',
       allDone: 'خلصت كل مهام اليوم',
       toggle: 'مهام اليوم على شاشة القفل',
-      toggleSub: 'شريط فيه مهام اليوم. كل مهمة تصير حمراء إذا جا وقتها وما خلصت.',
+      toggleSub: 'شريط فيه مهام اليوم، يُقرأ بدون ما تفتح قفل الجوال. وكل مهمة تصير حمراء إذا جا وقتها وما خلصت.',
     },
     saved: {
       title: 'الرسائل المحفوظة',

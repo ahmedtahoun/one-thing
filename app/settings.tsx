@@ -503,8 +503,11 @@ export default function Settings() {
               testID="settings-today-bar"
               label={added(lang).bar.toggle}
               sub={added(lang).bar.toggleSub}
-              on={barOn !== false}
-              onToggle={() => void setBarOn(barOn === false)}
+              // `barOn` is null until the stored choice is read. Both lines
+              // treat that window as off, which is now the default, so the
+              // row cannot show on and then snap off a moment later.
+              on={barOn === true}
+              onToggle={() => void setBarOn(barOn !== true)}
               lead={<RowTile icon="clock" bg={surface.fill} fg={ink.s2} />}
             />
           ) : null}

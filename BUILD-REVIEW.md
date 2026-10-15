@@ -1927,8 +1927,9 @@ than assuming, because build 9 wrote them:
   sign-out and account deletion. So "deletion removes everything" covers
   them too.
 
-**The Lock Screen bar is on by default** (`src/lib/today-bar.ts`:
-`let on = true`, turned off only by a stored `'off'`). It puts today's task
+**The Lock Screen bar was on by default** — ~~`let on = true`, turned off
+only by a stored `'off'`~~. **Settled: it now starts off** (`let on = false`,
+turned on only by a stored `'on'`). It puts today's task
 titles, 40 characters each, on a screen anyone can read without unlocking
 the phone — and this app's titles are "Call the lawyer", "Chase the loan",
 client names. Not a legal problem: nothing leaves the device, so neither
@@ -1937,9 +1938,29 @@ privacy form covers it, and iOS has its own system-wide switch.
 It is a judgement call with an asymmetry worth naming. Default off costs
 discoverability of a feature people would like. Default on costs the one
 person whose screen was read over their shoulder, and that person writes
-the review. **Recommend defaulting it off and offering it after the first
-focus session**; it is one line either way, and it is a product decision,
-so it is raised here rather than changed.
+the review.
+
+Taken as default off, with the discoverability cost paid differently than
+first proposed. Offering it after the first focus session would have meant
+building a prompt nobody asked for; Settings already carries a labelled row
+("Today on the Lock Screen") with a subtitle, which is enough to find. The
+subtitle now says the bar is *readable without unlocking the phone*, in both
+languages — the fact you need in order to make the choice, and the one the
+old copy left out while the default made it for you.
+
+Two things the flip touched beyond the one line. `load()` reads only an
+explicit `'on'`, so an unset key means off rather than on. And the Settings
+row read `barOn !== false`, which rendered **on** during the window before
+the stored choice is read — correct while the default was on, and a visible
+flash from on to off after the flip; it now reads `barOn === true`, and the
+toggle writes `barOn !== true`, so the loading window shows the default
+instead of contradicting it.
+
+Nothing had to change in `TodayBarSync`: it already waits for a non-null
+value and calls `syncBar(null)` when off, so an existing bar is removed
+rather than stranded. Nobody has shipped, so there is no migration to
+worry about — on a device that never stored a choice, the bar simply never
+appears.
 
 ### 2.60 An address that steers the link it goes into
 
