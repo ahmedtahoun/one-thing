@@ -2195,3 +2195,71 @@ Four copies, because each string lives in `ios.infoPlist` and again in the
 `expo-image-picker` plugin config. `STORE-PRIVACY.md` carries the same table
 and says which call sites each permission covers, so the next person checks
 the code rather than the string.
+
+### 2.66 The app's namesake feature was not on the home screen
+
+Asked to re-baseline the drift check against build 9, I read the 66 failures
+first. Thirty of them were not failures at all — they were probes resolving
+to nothing, which means the labelled element was not on the screen. Six of
+those, per language, were the One Thing card: its eyebrow, its title, the
+focus meta line, Lock In.
+
+The card was gone. Not moved — **absent**. No such component existed
+anywhere in `app/` or `src/`, and the build-9 screenshot shows Today as
+date, greeting, Today/All switch, four quick-action circles, the Next
+queue, tab bar. The redesign (`fe904d7`) removed it and nothing replaced it.
+
+What went with it:
+
+- **`setOneThing` had exactly one caller**, the first-run card. Skip that
+  once and there was no way to set a One Thing again, ever.
+- **`/focus` and `/overwhelm` linked only to each other.** Nothing else in
+  the app pointed at either. The focus session — Lock In, the thing the
+  paywall and the Live Activity are built around — was unreachable.
+- Four copy keys (`h_k`, `lockin`, plus the quick-actions and small-promises
+  headings) sat in `strings.ts` with no reader.
+- `today.tsx`'s own header comment still read *"otherwise the One Thing card
+  leads"*. It did not.
+
+The uncomfortable part is that the check caught this, in the only way it
+can — thirty probes reporting that elements had stopped existing — and it
+went unread for nine builds because the job was red for other reasons.
+A check nobody reads is a check nobody has. It is also exactly what a
+re-baseline would have buried: recording build 9 as correct would have
+deleted the one signal saying the card was missing.
+
+**Restored** as `src/features/today/OneThingCard.tsx`, to SCREENS.md § 06:
+`#F3F2EE`, radius 26, eyebrow and Edit, title 28/600, the clock and focus
+line, Lock In at 54, "Feeling stuck? Shrink it". Lock In is ink, not the
+primary green — the spec says ink and the prototype renders it black, while
+`Button`'s primary is `#008069`. Edit reopens the card that asks for the One
+Thing, which is also the fix for `setOneThing` having one caller; and per
+SCREENS.md § 06 ("Returning users on a new day: Today or Morning priority if
+no One Thing set") that ask now appears whenever no One Thing is set, not
+only on the first run.
+
+#### What the check compares now
+
+With the card back, every remaining unresolved probe was checked one at a
+time rather than in bulk, and all eleven turned out to be deliberate:
+"QUICK ACTIONS" lost its eyebrow; Restore purchases moved to the paywall,
+where the store wants it; "Small promises" became "Next"; People's subtitle
+and RECENT eyebrow became the filter chips; a contact's email became an
+action row, "Remember for next time" became a placeholder (no `textContent`,
+so unprobeable by construction), and the history became a count; Where and
+Link went behind the new "More" disclosure; Weekly recap came off the
+paywall by decision. Each is removed with its reason written next to it,
+except "Next", which kept its probe through a new per-side `app` override —
+the element is the same one, only renamed, and a rename should not cost a
+measurement.
+
+The 76 positional differences that remain are build 9's design, now the
+reference. They are recorded in `scripts/drift-baseline.json`, and the
+check measures **movement since build 9** rather than distance from a
+prototype the product has deliberately left behind. The distance from the
+design is still printed as `furthestFromDesign`, because a redesign being
+deliberate is not a reason to stop knowing how far it went.
+
+Regenerate with `npm run drift -- --save`, and read the diff before
+committing it. Verified by nudging the card's padding 24 → 44: twelve probes
+failed reading exactly `+20`, and reverting returned it to zero.

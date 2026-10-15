@@ -16,6 +16,7 @@ import { HabitRow } from '@/features/today/HabitRow';
 import { starterIdeas } from '@/features/today/starter-ideas';
 import { PickSheet } from '@/features/today/PickSheet';
 import { useStartTask } from '@/features/people/start-task';
+import { OneThingCard } from '@/features/today/OneThingCard';
 import { QuickActions } from '@/features/today/QuickActions';
 import { quickActionRoute } from '@/features/today/quick-route';
 import { AllTasks } from '@/features/home/AllTasks';
@@ -57,6 +58,10 @@ export default function Today() {
 
   const [now] = useState(() => new Date());
   const [addOpen, setAddOpen] = useState(false);
+  // Changing the One Thing reopens the same card that asked for it.
+  const [changing, setChanging] = useState(false);
+  // "Later" on that ask, so it stops asking until the next launch.
+  const [askedLater, setAskedLater] = useState(false);
   // Two views: Today, and All — the full list, whose own filters are the second row.
   const [view, setView] = useState<HomeView>('today');
   const [filter, setFilter] = useState<TaskFilter>('all');
@@ -125,6 +130,27 @@ export default function Today() {
 
   const showFirstRun = Boolean(session?.firstRun) && !isEvening;
 
+  // SCREENS.md § 06: "Returning users on a new day: Today (morning) or
+  // Morning priority if no One Thing set." So the ask is not only the first
+  // run — without this, skipping once left no way back to setting one, and
+  // setOneThing had exactly one caller.
+  const askOneThing = !isEvening && (showFirstRun || changing || (!oneThing && !askedLater));
+
+  const chooseOneThing = useCallback(
+    (title: string) => {
+      if (session?.firstRun) return setFirstOneThing(title);
+      setOneThing(title, prefs.focusMinutes);
+      setChanging(false);
+    },
+    [session?.firstRun, setFirstOneThing, setOneThing, prefs.focusMinutes]
+  );
+
+  const notNow = useCallback(() => {
+    if (session?.firstRun) return skipFirstRun();
+    setChanging(false);
+    setAskedLater(true);
+  }, [session?.firstRun, skipFirstRun]);
+
   return (
     <>
       <Screen
@@ -178,11 +204,20 @@ export default function Today() {
               .replace('{b}', String(todaysTasks.length - openCount))}
             onReview={() => router.push('/review')}
           />
-        ) : showFirstRun ? (
-          <FirstRunCard onSet={setFirstOneThing} onLater={skipFirstRun} suggestions={ownSuggestions} />
+        ) : askOneThing ? (
+          <FirstRunCard onSet={chooseOneThing} onLater={notNow} suggestions={ownSuggestions} />
+        ) : oneThing ? (
+          <OneThingCard
+            title={oneThing.title}
+            focusMinutes={oneThing.focusMinutes}
+            done={oneThing.done}
+            onEdit={() => setChanging(true)}
+            onLockIn={() => router.push('/focus')}
+            onShrink={() => router.push('/overwhelm')}
+          />
         ) : null}
 
-        {showFirstRun ? null : (
+        {askOneThing ? null : (
           <View style={{ gap: 10 }}>
             <View style={{ flexDirection: dir.row, justifyContent: 'space-between', alignItems: 'baseline' }}>
               <Text token="title">{added(lang).next.title}</Text>

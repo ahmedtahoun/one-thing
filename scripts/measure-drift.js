@@ -48,6 +48,29 @@ const FOCUS_TITLE =
   'the title out at exactly 126 — this is the measurement, not the screen. ' +
   'See the note on TOPS below.';
 
+/**
+ * Where the build is allowed to be, when it is no longer where the design put
+ * it.
+ *
+ * Build 9's redesign moved a lot on purpose — the Home tab, the Today/All
+ * switch, the quick-action circles — and the product owner has confirmed that
+ * design is now the reference (PR #12). That leaves the old question useless
+ * and a new one worth asking. "Does the app match the prototype?" now answers
+ * no on 76 probes and will keep saying so. "Has the app moved since build 9?"
+ * is the regression this check exists to catch.
+ *
+ * So a probe listed here is measured against the recorded build-9 position
+ * instead of the prototype's, while the distance from the design is still
+ * reported as `designDelta` — visible, rather than erased, because a redesign
+ * being deliberate is not a reason to stop knowing about it.
+ *
+ * Regenerate after an intended layout change: `npm run drift -- --save`. Read
+ * the diff before committing it; a baseline written without looking is how the
+ * missing One Thing card survived nine builds (BUILD-REVIEW.md § 2.66).
+ */
+const BASELINE_FILE = path.join(__dirname, 'drift-baseline.json');
+const BASELINE = fs.existsSync(BASELINE_FILE) ? JSON.parse(fs.readFileSync(BASELINE_FILE, 'utf8')) : {};
+
 const KNOWN_DEVIATIONS = {
   'sign-in/en/hero':
     "The prototype's consent checkbox measures 25 px (CSS content-box plus its " +
@@ -85,6 +108,11 @@ const CDN = {
 /**
  * What to probe, per screen. `app` is the route; `proto` is the prototype's
  * sidebar number. `labels` pairs a name with the exact text in each language —
+ * optionally with an `app` override, for an element the build renamed and the
+ * design did not. Build 9's redesign is the reference (PR #12), so a probe is
+ * removed below only where the element has stopped being measurable text on
+ * one side: an eyebrow the design dropped, a label that became a placeholder,
+ * a field behind a disclosure, or a feature deliberately cut.
  * the prototype's demo copy and the app's seeded copy must match for a probe
  * to resolve.
  */
@@ -99,8 +127,13 @@ const PROBES = {
       oneThingTitle: { en: 'Finish the investor proposal', ar: 'أخلّص عرض المستثمرين' },
       focusMeta: { en: 'Focus session · 45 min', ar: 'جلسة تركيز · 45 دقيقة' },
       lockIn: { en: 'Lock In', ar: 'ابدأ التركيز' },
-      quickActions: { en: 'QUICK ACTIONS', ar: 'إجراءات سريعة' },
-      smallPromises: { en: 'Small promises', ar: 'التزاماتك الصغيرة' },
+      // quickActions: the design's "QUICK ACTIONS" eyebrow; the redesign shows
+      // the four circles without one, so there is no text to measure.
+      smallPromises: {
+        en: 'Small promises',
+        ar: 'التزاماتك الصغيرة',
+        app: { en: 'Next', ar: 'التالي' },
+      },
       firstRow: { en: 'Follow up on price quote', ar: 'متابعة عرض السعر' },
     },
   },
@@ -115,7 +148,8 @@ const PROBES = {
       reminders: { en: 'Reminders', ar: 'التذكيرات' },
       language: { en: 'Language', ar: 'اللغة' },
       coffee: { en: 'Buy us a coffee', ar: 'اعزمنا على قهوة' },
-      restore: { en: 'Restore purchases', ar: 'استرجاع المشتريات' },
+      // restore: moved to the paywall, where the store requires it to be and
+      // where the purchase is actually made (app/settings.tsx).
       signOut: { en: 'Sign out', ar: 'تسجيل خروج' },
     },
   },
@@ -125,8 +159,8 @@ const PROBES = {
     state: { signedIn: true, firstRun: false, seedPeople: true },
     labels: {
       title: { en: 'People', ar: 'الأشخاص' },
-      subtitle: { en: 'Everyone you’ve emailed, called or messaged.', ar: 'كل اللي راسلتهم أو كلمتهم قبل.' },
-      recent: { en: 'RECENT', ar: 'الأخيرين' },
+      // subtitle and the RECENT eyebrow: the People redesign replaced both with
+      // the filter chips (All / Waiting / Favorites / Recent).
       firstRow: { en: 'Mohammed Al-Saadi', ar: 'محمد السعدي' },
       secondRow: { en: 'Sara Haddad', ar: 'سارة حداد' },
     },
@@ -171,10 +205,11 @@ const PROBES = {
     labels: {
       name: { en: 'Mohammed Al-Saadi', ar: 'محمد السعدي' },
       role: { en: 'Client', ar: 'عميل' },
-      email: { en: 'mohammed@alsaadi-trading.com', ar: 'mohammed@alsaadi-trading.com' },
-      remember: { en: 'Remember for next time', ar: 'تذكّر للمرة الجاية' },
       nextTask: { en: 'Follow up on price quote', ar: 'متابعة عرض السعر' },
-      history: { en: 'History', ar: 'السجل' },
+      // email, remember and history: the address is now an action row rather
+      // than printed text, "Remember for next time" became the note field's
+      // placeholder (no textContent to measure), and the history is a count
+      // above the thread instead of a heading.
       count: { en: '4 moments', ar: '4 لحظات' },
     },
   },
@@ -197,8 +232,8 @@ const PROBES = {
     labels: {
       head: { en: 'New meeting', ar: 'اجتماع جديد' },
       titleLabel: { en: 'Meeting about', ar: 'الاجتماع عن' },
-      where: { en: 'Where', ar: 'وين' },
-      link: { en: 'Link', ar: 'الرابط' },
+      // where and link: both still exist, behind the collapsed "More" disclosure
+      // the redesign added, so neither is rendered when the form opens.
       who: { en: 'Who', ar: 'مع مين' },
       day: { en: 'Day', ar: 'اليوم' },
       time: { en: 'Time', ar: 'الوقت' },
@@ -300,7 +335,9 @@ const PROBES = {
         ar: 'كل اللي في المجاني، وأدوات تخلّي علاقتك مع عملائك دافية.',
       },
       firstFeature: { en: 'Unlimited smart assistant', ar: 'مساعد ذكي بلا حدود' },
-      recap: { en: 'Weekly recap', ar: 'ملخص أسبوعي' },
+      // recap: Weekly recap came off the paywall deliberately — it was sold
+      // on a live paywall and did not exist, so a Pro buyer got nothing for
+      // that bullet (RELEASE.md § 9.5). Unsold, not cancelled.
       yearly: { en: 'Yearly', ar: 'سنوي' },
       monthly: { en: 'Monthly', ar: 'شهري' },
       cta: { en: 'Start 7-day free trial', ar: 'ابدأ تجربة ٧ أيام مجاناً' },
@@ -410,7 +447,12 @@ async function measureApp(lang, screen, probe) {
   await page.goto(`http://127.0.0.1:${port}${probe.app}`, { waitUntil: 'networkidle' });
   await page.waitForTimeout(900);
 
-  const labels = Object.fromEntries(Object.entries(probe.labels).map(([k, v]) => [k, v[lang]]));
+  // `app` overrides the text on this side only: where the build renamed a
+  // heading the design still calls something else, the element is the same
+  // one and is worth measuring. Without it a rename can only be deleted.
+  const labels = Object.fromEntries(
+    Object.entries(probe.labels).map(([k, v]) => [k, (v.app ?? v)[lang]])
+  );
   const tops = await page.evaluate(TOPS, { labels, scopeSelector: null });
   await browser.close();
   server.close();
@@ -457,6 +499,7 @@ async function measurePrototype(lang, probe, designDir) {
   }
   await page.waitForTimeout(800);
 
+  // The prototype always uses the design's own wording, never the override.
   const labels = Object.fromEntries(Object.entries(probe.labels).map(([k, v]) => [k, v[lang]]));
   const tops = await page.evaluate(TOPS, { labels, scopeSelector: '[dir="ltr"],[dir="rtl"]' });
   await browser.close();
@@ -469,6 +512,8 @@ async function measurePrototype(lang, probe, designDir) {
   // screen to narrow to: `npm run drift -- tasks`. A different copy of the
   // handoff goes in HANDOFF= or after --handoff.
   const args = process.argv.slice(2);
+  const save = args.includes('--save');
+  if (save) args.splice(args.indexOf('--save'), 1);
   const flag = args.indexOf('--handoff');
   const explicit = flag === -1 ? undefined : args[flag + 1];
   if (flag !== -1) args.splice(flag, 2);
@@ -502,8 +547,24 @@ async function measurePrototype(lang, probe, designDir) {
   const key = (r) => `${r.screen}/${r.lang}/${r.element}`;
   const measured = results.filter((r) => r.drift !== null);
   const unresolved = results.filter((r) => r.drift === null);
-  const over = results.filter((r) => r.drift !== null && Math.abs(r.drift) > TOLERANCE_PT);
-  const failing = over.filter((r) => !(key(r) in KNOWN_DEVIATIONS));
+
+  if (save) {
+    const next = Object.fromEntries(
+      results.filter((r) => r.app !== null).map((r) => [key(r), r.app])
+    );
+    fs.writeFileSync(BASELINE_FILE, JSON.stringify(next, null, 2) + '\n');
+    console.log(`Wrote ${Object.keys(next).length} positions to ${path.relative(process.cwd(), BASELINE_FILE)}.`);
+    console.log('Read the diff before committing it.');
+    process.exit(0);
+  }
+
+  // Against build 9 where we have it, against the design where we do not.
+  const since = (r) => (key(r) in BASELINE ? Math.round((r.app - BASELINE[key(r)]) * 10) / 10 : null);
+  const off = (r) => (key(r) in BASELINE ? since(r) : r.drift);
+  const over = measured.filter((r) => Math.abs(off(r)) > TOLERANCE_PT);
+  const failing = over
+    .filter((r) => !(key(r) in KNOWN_DEVIATIONS))
+    .map((r) => (key(r) in BASELINE ? { ...r, movedSinceBuild9: since(r), designDelta: r.drift } : r));
   const accepted = over
     .filter((r) => key(r) in KNOWN_DEVIATIONS)
     .map((r) => ({ ...r, reason: KNOWN_DEVIATIONS[key(r)] }));
@@ -513,14 +574,21 @@ async function measurePrototype(lang, probe, designDir) {
       {
         tolerancePt: TOLERANCE_PT,
         probes: results.length,
+        baselined: measured.filter((r) => key(r) in BASELINE).length,
         worstDrift: measured.reduce(
-          (m, r) => (key(r) in KNOWN_DEVIATIONS ? m : Math.max(m, Math.abs(r.drift))),
+          (m, r) => (key(r) in KNOWN_DEVIATIONS ? m : Math.max(m, Math.abs(off(r)))),
           0
         ),
         // The five furthest out, so a drift creeping up on the tolerance is
         // visible before it crosses it.
         worst: [...measured]
           .filter((r) => !(key(r) in KNOWN_DEVIATIONS))
+          .sort((a, b) => Math.abs(off(b)) - Math.abs(off(a)))
+          .slice(0, 5)
+          .map((r) => `${key(r)} ${off(r) > 0 ? '+' : ''}${off(r)}`),
+        // How far build 9 sits from the design. Not a failure — the record of
+        // what accepting it cost, so nobody has to re-derive it later.
+        furthestFromDesign: [...measured]
           .sort((a, b) => Math.abs(b.drift) - Math.abs(a.drift))
           .slice(0, 5)
           .map((r) => `${key(r)} ${r.drift > 0 ? '+' : ''}${r.drift}`),
@@ -529,8 +597,19 @@ async function measurePrototype(lang, probe, designDir) {
         // Only for screens this run actually measured — narrowing to one
         // screen would otherwise report every other screen's deviation as
         // stale.
+        // Only for probes the baseline does not cover: where it does, the
+        // deviation never applies, so calling it stale would report every
+        // entry on every run and teach everyone to skim past this field.
         staleDeviations: Object.keys(KNOWN_DEVIATIONS).filter(
-          (k) => measured.some((r) => r.screen === k.split('/')[0]) && !over.some((r) => key(r) === k)
+          (k) =>
+            !(k in BASELINE) &&
+            measured.some((r) => r.screen === k.split('/')[0]) &&
+            !over.some((r) => key(r) === k)
+        ),
+        // A baseline entry for a probe that no longer exists is a position
+        // nothing is holding any more.
+        staleBaseline: Object.keys(BASELINE).filter(
+          (k) => measured.some((r) => r.screen === k.split('/')[0]) && !results.some((r) => key(r) === k)
         ),
         failing,
         accepted,
