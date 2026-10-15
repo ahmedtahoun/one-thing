@@ -209,3 +209,38 @@ describe('one card per person', () => {
     assert.equal(cards[0]?.title, 'Email Daina');
   });
 });
+
+describe('matching a task to the person it names', () => {
+  it('finds the contact when the name is spelled the other way', () => {
+    // محمّد and محمد are one name to whoever typed either, and a task's `who`
+    // comes from speech as often as from a picker. Without the fold the card
+    // carries no contact, so it never joins that person's other cards and
+    // never stops them being listed as having gone quiet.
+    const them = person('c1', { name: 'محمد' });
+    const r = run({ contacts: [them], tasks: [task('t', { dueAt: ago(1), who: 'محمّد' })] });
+    assert.equal(r.cards[0]?.contactId, 'c1');
+  });
+
+  it('still matches a plain Latin name, and still refuses a different one', () => {
+    const them = person('c2', { name: 'Sara Haddad' });
+    assert.equal(run({ contacts: [them], tasks: [task('a', { dueAt: ago(1), who: 'sara haddad' })] }).cards[0]?.contactId, 'c2');
+    assert.equal(run({ contacts: [them], tasks: [task('b', { dueAt: ago(1), who: 'Omar Khaled' })] }).cards[0]?.contactId, undefined);
+  });
+});
+
+describe('the tab badge', () => {
+  it('counts the things waiting, not the cards they fold into', () => {
+    const them = person('c3');
+    const r = run({
+      contacts: [them],
+      tasks: [
+        task('a', { dueAt: ago(3), contactIds: ['c3'] }),
+        task('b', { dueAt: ago(2), contactIds: ['c3'] }),
+        task('c', { dueAt: ago(1), contactIds: ['c3'] }),
+      ],
+    });
+    assert.equal(r.cards.length, 1);
+    assert.equal(r.cards[0]?.also, 2);
+    assert.equal(r.urgent, 3);
+  });
+});

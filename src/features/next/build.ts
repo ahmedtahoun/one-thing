@@ -14,7 +14,7 @@
  * Everything else stays in the full list. The order is fixed and explainable:
  * late work, then replies owed, then today, then people going quiet.
  */
-import { followUpStates } from '@/features/people/filters';
+import { followUpStates, nameKey } from '@/features/people/filters';
 import {
   dateKey,
   displayName,
@@ -70,7 +70,13 @@ export type NextInput = {
 export type NextResult = {
   /** Everything that needs doing, best first. */
   cards: NextCard[];
-  /** How many of those are late or owed a nudge — the red number on the tab. */
+  /**
+   * The red number on the tab: how many *things* are late or owed a nudge,
+   * counted before the cards are folded. Three late tasks with one person
+   * are one card saying "+2 more" and three on the badge, because three
+   * things are waiting — the fold is how they are shown, not how many
+   * there are.
+   */
   urgent: number;
 };
 
@@ -79,13 +85,17 @@ const CHANNELS: readonly string[] = ['call', 'email', 'whatsapp'];
 
 const channelOf = (task: Task): Channel | null => (CHANNELS.includes(task.type) ? (task.type as Channel) : null);
 
-/** The person a task is with: the one it links to, else the one it names. */
+/**
+ * The person a task is with: the one it links to, else the one it names.
+ * Matched through `nameKey`, so a name spoken with Arabic diacritics still
+ * finds the contact saved without them.
+ */
 function personFor(task: Task, contacts: readonly Contact[]): Contact | undefined {
   const linked = task.contactIds[0];
   const byId = linked ? contacts.find((c) => c.id === linked) : undefined;
   if (byId || !task.who) return byId;
-  const name = displayName(task.who).trim().toLowerCase();
-  return contacts.find((c) => c.name.trim().toLowerCase() === name);
+  const name = nameKey(displayName(task.who));
+  return contacts.find((c) => nameKey(c.name) === name);
 }
 
 const isOpen = (task: Task, now: Date): boolean =>

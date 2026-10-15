@@ -6,6 +6,7 @@
  * people.
  */
 import { followUpStatus, type Contact, type FollowUp } from '@/lib/model-types';
+import { normalizeArabic } from '@/lib/parse/names';
 
 export type BaseFilter = 'all' | 'waiting' | 'favorites' | 'recent' | 'followups';
 /** A label is a chip too: `label:Client` shows everyone labelled Client. */
@@ -35,7 +36,18 @@ export type FilterContext = {
   now: Date;
 };
 
-const nameKey = (s: string): string => (s.split(' ·')[0] ?? s).trim().toLowerCase();
+/**
+ * A name reduced to what two spellings of it share, for matching a person
+ * written down somewhere against a contact.
+ *
+ * The part before " ·" because a follow-up's `who` carries a role after it
+ * ("Sara · Buyer"), and `normalizeArabic` because محمّد and محمد are one
+ * name to the person who typed either — the same folding the parser has
+ * always done (lib/parse/names.ts). Without it a task spoken with
+ * diacritics never finds its contact, so it never folds into that person's
+ * card and never stops them being listed as having gone quiet.
+ */
+export const nameKey = (s: string): string => normalizeArabic((s.split(' ·')[0] ?? s).trim().toLowerCase());
 
 /**
  * Who has a follow-up still open, and whether it needs a nudge now (`due`) or

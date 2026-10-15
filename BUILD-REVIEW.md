@@ -2008,3 +2008,31 @@ flush could not fire there. On a device the screen really does unmount and
 it does. The blur guard is what makes the case safe in both, and the test
 says which of the two it is exercising rather than implying the unmount
 path is covered.
+
+### 2.62 The Next queue, and a name spelled the other way
+
+`src/features/next/build.ts` is the best-tested thing in build 9 and holds
+up: the ranking is explainable, `followUpStates` really does only cover
+people with an open follow-up (so "going quiet" cards do appear), and a
+task hidden under "Later" still suppresses its person's quiet card — you
+put it off, you do not then get nudged about them.
+
+One real gap. `personFor` matched a task's `who` to a contact by plain
+lower-cased comparison, and `nameKey` in `people/filters.ts` did the same,
+so محمّد never found the contact saved as محمد. The parser has folded
+Arabic spellings since §2.53 (`normalizeArabic`); these two paths, which
+decide who a card is *about*, had never been told.
+
+What it cost: a task spoken with diacritics came back with no `contactId`,
+so it did not fold into that person's other cards, and it did not stop
+them being listed as having gone quiet — the app would show a card about
+calling Mohammed and, below it, a card saying Mohammed has gone quiet.
+`nameKey` now folds Arabic and is shared by both, which also makes the
+follow-up matching in `followUpStates` tolerant of the same thing.
+
+Also corrected, a doc rather than a defect: the tab badge's comment said
+it counts "how many of those [cards]" are urgent. It counts them *before*
+the fold, which is right — three late tasks with one person are one card
+saying "+2 more" and three on the badge, because three things are waiting.
+The comment now says so, and a test pins it, because the next person to
+read that line would have "fixed" it.
