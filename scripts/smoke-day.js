@@ -93,6 +93,11 @@ const ONE_THING = { en: 'Finish the investor proposal', ar: 'أخلّص عرض �
   // -------------------------------------------------------- 09 Event form
   await seed('en');
   await open('/new?type=meeting');
+  // The form opens on the few fields most events need; where, how long and
+  // the link are behind "More", so the per-type field table is asserted from
+  // there.
+  await page.getByTestId('event-more').click();
+  await page.waitForTimeout(250);
   check('a meeting asks where', await page.getByTestId('event-platform-0').isVisible());
   check('a meeting offers a length', await page.getByTestId('event-duration-0').isVisible());
   check('a meeting has no study days', (await page.getByTestId('event-day-0').count()) === 0);
@@ -124,6 +129,8 @@ const ONE_THING = { en: 'Finish the investor proposal', ar: 'أخلّص عرض �
   check('it records which contact', (saved?.contactIds || []).length === 1);
 
   await open('/new?type=course');
+  await page.getByTestId('event-more').click();
+  await page.waitForTimeout(250);
   check('a course asks for study days', await page.getByTestId('event-day-0').isVisible());
   check('a course tracks progress', await page.getByTestId('event-progress-up').isVisible());
   check('a course has no Day chips', (await page.getByTestId('event-date-0').count()) === 0);
@@ -203,7 +210,9 @@ const ONE_THING = { en: 'Finish the investor proposal', ar: 'أخلّص عرض �
   check('Close the day completes what was kept', after.find((t) => t.id === target.id).status === 'done');
   check('and moves what was put off', dateKey(new Date(after.find((t) => t.id === openTasks[1].id).dueAt)) !== dateKey(new Date()));
   check('and cancels what was not needed', after.find((t) => t.id === openTasks[2].id).status === 'cancelled');
-  check('the closed state shows', await page.getByTestId('review-plan-tomorrow').isVisible());
+  // Closing the day ends on a quiet confirmation rather than a "plan
+  // tomorrow" button — the planning is tomorrow's job.
+  check('the closed state shows', await page.getByTestId('review-closed').isVisible());
   const reviews = (await read('ot.reviewQueue')) || [];
   const decided = Object.fromEntries((reviews[0]?.items || []).map((i) => [i.taskId, i.decision]));
   check(

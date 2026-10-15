@@ -116,7 +116,7 @@ export default function DailyReview() {
         >
           <Icon name="moon" size={18} color={surface.white} strokeWidth={1.7} />
         </View>
-        <Text token="h1" align="center">
+        <Text token="h1" align="center" testID="review-closed">
           {t.rv_end}
         </Text>
         <Text token="bodyL" color={ink.s3} align="center">

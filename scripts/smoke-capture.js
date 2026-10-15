@@ -9,9 +9,9 @@
  *   Dump:       an empty box sorts nothing; the sample splits into six; a tap
  *               drops one; Edit keeps the text; Save writes only what is kept.
  *   Assistant:  greets by name; a task waits for "Looks right"; the plan and
- *               follow-ups replies; a question outside its scope still comes
- *               back as a task to keep or ignore; the eleventh request on Free
- *               opens the paywall; Pro is not metered.
+ *               follow-ups replies; a note with no "when" is asked about
+ *               rather than guessed at; the eleventh request on Free opens
+ *               the paywall; Pro is not metered.
  *   Paywall:    Yearly by default; the fine print follows the plan; starting
  *               the trial makes nobody Pro; Restore; Terms.
  *
@@ -140,7 +140,8 @@ const D_SAMPLE =
   await page.getByTestId('capture-stop').click();
   await page.waitForTimeout(300);
   const heardCard = await text('capture-card');
-  check('what was heard is parsed', heardCard.includes('Call Sara') && heardCard.includes('Sara Haddad') && heardCard.includes('Tomorrow · 15:00'), heardCard);
+  // Times read as people say them now — "3:00 PM", not "15:00".
+  check('what was heard is parsed', heardCard.includes('Call Sara') && heardCard.includes('Sara Haddad') && heardCard.includes('Tomorrow · 3:00 PM'), heardCard);
   const beforeClose = await taskCount();
   await page.getByTestId('capture-close').click();
   await page.waitForTimeout(400);
@@ -205,7 +206,9 @@ const D_SAMPLE =
   await page.waitForTimeout(300);
   const asked = (await read('ot.tasks')).slice(askStart);
   check('"Looks right" saves it', asked.length === 1 && asked[0].createdVia === 'assistant' && asked[0].type === 'call' && asked[0].contactIds[0] === 'c3');
-  check('…and says when it will remind', (await page.locator('body').innerText()).includes('Saved. I’ll tap you gently at 11:00.') && (await count('assistant-kept')) === 1);
+  // The sentence is the same; the time inside it reads "11:00 AM" now, so
+  // the full stop is no longer part of what to match.
+  check('…and says when it will remind', (await page.locator('body').innerText()).includes('Saved. I’ll tap you gently at 11:00') && (await count('assistant-kept')) === 1);
 
   await page.getByTestId('assistant-chip-2').click();
   await page.waitForTimeout(1000);
@@ -218,7 +221,14 @@ const D_SAMPLE =
   await page.getByTestId('assistant-input').fill('What is the capital of France?');
   await page.getByTestId('assistant-send').click();
   await page.waitForTimeout(1000);
-  check('a question outside its scope comes back as a task to keep or ignore', (await count('assistant-card')) === 2);
+  // It no longer guesses a time to make a card out of anything said to it:
+  // a note with no "when" is answered with the question, and the card waits
+  // for the answer.
+  check(
+    'a question outside its scope is asked about, not guessed at',
+    (await count('assistant-ask')) === 1 && (await page.getByTestId('assistant-reply').last().innerText()).includes('When'),
+    await page.getByTestId('assistant-reply').last().innerText()
+  );
   check('…and saves nothing on its own', (await taskCount()) === askStart + 1);
   check('each message spends one request', (await read('ot.assistantUsage')).used === 4);
 
@@ -236,7 +246,10 @@ const D_SAMPLE =
   await page.getByTestId('assistant-input').fill('Email Sara the deck');
   await page.getByTestId('assistant-send').click();
   await page.waitForTimeout(1000);
-  check('Pro is not metered', page.url().endsWith('/assistant') && (await count('assistant-card')) === 1);
+  // The eleventh request on Free opened the paywall; on Pro the same request
+  // is simply answered. Staying on the screen is the whole assertion — what
+  // it answers with is the clarify layer's business, tested above.
+  check('Pro is not metered', page.url().endsWith('/assistant') && (await count('assistant-ask')) === 1, page.url());
 
   // ---------------------------------------------------------------- Paywall
   await seed();

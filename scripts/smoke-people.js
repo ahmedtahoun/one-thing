@@ -91,18 +91,25 @@ const SESSION = { userId: 'smoke', name: 'Khalid Al-Mansouri', firstName: 'Khali
   const read = (key) => page.evaluate((k) => JSON.parse(localStorage.getItem(k) || 'null'), key);
   const text = (id) => page.getByTestId(id).innerText();
   const rows = (prefix) => page.locator(`[data-testid^="${prefix}"]`).count();
+  // A person is one row now, not a row plus three buttons: the quick options
+  // moved to a long press. The red follow-up dot shares the row's prefix, so
+  // it has to be excluded or every waiting person counts twice.
+  const people = () => page.locator('[data-testid^="person-c"]:not([data-testid$="-due"])').count();
 
   // ---------------------------------------------------------------- People
   await seed();
   await open('/people');
-  const everyone = await rows('person-c');
-  check('people lists every contact', everyone === 8 * 4, `${everyone / 4} rows`); // row + 3 buttons each
-  check('the label reads RECENT', (await text('people-label')) === 'RECENT');
+  const everyone = await people();
+  check('people lists every contact', everyone === 8, `${everyone} rows`);
+  // The RECENT / "n RESULTS" label is gone; People is filter chips and a list
+  // in the manner of a chat app. What is worth asserting is that the chips
+  // are there and that Waiting carries the count of who needs a nudge.
+  check('the filters show', await page.getByTestId('people-filters').isVisible());
+  check('Waiting carries the overdue count', (await text('people-filters-badge')) === '1');
 
   await page.getByTestId('people-search').fill('sara');
   await page.waitForTimeout(200);
-  check('search by name', (await rows('person-c')) === 4 && (await page.getByTestId('person-c2').isVisible()));
-  check('the label counts results', (await text('people-label')) === '1 RESULTS');
+  check('search by name', (await people()) === 1 && (await page.getByTestId('person-c2').isVisible()));
 
   await page.getByTestId('people-search').fill('ledgerco');
   await page.waitForTimeout(200);
@@ -110,22 +117,27 @@ const SESSION = { userId: 'smoke', name: 'Khalid Al-Mansouri', firstName: 'Khali
 
   await page.getByTestId('people-search').fill('900 11');
   await page.waitForTimeout(200);
-  check('search by phone digits', (await rows('person-c')) === 4 && (await page.getByTestId('person-c8').isVisible()));
+  check('search by phone digits', (await people()) === 1 && (await page.getByTestId('person-c8').isVisible()));
 
   await page.getByTestId('people-search').fill('zzz');
   await page.waitForTimeout(200);
-  check('a word with no digits matches no number', (await rows('person-c')) === 0);
+  check('a word with no digits matches no number', (await people()) === 0);
   check('the empty line names the query', (await text('people-none')).includes('zzz'));
 
   await page.getByTestId('people-clear').click();
   await page.waitForTimeout(200);
-  check('clearing brings everyone back', (await rows('person-c')) === everyone);
+  check('clearing brings everyone back', (await people()) === everyone);
 
+  // The three per-row buttons are gone: press and hold opens the quick
+  // options instead, which is what the row now promises.
   const tasksBefore = (await read('ot.tasks')).length;
-  await page.getByTestId('person-c2-whatsapp').click();
+  await page.getByTestId('person-c2').click({ delay: 600 });
+  await page.waitForTimeout(400);
+  check('press and hold opens the quick options', await page.getByTestId('contact-menu').isVisible());
+  await page.getByTestId('menu-whatsapp').click();
   await page.waitForTimeout(500);
   const started = (await read('ot.tasks')).slice(tasksBefore);
-  check('a quick button starts one task', started.length === 1, JSON.stringify(started.map((t) => t.title)));
+  check('a quick option starts one task', started.length === 1, JSON.stringify(started.map((t) => t.title)));
   check('…a WhatsApp to that person', started[0] && started[0].type === 'whatsapp' && started[0].title === 'Message Sara' && started[0].contactIds[0] === 'c2');
   check('…and opens Compose on it', page.url().includes(`/compose?id=${started[0] && started[0].id}`), page.url());
 
@@ -164,7 +176,14 @@ const SESSION = { userId: 'smoke', name: 'Khalid Al-Mansouri', firstName: 'Khali
   await page.waitForTimeout(500);
   const nudge = (await read('ot.tasks')).slice(before)[0];
   check('Nudge writes a follow-up task', nudge && nudge.createdVia === 'followup' && nudge.type === 'email', nudge && nudge.title);
-  check('…with the draft ready', nudge && nudge.draft.body === 'Hi Noura, just checking in on logo final files. Any update when you get a moment? Thanks!', nudge && nudge.draft.body);
+  // The draft is a letter now rather than one line, and it will go on being
+  // reworded. What has to hold is that it is addressed to the right person
+  // and about the thing they owe — not its exact phrasing.
+  check(
+    '…with the draft ready',
+    nudge && nudge.draft.body.includes('Noura') && nudge.draft.body.includes('logo final files'),
+    nudge && nudge.draft.body
+  );
   check('…and opens Compose, sending nothing', page.url().includes(`/compose?id=${nudge && nudge.id}`));
   await open('/followups');
   check('the card then says the draft is ready', (await page.getByTestId('followup-f2').innerText()).includes('Draft ready · not sent yet'));
@@ -205,7 +224,8 @@ const SESSION = { userId: 'smoke', name: 'Khalid Al-Mansouri', firstName: 'Khali
   check('the quick log adds a dated moment', logged.contactId === 'c1' && logged.kind === 'note' && logged.text === 'Called about delivery');
   check('…which the count includes', (await text('contact-history-count')) === '5 moments');
   const bubble = await page.getByTestId(`moment-${logged.id}`).innerText();
-  check('…shown in the thread, with its time', bubble.includes('Called about delivery') && bubble.includes('09:20'), bubble);
+  // A thread reads like a chat, so the time does too: "9:20 AM", not "09:20".
+  check('…shown in the thread, with its time', bubble.includes('Called about delivery') && bubble.includes('9:20'), bubble);
   check('…and the field clears', (await page.getByTestId('contact-log-text').inputValue()) === '');
 
   await page.getByTestId('contact-action-email').click();
@@ -230,7 +250,12 @@ const SESSION = { userId: 'smoke', name: 'Khalid Al-Mansouri', firstName: 'Khali
   // ------------------------------------------------------------------ Form
   await seed();
   await open('/people');
-  await page.getByTestId('people-new').click();
+  // Adding a person is a menu now — by hand, from a card, from a file, or
+  // from the phone's contacts — so the form is two taps away.
+  await page.getByTestId('people-add').click();
+  await page.waitForTimeout(400);
+  check('Add offers the ways in', await page.getByTestId('add-menu').isVisible());
+  await page.getByTestId('add-new').click();
   await page.waitForTimeout(600);
   check('New opens an empty form', page.url().endsWith('/contact-edit') && (await text('contact-form-initials')) === '+');
   const contactsBefore = (await read('ot.contacts')).length;

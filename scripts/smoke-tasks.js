@@ -45,10 +45,16 @@ const check = (name, ok, detail='') => checks.push({ name, ok: !!ok, detail });
   await page.goto(`http://127.0.0.1:${port}/`, { waitUntil:'domcontentloaded' });
   await page.evaluate((d)=>{ const put=(k,v)=>v?localStorage.setItem(k,JSON.stringify(v)):localStorage.removeItem(k); put('ot.session',d.s); put('ot.tasks',d.t); put('ot.oneThing',null); },
     { s:{userId:'smoke',name:'Khalid Al-Mansouri',firstName:'Khalid',jobTitle:'Founder',authProvider:'apple',plan:'free',firstRun:false}, t: demoTasks('en', new Date()) });
-  // The list is Home's "All" button now.
+  // The list is Home's "All" button now, and the view is component state
+  // rather than a route: a reload drops back to Today, so every reload below
+  // has to ask for it again.
+  const showAll = async () => {
+    await page.waitForTimeout(700);
+    await page.getByTestId('home-view-all').click();
+    await page.waitForTimeout(300);
+  };
   await page.goto(`http://127.0.0.1:${port}/today`, { waitUntil:'networkidle' });
-  await page.waitForTimeout(800);
-  await page.getByTestId('home-view-all').click(); await page.waitForTimeout(300);
+  await showAll();
   const store = () => page.evaluate(()=>JSON.parse(localStorage.getItem('ot.tasks')||'[]'));
 
   // 1. Filters narrow the list.
@@ -114,7 +120,7 @@ const check = (name, ok, detail='') => checks.push({ name, ok: !!ok, detail });
     localStorage.setItem('ot.tasks', JSON.stringify(tasks));
   });
   await page.reload({ waitUntil: 'networkidle' });
-  await page.waitForTimeout(800);
+  await showAll();
   const slippedRows = await page.locator('[data-testid^="task-row-"]').count();
   check('the slipped task appears', slippedRows > 0);
   check('it is marked Overdue', (await page.getByText('Overdue').count()) > 0);
@@ -130,7 +136,7 @@ const check = (name, ok, detail='') => checks.push({ name, ok: !!ok, detail });
   // 8. Nothing on the list at all.
   await page.evaluate(() => localStorage.setItem('ot.tasks', '[]'));
   await page.reload({ waitUntil: 'networkidle' });
-  await page.waitForTimeout(700);
+  await showAll();
   check('the empty state shows', await page.getByTestId('tasks-empty').isVisible());
   check('no up next card when the list is empty', (await page.getByTestId('up-next').count()) === 0);
 

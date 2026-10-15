@@ -1656,3 +1656,54 @@ Ali is among the commonest names in this app's first market, and two separate
 rules had to be wrong for it to disappear. Worth remembering when the next
 sound-alike rule is written: the test that matters is a name somebody is
 actually called.
+
+### 2.54 The behavioural suites, rewritten for the screens that exist
+
+Build 9 redesigned most of the app — a Home with two views, People as
+threads, the Next queue, email through a chooser, a quieter end to sending —
+and the six browser suites still drove the screens it replaced. They did not
+fail honestly: `smoke-tasks` died on a 30-second timeout before printing
+anything, so 262 behavioural checks were not running at all, and CI's
+fidelity job runs `npm run smoke`.
+
+Nothing here changed what the app does. Each suite now drives the screen as
+it is, and every assertion that moved says why:
+
+- **The list is a view, not a route.** `/tasks` redirects to Today, where
+  "All" is component state — so a reload drops back and the suite has to ask
+  for it again. Two reloads were silently testing the wrong screen.
+- **A person is one row.** The three per-row buttons became a press and
+  hold, and the red follow-up dot shares the row's testID prefix, so counting
+  by prefix counted everyone waiting twice.
+- **Adding a person is a menu**: by hand, from a card, from a file, or from
+  the phone. The form is two taps away.
+- **Someone already reachable is shown, not typed.** `compose-phone` and
+  `compose-email` only exist while the recipient is unknown; otherwise it is
+  a row with their name, the number, and Change.
+- **Coming back from WhatsApp or Mail asks once, quietly.** The old sheet of
+  options is a row with "I sent it" and "Not yet", and the chase interval
+  comes from the person's own setting rather than being picked each time.
+  "Not yet" says nothing at all now, so the toast assertion went with it.
+- **Mail is a choice of app**, so opening it is two taps.
+- **Where, how long and the link are behind "More"** on the event form.
+  These checks used `isVisible()`, which returns false without throwing — so
+  they had been failing quietly, under a timeout further down.
+- **The evening review ends on a confirmation**, not a "plan tomorrow"
+  button. It had no testID; `app/review.tsx` gained one, which is the only
+  change to the app in this commit.
+- **Times read as people say them**: "3:00 PM", not "15:00".
+- **The assistant asks rather than guesses.** A note with no "when" now
+  brings back the question, so counting cards was counting the old design.
+
+Two of these were worth the detour. `Pro is not metered` was failing in a
+way that looked like paying users hitting the paywall; instrumenting it
+showed `url=/assistant cards=0` — not metered, just answered with a question
+instead of a card. And `un-finishing it records nothing` looked like
+`task_done` firing twice on one task. It was not: a finished card leaves the
+queue, `.first()` then found the next card and finished that one too. The
+check now holds the card's own id, confirms it leaves, and takes the finish
+back through the toast's Undo — which is how the UI actually offers it.
+
+264 checks, all passing. The lesson is the same one §2.52 and §2.53 keep
+teaching: a check that cannot run, and a rule nobody reaches for, both read
+exactly like success.

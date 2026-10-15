@@ -113,7 +113,7 @@ const SESSION = { userId: 'smoke', name: 'Khalid Al-Mansouri', firstName: 'Khali
   await wait(1000);
   check('send with no number shows the error', (await text('compose-phone-msg')) === 'Looks short — check the number.');
   check('…opens nothing', (await opened()).length === 0);
-  check('…and asks nothing', !(await page.getByTestId('compose-after').count()));
+  check('…and asks nothing', !(await page.getByTestId('compose-pending').count()));
 
   await page.getByTestId('compose-phone').fill('55');
   await page.waitForTimeout(200);
@@ -142,9 +142,13 @@ const SESSION = { userId: 'smoke', name: 'Khalid Al-Mansouri', firstName: 'Khali
   check('…and the task is linked to them', (await task('t1')).contactIds.includes('c1'));
   check('handing off does not mark it done', (await task('t1')).status === 'open');
   await wait(800);
-  check('back from WhatsApp: "Did you send it?"', await visible('compose-after'));
-  await page.getByTestId('compose-after-1').click();
+  // Coming back is no longer a question with options. A quiet row asks once
+  // whether it went, and the chase interval comes from the person's own
+  // setting (auto: 2 days for WhatsApp) instead of being picked every time.
+  check('back from WhatsApp: the quiet "sent?" row', await visible('compose-pending'));
+  await page.getByTestId('compose-i-sent').click();
   await page.waitForTimeout(500);
+  check('…and it says so, with a way back', await visible('compose-sent'));
   const sent = await task('t1');
   check('"In 2 days" marks it done, with the time', sent.status === 'done' && sent.sentConfirmedAt);
   const fu = (await read('ot.followups'))[0];
@@ -152,35 +156,54 @@ const SESSION = { userId: 'smoke', name: 'Khalid Al-Mansouri', firstName: 'Khali
   check('…with the prototype’s note', fu.since === 'Sent today · follow up in 2 days', fu.since);
   const days = Math.round((new Date(fu.nextAt) - new Date(sent.sentConfirmedAt)) / 86400000);
   check('…due in two days', days === 2, `${days}`);
-  check('…and returns to Today', page.url().endsWith('/today'), page.url());
+  // Compose stays a moment so Change and Undo are reachable, then leaves by
+  // itself. Waiting for the navigation beats guessing how long that is.
+  await page.waitForURL('**/today', { timeout: 9000 }).catch(() => {});
+  check('…and returns to Today by itself', page.url().endsWith('/today'), page.url());
 
   // ------------------------------------------- WhatsApp, number remembered
   await seed();
   await open('t7');
-  check('a known number is filled in', (await page.getByTestId('compose-phone').inputValue()) === '54 880 1123');
+  // A person already reachable is shown as themselves, not as a field to
+  // check: name, number and one way to change it.
+  const recipient = await text('compose-recipient');
+  check('a known number is shown, with who it belongs to', recipient.includes('54 880 1123'), recipient);
+  check('…and can still be changed', await visible('compose-recipient-change'));
   await page.getByTestId('compose-send-wa').click();
   await wait(800);
   await page.getByTestId('compose-not-sent').click();
   await page.waitForTimeout(300);
-  check('"Not yet" closes the question', !(await page.getByTestId('compose-after').count()));
+  check('"Not yet" closes the question', !(await page.getByTestId('compose-pending').count()));
   check('…keeps the task open', (await task('t7')).status === 'open');
-  check('…and says the draft is kept', (await page.getByTestId('toast').innerText()) === 'Okay — the draft is saved. Still on your list.');
+  // There is no "the draft is saved" message any more: closing the row and
+  // leaving the task alone is the whole answer. The two checks above are
+  // what that means, so nothing replaces the toast assertion here.
 
   // ------------------------------------------------------------------ Email
   await seed();
   await open('t3');
-  check('a known address is filled in', (await page.getByTestId('compose-email').inputValue()) === 'sara@northwind.vc');
+  const to = await text('compose-recipient');
+  check('a known address is shown, with who it belongs to', to.includes('sara@northwind.vc'), to);
   check('the subject is the task’s', (await page.getByTestId('compose-subject').inputValue()) === 'Deck v3 + a quick call');
+  // Mail is a choice of app now — the default one, or any other through the
+  // share sheet — so opening it is two taps.
   await page.getByTestId('compose-open-mail').click();
   await page.waitForTimeout(300);
+  check('…offering a choice of mail app', await visible('mail-apps-sheet'));
+  await page.getByTestId('mail-app-default').click();
+  await page.waitForTimeout(400);
   const mail = (await opened()).find((u) => u.startsWith('mailto:')) || '';
   check('Mail opens addressed, with subject and body', mail.startsWith('mailto:sara@northwind.vc?subject=Deck%20v3%20%2B%20a%20quick%20call&body=Hi%20Sara'), mail.slice(0, 80));
   check('…and the toast names Mail', (await page.getByTestId('toast').innerText()) === 'Draft copied — opening Mail…');
   await wait(800);
-  check('back from Mail: "Did you send it?"', await visible('compose-after'));
+  check('back from Mail: the quiet "sent?" row', await visible('compose-pending'));
 
   await seed();
   await open('t3');
+  // Someone already reachable is shown rather than typed, so editing the
+  // address starts by asking to change it.
+  await page.getByTestId('compose-recipient-change').click();
+  await page.waitForTimeout(250);
   await page.getByTestId('compose-email').fill('sara@northwind');
   await page.waitForTimeout(200);
   check('a half-typed address is flagged', (await text('compose-email-msg')) === 'Check the email address.');
@@ -221,9 +244,11 @@ const SESSION = { userId: 'smoke', name: 'Khalid Al-Mansouri', firstName: 'Khali
   check('Call now dials the contact’s number', tel === 'tel:+966551234567', tel);
   await wait(1000);
   const before = (await read('ot.followups')).length;
-  await page.getByTestId('compose-after-3').click();
+  // A call needs no chasing under the default setting, so confirming it is
+  // the whole interaction: done, and nothing to come back to.
+  await page.getByTestId('compose-i-sent').click();
   await page.waitForTimeout(500);
-  check('"No need" marks it done', (await task('t2')).status === 'done');
+  check('confirming the call marks it done', (await task('t2')).status === 'done');
   check('…and sets no follow-up', (await read('ot.followups')).length === before);
 
   await browser.close();
