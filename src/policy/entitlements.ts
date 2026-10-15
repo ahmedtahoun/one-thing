@@ -28,20 +28,46 @@
  */
 
 /** A user's billing state, from DATA_MODEL.md § Entities → User.plan. */
-export type Plan = 'free' | 'trial' | 'pro' | 'lapsed';
+export type Plan = 'free' | 'trial' | 'pro' | 'pro_plus' | 'lapsed';
 
-/** Everything the paywall advertises, keyed to the feature list it shows. */
+/**
+ * Everything the paywall advertises, keyed to the feature list it shows.
+ *
+ * The last three are what Pro+ is for. None of them is built, so all three
+ * answer false below, and `FOR_SALE` in src/features/paywall/plans.ts does
+ * not include the tier. Note what is *not* here: bulk email. Send to many
+ * already exists and is ungated (app/bulk.tsx), and sending to a *segment*
+ * is that screen plus `smartLists` — giving it a capability of its own would
+ * put a lock on a feature everyone already has.
+ */
 export type Capability =
   | 'assistant'
   | 'clientHistory'
   | 'autoFollowUps'
   | 'brainDump'
   | 'events'
-  | 'weeklyRecap';
+  | 'weeklyRecap'
+  | 'bulkCardScan'
+  | 'smartLists'
+  | 'enrichment';
 
-/** Treated as paying: an active trial has the full Pro experience. */
+/**
+ * Treated as paying. An active trial has the full Pro experience, and Pro+
+ * is Pro plus more, so it answers true here as well — every existing check
+ * for "has this person paid" keeps working without being told about the new
+ * tier.
+ */
 export function isPro(plan: Plan): boolean {
-  return plan === 'pro' || plan === 'trial';
+  return plan === 'pro' || plan === 'trial' || plan === 'pro_plus';
+}
+
+/**
+ * The higher tier specifically. The trial is of Pro, not Pro+, so it is not
+ * included: a trial that quietly handed out the dearer tier would be a
+ * surprise in the wrong direction on the day it ended.
+ */
+export function isProPlus(plan: Plan): boolean {
+  return plan === 'pro_plus';
 }
 
 /**
@@ -79,6 +105,16 @@ export function can(_plan: Plan, capability: Capability): boolean {
     case 'weeklyRecap':
       // No screen exists for it, so nothing should route to one. Off the
       // paywall as well now (§2.56); this stays until it is built.
+      return false;
+    case 'bulkCardScan':
+    case 'smartLists':
+    case 'enrichment':
+      // Pro+'s reason to exist, and none of it is written: scan-card.tsx
+      // reads one card, "segment" in this codebase is a segmented control,
+      // and nothing anywhere mentions LinkedIn. They are listed so the
+      // paywall can name what the tier will be, and false so nothing routes
+      // to a screen that is not there. The tier is not on sale until at
+      // least one of them turns true.
       return false;
     case 'assistant':
     case 'clientHistory':

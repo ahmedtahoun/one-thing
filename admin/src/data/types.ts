@@ -7,7 +7,25 @@
  * strings; the screens format them (`format.ts`).
  */
 
-export type Plan = 'free' | 'trial' | 'pro' | 'lapsed';
+/**
+ * Mirrors `plan_kind` in the database and `Plan` in the app's
+ * src/policy/entitlements.ts. `pro_plus` is the dearer tier: priced and
+ * stored, not yet on sale.
+ */
+export type Plan = 'free' | 'trial' | 'pro' | 'pro_plus' | 'lapsed';
+
+/**
+ * Whether this plan is a paying one. Worth a function rather than a
+ * comparison: the panel used to ask `plan !== 'pro'` to mean "not paying",
+ * which was true while Pro was the only paid tier and became wrong the
+ * moment it was not — it would have offered a Pro+ subscriber a comped Pro
+ * month.
+ */
+export const paying = (plan: Plan): boolean => plan === 'pro' || plan === 'pro_plus' || plan === 'trial';
+
+/** What to call the plan in the panel. */
+export const planLabel = (plan: Plan): string =>
+  plan === 'pro_plus' ? 'Pro+' : plan === 'pro' ? 'Pro' : plan === 'trial' ? 'Trial' : plan === 'lapsed' ? 'Pro ended' : 'Free plan';
 /** The prototype's subscription states; `grace` is shown as "Billing issue". */
 export type SubStatus = 'active' | 'trial' | 'grace' | 'cancelled' | 'refunded';
 export type Role = 'Owner' | 'Support' | 'Analyst';
