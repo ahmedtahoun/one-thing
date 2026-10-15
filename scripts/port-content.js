@@ -147,6 +147,51 @@ const banner = (what) => `/**
 
 const json = (v) => JSON.stringify(v, null, 2);
 
+// ---- refusing to overwrite a hand edit -------------------------------------
+//
+// The banner has said "do not hand-edit" since the first version, and the file
+// was hand-edited anyway — twice. The second time it was the privacy policy:
+// between 9 and 14 October strings.ts gained a "Pictures and files" section in
+// both languages, an expanded account of what a contact record holds, and the
+// Arabic Children and Health sections, none of it in the handoff. Re-running
+// would have reverted all of it, leaving a policy that understates what the
+// app collects, and nothing would have failed (BUILD-REVIEW § 2.53).
+//
+// An instruction in a comment is not a safeguard. The invariant worth holding
+// is that a generated file on disk is exactly what the generator produces, so
+// the generator now refuses to write over a file that differs from its own
+// output. It cannot tell a hand edit from a revised handoff — but a person
+// reading the diff can, which is the point: `--force` after looking is a
+// decision, and the silent revert is no longer reachable by accident.
+
+const relative = (file) => path.relative(path.join(__dirname, '..'), file);
+const FORCED = process.argv.includes('--force');
+const refusals = [];
+
+/** Writes a generated file unless it differs from what is already there. */
+function writeGenerated(file, body) {
+  if (!FORCED && fs.existsSync(file) && fs.readFileSync(file, 'utf8') !== body) {
+    refusals.push(relative(file));
+    return;
+  }
+  fs.writeFileSync(file, body, 'utf8');
+}
+
+/** Called once at the end: one refusal is a warning, and nothing was written. */
+function reportRefusals() {
+  if (refusals.length === 0) return;
+  throw new Error(
+    `Not written, because what is on disk is not what this script produces:\n` +
+      refusals.map((f) => `  ${f}`).join('\n') +
+      '\n\nEither the handoff was revised, or someone edited a generated file by hand.\n' +
+      'The diff says which, and it is worth reading: the last hand edit here was\n' +
+      'the privacy policy, and regenerating would have quietly withdrawn it.\n\n' +
+      '  git diff -- ' + refusals.join(' ') + '\n\n' +
+      'A divergence worth keeping belongs in SUBSTITUTIONS or ADDITIONS above.\n' +
+      'Once the diff holds nothing you need, re-run with --force.'
+  );
+}
+
 /**
  * Emits a bilingual block as `{ en, ar }` where `ar` is declared as
  * `typeof en`. Two effects, both wanted: the member types widen to `string`
@@ -167,7 +212,7 @@ export const ${name} = { en: ${name}_en, ar: ${name}_ar };
 fs.mkdirSync(OUT, { recursive: true });
 
 // ---- strings.ts: every user-facing string, EN + AR -------------------------
-fs.writeFileSync(
+writeGenerated(
   path.join(OUT, 'strings.ts'),
   banner('All user-facing copy, English and Arabic.') +
     `
@@ -197,7 +242,7 @@ export type Copy = (typeof C)['en'];
 );
 
 // ---- icons.ts: Lucide-style 24-unit path data -----------------------------
-fs.writeFileSync(
+writeGenerated(
   path.join(OUT, '..', 'design', 'icon-paths.ts'),
   banner('Line-icon path data, 24-unit viewBox, round caps and joins.') +
     `
@@ -239,7 +284,7 @@ const unresolved = countries.filter((c) => c.nameEn === c.iso || c.nameAr === c.
 if (unresolved.length) {
   throw new Error('Country names did not resolve: ' + unresolved.map((c) => c.iso).join(', '));
 }
-fs.writeFileSync(
+writeGenerated(
   path.join(OUT, 'countries.ts'),
   banner('Country dial codes with English and Arabic names, for the phone picker.') +
     `
@@ -264,7 +309,7 @@ export const DEFAULT_DIAL = '+966';
 );
 
 // ---- seed.ts: demo content ------------------------------------------------
-fs.writeFileSync(
+writeGenerated(
   path.join(OUT, 'seed.ts'),
   banner(
     'Demo content from the prototype.\n *\n * Used for the App Store / Play review demo account, which the store-readiness\n * audit requires ("seed sample data so the app isn\'t empty"), and for local\n * development. Never seeded into a real user\'s account.'
@@ -295,3 +340,7 @@ console.log(
     2
   )
 );
+
+// Last, so the counts above are still printed: they say what the handoff holds
+// now, which is the first thing worth knowing when a refusal is a surprise.
+reportRefusals();

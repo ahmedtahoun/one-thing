@@ -39,6 +39,9 @@ export const arx = (source: string): string => source.replace(/[؀-ۿ]/g, (ch) =
 
 export const ar = (source: string, flags = 'i'): RegExp => new RegExp(arx(source), flags);
 
+/** The same, global: for reading every match in a sentence rather than the first. */
+export const arg = (source: string): RegExp => ar(source, 'gi');
+
 /** An Arabic letter, for "not part of a longer word" checks (`\b` only knows ASCII). */
 export const AR_LETTER = '\\u0621-\\u064A';
 
@@ -120,7 +123,18 @@ export function skeleton(name: string): string {
 /** Two names that sound alike across spellings, or scripts. Both must be long enough to mean something. */
 export function soundsAlike(a: string, b: string): boolean {
   const ka = skeleton(a);
-  return ka.length >= 2 && ka === skeleton(b);
+  if (!ka || ka !== skeleton(b)) return false;
+  if (ka.length >= 2) return true;
+  /*
+   * A one-letter key usually means the name was too short to say anything,
+   * and letting those match would introduce every stranger to every other.
+   * But some real names genuinely reduce to one consonant — Ali and علي both
+   * come out as "l", because ع has no Latin consonant and the vowels drop —
+   * and Ali is among the most common names this app will meet. Short names
+   * on both sides is the narrowest rule that admits them, and the cost of a
+   * wrong guess is small: this only ever asks "did you mean …?".
+   */
+  return a.trim().length <= 4 && b.trim().length <= 4;
 }
 
 // --- a name nobody has met yet ------------------------------------------
@@ -140,16 +154,23 @@ const AR_NOT_A_NAME = new Set(
     'بكره', 'باكر', 'غدا', 'غد', 'النهارده', 'انهارده', 'اليوم', 'بعدين', 'تاني', 'دلوقتي', 'الان', 'حد', 'اي', 'ايه',
     'كل', 'الصبح', 'العصر', 'المغرب', 'مساء', 'بالليل', 'الليله', 'ده', 'دي', 'دا', 'هو', 'هي', 'انا', 'انت', 'اللي',
     'عشان', 'علشان', 'لو', 'بس', 'كمان', 'برضه', 'الساعه', 'ساعه', 'واتس', 'واتساب', 'رساله', 'ايميل', 'ميل', 'بعد',
-    'قبل', 'مع', 'على', 'علي', 'الى', 'الي', 'في', 'من', 'عن', 'ان', 'او',
+    'قبل', 'مع', 'الى', 'الي', 'في', 'من', 'عن', 'ان', 'او',
+    /*
+     * على (the preposition) and علي (Ali) are the same word once ى folds to
+     * ي, so keeping the preposition here cost us the name: "كلم علي" found
+     * nobody. The preposition is already handled where it belongs — the
+     * calling rules below consume a leading على/علي before the name — so a
+     * علي that survives to be captured is the person.
+     */
   ].map(normalizeArabic)
 );
 
 const NAME = "[A-Za-z][A-Za-z'’-]{2,}";
 /** Verbs whose next word is the person, even in lowercase: "call sara". */
-const DIRECT = new RegExp(`\\b(?:call|ring|phone|message|text|whatsapp|dm)\\s+(?:to\\s+)?(${NAME})`, 'i');
+const DIRECT = new RegExp(`\\b(?:call|ring|phone|message|text|whatsapp|dm)\\s+(?:to\\s+)?(${NAME})`, 'gi');
 /** Other verbs and prepositions: only a Capitalised word counts ("email the quote" is not a person). */
 const MARKED =
-  /\b(?:email|e-mail|mail|send|reply(?:\s+to)?|tell|told|ask|asked|promised|owe|remind|meet|see|visit|follow\s+up\s+with|catch\s+up\s+with|to|with|for)\s+([A-Za-z][a-z'’-]{2,})/i;
+  /\b(?:email|e-mail|mail|send|reply(?:\s+to)?|tell|told|ask|asked|promised|owe|remind|meet|see|visit|follow\s+up\s+with|catch\s+up\s+with|to|with|for)\s+([A-Za-z][a-z'’-]{2,})/gi;
 
 const WORD = `[${AR_LETTER}]{2,}`;
 const NOT_IN_WORD = `(?<![${AR_LETTER}])`;
@@ -158,11 +179,11 @@ const NOT_IN_WORD = `(?<![${AR_LETTER}])`;
  * "كلم نورة", "هكلم محمد". The verb must stand alone, so كلمة (a word) and
  * برنامج (a programme) do not count.
  */
-const AR_DIRECT = ar(
+const AR_DIRECT = arg(
   `${NOT_IN_WORD}(?:ا|ه|ب|ع|ل|س)?(?:كلم|اتصل|رن)(?:ي|ه|ها|هم|ني)?(?![${AR_LETTER}])\\s+(?:(?:على|علي|الى|مع)\\s+)?(${WORD})`
 );
 /** After a sending word only a ل-word is a recipient: "ابعت لسارة", "ابعت واتس لمحمد". */
-const AR_SEND = ar(
+const AR_SEND = arg(
   `${NOT_IN_WORD}(?:ه|ب|ع)?(?:ابعت|بعت|ارسل|ابعث)(?![${AR_LETTER}])\\s+(?:(?:واتس\\S*|رساله|ايميل|ميل)\\s+)?ل\\s*(${WORD})`
 );
 
@@ -179,20 +200,29 @@ export type Candidate = { word: string; script: 'latin' | 'arabic' };
  * It does not know whether the person is in People — that is for the caller.
  */
 export function candidateName(text: string): Candidate | null {
+  /*
+   * Every match, not just the first. A rule can fire on an ordinary word
+   * before it reaches the name — "Email the quote to Sara" matches at "the"
+   * long before "to Sara" — and taking only the first match meant rejecting
+   * "the" and giving up on the sentence. Each rule is global so the whole
+   * sentence is read.
+   */
   for (const rule of [DIRECT, MARKED]) {
-    const word = rule.exec(text)?.[1];
-    if (!word || NOT_A_NAME.has(word.toLowerCase())) continue;
-    // After a verb that is not a person-verb, only a Capitalised word is a name.
-    if (rule === MARKED && !/^[A-Z]/.test(word)) continue;
-    return { word: word.charAt(0).toUpperCase() + word.slice(1), script: 'latin' };
+    for (const [, word] of text.matchAll(rule)) {
+      if (!word || NOT_A_NAME.has(word.toLowerCase())) continue;
+      // After a verb that is not a person-verb, only a Capitalised word is a name.
+      if (rule === MARKED && !/^[A-Z]/.test(word)) continue;
+      return { word: word.charAt(0).toUpperCase() + word.slice(1), script: 'latin' };
+    }
   }
   for (const rule of [AR_DIRECT, AR_SEND]) {
-    const raw = rule.exec(text)?.[1];
-    if (!raw) continue;
-    const word = rule === AR_DIRECT ? bareArabic(raw) : raw;
-    if (/^ال/.test(normalizeArabic(word))) continue; // "المدير", "الفاتورة": a thing, not a name
-    if (AR_NOT_A_NAME.has(normalizeArabic(word))) continue;
-    return { word, script: 'arabic' };
+    for (const [, raw] of text.matchAll(rule)) {
+      if (!raw) continue;
+      const word = rule === AR_DIRECT ? bareArabic(raw) : raw;
+      if (/^ال/.test(normalizeArabic(word))) continue; // "المدير", "الفاتورة": a thing, not a name
+      if (AR_NOT_A_NAME.has(normalizeArabic(word))) continue;
+      return { word, script: 'arabic' };
+    }
   }
   return null;
 }

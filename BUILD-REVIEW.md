@@ -1605,3 +1605,54 @@ directly rather than through their npm scripts.
 
 Verified by touching a source file and watching `smoke-day.js` refuse to
 run.
+
+### 2.53 A comment is not a safeguard, and three names that went missing
+
+Two unrelated findings from reviewing build 9, except that both are about a
+rule that was written down and then not kept.
+
+**The generator would have withdrawn the privacy policy.** `strings.ts` is
+generated from the handoff and its banner has said "do not hand-edit" since
+the first version. It was hand-edited anyway. Between 9 and 14 October it
+gained a **Pictures and files** section in both languages — the one
+disclosing the business-card scan, imported spreadsheets and PDFs, and stored
+photos — an expanded account of what a contact record holds, and the Arabic
+Children and Health sections. None of it is in the handoff, so the next
+`npm run content:port` would have reverted all of it. The app would then ship
+a policy that understates what it collects, which is a PDPL and GDPR problem
+before it is a store problem, and nothing would have failed: no test asserts
+on the contents of a string.
+
+§2.51 added `SUBSTITUTIONS` and `ADDITIONS` for exactly this, and they were
+not used — which is the useful part of the finding. A mechanism nobody
+reaches for is worth no more than the comment it replaced. So the generator
+now refuses to overwrite a generated file that differs from its own output.
+It cannot tell a revised handoff from a hand edit, and does not try: it
+names the files, prints the `git diff` that answers the question, and stops.
+`--force` after reading the diff is a decision; the silent revert is no
+longer reachable by accident.
+
+**Three names the parser could not see**, each confirmed by probe before the
+fix and covered now by `names.test.ts`, which fails 3 of 7 against the old
+code:
+
+- *"Email the quote to Sara"* found nobody. `candidateName` read only the
+  first match of each rule, and `MARKED` fires at "the" long before it
+  reaches "to Sara"; rejecting "the" skipped to the next **rule** rather than
+  the next match. Every match is read now.
+- *"كلم علي"* found nobody. `normalizeArabic` folds ى to ي, so على (the
+  preposition) and علي (Ali) are one word, and the preposition was in the
+  stop list. The calling rules already consume a leading على before the name,
+  so an علي that survives to be captured is the person. *"رن على نورة"* still
+  reads نورة.
+- `soundsAlike('Ali', 'علي')` was false, so even once the name was found the
+  cross-script question never came. Both reduce to `"l"` — ع has no Latin
+  consonant and the vowels drop — and the key had a two-letter floor. The
+  floor stays except where both names are four characters or fewer, which is
+  the narrowest rule that admits Ali. The cost of a wrong guess is one
+  "did you mean …?".
+
+Ali is among the commonest names in this app's first market, and two separate
+rules had to be wrong for it to disappear. Worth remembering when the next
+sound-alike rule is written: the test that matters is a name somebody is
+actually called.
