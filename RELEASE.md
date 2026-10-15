@@ -343,8 +343,18 @@ neither has ever run on hardware.
 
 - **Three public pages at a real domain** — Privacy, Terms, and a deletion
   route. Play requires a web-accessible deletion path, not only the in-app
-  one. `app/legal.tsx` is the in-app copy of the text; nobody owns the website
-  (BUILD-REVIEW §3).
+  one. `app/legal.tsx` is the in-app copy of the text (BUILD-REVIEW §3).
+
+  ~~Nobody owns the website.~~ `.github/workflows/site.yml` publishes
+  `website/` to GitHub Pages on every push to `main`, so the pages exist and
+  stay current without anyone remembering to upload them. Their links are
+  relative, so they serve from the Pages sub-path now and from
+  `onlyonething.app` the day it points here, with no rebuild and no change to
+  the workflow.
+
+  **One thing to switch on by hand, once:** Settings → Pages → Source →
+  GitHub Actions. Until it is set the workflow fails at the deploy step
+  rather than publishing somewhere unexpected.
 
   ~~**The domain in the app's copy no longer matches the bundle ID.**~~
   Settled. All six user-facing places now say `onlyonething.app`, in both
@@ -355,10 +365,19 @@ neither has ever run on hardware.
   records the divergence as `{ app, prototype }` rather than failing on it
   (BUILD-REVIEW §2.43).
 
-  **What the strings now promise, and nobody has built.** A reviewer clicks
-  these. `privacy@onlyonething.app` has to receive mail and `/delete` has to
-  resolve — both on a domain with no owner. The copy is no longer the open
-  question; the website is.
+  **What the strings promise that still does not exist.** A reviewer clicks
+  these. Two gaps are left:
+
+  - `privacy@onlyonething.app` has to receive mail. The policy names it four
+    times as the way to exercise a right, so it is a promise rather than a
+    courtesy, and nothing in this repo can make a mailbox.
+  - The in-app copy says `onlyonething.app/delete`, which points at nothing
+    until the domain is aimed at Pages. Note the asymmetry: the **store
+    listings** can be given the Pages URL and be perfectly fine, but the text
+    **inside the app** cannot, because it says the domain out loud. So either
+    point the domain at Pages, or change those two strings
+    (`src/content/strings.ts`, the `onlyonething.app/delete` pair). Leaving
+    both as they are is the one combination that is actually wrong.
 - ~~**Legal review of that text.**~~ Settled. `ACC` was rewritten from summary
   copy into a full notice: the controller named (Where To Spot, a sole
   proprietorship on the Damanhour register, no. 101557, owned by Ahmed Salah

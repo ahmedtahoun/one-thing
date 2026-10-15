@@ -1,0 +1,52 @@
+# Publishes website/ — Privacy, Terms, Support and the deletion route — to
+# GitHub Pages.
+#
+# Both stores ask for these as public URLs before they will review the app,
+# and Play wants the deletion page reachable from the web rather than only
+# from inside the app (RELEASE.md § 7). Until now nothing published the
+# folder at all, so the URLs the app's own copy points at did not exist.
+#
+# The pages are plain HTML with relative links, so they serve correctly from
+# the Pages sub-path today and from onlyonething.app the day someone points
+# it here — no rebuild, no change to this file.
+#
+# One thing has to be done by hand, once: Settings → Pages → Source → GitHub
+# Actions. Until it is, the deploy step fails with a 404 rather than
+# publishing somewhere unexpected.
+name: Website
+
+on:
+  push:
+    branches: [main]
+    paths: ['website/**', '.github/workflows/site.yml']
+  workflow_dispatch:
+
+# What deploying to Pages needs. Nothing else here writes anything.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# A queued deploy waits for the running one rather than cancelling it: half a
+# published policy is worse than a late one.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Publish to GitHub Pages
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/configure-pages@v5
+      # The folder is already the finished site; there is no build step on the
+      # host by design (website/README.md).
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: website
+      - id: deploy
+        uses: actions/deploy-pages@v4
