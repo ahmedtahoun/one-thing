@@ -1894,3 +1894,49 @@ follow-up rather than one the test created: the failure detail read
 seeds a plan explicitly, checks the Free path (nothing chases, the row says
 Pro would, Change is still offered) and re-runs the send as Pro for the
 chase itself. 44 checks became 48.
+
+### 2.59 What a share actually carries, and what the Lock Screen shows
+
+Continuing through build 9's new surfaces, outward-facing ones first.
+
+**An Android share was promising a file it could not send.** The "Zoho,
+Spark or another app" row hands the draft to the share sheet, and its
+sub-label read *"Takes the subject, the message and a file."* on both
+platforms. React Native's `Share` takes `url` on iOS only, and
+`expo-sharing` is not a dependency — so on Android the share carried the
+text alone and said nothing. `compose.tsx` had no `Platform` import at all.
+
+The row now tells the truth per platform, and where a file is left behind
+(always on Android, and from the second file on iOS, since a share carries
+one) the toast says attachments need "Send email" instead of only naming
+the address to paste. An attachment that silently does not arrive is worse
+than one the person was told to send another way — the recipient has no
+idea either.
+
+**The privacy policy's two hardest claims are true.** Worth checking rather
+than assuming, because build 9 wrote them:
+
+- *"A photo of a business card is read on your phone and not kept."*
+  `scan-card.tsx` holds the image in component state for the preview and
+  saves no image reference on the contact — only the fields the person
+  confirms.
+- *"A picture you choose for a person … stays on your phone; it is not
+  uploaded."* `src/lib/photos.ts` keeps pictures in the app's own folder
+  with only the file name in storage, deliberately outside sync, and
+  `clearPhotos()` runs through `people.reset()` → `wipeDevice()` on both
+  sign-out and account deletion. So "deletion removes everything" covers
+  them too.
+
+**The Lock Screen bar is on by default** (`src/lib/today-bar.ts`:
+`let on = true`, turned off only by a stored `'off'`). It puts today's task
+titles, 40 characters each, on a screen anyone can read without unlocking
+the phone — and this app's titles are "Call the lawyer", "Chase the loan",
+client names. Not a legal problem: nothing leaves the device, so neither
+privacy form covers it, and iOS has its own system-wide switch.
+
+It is a judgement call with an asymmetry worth naming. Default off costs
+discoverability of a feature people would like. Default on costs the one
+person whose screen was read over their shoulder, and that person writes
+the review. **Recommend defaulting it off and offering it after the first
+focus session**; it is one line either way, and it is a product decision,
+so it is raised here rather than changed.

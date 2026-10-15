@@ -314,6 +314,9 @@ export type Added = {
     share: string;
     shareSub: string;
     shared: string;
+    /** Android, where a share carries no file, and wherever one was dropped. */
+    shareSubNoFile: string;
+    sharedNoFiles: string;
     note: string;
   };
   /** Today's tasks on the Lock Screen (iPhone). */
@@ -558,6 +561,8 @@ const ADDED: Record<Lang, Added> = {
       share: 'Zoho, Spark or another app',
       shareSub: 'Takes the subject, the message and a file. Pick the app, then paste the address.',
       shared: '{to} is copied. Paste it into “To”.',
+      shareSubNoFile: 'Takes the subject and the message. Pick the app, then paste the address.',
+      sharedNoFiles: '{to} is copied. Paste it into “To” — attachments need “Send email”.',
       note: 'Zoho opens a mail link empty, so use “Zoho, Spark or another app”. Or add your Zoho account to iPhone Mail and use “Send email”, which keeps everything.',
     },
     bar: {
@@ -935,6 +940,8 @@ const ADDED: Record<Lang, Added> = {
       share: 'Zoho أو Spark أو تطبيق ثاني',
       shareSub: 'ينقل العنوان والرسالة وملف. اختر التطبيق، ثم الصق الإيميل.',
       shared: 'نسخنا {to}. الصقه في خانة «إلى».',
+      shareSubNoFile: 'يأخذ العنوان والرسالة. اختر التطبيق، بعدين الصق الإيميل.',
+      sharedNoFiles: '{to} اننسخ. الصقه في «إلى» — المرفقات تحتاج «إرسال إيميل».',
       note: 'Zoho يفتح رابط البريد فاضي، فاستخدم «Zoho أو Spark أو تطبيق ثاني». أو أضف حساب Zoho لتطبيق البريد في الآيفون واستخدم «أرسل الإيميل»، وكل شي يوصل.',
     },
     bar: {

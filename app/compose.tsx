@@ -13,7 +13,7 @@
  */
 import { clockOf } from '@/lib/clock-format';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AppState, Linking, Pressable, Share, TextInput, View } from 'react-native';
+import { AppState, Linking, Platform, Pressable, Share, TextInput, View } from 'react-native';
 import { Redirect, router, useLocalSearchParams } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
 import * as DocumentPicker from 'expo-document-picker';
@@ -267,6 +267,12 @@ function ComposeTask({ task }: { task: Task }) {
    * file, so this hands the draft over through the share sheet, with the
    * subject as the share's subject. A share cannot name the recipient, so the
    * address is left on the clipboard to paste into "To".
+   *
+   * Only one file goes, and on Android none does: React Native's `url` is
+   * iOS-only, so an Android share carries the text alone. Saying so is the
+   * point — the row used to promise "the subject, the message and a file" on
+   * both platforms, and an attachment that silently does not arrive is worse
+   * than one the person was told to send another way.
    */
   const shareToApp = async () => {
     setAppsOpen(false);
@@ -279,7 +285,9 @@ function ComposeTask({ task }: { task: Task }) {
     ).catch(() => null);
     if (!result || result.action === Share.dismissedAction) return;
     await Clipboard.setStringAsync(email).catch(() => {});
-    toast.show(added(lang).attach.shared.replace('{to}', email), { undo: false });
+    const carried = Platform.OS === 'ios' && files[0] ? 1 : 0;
+    const copy = added(lang).attach;
+    toast.show((files.length > carried ? copy.sharedNoFiles : copy.shared).replace('{to}', email), { undo: false });
     armSent();
   };
 
@@ -926,7 +934,7 @@ function ComposeTask({ task }: { task: Task }) {
             {added(lang).attach.share}
           </Text>
           <Text token="micro" color={ink.s4}>
-            {added(lang).attach.shareSub}
+            {Platform.OS === 'ios' ? added(lang).attach.shareSub : added(lang).attach.shareSubNoFile}
           </Text>
         </Pressable>
         <Text token="caption" color={ink.s4}>
