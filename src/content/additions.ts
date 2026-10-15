@@ -349,6 +349,8 @@ export type Added = {
     iSent: string;
     cancel: string;
     plain: string;
+    /** Sent on Free, where the chase does not start on its own. */
+    plainFree: string;
     withChase: string;
     change: string;
     undo: string;
@@ -588,6 +590,7 @@ const ADDED: Record<Lang, Added> = {
       iSent: 'I sent it',
       cancel: 'Not yet',
       plain: 'Sent',
+      plainFree: 'Sent. Pro follows up for you.',
       withChase: 'Sent. No reply {w}? I’ll remind you.',
       change: 'Change',
       undo: 'Undo',
@@ -964,6 +967,7 @@ const ADDED: Record<Lang, Added> = {
       iSent: 'أرسلتها',
       cancel: 'مو الحين',
       plain: 'أُرسلت',
+      plainFree: 'أُرسلت. برو يتابع عنك تلقائيًا.',
       withChase: 'أُرسلت. ما رد {w}؟ بذكّرك.',
       change: 'غيّر',
       undo: 'تراجع',

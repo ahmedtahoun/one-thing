@@ -54,6 +54,7 @@ import { contactForTask, usePeople } from '@/lib/people';
 import { pickFromPhone } from '@/lib/phone-contacts';
 import { whenLabel } from '@/lib/task-labels';
 import { useSession } from '@/lib/session';
+import { canAutoChase } from '@/policy/entitlements';
 import { useTasks } from '@/lib/tasks';
 
 
@@ -87,6 +88,7 @@ function ComposeTask({ task }: { task: Task }) {
   const { contacts, history, followUps, saveContact, addFollowUp, addHistory, updateFollowUp, restoreFollowUps, restoreHistory } = usePeople();
   const chase = useChase();
   const { session } = useSession();
+  const plan = session?.plan ?? 'free';
   const toast = useToast();
 
   // Prefilled from the contact, so a number given once is there next time —
@@ -419,7 +421,10 @@ function ComposeTask({ task }: { task: Task }) {
     const gist =
       channelOfTask === 'email' ? subject.trim() : channelOfTask === 'whatsapp' ? draft.trim().replace(/\s+/g, ' ').slice(0, 90) : '';
     if (reachedId) addHistory({ contactId: reachedId, kind: channelOfTask, text: gist || task.title, at: now.toISOString() });
-    const days = chaseDays(chase, channelOfTask);
+    // "Auto follow-ups" is what the card sells, and the word doing the work
+    // is Auto: a Free account can still chase anyone, through Change below,
+    // but it has to ask. Pro is the chase starting on its own.
+    const days = canAutoChase(plan) ? chaseDays(chase, channelOfTask) : 0;
     if (days > 0) startChase(days, now);
     setSent({ days, before });
     leaveSoon(5500);
@@ -780,7 +785,11 @@ function ComposeTask({ task }: { task: Task }) {
             <View style={{ flexDirection: dir.row, alignItems: 'center', gap: 10 }}>
               <Icon name="check" size={18} color={typeColour.whatsapp.fg} strokeWidth={2.4} />
               <Text token="bodyS" weight="500" style={{ flex: 1 }}>
-                {sent.days > 0 ? sentCopy.withChase.replace('{w}', inDays(sent.days, lang)) : sentCopy.plain}
+                {sent.days > 0
+                  ? sentCopy.withChase.replace('{w}', inDays(sent.days, lang))
+                  : canAutoChase(plan)
+                    ? sentCopy.plain
+                    : sentCopy.plainFree}
               </Text>
               <Pressable
                 testID="compose-sent-change"

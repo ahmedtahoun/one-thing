@@ -9,11 +9,9 @@ import { spendOne, usedOn } from './assistant-meter';
 import {
   assistantRequestsLeft,
   can,
-  canAddFollowUp,
+  canAutoChase,
   canBrainDump,
   canUseAssistant,
-  canUseEventType,
-  FREE_ACTIVE_FOLLOW_UPS,
   FREE_ASSISTANT_REQUESTS_PER_DAY,
   FREE_BRAIN_DUMPS_PER_DAY,
 } from '@/policy/entitlements';
@@ -57,29 +55,23 @@ describe('the gates settled in October 2026', () => {
     assert.equal(canBrainDump('lapsed', FREE_BRAIN_DUMPS_PER_DAY), false);
   });
 
-  it('caps how many people Free can be waiting on at once', () => {
-    assert.ok(canAddFollowUp('free', FREE_ACTIVE_FOLLOW_UPS - 1));
-    assert.equal(canAddFollowUp('free', FREE_ACTIVE_FOLLOW_UPS), false);
-    // Closing one makes room, which is the point of counting the open ones.
-    assert.ok(canAddFollowUp('free', FREE_ACTIVE_FOLLOW_UPS - 1));
-    assert.ok(canAddFollowUp('pro', 500));
-  });
-
-  it('keeps meetings and visits free, and sells webinars and courses', () => {
-    assert.ok(canUseEventType('free', 'meeting'));
-    assert.ok(canUseEventType('free', 'visit'));
-    assert.equal(canUseEventType('free', 'webinar'), false);
-    assert.equal(canUseEventType('free', 'course'), false);
-    for (const type of ['visit', 'meeting', 'webinar', 'course'] as const) {
-      assert.ok(canUseEventType('pro', type), type);
-      assert.ok(canUseEventType('trial', type), type);
-    }
+  it('starts the chase by itself only on Pro', () => {
+    // Not a count: how many people may be waiting is not limited at all,
+    // because follow-ups accumulate rather than being added, and a cap would
+    // fail invisibly on the message that most needed chasing.
+    assert.equal(canAutoChase('free'), false);
+    assert.equal(canAutoChase('lapsed'), false);
+    assert.ok(canAutoChase('pro'));
+    assert.ok(canAutoChase('trial'));
   });
 
   it('leaves what the card no longer sells alone', () => {
-    // Client history is the person's own notes: open to everyone, and off
-    // the paywall rather than locked. Weekly recap has no screen to route to.
+    // Client history is the person's own notes; the event types have no way
+    // in since Today went to four tiles; Weekly recap has no screen at all.
+    // All three are off the paywall rather than locked.
     assert.ok(can('free', 'clientHistory'));
+    assert.ok(can('free', 'events'));
+    assert.ok(can('free', 'autoFollowUps'));
     assert.equal(can('pro', 'weeklyRecap'), false);
   });
 });

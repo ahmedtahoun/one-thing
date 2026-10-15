@@ -1267,11 +1267,6 @@ const SETX_en = {
         "mic",
         "Unlimited brain dumps",
         "Talk for a minute — I turn it into tasks."
-      ],
-      [
-        "video",
-        "Meetings, webinars & courses",
-        "Links, reminders and notes in one place."
       ]
     ],
     "year": "Yearly",
@@ -1350,11 +1345,6 @@ const SETX_ar: typeof SETX_en = {
         "mic",
         "تفريغ أفكار بلا حدود",
         "تكلّم دقيقة — وأحوّلها لمهام."
-      ],
-      [
-        "video",
-        "اجتماعات وندوات ودورات",
-        "الروابط والتذكيرات والملاحظات بمكان واحد."
       ]
     ],
     "year": "سنوي",

@@ -1853,3 +1853,44 @@ paywall is the wrong answer, and quietly dropping the waiting ones is
 worse. What should happen when a Free account's fourth follow-up arrives
 inside a batch of nine is a product question, so `canAddFollowUp` exists in
 the policy and nothing calls it yet.
+
+### 2.58 Follow-ups: the cap was the wrong shape, and "Auto" was the answer
+
+§2.57 left two gates undone because their premises did not survive the
+code. Both are settled, and the paywall is three bullets.
+
+**"Meetings, webinars & courses" is off the card.** The feature is built —
+field table, lesson tracking, tests — and has no door: every route into the
+event form passes `meeting` since Today went from eight tiles to four. The
+honest options were to put the tiles back or to stop selling it, and with
+no launch date riding on webinars, stopping selling it is the one that can
+be undone cheaply.
+
+**The follow-up cap is gone, and that is the more interesting one.** The
+first design was three waiting follow-ups on Free. Writing it down made the
+mismatch obvious: nobody *adds* a follow-up. They accumulate, as a side
+effect of sending things. So a count cap means the fourth message quietly
+goes unchased — invisible when it happens, and failing exactly where the
+feature is supposed to help. The batch problem (Quick capture, Brain dump
+and the Assistant each turn one parsed list into several waiting items at
+once) was a symptom of that, not the difficulty itself.
+
+The card already said what Pro is: ***Auto*** follow-ups. The word is the
+feature. So the number is not limited at all — `canAutoChase(plan)` gates
+whether the chase starts *on its own* after a send. A Free account can
+still have anyone waiting on it and can still set a chase by hand from the
+Sent row's Change; it just has to ask. One condition in `compose.tsx`, no
+batch problem, no new screen: the Sent row already handled "no chase" and
+now reads "Sent. Pro follows up for you." instead of "Sent".
+
+That is the second time in this round that reading the card's own wording
+settled a question — "Unlimited" meant a meter, "Auto" means automation —
+and both times it beat the number I had reached for first.
+
+**The compose suite was asserting against seed data.** Its session is Free,
+so once the chase stopped starting by itself, `followups[0]` was a *demo*
+follow-up rather than one the test created: the failure detail read
+"Sent Sunday · follow up Tue", which no part of that test wrote. It now
+seeds a plan explicitly, checks the Free path (nothing chases, the row says
+Pro would, Change is still offered) and re-runs the send as Pro for the
+chase itself. 44 checks became 48.

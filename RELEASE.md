@@ -522,11 +522,32 @@ number. The other three name a feature outright, which reads as Pro-only:
 | Capability | What the card promises | Free today | Proposed |
 |---|---|---|---|
 | `assistant` | "Unlimited smart assistant · Free plan: 10 requests a day" | 10/day | **unchanged** — the one limit the handoff ever specified |
-| `brainDump` | "**Unlimited** brain dumps" | open | **3 a day on Free** |
-| `autoFollowUps` | "Auto follow-ups" | open | **3 active on Free** |
-| `clientHistory` | "Client history — every call, message and meeting, by date" | open | **last 7 days on Free**, everything on Pro |
-| `events` | "Meetings, webinars & courses" | open | **meetings on Free**; webinars, courses and lesson tracking on Pro |
+| `brainDump` | "**Unlimited** brain dumps" | open | **3 a day on Free**, counted at sorting |
+| `autoFollowUps` | "**Auto** follow-ups" | open | **the chase starts by itself on Pro only** — no cap on how many |
+| `clientHistory` | "Client history — every call, message and meeting, by date" | open | **off the card**, left open |
+| `events` | "Meetings, webinars & courses" | open | **off the card** — two of the three have no way in |
 | `weeklyRecap` | "What you got done, and who still needs you" | off for all | **off the card** until it exists |
+
+Settled and shipped. The card is three bullets now, and each is true.
+
+**Follow-ups are not capped by number**, which was the first idea and the
+wrong shape. Nobody adds a follow-up — they accumulate as a side effect of
+sending things — so a cap means the fourth message quietly goes unchased:
+invisible, and failing exactly where the feature is meant to help. It also
+had no decent answer for Quick capture, Brain dump and the Assistant, which
+each turn one parsed list into several waiting items at once. What the card
+actually sells is the word *Auto*, so that is what Pro buys: a Free account
+can still have anyone waiting and can still set a chase by hand from the
+Sent row's Change, but it has to ask.
+
+**Three bullets came off the card rather than being locked**, which is the
+cheaper mistake to undo: a bullet is one line of copy, a lock is design
+work in a screen, and after launch a lock is a take-away. Weekly recap has
+no screen. Client history is the person's own notes about their own
+contacts. And "Meetings, webinars & courses" sold two things with no door:
+the event form builds all four types, but every route into it passes
+`meeting` since Today went from eight tiles to four. The capabilities all
+remain in `entitlements.ts`, unsold rather than cancelled.
 
 **Prefer a meter to a lock, wherever the choice exists.** The assistant
 already proves the pattern end to end: the count runs out, the paywall
@@ -537,11 +558,9 @@ one is a support ticket where a generous meter is only forgone revenue.
 That is why `clientHistory` is proposed as a window rather than a wall, and
 why `events` keeps the common case open.
 
-None of this is implemented. Every row above is one line in
-`src/policy/entitlements.ts`, which is why §2.1 put them all in one file;
-the work is the locked and metered states in the five screens, not the
-rules. Say yes, no, or different numbers, and it becomes a day's work
-rather than an open question.
+Every rule lives in `src/policy/entitlements.ts`, which is why §2.1 put
+them in one file: the two that remain are a meter in Brain dump and one
+condition in Compose.
 
 ### 9.6 The assistant has no server, and its limit is on the wrong side — **built by dev 2**
 `supabase/functions/assist` is now that server: the Claude key stays in the

@@ -77,14 +77,16 @@ const SESSION = { userId: 'smoke', name: 'Khalid Al-Mansouri', firstName: 'Khali
   frozen.setHours(9, 20, 0, 0);
   await page.clock.setFixedTime(frozen);
 
-  const seed = async () => {
+  // The chase starting on its own is what Pro sells, so a section that
+  // asserts on it has to say which plan it is running as.
+  const seed = async (plan = 'free') => {
     await page.goto(`${base}/`, { waitUntil: 'domcontentloaded' });
     await page.evaluate((d) => {
       localStorage.clear();
       for (const [k, v] of Object.entries(d)) localStorage.setItem(k, JSON.stringify(v));
       localStorage.setItem('ot.lang', 'en');
     }, {
-      'ot.session': SESSION,
+      'ot.session': { ...SESSION, plan },
       'ot.tasks': demoTasks('en', new Date()),
       'ot.contacts': demoContacts('en', new Date()),
       'ot.followups': demoFollowUps('en'),
@@ -149,17 +151,34 @@ const SESSION = { userId: 'smoke', name: 'Khalid Al-Mansouri', firstName: 'Khali
   await page.getByTestId('compose-i-sent').click();
   await page.waitForTimeout(500);
   check('…and it says so, with a way back', await visible('compose-sent'));
-  const sent = await task('t1');
-  check('"In 2 days" marks it done, with the time', sent.status === 'done' && sent.sentConfirmedAt);
-  const fu = (await read('ot.followups'))[0];
-  check('…sets a waiting follow-up', fu.status === 'waiting' && fu.taskId === 't1' && fu.channel === 'whatsapp' && fu.contactId === 'c1');
-  check('…with the prototype’s note', fu.since === 'Sent today · follow up in 2 days', fu.since);
-  const days = Math.round((new Date(fu.nextAt) - new Date(sent.sentConfirmedAt)) / 86400000);
-  check('…due in two days', days === 2, `${days}`);
+  // On Free the send is recorded and nothing chases on its own; the row says
+  // which, and Change is still there to set one by hand.
+  check('…on Free, no chase starts by itself', (await read('ot.followups')).every((f) => f.taskId !== 't1'));
+  check('…and the row says Pro would', (await text('compose-sent')).includes('Pro follows up for you'), await text('compose-sent'));
+  check('…with Change still offered', await visible('compose-sent-change'));
+  const sentFree = await task('t1');
+  check('confirming marks it done either way, with the time', sentFree.status === 'done' && sentFree.sentConfirmedAt);
   // Compose stays a moment so Change and Undo are reachable, then leaves by
   // itself. Waiting for the navigation beats guessing how long that is.
   await page.waitForURL('**/today', { timeout: 9000 }).catch(() => {});
   check('…and returns to Today by itself', page.url().endsWith('/today'), page.url());
+
+  // ------------------------------------------ WhatsApp, the chase on Pro
+  await seed('pro');
+  await open('t1');
+  await page.getByTestId('compose-phone').fill('501112222');
+  await page.waitForTimeout(200);
+  await page.getByTestId('compose-send-wa').click();
+  await wait(1000);
+  await page.getByTestId('compose-i-sent').click();
+  await page.waitForTimeout(500);
+  const sent = await task('t1');
+  check('on Pro the chase starts by itself', sent.status === 'done' && sent.sentConfirmedAt);
+  const fu = (await read('ot.followups'))[0];
+  check('…a waiting follow-up, without being asked for', fu.status === 'waiting' && fu.taskId === 't1' && fu.channel === 'whatsapp');
+  check('…with the prototype’s note', fu.since === 'Sent today · follow up in 2 days', fu.since);
+  const days = Math.round((new Date(fu.nextAt) - new Date(sent.sentConfirmedAt)) / 86400000);
+  check('…due in two days, from the person’s own setting', days === 2, `${days}`);
 
   // ------------------------------------------- WhatsApp, number remembered
   await seed();
