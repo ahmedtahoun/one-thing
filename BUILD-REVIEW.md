@@ -1799,3 +1799,57 @@ such divergence adds a row to `REPLACEMENTS`. That is sustainable for a
 few and silly for twenty. RELEASE.md §9.5.1 is the matching product
 question; this is the engineering one, and it is worth answering
 deliberately rather than when the list gets long.
+
+### 2.57 strings.ts stops being generated, and the gates go in
+
+Two decisions from RELEASE.md §9.5.1, approved and applied.
+
+**`src/content/strings.ts` is a normal source file now.** It was generated
+from the design handoff, and the tell that the arrangement had ended was
+`REPLACEMENTS` (§2.56): to make regeneration safe I had copied the real
+privacy copy *into* the generator so the generator could reproduce it — a
+generator generating from itself. The handoff describes a prototype with no
+card scanner and no spreadsheet importer, nobody is updating it, and the
+file it produced now carries text that has to be legally true.
+
+The property worth keeping survives: EN/AR key parity comes from
+`const ACC_ar: typeof ACC_en` in the emitted code, not from the generator,
+so a missing translation is still a compile error. `port-content.js` keeps
+porting `icon-paths.ts`, `countries.ts` and `seed.ts`, which really are the
+designer's and which nobody edits, and keeps the refusal guard for those.
+
+**The gating matrix is settled** in `entitlements.ts`, with a meter
+preferred to a lock wherever the choice existed:
+
+- assistant — 10 a day, unchanged
+- brain dumps — 3 a day, metered at *sorting* rather than typing, so
+  rewording and sorting again does not cost two. `useBrainDumpMeter` is the
+  assistant's meter with a different key; running out opens the paywall the
+  same way the eleventh request does.
+- client history — **off the card, left open.** It is the person's own
+  notes about their own contacts; a window on your own data is the lock most
+  likely to produce a support ticket and the hardest to draw well. Dropping
+  a bullet costs one line of copy; building that lock costs design time.
+- weekly recap — off the card already (§2.56), still off for everyone.
+
+The paywall is four bullets now, from six.
+
+**Two premises did not survive the code, and are left undone.**
+
+*Webinars and courses cannot be created anywhere.* The event form supports
+all four types — the field table, lesson tracking, the tests — but every
+route into it passes `meeting` (from a contact, from People) or a type from
+`AddSheet`, which offers only call, email, WhatsApp and reminder since Today
+was trimmed from eight tiles to four. So "Meetings, webinars & courses"
+sells two things with no door, which is the Weekly recap problem again. The
+work is small — the feature is built and lost its entry point — but putting
+tiles back into a sheet the designer deliberately trimmed is a design
+decision, not a gate.
+
+*The follow-up cap has four creation points*, three of which are
+mid-batch: Quick capture, Brain dump and the Assistant each turn a parsed
+list into tasks and waiting items at once. Interrupting a batch with a
+paywall is the wrong answer, and quietly dropping the waiting ones is
+worse. What should happen when a Free account's fourth follow-up arrives
+inside a batch of nine is a product question, so `canAddFollowUp` exists in
+the policy and nothing calls it yet.

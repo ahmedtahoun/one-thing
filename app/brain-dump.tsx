@@ -8,6 +8,7 @@
 import { useRef, useState } from 'react';
 import { Pressable, TextInput, View } from 'react-native';
 import { router } from 'expo-router';
+import { useBrainDumpMeter } from '@/lib/assistant-meter';
 
 import { whenText } from '@/features/capture/labels';
 import { promiseDraft } from '@/features/compose/drafts';
@@ -38,6 +39,7 @@ export default function BrainDump() {
   const { session } = useSession();
   const { addTask } = useTasks();
   const toast = useToast();
+  const meter = useBrainDumpMeter();
 
   const [text, setText] = useState('');
   const [items, setItems] = useState<Item[] | null>(null);
@@ -76,6 +78,12 @@ export default function BrainDump() {
   /** The prototype sorts its sample when the box is empty; an empty box sorts nothing. */
   const sort = async () => {
     if (!text.trim()) return;
+    // Sorting is the metered step, not typing: changing your mind about the
+    // text and sorting again should not cost two. Out of dumps goes to the
+    // paywall, the same way the eleventh assistant request does.
+    if (!meter.ready) return;
+    if (!meter.canDump) return router.push('/paywall');
+    meter.spend();
     const found = await textParser.split(text, { lang, now: new Date(), contacts });
     setItems(found.map((p) => ({ ...p, keep: true })));
   };
