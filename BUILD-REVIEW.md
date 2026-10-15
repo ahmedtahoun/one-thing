@@ -2036,3 +2036,38 @@ the fold, which is right — three late tasks with one person are one card
 saying "+2 more" and three on the badge, because three things are waiting.
 The comment now says so, and a test pins it, because the next person to
 read that line would have "fixed" it.
+
+### 2.63 The bilingual copy, checked rather than trusted
+
+`additions.ts` is 907 lines of copy, and copy has no logic to review — so
+the question is not whether it is correct but whether anything is missing,
+in the language neither reviewer reads fluently enough to notice by eye.
+
+TypeScript already covers half of it: each `_ar` block is declared `typeof`
+its `_en` block, so a missing *key* is a compile error. What the compiler
+cannot see is inside the strings. Two things can go wrong there and ship —
+an Arabic line left blank, and one that lost the `{n}` or `{to}` the code
+substitutes into, which renders the braces to the person reading it.
+
+**All 964 pairs pass.** Nothing blank, and every placeholder present on
+both sides. Four pairs differ deliberately — `{name}` against `{الاسم}` —
+and both substitutions accept either spelling, which was worth confirming
+rather than assuming: `saved.ts` and `bulk/plan.ts` each carry
+`/\{(?:name|الاسم)\}/gi`.
+
+Also checked and not a problem: 40 pairs are identical in both languages,
+all of them internal keys ("gentle", "whatsapp"), times, icon names, brand
+names (Zoom, Coursera) and the privacy address. No untranslated sentence
+anywhere.
+
+The useful part is that this is now `src/content/copy.test.ts` rather than
+a throwaway script. A string added in English only, or an Arabic line that
+loses its placeholder in a later edit, now fails before it reaches a store
+reviewer. Confirmed by removing one `{to}` and watching it fail.
+
+Two other things read closely and found sound: `toSaved` escapes a
+person's name before building a `RegExp` from it, so a contact called
+"Sara (Acme)" cannot break the saved-message round trip; and "Send later"
+really does schedule — `remind: 'at'` derives the fire time from the
+`dueAt` it sets, and the evening option correctly disappears once 18:00 is
+less than two hours away.
