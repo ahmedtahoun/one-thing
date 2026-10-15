@@ -77,7 +77,7 @@ Arabic-locale pricing in SAR is a separate price tier per territory, and the
 app shows prices LTR inside Arabic text, so a SAR tier needs looking at on the
 Arabic paywall once it is live.
 
-### 1.3 Data region — **settled as `eu-west-1`, by default rather than by choice**
+### 1.3 Data region — **settled as `eu-west-1`, and now by choice**
 The project `ujcoouwbrkewckpphrod` was created in West EU (Ireland). That is
 the decision, and it cannot be moved: changing it means a new project and
 migrating whatever data is live by then.
@@ -103,6 +103,14 @@ worth knowing rather than discovering:
 If a Middle East region matters, the only cheap moment to act is before there
 is live data in this one. Check the region list in Supabase rather than
 trusting this file: what they offer changes.
+
+**Decided on 15 October: Ireland stays, and the transfer gets documented
+rather than avoided.** The deciding point is the one directly above — with an
+Egyptian controller there is no region inside both countries, so moving would
+trade one transfer for another rather than removing it. What the decision
+costs is a transfer to justify under both regimes; what it buys is not
+migrating a live project. The Privacy Policy already states where the servers
+are, so nothing in the app depends on revisiting this.
 
 ---
 
@@ -371,13 +379,19 @@ neither has ever run on hardware.
   - `privacy@onlyonething.app` has to receive mail. The policy names it four
     times as the way to exercise a right, so it is a promise rather than a
     courtesy, and nothing in this repo can make a mailbox.
-  - The in-app copy says `onlyonething.app/delete`, which points at nothing
-    until the domain is aimed at Pages. Note the asymmetry: the **store
-    listings** can be given the Pages URL and be perfectly fine, but the text
-    **inside the app** cannot, because it says the domain out loud. So either
-    point the domain at Pages, or change those two strings
-    (`src/content/strings.ts`, the `onlyonething.app/delete` pair). Leaving
-    both as they are is the one combination that is actually wrong.
+  - ~~The in-app copy says `onlyonething.app/delete`, which points at nothing
+    until the domain is aimed at Pages.~~ Changed on 15 October, because the
+    domain is not pointed yet and a dead link inside a shipped app is worse
+    than an ugly one. Four strings in `src/content/strings.ts` now say
+    `ahmedtahoun.github.io/one-thing/delete`, which resolves today: the
+    rights paragraph and the deletion note, in both languages. The Arabic
+    deletion note never carried the route at all and does now.
+
+    **These four revert the day the domain is live** — search for
+    `ahmedtahoun.github.io`. The policy's four `privacy@onlyonething.app`
+    mentions were left alone: a mailbox is a separate purchase from a
+    website, and guessing at a replacement address would be worse than
+    leaving the real one.
 - ~~**Legal review of that text.**~~ Settled. `ACC` was rewritten from summary
   copy into a full notice: the controller named (Where To Spot, a sole
   proprietorship on the Damanhour register, no. 101557, owned by Ahmed Salah

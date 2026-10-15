@@ -1128,7 +1128,7 @@ const ACC_en = {
     ],
     [
       "Your rights and choices",
-      "You can ask us to show you what we hold about you, correct it, delete it, hand it over in a form you can take elsewhere, pause what we do with it, or stop a particular use altogether. Downloading and deleting are built into Settings, and into onlyonething.app/delete; for anything else write to privacy@onlyonething.app and we will answer within 30 days. Marketing can be turned off in Settings whenever you like. Where we rely on your permission, you can withdraw it at any time — that stops what comes next, and does not undo what was already done while it stood."
+      "You can ask us to show you what we hold about you, correct it, delete it, hand it over in a form you can take elsewhere, pause what we do with it, or stop a particular use altogether. Downloading and deleting are built into Settings, and into ahmedtahoun.github.io/one-thing/delete; for anything else write to privacy@onlyonething.app and we will answer within 30 days. Marketing can be turned off in Settings whenever you like. Where we rely on your permission, you can withdraw it at any time — that stops what comes next, and does not undo what was already done while it stood."
     ],
     [
       "If you want to complain",
@@ -1309,7 +1309,7 @@ const ACC_ar: typeof ACC_en = {
     ],
     [
       "حقوقك وخياراتك",
-      "تقدر تطلب منا نوريك وش نحتفظ فيه عنك، أو تصحّحه، أو تحذفه، أو تسلّمه لك بصيغة تقدر تاخذها لمكان ثاني، أو توقف استخدامه مؤقتاً، أو تمنع استخدام معيّن نهائياً. التحميل والحذف موجودين داخل الإعدادات وعلى onlyonething.app/delete؛ وأي طلب ثاني راسلنا فيه على privacy@onlyonething.app وبنرد خلال ٣٠ يوم. والتسويق توقفه من الإعدادات متى ما تبي. وإذا كان أساسنا إذنك، تقدر تسحبه وقت ما تبي — والسحب يوقف اللي جاي، وما يلغي اللي صار وهو قائم."
+      "تقدر تطلب منا نوريك وش نحتفظ فيه عنك، أو تصحّحه، أو تحذفه، أو تسلّمه لك بصيغة تقدر تاخذها لمكان ثاني، أو توقف استخدامه مؤقتاً، أو تمنع استخدام معيّن نهائياً. التحميل والحذف موجودين داخل الإعدادات وعلى ahmedtahoun.github.io/one-thing/delete؛ وأي طلب ثاني راسلنا فيه على privacy@onlyonething.app وبنرد خلال ٣٠ يوم. والتسويق توقفه من الإعدادات متى ما تبي. وإذا كان أساسنا إذنك، تقدر تسحبه وقت ما تبي — والسحب يوقف اللي جاي، وما يلغي اللي صار وهو قائم."
     ],
     [
       "إذا تبي تقدّم شكوى",
@@ -1374,7 +1374,7 @@ const SETX_en = {
       "All tasks, follow-ups and notes",
       "Contacts and their history"
     ],
-    "delNote": "Data is removed within 30 days. A Pro subscription isn’t cancelled automatically — cancel it in App Store or Google Play settings. You can also request deletion at onlyonething.app/delete.",
+    "delNote": "Data is removed within 30 days. A Pro subscription isn’t cancelled automatically — cancel it in App Store or Google Play settings. You can also request deletion at ahmedtahoun.github.io/one-thing/delete.",
     "delCta": "Delete my account",
     "keep": "Keep my account",
     "free": "Free",
@@ -1452,7 +1452,7 @@ const SETX_ar: typeof SETX_en = {
       "كل المهام والمتابعات والملاحظات",
       "جهات الاتصال وسجلها"
     ],
-    "delNote": "تنحذف البيانات خلال ٣٠ يوم. اشتراك Pro ما ينلغي تلقائياً — ألغه من إعدادات App Store أو Google Play.",
+    "delNote": "تنحذف البيانات خلال ٣٠ يوم. اشتراك Pro ما ينلغي تلقائياً — ألغه من إعدادات App Store أو Google Play. وتقدر كمان تطلب الحذف من ahmedtahoun.github.io/one-thing/delete.",
     "delCta": "احذف حسابي",
     "keep": "خلّي حسابي",
     "free": "مجاني",
