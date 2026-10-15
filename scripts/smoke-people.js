@@ -205,11 +205,24 @@ const SESSION = { userId: 'smoke', name: 'Khalid Al-Mansouri', firstName: 'Khali
 
   await page.getByTestId('contact-details-toggle').click();
   await page.getByTestId('contact-note').fill('Prefers mornings');
-  await page.waitForTimeout(200);
-  check('the note saves as it is typed', (await read('ot.contacts')).find((c) => c.id === 'c1').rememberNote === 'Prefers mornings');
+  // The note has no Save button, so a pause is what commits it — a contact
+  // write serialises every contact, which is too much to do per keystroke.
+  await page.waitForTimeout(900);
+  check('the note keeps itself, without a Save button', (await read('ot.contacts')).find((c) => c.id === 'c1').rememberNote === 'Prefers mornings');
   await open('/contact?id=c1');
   await page.getByTestId('contact-details-toggle').click();
   check('…and is there next time', (await page.getByTestId('contact-note').inputValue()) === 'Prefers mornings');
+
+  // Typed and left behind at once. Leaving the FIELD has to commit it, since
+  // `open` here is a full page load, which never runs an unmount — on a
+  // device the screen really does unmount and that flush runs too.
+  await page.getByTestId('contact-note').fill('Allergic to almonds');
+  await page.getByTestId('contact-note').blur();
+  await page.waitForTimeout(150);
+  await open('/people');
+  check('a note typed and left straight away is still kept', (await read('ot.contacts')).find((c) => c.id === 'c1').rememberNote === 'Allergic to almonds', JSON.stringify((await read('ot.contacts')).find((c) => c.id === 'c1').rememberNote));
+  await open('/contact?id=c1');
+  await page.getByTestId('contact-details-toggle').click();
 
   check('Coming up lists their open task', await page.getByTestId('contact-next-t1').isVisible());
   check('History counts four moments', (await text('contact-history-count')) === '4 moments');

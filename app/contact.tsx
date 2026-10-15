@@ -9,7 +9,7 @@
  * "Details", so the page stays about the conversation.
  */
 import { clockOf } from '@/lib/clock-format';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Linking, Pressable, ScrollView, TextInput, View } from 'react-native';
 import { Redirect, router, useLocalSearchParams } from 'expo-router';
 
@@ -114,9 +114,40 @@ function Profile({ contact }: { contact: Contact }) {
     return () => clearTimeout(id);
   }, [contact.id]);
 
+  /**
+   * The note types into local state and reaches the contact a moment later.
+   *
+   * It used to call `updateContact` on every keystroke, and a contact write
+   * serialises the whole contact list to storage — so on a phone that has
+   * imported a few hundred prospects, every character re-wrote all of them.
+   * The quick-log box further down this screen already did it the right way:
+   * type into state, write on a deliberate action.
+   *
+   * A pause is the deliberate action here, since the note has no Save button.
+   * Leaving the field commits it too, and so does leaving the screen — two
+   * guards rather than one, because the pause is the only thing between a
+   * typed note and a note that was never kept.
+   */
+  const pendingNote = useRef<string | null>(null);
+  const noteTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const contactId = contact.id;
+
+  const flushNote = useCallback(() => {
+    if (noteTimer.current) clearTimeout(noteTimer.current);
+    noteTimer.current = null;
+    if (pendingNote.current === null) return;
+    const text = pendingNote.current;
+    pendingNote.current = null;
+    updateContact(contactId, { rememberNote: text });
+  }, [contactId, updateContact]);
+
+  useEffect(() => flushNote, [flushNote]);
+
   const saveNote = (text: string) => {
     setNote(text);
-    updateContact(contact.id, { rememberNote: text });
+    pendingNote.current = text;
+    if (noteTimer.current) clearTimeout(noteTimer.current);
+    noteTimer.current = setTimeout(flushNote, 600);
   };
 
   // A note that names a day or a time can also become a reminder for this person, in one tap.
@@ -374,6 +405,7 @@ function Profile({ contact }: { contact: Contact }) {
                   testID="contact-note"
                   value={note}
                   onChangeText={saveNote}
+                  onBlur={flushNote}
                   placeholder={pfx.l.rememberPh}
                   placeholderTextColor={ink.s5}
                   multiline

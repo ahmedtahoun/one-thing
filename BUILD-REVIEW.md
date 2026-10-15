@@ -1979,3 +1979,32 @@ characters.
 `maps.ts` was checked at the same time and is clean — fixed https scheme,
 the address properly encoded. `whatsAppUrl` strips everything but digits
 from the number, so it has nothing to steer.
+
+### 2.61 A note that rewrote every contact, once per character
+
+`app/contact.tsx` bound the "Remember for next time" note straight to the
+store: `onChangeText={saveNote}` → `updateContact` → `setContacts`, and a
+contact write serialises the **whole contact list** to storage. So each
+character re-wrote every contact on the phone — and build 9's headline
+feature is importing a few hundred prospects from a spreadsheet, which is
+exactly the person this costs most.
+
+The right pattern was already in the same file, 116 lines down: the quick
+log types into local state and writes on a deliberate action. The note has
+no Save button, so the deliberate action is a pause — 600 ms — with two
+further guards, because a pause is the only thing between a typed note and
+a note that was never kept: leaving the field commits it, and so does
+leaving the screen.
+
+**The test for this was asserting the behaviour, not the promise.** It read
+"the note saves as it is typed" and checked storage 200 ms later, which
+only a per-keystroke write can satisfy. What the person is owed is that
+the note keeps itself without a Save button, which is what it checks now.
+
+A new check covers typing and leaving at once, and it failed the first
+time — usefully. `open()` in the browser suites is `page.goto`, a full page
+load, and a page load never runs a React unmount, so the on-the-way-out
+flush could not fire there. On a device the screen really does unmount and
+it does. The blur guard is what makes the case safe in both, and the test
+says which of the two it is exercising rather than implying the unmount
+path is covered.
