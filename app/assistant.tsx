@@ -14,10 +14,15 @@
  */
 import { clockOf } from '@/lib/clock-format';
 import { useEffect, useRef, useState } from 'react';
-import { Pressable, ScrollView, View } from 'react-native';
+import { Linking, Pressable, ScrollView, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
+import * as DocumentPicker from 'expo-document-picker';
+import * as ImagePicker from 'expo-image-picker';
 
 import { added } from '@/content/additions';
+import { ClipSheet } from '@/features/assistant/ClipSheet';
+import { DataCard } from '@/features/assistant/DataCard';
+import { answerLine, fileLine } from '@/features/assistant/answer-line';
 import { AskChips } from '@/features/capture/AskChips';
 import { PersonSearchSheet } from '@/features/capture/PersonSearchSheet';
 import { ContactCard, type ContactEdit } from '@/features/capture/ContactCard';
@@ -59,10 +64,20 @@ import {
   readContact,
   type ContactFields,
 } from '@/lib/parse/contact';
+import { parseCard } from '@/features/card/parse';
+import { defaultSelection, type Candidate } from '@/features/people-import/columns';
+import { readDraft } from '@/features/people-import/read-draft';
+import { candidatesFromFile } from '@/features/people-import/read-file';
+import { canReadCards, readCard } from '@/lib/card-reader';
+import { askData, type DataAnswer, type DataWorld } from '@/lib/parse/ask-data';
+import { attachCommand, type Attach } from '@/lib/parse/attach';
 import { smallTalk } from '@/lib/parse/small';
 import { followUpFromParsed, taskFromParsed } from '@/lib/parse/to-task';
 import { LoopTag } from '@/features/capture/LoopTag';
 import { promiseDraft } from '@/features/compose/drafts';
+import { telUrl, whatsAppUrl } from '@/features/compose/recipient';
+import { useCadence } from '@/lib/cadence';
+import { useFavorites } from '@/lib/favorites';
 import { usePeople } from '@/lib/people';
 import { useSession } from '@/lib/session';
 import { deviceRegion, startListening } from '@/lib/speech';
@@ -108,6 +123,10 @@ type Message =
   | { id: string; from: 'bot'; kind: 'greet' }
   | { id: string; from: 'bot'; kind: 'saved'; time: string }
   | { id: string; from: 'bot'; kind: 'note'; text: string }
+  /** An answer read off the device: no request spent, nothing sent anywhere. */
+  | { id: string; from: 'bot'; kind: 'data'; answer: DataAnswer }
+  /** A file of people, read on the phone: the counts, then Add all or Review. */
+  | { id: string; from: 'bot'; kind: 'file'; candidates: Candidate[]; skipped: number; added?: number }
   | Ask
   | { id: string; from: 'bot'; intent: AssistantIntent; confirmed?: boolean };
 
@@ -121,7 +140,9 @@ export default function Assistant() {
   const dir = useDirection();
   const { session } = useSession();
   const { tasks, oneThing, addTask } = useTasks();
-  const { contacts, followUps, addContact, updateContact, addFollowUp } = usePeople();
+  const { contacts, followUps, history, addContact, addContacts, updateContact, addFollowUp, updateFollowUp } = usePeople();
+  const favorites = useFavorites();
+  const cadence = useCadence();
   const meter = useAssistantMeter();
   const toast = useToast();
   // Quick capture hands over a sentence that is really "save this person".
@@ -152,6 +173,8 @@ export default function Assistant() {
   const copy = added(lang);
   const quick = t.rQuick as unknown as readonly QuickWhen[];
   const world = (): World => ({ contacts, tasks, followUps, now: new Date() });
+  /** Everything a question can be answered from, all of it already here. */
+  const dataWorld = (): DataWorld => ({ contacts, tasks, followUps, history, favorites, cadence, now: new Date() });
 
   /** The last question still waiting for an answer, if the chat is mid-question. */
   const pending = [...messages].reverse().find((m): m is Ask => 'kind' in m && m.kind === 'ask' && !m.answered) ?? null;
@@ -186,6 +209,7 @@ export default function Assistant() {
     ]);
   };
 
+  const [clipOpen, setClipOpen] = useState(false);
   const [searchFor, setSearchFor] = useState<Ask | null>(null);
   const choose = (ask: Ask, option: AskOption) => {
     const action: AskAction = option.action;
@@ -360,6 +384,134 @@ export default function Assistant() {
     setMessages((list) => [...list, { id: newId(), from: 'me', text: said }, { id: newId(), from: 'bot', kind: 'note', text: reply }]);
   };
 
+  /**
+   * A question answered from People, the list, the follow-ups or the history.
+   *
+   * It never reaches `meter.spend()` or the `assist` function: the answer was
+   * already on the phone, so it costs nothing, works offline, and the words
+   * are not sent anywhere. A question the data cannot answer comes back as
+   * `unknown`, and says so with examples instead of being saved as a task.
+   */
+  const showData = (said: string, answer: DataAnswer) => {
+    setMessages((list) => [...list, { id: newId(), from: 'me', text: said }, { id: newId(), from: 'bot', kind: 'data', answer }]);
+  };
+
+  const open = (url: string) => void Linking.openURL(url).catch(() => toast.show(copy.qa.cantOpen, { undo: false }));
+
+  const dataActions = {
+    onContact: (contact: { id: string }) => router.push(`/contact?id=${contact.id}`),
+    onCall: (contact: { dial?: string; phone?: string }) => open(telUrl(contact.dial ?? '', contact.phone ?? '')),
+    onWhatsApp: (contact: { dial?: string; phone?: string }) => open(whatsAppUrl(contact.dial ?? '', contact.phone ?? '', '')),
+    onEmail: (contact: { email?: string }) => open(`mailto:${contact.email ?? ''}`),
+    onTask: (task: Task) => router.push(`/compose?id=${task.id}`),
+    onFollowUps: () => router.push('/followups'),
+    onReplied: (followUp: { id: string }) => {
+      updateFollowUp(followUp.id, { status: 'done', lastAction: 'closed', lastActionAt: new Date().toISOString() });
+      toast.show(fux.toastClose, { undo: false });
+    },
+  };
+
+  // --- a card or a file ---------------------------------------------------
+
+  /**
+   * A business card, through the camera or from the photo library.
+   *
+   * Read by the phone's own text reader (src/lib/card-reader.ts) and shown as
+   * the contact card the chat already has, so it is corrected and saved the
+   * same way a spoken contact is. The photo is not uploaded and not kept.
+   */
+  const readOneCard = async (from: 'scan' | 'photo') => {
+    if (!canReadCards()) return toast.show(copy.many.unsupported, { undo: false });
+    let picked: ImagePicker.ImagePickerResult | null;
+    if (from === 'scan') {
+      const permission = await ImagePicker.requestCameraPermissionsAsync().catch(() => null);
+      if (!permission?.granted) return toast.show(copy.many.cameraOff, { undo: false });
+      picked = await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.9 }).catch(() => null);
+    } else {
+      picked = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.9 }).catch(() => null);
+    }
+    const uri = picked && !picked.canceled ? picked.assets[0]?.uri : undefined;
+    if (!uri) return;
+    const lines = await readCard(uri).catch(() => []);
+    if (lines.length === 0) return toast.show(copy.scan.nothing, { undo: false });
+    nextContact(null, parseCard(lines, { region, prefer: lang }), copy.clip.scan);
+  };
+
+  /**
+   * A file of people — Excel with every sheet, CSV, PDF or vCard — read by the
+   * same pipeline the Import screen uses, and reported as counts in the chat.
+   * Nothing is saved until "Add all", and nothing is uploaded at any point.
+   */
+  const readPeopleFile = async () => {
+    const picked = await DocumentPicker.getDocumentAsync({ type: '*/*', copyToCacheDirectory: true, multiple: false }).catch(() => null);
+    const asset = picked && !picked.canceled ? picked.assets[0] : undefined;
+    if (!asset) return;
+    const reading = newId();
+    setMessages((list) => [...list, { id: reading, from: 'bot', kind: 'note', text: copy.clip.reading }]);
+    try {
+      const result = await candidatesFromFile(
+        {
+          name: asset.name,
+          mime: asset.mimeType,
+          text: async () => (await fetch(asset.uri)).text(),
+          bytes: async () => new Uint8Array(await (await fetch(asset.uri)).arrayBuffer()),
+        },
+        contacts,
+        region
+      );
+      setMessages((list) =>
+        list.map((m) =>
+          m.id === reading
+            ? 'error' in result
+              ? { id: m.id, from: 'bot' as const, kind: 'note' as const, text: copy.importer[result.error] }
+              : { id: m.id, from: 'bot' as const, kind: 'file' as const, candidates: result.candidates, skipped: result.skipped }
+            : m
+        )
+      );
+    } catch {
+      setMessages((list) => list.map((m) => (m.id === reading ? { id: m.id, from: 'bot' as const, kind: 'note' as const, text: copy.importer.failed } : m)));
+    }
+  };
+
+  const chooseClip = (choice: Attach) => {
+    if (choice === 'file') return void readPeopleFile();
+    void readOneCard(choice);
+  };
+
+  /** "Add all": everyone the Import screen would have ticked by default. */
+  const addFromFile = (msg: Extract<Message, { kind: 'file' }>) => {
+    const keep = defaultSelection(msg.candidates);
+    const chosen = msg.candidates.filter((c) => keep.has(c.key));
+    if (chosen.length === 0) return;
+    const saved = addContacts(
+      chosen.map((c) => ({
+        name: c.name,
+        role: c.role,
+        dial: c.dial,
+        phone: c.phone,
+        email: c.email,
+        address: c.address,
+        dial2: c.dial2,
+        phone2: c.phone2,
+        email2: c.email2,
+        labels: c.labels,
+        rememberNote: c.note,
+        preferredChannel: c.phone ? ('whatsapp' as const) : c.email ? ('email' as const) : undefined,
+        lastLabel: inline.addedToday,
+      }))
+    );
+    setMessages((list) => [
+      ...list.map((m) => (m.id === msg.id && 'kind' in m && m.kind === 'file' ? { ...m, added: saved.length } : m)),
+      { id: newId(), from: 'bot', kind: 'note', text: copy.clip.addedN.replace('{n}', String(saved.length)) },
+    ]);
+  };
+
+  /** "Review": the Import screen, with the file already read. */
+  const reviewFile = (msg: Extract<Message, { kind: 'file' }>) => {
+    readDraft.set({ name: '', candidates: msg.candidates, skipped: msg.skipped });
+    router.push('/import');
+  };
+
   // --- the microphone -----------------------------------------------------
 
   /** Tap to talk in the app's language; long-press to talk in the other one. */
@@ -392,8 +544,19 @@ export default function Assistant() {
       clear();
       return startContact(text);
     }
+    // "Import my excel", "صور كرت": the paperclip's choices, asked for in
+    // words. Read on the phone, so no request is spent on these either.
+    const attach = attachCommand(text);
+    if (attach) {
+      clear();
+      setMessages((list) => [...list, { id: newId(), from: 'me', text }]);
+      return chooseClip(attach);
+    }
+    // Hello, thanks and "what can you do?" are answered as they always were.
+    // A question about someone's details goes to askData instead, which finds
+    // the same person and can also offer the buttons to reach them.
     const small = smallTalk(text);
-    if (small) {
+    if (small && small.kind !== 'lookup') {
       clear();
       return answerSmall(text, small);
     }
@@ -402,6 +565,17 @@ export default function Assistant() {
       setInput('');
       reply(pending, text);
       return;
+    }
+    // Everything the app already knows, answered here: before the meter,
+    // before the network, and whether or not either is there.
+    const found = askData(text, dataWorld());
+    if (found) {
+      clear();
+      return showData(text, found);
+    }
+    if (small) {
+      clear();
+      return answerSmall(text, small);
     }
     if (!meter.ready) return;
     if (pending) setMessages((list) => list.map((m) => ('kind' in m && m.kind === 'ask' ? { ...m, answered: true } : m)));
@@ -553,7 +727,11 @@ export default function Assistant() {
                           ? m.text
                           : m.kind === 'contact'
                             ? contactLine(m)
-                            : questionFor(m.gap, m.draft, copy)
+                            : m.kind === 'data'
+                              ? answerLine(m.answer, copy.qa)
+                              : m.kind === 'file'
+                                ? fileLine(m, copy.clip)
+                                : questionFor(m.gap, m.draft, copy)
                     : m.intent.kind === 'task'
                       ? t.botTask
                       : m.intent.kind === 'plan'
@@ -566,6 +744,74 @@ export default function Assistant() {
                     options={optionsFor(m.gap, m.draft, copy, quick, new Date())}
                     onPick={(option) => choose(m, option)}
                   />
+                ) : null}
+                {'kind' in m && m.kind === 'data' ? (
+                  <DataCard
+                    answer={m.answer}
+                    copy={copy.qa}
+                    whenLabel={(iso) => (iso ? whenText(iso, t) : '')}
+                    {...dataActions}
+                  />
+                ) : null}
+                {'kind' in m && m.kind === 'data' && m.answer.kind === 'unknown' ? (
+                  <View testID="assistant-hint" style={{ flexDirection: dir.row, gap: 8, flexWrap: 'wrap' }}>
+                    {[copy.qa.egTask, copy.qa.egLate, copy.qa.egImport].map((label, i) => (
+                      <Pressable
+                        key={label}
+                        testID={`assistant-hint-${i}`}
+                        onPress={() => void send(label)}
+                        accessibilityRole="button"
+                        style={({ pressed }) => ({
+                          paddingVertical: 9,
+                          paddingHorizontal: 14,
+                          borderRadius: 999,
+                          borderWidth: 1,
+                          borderColor: surface.line,
+                          backgroundColor: pressed ? surface.fill : surface.white,
+                        })}
+                      >
+                        <Text token="caption" numberOfLines={1}>
+                          {label}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                ) : null}
+                {'kind' in m && m.kind === 'file' && m.candidates.length > 0 && m.added === undefined ? (
+                  <View style={{ flexDirection: dir.row, gap: 8, flexWrap: 'wrap' }}>
+                    <Pressable
+                      testID="assistant-file-add"
+                      onPress={() => addFromFile(m)}
+                      accessibilityRole="button"
+                      style={({ pressed }) => ({
+                        paddingVertical: 10,
+                        paddingHorizontal: 16,
+                        borderRadius: 999,
+                        backgroundColor: pressed ? ink.base : ink.solid,
+                      })}
+                    >
+                      <Text token="bodyS" weight="600" color={surface.white}>
+                        {copy.clip.addAll}
+                      </Text>
+                    </Pressable>
+                    <Pressable
+                      testID="assistant-file-review"
+                      onPress={() => reviewFile(m)}
+                      accessibilityRole="button"
+                      style={({ pressed }) => ({
+                        paddingVertical: 10,
+                        paddingHorizontal: 16,
+                        borderRadius: 999,
+                        borderWidth: 1,
+                        borderColor: surface.line,
+                        backgroundColor: pressed ? surface.fill : surface.white,
+                      })}
+                    >
+                      <Text token="bodyS" weight="600">
+                        {copy.clip.review}
+                      </Text>
+                    </Pressable>
+                  </View>
                 ) : null}
                 {'kind' in m && m.kind === 'contact' && m.status === 'open' ? (
                   <ContactCard
@@ -649,6 +895,7 @@ export default function Assistant() {
             onSend={() => send()}
             placeholder={listening ? copy.listening : t.chatPh}
             sendLabel={a11y.send}
+            clip={{ onPress: () => setClipOpen(true), label: copy.clip.open }}
             mic={{
               onPress: () => talk(),
               onLongPress: () => talk(true),
@@ -658,6 +905,7 @@ export default function Assistant() {
           />
         </View>
       </Screen>
+      <ClipSheet open={clipOpen} copy={copy.clip} onClose={() => setClipOpen(false)} onChoose={chooseClip} />
       <PersonSearchSheet
         open={searchFor !== null}
         title={searchFor ? questionFor(searchFor.gap, searchFor.draft, copy) : ''}

@@ -210,27 +210,49 @@ const D_SAMPLE =
   // the full stop is no longer part of what to match.
   check('…and says when it will remind', (await page.locator('body').innerText()).includes('Saved. I’ll tap you gently at 11:00') && (await count('assistant-kept')) === 1);
 
-  await page.getByTestId('assistant-chip-2').click();
-  await page.waitForTimeout(1000);
-  const plan = await text('assistant-plan');
-  check('"Arrange my day" lays out the day, One Thing first', plan.startsWith('09:00') && plan.includes('Finish the investor proposal') && plan.includes('Follow up on price quote'), plan.slice(0, 120));
-  await page.getByTestId('assistant-chip-3').click();
-  await page.waitForTimeout(1000);
-  check('"Who am I waiting on?" counts the real follow-ups', (await page.locator('body').innerText()).includes('1 need a nudge · 2 waiting on a reply'));
+  // Everything from here is answered from what is already on the device
+  // (src/lib/parse/ask-data.ts): no request spent, no server asked, and the
+  // meter check at the end of the block is what proves it.
+  const spent = async () => ((await read('ot.assistantUsage')) ?? { used: 0 }).used;
+  const afterTask = await spent();
 
+  await page.getByTestId('assistant-chip-2').click();
+  await page.waitForTimeout(900);
+  check('"Arrange my day" answers from the list itself', (await count('qa-tasks')) === 1);
+  check('…naming today\'s real tasks', (await text('qa-tasks')).includes('Follow up on price quote'), (await text('qa-tasks')).slice(0, 120));
+
+  await page.getByTestId('assistant-chip-3').click();
+  await page.waitForTimeout(900);
+  check('"Who am I waiting on?" answers from the follow-ups', (await count('qa-waiting')) === 1);
+  check('…and offers Replied on each', (await page.locator('[data-testid^="qa-replied-"]').count()) > 0);
+
+  await page.getByTestId('assistant-input').fill("What's Sara's number?");
+  await page.getByTestId('assistant-send').click();
+  await page.waitForTimeout(900);
+  check('a question about someone answers with their number', (await page.getByTestId('assistant-reply').last().innerText()).includes('50 331 2045'));
+  check('…and the ways to reach them', (await count('qa-call')) === 1 && (await count('qa-whatsapp')) === 1 && (await count('qa-email')) === 1);
+
+  await page.getByTestId('assistant-input').fill("What's late?");
+  await page.getByTestId('assistant-send').click();
+  await page.waitForTimeout(900);
+  check('"What\'s late?" answers from the list', (await page.getByTestId('assistant-reply').last().innerText()).match(/late|Nothing late/i) !== null);
+
+  const beforeFrance = await taskCount();
   await page.getByTestId('assistant-input').fill('What is the capital of France?');
   await page.getByTestId('assistant-send').click();
-  await page.waitForTimeout(1000);
-  // It no longer guesses a time to make a card out of anything said to it:
-  // a note with no "when" is answered with the question, and the card waits
-  // for the answer.
+  await page.waitForTimeout(900);
+  // A question it cannot answer is answered as one: it no longer becomes a
+  // task about the question, and it no longer asks when to do it.
   check(
-    'a question outside its scope is asked about, not guessed at',
-    (await count('assistant-ask')) === 1 && (await page.getByTestId('assistant-reply').last().innerText()).includes('When'),
+    'a question outside its scope says so and offers examples',
+    (await page.getByTestId('assistant-reply').last().innerText()).includes('best with your people') && (await count('assistant-hint')) === 1,
     await page.getByTestId('assistant-reply').last().innerText()
   );
-  check('…and saves nothing on its own', (await taskCount()) === askStart + 1);
-  check('each message spends one request', (await read('ot.assistantUsage')).used === 4);
+  check('…and saves nothing', (await taskCount()) === beforeFrance);
+  check('…and asks nothing', (await count('assistant-ask')) === 0);
+
+  check('none of those five questions spent a request', (await spent()) === afterTask, `${await spent()} vs ${afterTask}`);
+  check('…and the one real task did spend one', afterTask === 1, String(afterTask));
 
   await page.evaluate((day) => localStorage.setItem('ot.assistantUsage', JSON.stringify({ date: day, used: 10 })), dateKey(new Date()));
   await open('/assistant');

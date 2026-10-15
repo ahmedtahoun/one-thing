@@ -6,7 +6,7 @@
  * are already in People start unticked, so importing the same file twice does
  * not double anyone.
  */
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { FlatList, Pressable, View } from 'react-native';
 import { router } from 'expo-router';
 import * as DocumentPicker from 'expo-document-picker';
@@ -14,6 +14,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import { added } from '@/content/additions';
 import { defaultSelection, type Candidate } from '@/features/people-import/columns';
 import { candidatesFromFile } from '@/features/people-import/read-file';
+import { readDraft } from '@/features/people-import/read-draft';
 import { Button } from '@/ui/Button';
 import { Icon } from '@/ui/Icon';
 import { Screen } from '@/ui/Screen';
@@ -38,7 +39,17 @@ export default function ImportContacts() {
   const dir = useDirection();
   const copy = added(lang).importer;
   const { contacts, addContacts } = usePeople();
-  const [stage, setStage] = useState<Stage>({ kind: 'start' });
+  // The Assistant may have read the file already and sent us here to review
+  // it; picking the same file a second time is what that saves.
+  const [stage, setStage] = useState<Stage>(() => {
+    const handed = readDraft.peek();
+    return handed
+      ? { kind: 'preview', candidates: handed.candidates, selected: defaultSelection(handed.candidates), skipped: handed.skipped }
+      : { kind: 'start' };
+  });
+  useEffect(() => {
+    readDraft.clear();
+  }, []);
   const region = deviceRegion();
 
   const back = () => (router.canGoBack() ? router.back() : router.replace('/people'));

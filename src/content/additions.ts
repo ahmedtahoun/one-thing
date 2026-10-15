@@ -344,6 +344,66 @@ export type Added = {
     fix: string;
     nothing: string;
   };
+  /** Questions answered from the app's own data — §2.68. */
+  qa: {
+    call: string;
+    whatsapp: string;
+    email: string;
+    profile: string;
+    replied: string;
+    cantOpen: string;
+    noPhone: string;
+    noEmail: string;
+    works: string;
+    noWork: string;
+    which: string;
+    nobody: string;
+    lastWith: string;
+    noHistory: string;
+    todayN: string;
+    tomorrowN: string;
+    weekN: string;
+    lateN: string;
+    noneToday: string;
+    noneTomorrow: string;
+    noneWeek: string;
+    noneLate: string;
+    waitingN: string;
+    noneWaiting: string;
+    quietN: string;
+    noneQuiet: string;
+    quietDays: string;
+    labelN: string;
+    favN: string;
+    allN: string;
+    nonePeople: string;
+    more: string;
+    /** A question the Assistant cannot answer — it offers examples instead of saving a task. */
+    outOfScope: string;
+    egTask: string;
+    egLate: string;
+    egImport: string;
+  };
+  /** The paperclip: a card or a file, from the Assistant — §2.68. */
+  clip: {
+    open: string;
+    title: string;
+    scan: string;
+    scanSub: string;
+    photo: string;
+    photoSub: string;
+    file: string;
+    fileSub: string;
+    reading: string;
+    found: string;
+    foundSheets: string;
+    already: string;
+    skipped: string;
+    addAll: string;
+    review: string;
+    addedN: string;
+    nothing: string;
+  };
   /** Attachments and the choice of mail app. */
   attach: {
     button: string;
@@ -864,6 +924,63 @@ const ADDED: Record<Lang, Added> = {
       fix: 'Fix the fields',
       nothing: 'Nothing was read from this one. Type the name in, or remove it.',
     },
+    qa: {
+      call: 'Call',
+      whatsapp: 'WhatsApp',
+      email: 'Email',
+      profile: 'Open profile',
+      replied: 'Replied',
+      cantOpen: 'I couldn’t open that on this phone.',
+      noPhone: 'I don’t have a number for {n}.',
+      noEmail: 'I don’t have an email for {n}.',
+      works: '{n} · {w}',
+      noWork: 'I don’t have a company for {n}.',
+      which: 'Which {n}?',
+      nobody: 'They’re not in People yet.',
+      lastWith: 'Last with {n}',
+      noHistory: 'Nothing logged with {n} yet.',
+      todayN: '{n} today',
+      tomorrowN: '{n} tomorrow',
+      weekN: '{n} this week',
+      lateN: '{n} late',
+      noneToday: 'Nothing due today.',
+      noneTomorrow: 'Nothing due tomorrow.',
+      noneWeek: 'Nothing due this week.',
+      noneLate: 'Nothing late. You’re clear.',
+      waitingN: '{n} waiting on you',
+      noneWaiting: 'Nobody’s waiting on a reply.',
+      quietN: '{n} you haven’t reached in a while',
+      noneQuiet: 'Everyone you keep in touch with is up to date.',
+      quietDays: '{n} days',
+      labelN: '{n} tagged {w}',
+      favN: '{n} favourites',
+      allN: '{n} in People',
+      nonePeople: 'Nobody yet.',
+      more: '+{n} more',
+      outOfScope: 'I’m best with your people and your follow-ups.',
+      egTask: 'Remind me to call Sara at 4',
+      egLate: 'What’s late?',
+      egImport: 'Import a file',
+    },
+    clip: {
+      open: 'Add a card or a file',
+      title: 'Add people',
+      scan: 'Scan a business card',
+      scanSub: 'Use the camera',
+      photo: 'Card from photos',
+      photoSub: 'A photo you already took',
+      file: 'Excel, CSV, PDF or contacts file',
+      fileSub: 'Read on your phone, never uploaded',
+      reading: 'Reading it on your phone…',
+      found: 'Found {n} people',
+      foundSheets: 'Found {n} people in {s} sheets',
+      already: '{n} already saved',
+      skipped: '{n} skipped',
+      addAll: 'Add all',
+      review: 'Review',
+      addedN: 'Added {n} people.',
+      nothing: 'I couldn’t find anyone in that file.',
+    },
     listening: 'Listening…',
     micStart: 'Speak',
     micStop: 'Stop listening',
@@ -1280,6 +1397,63 @@ const ADDED: Record<Lang, Added> = {
       read: 'اللي انقرأ',
       fix: 'عدّل البيانات',
       nothing: 'ما انقرأ شيء من هذي. اكتب الاسم، أو احذفها.',
+    },
+    qa: {
+      call: 'اتصال',
+      whatsapp: 'واتساب',
+      email: 'إيميل',
+      profile: 'افتح الملف',
+      replied: 'رد',
+      cantOpen: 'ما قدرت أفتحه على هذا الجوال.',
+      noPhone: 'ما عندي رقم لـ{n}.',
+      noEmail: 'ما عندي إيميل لـ{n}.',
+      works: '{n} · {w}',
+      noWork: 'ما عندي شركة لـ{n}.',
+      which: 'أي {n}؟',
+      nobody: 'ما هو في الأشخاص بعد.',
+      lastWith: 'آخر شيء مع {n}',
+      noHistory: 'ما فيه شيء مسجّل مع {n} بعد.',
+      todayN: '{n} اليوم',
+      tomorrowN: '{n} بكرة',
+      weekN: '{n} هذا الأسبوع',
+      lateN: '{n} متأخرة',
+      noneToday: 'ما فيه شيء اليوم.',
+      noneTomorrow: 'ما فيه شيء بكرة.',
+      noneWeek: 'ما فيه شيء هذا الأسبوع.',
+      noneLate: 'ما فيه شيء متأخر. تمام.',
+      waitingN: '{n} مستنيينك',
+      noneWaiting: 'ما فيه أحد مستني ردك.',
+      quietN: '{n} ما كلمتهم من فترة',
+      noneQuiet: 'كل اللي تتابعهم على تواصل.',
+      quietDays: '{n} يوم',
+      labelN: '{n} مصنّفين {w}',
+      favN: '{n} في المفضلة',
+      allN: '{n} في الأشخاص',
+      nonePeople: 'ما فيه أحد بعد.',
+      more: '+{n} غيرهم',
+      outOfScope: 'أنا أفيدك أكثر في أشخاصك ومتابعاتك.',
+      egTask: 'فكرني أكلم سارة الساعة ٤',
+      egLate: 'وش المتأخر؟',
+      egImport: 'استورد ملف',
+    },
+    clip: {
+      open: 'أضف كرت أو ملف',
+      title: 'أضف أشخاص',
+      scan: 'امسح بطاقة عمل',
+      scanSub: 'بالكاميرا',
+      photo: 'كرت من الصور',
+      photoSub: 'صورة عندك من قبل',
+      file: 'ملف إكسل، CSV، PDF أو جهات',
+      fileSub: 'يُقرأ على جوالك، وما يُرفع',
+      reading: 'أقرأه على جوالك…',
+      found: 'لقيت {n} شخص',
+      foundSheets: 'لقيت {n} شخص في {s} شيتات',
+      already: '{n} محفوظين من قبل',
+      skipped: '{n} تجاهلناهم',
+      addAll: 'أضف الكل',
+      review: 'راجع',
+      addedN: 'أضفنا {n} شخص.',
+      nothing: 'ما لقيت أحد في هذا الملف.',
     },
     listening: 'أسمعك…',
     micStart: 'تحدّث',

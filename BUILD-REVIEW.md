@@ -2366,3 +2366,110 @@ no errors.
 third round button, and the row was already a fixed 42pt, so nothing below it
 moved — which is the answer the baseline exists to give, rather than something
 to take on trust.
+
+### 2.68 The Assistant answered questions by making a task about them
+
+The Assistant turned everything into a task. That is right for "call Sara
+tomorrow" and wrong for "what's Sara's number?", which came back as a to-do
+about asking the question — and it got there expensively: the words went to
+`supabase/functions/assist`, one of the Free plan's ten daily requests was
+spent, and the answer came back from a server for a question the phone was
+already holding the answer to.
+
+Three things now happen on the device, before the meter and before the
+network: a question about the person's own data is answered
+(`src/lib/parse/ask-data.ts`), a question outside that is answered as a
+question rather than saved, and a card or a file asked for in words opens the
+same thing the new paperclip does (`src/lib/parse/attach.ts`).
+
+#### Three outcomes, and the difference between two of them is the point
+
+`askData` returns one of three things, and the seam is deliberate:
+
+```
+null              nothing to look up — on to the parser, as before
+{kind:'unknown'}  a question, but not one of these — say so, save nothing
+anything else     the answer
+```
+
+Without that middle case the only choice is between guessing and silence.
+"What is the capital of France?" used to become a card waiting for a time;
+it now says what the Assistant is good at and offers three examples.
+
+The answers are **shapes, not sentences**: `DataAnswer` carries the contacts,
+tasks or follow-ups themselves, and the line is written by
+`src/features/assistant/answer-line.ts` in the person's language. That keeps
+the module pure, keeps the copy in `additions.ts`, and let all nine shapes be
+checked in both languages without a renderer — including that an empty result
+says "Nothing due today" rather than "0 today", which reads like a bug.
+
+#### What the existing code already knew
+
+Four of the six question families needed no new rule, only a caller:
+
+- `intentOf` already recognised "arrange my day" and the follow-ups question.
+  Both were going to the server to be told what a local regex had already
+  decided.
+- `readWho` already matched a name across spellings, so محمّد finds محمد.
+- `next/build.ts` already knew who has gone quiet. `quietIn` uses that same
+  rule rather than a second one, so the Assistant and the Next queue cannot
+  disagree about a person.
+- `clarify.ts` already answered questions "without spending an Assistant
+  request" — the pattern this follows.
+
+#### Five bugs the tests found, in order
+
+1. **`intentOf`'s follow-ups list does not know "owes me a reply".** It knows
+   "waiting". The brief asked for both, so there is a `WAITING_WORD` of its
+   own and `intentOf` is consulted beside it rather than trusted alone.
+2. **"ما كلمته" is in both the history list and the going-quiet list.** With
+   nobody named it means the list, so going quiet is read first, and the
+   history branch now requires a person — otherwise "who haven't I talked
+   to?" answered with a history nobody was in.
+3. **`QUIET_WORD` required "haven't talked" adjacent.** English puts the
+   subject inside the verb — "haven't **I** talked to" — so the commonest
+   phrasing of the commonest question never matched. The gap is part of the
+   pattern now.
+4. **Arabic asks for labels the app stores in English.** The three the app
+   suggests are "Client", "Lead", "Supplier", so "كم عميل عندي؟" could never
+   find them. `LABEL_WORDS` maps those three, longest first so "عميل محتمل"
+   is a Lead and not a Client. A label someone invented is still matched by
+   its own spelling.
+5. **A promise is not a question.** `intentOf` reads "waiting for Sara to
+   reply" as the follow-ups question, which would have answered with the list
+   instead of saving the follow-up. `loopOf` turns its own questions down
+   already, so consulting it first takes only the statements away.
+
+A sixth was a test of ours, not the code: a one-letter contact name matched
+inside "a while", because `readWho` looks for the name anywhere in the text.
+That is its business, not this module's, and a question opening with "who"
+now means a list even when a name brushes it.
+
+#### The paperclip
+
+Beside the microphone, three choices: the camera, a card already in the photo
+library, a file of people. A file goes through the same pipeline as the
+Import screen and is reported in the chat — "Found 45 people in 2 sheets · 3
+already saved · 2 skipped" — with **Add all** and **Review**. Review opens
+Import with the file already read (`read-draft.ts`, the same module-store
+shape as the contact draft), because picking the same file twice is what the
+chat was meant to save. Nothing is uploaded at any point.
+
+#### What the smoke suite now asserts
+
+The old block asserted the old behaviour, so it had to change, and the
+replacement is the better check. It drives five questions through the real
+exported app and then reads the meter:
+
+```
+none of those five questions spent a request
+…and the one real task did spend one
+```
+
+That is the whole claim of this section in two lines. 58 checks in that
+suite, 696 unit tests, zero drift since build 9 — the paperclip sits in a row
+that was already a fixed height.
+
+The phrases are listed in `ASSISTANT-PHRASES.md`, for the store listing and
+the help text, with a note that each line is covered by a test so the list
+cannot quietly stop being true.

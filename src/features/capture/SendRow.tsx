@@ -11,6 +11,10 @@
  * Return starts a new line, as in WhatsApp; only the button sends. The box
  * grows with the text up to about five lines, and the buttons stay at the
  * bottom beside the last one.
+ *
+ * The Assistant also gets a paperclip, for a business card or a file of
+ * people. Quick capture does not: it takes one sentence, and a file of
+ * contacts is not one.
  */
 import { forwardRef } from 'react';
 import { Pressable, TextInput, View } from 'react-native';
@@ -30,8 +34,10 @@ export const SendRow = forwardRef<
     testID: string;
     /** A microphone beside Send: tap to talk, long-press to talk in the other language. */
     mic?: { onPress: () => void; onLongPress?: () => void; listening: boolean; label: string };
+    /** A paperclip before the microphone: a business card, or a file of people. */
+    clip?: { onPress: () => void; label: string };
   }
->(function SendRow({ value, onChange, onSend, placeholder, sendLabel, testID, mic }, ref) {
+>(function SendRow({ value, onChange, onSend, placeholder, sendLabel, testID, mic, clip }, ref) {
   const dir = useDirection();
   return (
     <View style={{ flexDirection: dir.row, gap: 8, alignItems: 'flex-end' }}>
@@ -62,6 +68,26 @@ export const SendRow = forwardRef<
           textAlign: dir.textAlign,
         }}
       />
+      {clip ? (
+        <Pressable
+          testID={`${testID}-clip`}
+          onPress={clip.onPress}
+          accessibilityRole="button"
+          accessibilityLabel={clip.label}
+          style={({ pressed }) => ({
+            width: 50,
+            height: 50,
+            borderRadius: 25,
+            borderWidth: 1,
+            borderColor: surface.line,
+            backgroundColor: pressed ? surface.fill : surface.white,
+            alignItems: 'center',
+            justifyContent: 'center',
+          })}
+        >
+          <Icon name="clip" size={18} strokeWidth={1.7} />
+        </Pressable>
+      ) : null}
       {mic ? (
         <Pressable
           testID={`${testID}-mic`}
