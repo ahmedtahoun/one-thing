@@ -3009,7 +3009,7 @@ you spoke to an hour ago and could not forget, and the one slipping away is
 the one who has been waiting since Tuesday. So the sheet goes:
 
 ```
-1. they owe you a reply, and it is overdue   ← longest overdue first
+1. they owe you a reply, and it is overdue   ← longest wait first
 2. they owe you a reply
 3. you reached them lately                   ← most recent first
 4. you have not reached them in a while
@@ -3022,6 +3022,13 @@ which is not "they need me first" — and under the old `floatFavorites` a
 starred person with nothing outstanding sat above somebody who had been
 waiting a week. A test holds that line, because it is the rule most likely
 to be undone by someone who thinks it is a bug.
+
+So **the row carries a small star instead.** The old sheet marked nobody: a
+favourite was simply at the top, and position *was* the mark. Taking the
+float away without putting a star on the row would have removed the only
+answer the sheet gave to "who are my regulars?", which is a feature lost by
+accident rather than a decision. The smoke run stars Sara and then asserts
+both halves at once: the star is on her row, and her row is still third.
 
 **Each row now says what last happened** — "Waiting on a reply — Logo final
 files", "You emailed", "Nothing lately", "Never reached" — with a short age

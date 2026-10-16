@@ -12,7 +12,7 @@
  * an hour ago and could not forget if you tried, and the one slipping away
  * is the one who has been waiting since Tuesday. So:
  *
- *   1. they owe you a reply and it is overdue — longest overdue first
+ *   1. they owe you a reply and it is overdue — longest wait first
  *   2. they owe you a reply
  *   3. you reached them lately — most recent first
  *   4. you have not reached them in a while — least cold first
@@ -66,7 +66,7 @@ export function daysSince(iso: string | null | undefined, now: Date): number | n
   return Math.max(0, Math.floor((now.getTime() - at) / DAY));
 }
 
-/** The follow-up still open for this person, newest first, or null. */
+/** The one follow-up still open for this person — the oldest — or null. */
 function owedTo(contact: Contact, followUps: readonly FollowUp[], now: Date): FollowUp | null {
   const open = followUps.filter((f) => followUpStatus(f, now) !== 'done');
   const byId = open.filter((f) => f.contactId === contact.id);

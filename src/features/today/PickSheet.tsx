@@ -17,6 +17,7 @@ import { canReach } from '@/features/people/channel';
 import { matchContact } from '@/features/people/search';
 import { orderForPicking, type PickStatus } from '@/features/today/pick-order';
 import { Avatar } from '@/ui/Avatar';
+import { Icon } from '@/ui/Icon';
 import { Sheet } from '@/ui/Sheet';
 import { Text } from '@/ui/Text';
 import { fontFamily, ink, status as statusColour, surface, typeColour } from '@/design/tokens';
@@ -139,9 +140,18 @@ export function PickSheet({ channel, onClose, onPick }: { channel: Channel | nul
                   >
                     <Avatar name={c.name} contactId={c.id} size={42} />
                     <View style={{ flex: 1, minWidth: 0 }}>
-                      <Text token="body" weight="600" numberOfLines={1}>
-                        {c.name}
-                      </Text>
+                      <View style={{ flexDirection: dir.row, alignItems: 'center', gap: 5 }}>
+                        <Text token="body" weight="600" numberOfLines={1} style={{ flexShrink: 1 }}>
+                          {c.name}
+                        </Text>
+                        {/* A star no longer floats anybody to the top, so it has to be
+                            visible here, or the sheet stops showing who your regulars are. */}
+                        {favorites.has(c.id) ? (
+                          <View testID={`pick-star-${c.id}`} style={{ flexShrink: 0 }}>
+                            <Icon name="star" size={12} color={typeColour.visit.fg} filled />
+                          </View>
+                        ) : null}
+                      </View>
                       <Text token="micro" color={owed ? ink.s2 : ink.s4} numberOfLines={1}>
                         {said.text}
                       </Text>

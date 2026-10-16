@@ -540,8 +540,11 @@ const SESSION = { userId: 'smoke', name: 'Khalid Al-Mansouri', firstName: 'Khali
   // ------------------------------------------- the "Who?" sheet's order
   // It is ordered by what is owed, not by who was added first
   // (src/features/today/pick-order.ts). Noura owes a reply and it is due;
-  // Al Noor owes one that is not; Sara was emailed three days ago.
+  // Al Noor owes one that is not; Sara was emailed three days ago. Sara is
+  // starred on purpose: under the old sheet a star floated her to the top,
+  // and the order below is the proof that it no longer does.
   await seed();
+  await page.evaluate(() => localStorage.setItem('one-thing.favorites.v1', JSON.stringify(['c2'])));
   await open('/');
   await page.getByTestId('quick-action-whatsapp').click();
   await page.waitForTimeout(500);
@@ -553,7 +556,9 @@ const SESSION = { userId: 'smoke', name: 'Khalid Al-Mansouri', firstName: 'Khali
   );
   check('the overdue reply comes first', order[0] === 'pick-c4', JSON.stringify(order));
   check('…then the one still waiting', order[1] === 'pick-c5', JSON.stringify(order));
-  check('…then whoever was reached most recently', order[2] === 'pick-c2', JSON.stringify(order));
+  check('…then whoever was reached most recently, star or no star', order[2] === 'pick-c2', JSON.stringify(order));
+  check('a starred person is still marked as one', (await page.getByTestId('pick-star-c2').count()) === 1);
+  check('…and nobody else is', (await page.getByTestId('pick-star-c4').count()) === 0);
   const sheet = await page.getByTestId('pick-sheet').innerText();
   check('a row says what is owed, not a phone number', sheet.includes('Waiting on a reply — Logo final files'));
   check('…and never guesses he or she', !/\bhis\b|\bher\b|\bhim\b/i.test(sheet), sheet.slice(0, 160));
