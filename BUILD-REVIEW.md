@@ -2473,3 +2473,80 @@ that was already a fixed height.
 The phrases are listed in `ASSISTANT-PHRASES.md`, for the store listing and
 the help text, with a note that each line is covered by a test so the list
 cannot quietly stop being true.
+
+### 2.69 A feature that worked offline and did nothing in production
+
+`src/lib/parse/index.ts` asked the backend first and fell back to the
+on-device rules only when it could not answer:
+
+```ts
+return ((await askBackend('parse', text, ctx, invoke)) as ParsedTask | null)
+  ?? localParser.parse(text, ctx);
+```
+
+`AssistTask` on the wire has no `kind` field
+(`supabase/functions/_shared/assist-contract.ts`), and `kind` is where
+`promise` and `waiting` live. Only `src/lib/parse/promise.ts` finds them, and
+it runs on the device. So with the backend asked first, a reply could never
+carry either shape, and `app/capture.tsx:158` — `if (parsed.kind ===
+'waiting') addFollowUp(...)` — was unreachable whenever a backend was
+configured.
+
+"Waiting for Sara to reply about the quote" became an ordinary task instead of
+a follow-up. "I told Omar I'd send the contract Thursday" lost the promise
+tag. `promise.ts` is 143 lines with 158 lines of tests, `LoopTag` draws the
+badge, and `brain-dump.tsx:95` has the same branch: all of it worked in the
+tests, worked offline, and did nothing for a signed-in user. The tests passed
+because they call `localParser` directly; nothing exercised the router with a
+backend that answers.
+
+#### The rules go first now
+
+The order is inverted, with a gate (`src/lib/parse/confidence.ts`) deciding
+whether the sentence was explicit enough that the rules cannot be guessing.
+Three signals, all of which the parser already computed and threw away:
+
+- **a promise or a waiting** — not a preference: the server cannot express it
+- **a day or a time was actually said** — `dayOf().said`, `timeOf()`, `partOf()`
+- **a channel word and somebody already in People** — "email Sara", "كلم عمر"
+
+Anything else goes to the server, which is what it is good at: "the deck thing
+for sara" gets a model, "Call Sara at 4" does not. A brain dump is held to a
+stricter rule — every piece explicit — because splitting a messy paragraph is
+the one thing the server is plainly better at; the exception is a dump holding
+a promise, where going to the server would throw the promise away, and a
+clumsier split is the lesser loss.
+
+`keepKind` then puts the shape back onto any answer that did come from the
+server. Under this gate a promise never reaches it, so that function should
+never have anything to do. It is there so the bug cannot return by accident:
+loosen the gate later and the missing `kind` still cannot silently drop the
+feature.
+
+#### What the test said, and what it says now
+
+One test failed, and it was the right one:
+
+```
+it('uses Claude’s reading when the backend answers')
+  → parse('send sara the deck tomorrow at 10')
+```
+
+That note is now answered on the device, so the assertion had to change
+rather than be made to pass. It is two tests now — one for a vague note, which
+does go to the server, and one asserting the backend was **not called** for an
+explicit one, by counting the calls rather than inferring it. Five more cover
+the bug itself: a waiting, a promise, the Assistant's own path, a dump
+carrying a promise, and that nothing invents a `kind` for an ordinary note.
+
+#### One thing this leaves inconsistent, on purpose
+
+`app/assistant.tsx:586` spends the client's meter *before* calling the parser,
+so an Assistant message still costs one of the Free plan's ten even when the
+answer never left the phone. The server's meter only ticks when a request
+actually arrives, so the two now disagree, and the client over-counts.
+
+Making them agree is a one-line change — the gate is exported — but it is not
+a mechanical fix: it would mean the Free plan's ten go much further and the
+paywall appears less often, which is a pricing decision and not a bug. Left as
+it was, and raised rather than taken.
