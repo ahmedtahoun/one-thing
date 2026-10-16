@@ -110,6 +110,22 @@ async function signOut(page) {
     await page.locator('button').filter({ hasText: /^Tasks/ }).last().click();
     await page.waitForTimeout(400);
     check('the Tasks tab lists tasks', (await text(page)).includes('Confirm Friday catering order') || (await text(page)).includes('Overdue'));
+
+    // The Contacts tab: closed rows match the prototype, and open on a tap.
+    await page.locator('button').filter({ hasText: /^Contacts/ }).last().click();
+    await page.waitForTimeout(400);
+    body = await text(page);
+    check('the Contacts tab lists saved people', body.includes('Mohammed Al-Saadi') && body.includes('Client · Al-Saadi Trading'));
+    check('a second number is not shown until a row is opened', !body.includes('+966 11 477 3301'));
+    await page.getByText('Mohammed Al-Saadi', { exact: true }).first().click();
+    await page.waitForTimeout(400);
+    body = await text(page);
+    check('opening a row shows the rest', body.includes('+966 11 477 3301') && body.includes('Second email'));
+    check('the row says what it does not show', body.includes('notes are not shown here'));
+    check('the Owner can download the contacts', body.includes('Download CSV'));
+    await click(page, 'Download CSV');
+    await page.waitForTimeout(600);
+    check('the download says how many it took', (await text(page)).includes('Downloaded 10 contacts.'));
     await click(page, '✕');
 
     await page.getByText('Sara Haddad', { exact: true }).first().click();
@@ -129,6 +145,8 @@ async function signOut(page) {
     check('signing in is logged', body.includes('Signed in to admin'));
     check('opening a record is logged', body.includes('Opened user record · Khalid Al-Mansouri'));
     check('a tab view is logged', body.includes('Viewed tasks · Khalid Al-Mansouri'));
+    check('viewing contacts is logged', body.includes('Viewed contacts · Khalid Al-Mansouri'));
+    check('taking a copy of the contacts is logged, with the count', body.includes('Downloaded contacts (CSV, 10) · Khalid Al-Mansouri'));
     check('suspending and restoring are logged', body.includes('Suspended · Sara Haddad') && body.includes('Restored · Sara Haddad'));
 
     // ---------------------------------------------------------- support ----

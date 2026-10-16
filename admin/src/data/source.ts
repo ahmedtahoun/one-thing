@@ -59,6 +59,11 @@ export interface DataSource {
   fix(userId: string, kind: 'howto' | 'receipt' | 'resync'): Promise<void | Unavailable>;
   /** The user list as CSV. */
   usersCsv(): Promise<string>;
+  /**
+   * One user's saved contacts as CSV, for the drawer's Contacts tab. The
+   * whole list, not the hundred the tab shows.
+   */
+  contactsCsv(userId: string): Promise<string>;
   /** The pseudonymised analytics dataset: file name → CSV. */
   dataset(): Promise<Record<string, string>>;
 }

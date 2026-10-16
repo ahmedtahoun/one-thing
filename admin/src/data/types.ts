@@ -73,7 +73,27 @@ export type UserDetail = UserRow & {
   tickets: { id: string; text: string; resolved: boolean }[];
   activity: { title: string; detail: string; at: string; colour: string }[];
   taskList: { kind: TaskKind; title: string; who: string; at: string | null; status: 'Overdue' | 'Open' | 'Snoozed' | 'Done' }[];
-  contactList: { name: string; role: string; phone: string; email: string; history: number }[];
+  /**
+   * The people this user has saved. `name`, `role`, `phone` and `email` are
+   * the four the drawer's table shows; the rest open under a row when it is
+   * tapped. Deliberately **not** here: the contact's address, the user's
+   * labels for them, and the user's private note — all three are stored
+   * (DATA_MODEL § contacts) and none is named in the Privacy Policy's "Who
+   * at our company can see it", which lists "name, position, company, phone
+   * and email". Widening the sentence is a decision for the controller and
+   * the lawyer who reviewed it, not for this screen (BUILD-REVIEW § 2.73).
+   */
+  contactList: {
+    name: string;
+    role: string;
+    phone: string;
+    email: string;
+    history: number;
+    phone2: string;
+    email2: string;
+    /** How this user prefers to reach them, if they set it. */
+    channel: TaskKind | null;
+  }[];
   messages: {
     kind: TaskKind;
     to: string;

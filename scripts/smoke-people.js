@@ -27,7 +27,7 @@ const { launch: launchChromium } = require('./browser.js');
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
-const { demoContacts, demoFollowUps, demoHistory, demoTasks } = require('./demo-state.js');
+const { demoContacts, demoFollowUps, demoHistory, demoTasks, dateKey } = require('./demo-state.js');
 
 const ROOT = path.join(__dirname, '..');
 const DIST = path.join(ROOT, 'dist');
@@ -259,6 +259,100 @@ const SESSION = { userId: 'smoke', name: 'Khalid Al-Mansouri', firstName: 'Khali
   check('Edit opens the contact form', page.url().endsWith('/contact-edit?id=c4'), page.url());
   await open('/contact?id=nobody');
   check('an unknown contact goes to People', page.url().endsWith('/people'), page.url());
+
+  // ------------------------------------------------------------ Smart lists
+  // A smart list is a rule, not a folder: the chip is right every time it is
+  // tapped, so the test that matters is that answering a follow-up takes the
+  // person out of the list without anyone editing it.
+  await seed();
+  await open('/people');
+  await page.getByTestId('people-more').click();
+  await page.waitForTimeout(400);
+  check('People offers smart lists', await page.getByTestId('more-smart').isVisible());
+  await page.getByTestId('more-smart').click();
+  await page.waitForTimeout(500);
+  check('…and opens them', page.url().endsWith('/smart-lists'), page.url());
+  check('with nothing in them yet', await page.getByTestId('smart-none').isVisible());
+
+  await page.getByTestId('smart-add').click();
+  await page.waitForTimeout(300);
+  await page.getByTestId('smart-name').fill('Owes me');
+  await page.getByTestId('smart-cond-waiting').click();
+  await page.waitForTimeout(300);
+  const holds = await text('smart-holds');
+  check('the count is live while the rule is built', /\d/.test(holds), holds);
+  await page.getByTestId('smart-save').click();
+  await page.waitForTimeout(500);
+  check('a saved list is listed with its rule', (await text('smart-list')).includes('Owes me'), await text('smart-list'));
+  check('…and Free stops at one', await page.getByTestId('smart-capped').isVisible());
+
+  await open('/people');
+  const smartChip = page.locator('[data-testid^="people-filters-smart:"]');
+  check('it becomes a chip on People', (await smartChip.count()) === 1);
+  check('…carrying its own name', (await smartChip.first().innerText()).includes('Owes me'));
+  await smartChip.first().click();
+  await page.waitForTimeout(500);
+  const inList = await page.locator('[data-testid^="person-c"]:not([data-testid$="-due"])').count();
+  check('the chip shows the people the rule holds', inList > 0, String(inList));
+
+  // Close every follow-up and the same chip empties, with nothing edited.
+  await page.evaluate(() => {
+    const open = JSON.parse(localStorage.getItem('ot.followups') || '[]');
+    localStorage.setItem('ot.followups', JSON.stringify(open.map((f) => ({ ...f, status: 'done' }))));
+  });
+  await open('/people');
+  await page.locator('[data-testid^="people-filters-smart:"]').first().click();
+  await page.waitForTimeout(500);
+  check(
+    'answering them empties the list without anyone editing it',
+    (await page.locator('[data-testid^="person-c"]:not([data-testid$="-due"])').count()) === 0
+  );
+
+  // A deleted list must not leave People showing nothing.
+  await page.evaluate(() => localStorage.removeItem('one-thing.smartLists.v1'));
+  await open('/people');
+  check('a deleted list falls back to All', (await page.locator('[data-testid^="people-filters-smart:"]').count()) === 0);
+  check('…and People still lists everyone', (await people()) > 0);
+
+  // ---------------------------------------------------------- Weekly recap
+  // Your week (app/recap.tsx): every line comes off something the app dates,
+  // so the counts here are checked against the demo history itself rather
+  // than against a screenshot.
+  await seed();
+  // Three days with a win, one of them outside the week it covers.
+  const day = (n) => dateKey(new Date(Date.now() - n * 86400000));
+  await page.evaluate(
+    (days) => localStorage.setItem('one-thing.wins.v1', JSON.stringify(days)),
+    [day(0), day(2), day(30)]
+  );
+  await open('/recap');
+  check('the recap counts the days inside the week only', (await text('recap-days')).includes('2 of 7'), await text('recap-days'));
+  check('…and shows the streak when there is one', (await text('recap-days')).includes('streak'), await text('recap-days'));
+  const sent = await text('recap-sent');
+  check('it counts what went out, by what it was', /went out/.test(sent), sent);
+  check('…and a closed follow-up is not counted as something sent', !/^0 /.test(sent), sent);
+  check('it names who was reached', (await text('recap-reached')).match(/reached/i) !== null, await text('recap-reached'));
+  check('…each one tappable through to their profile', (await page.locator('[data-testid^="recap-person-"]').count()) > 0);
+  check('it says what carries into next week', (await text('recap-carrying')).length > 0, await text('recap-carrying'));
+
+  // Nothing recorded at all: a sentence, not a column of noughts.
+  await page.evaluate(() => {
+    localStorage.removeItem('one-thing.wins.v1');
+    localStorage.setItem('ot.tasks', '[]');
+    localStorage.setItem('ot.followups', '[]');
+    localStorage.setItem('ot.history', '[]');
+  });
+  await open('/recap');
+  check('an empty week says so instead of printing noughts', await page.getByTestId('recap-empty').isVisible());
+  check('…and shows no counts at all', (await page.getByTestId('recap-sent').count()) === 0);
+
+  // The way in.
+  await seed();
+  await open('/settings');
+  check('Settings links to it', await page.getByTestId('settings-recap').isVisible());
+  await page.getByTestId('settings-recap').click();
+  await page.waitForTimeout(500);
+  check('…and the link opens it', page.url().endsWith('/recap'), page.url());
 
   // ------------------------------------------------------------- Scan many
   // A stack of cards is its own way in (app/scan-many.tsx), beside the single

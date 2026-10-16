@@ -9,11 +9,14 @@ import { spendOne, usedOn } from './assistant-meter';
 import {
   assistantRequestsLeft,
   can,
+  canAddSmartList,
   canAutoChase,
   canBrainDump,
   canUseAssistant,
   FREE_ASSISTANT_REQUESTS_PER_DAY,
   FREE_BRAIN_DUMPS_PER_DAY,
+  FREE_SMART_LISTS,
+  limitsFor,
 } from '@/policy/entitlements';
 
 describe('the daily assistant meter', () => {
@@ -67,11 +70,37 @@ describe('the gates settled in October 2026', () => {
 
   it('leaves what the card no longer sells alone', () => {
     // Client history is the person's own notes; the event types have no way
-    // in since Today went to four tiles; Weekly recap has no screen at all.
-    // All three are off the paywall rather than locked.
+    // in since Today went to four tiles. Both are off the paywall rather
+    // than locked.
     assert.ok(can('free', 'clientHistory'));
     assert.ok(can('free', 'events'));
     assert.ok(can('free', 'autoFollowUps'));
-    assert.equal(can('pro', 'weeklyRecap'), false);
+  });
+
+  it('weekly recap is open to everyone now that it exists', () => {
+    // It came off the card because it had no screen (§2.56). It has one now
+    // (app/recap.tsx, §2.70) and reads only what is already on the device, so
+    // there is nothing to meter and nothing to lock. Putting it back on the
+    // paywall is a pricing decision, not a consequence of writing it.
+    assert.ok(can('free', 'weeklyRecap'));
+    assert.ok(can('pro', 'weeklyRecap'));
+  });
+
+  it('still answers false for the one listed and not written', () => {
+    // Enrichment is the last of Pro+'s three, and the only one that cannot be
+    // done from what the device already holds. The other two are built and
+    // metered rather than locked.
+    assert.equal(can('pro_plus', 'enrichment'), false);
+    assert.ok(can('pro_plus', 'bulkCardScan'));
+    assert.ok(can('free', 'smartLists'));
+  });
+
+  it('meters smart lists instead of locking them', () => {
+    assert.equal(limitsFor('free').smartLists, FREE_SMART_LISTS);
+    assert.equal(limitsFor('pro').smartLists, FREE_SMART_LISTS);
+    assert.equal(limitsFor('pro_plus').smartLists, null);
+    assert.ok(canAddSmartList('free', 0));
+    assert.equal(canAddSmartList('free', FREE_SMART_LISTS), false);
+    assert.ok(canAddSmartList('pro_plus', 50));
   });
 });

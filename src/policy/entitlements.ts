@@ -96,12 +96,25 @@ export const FREE_BRAIN_DUMPS_PER_DAY = 3;
  */
 export const FREE_BULK_CARDS_PER_BATCH = 5;
 
+/**
+ * How many smart lists are kept below Pro+.
+ *
+ * One, because one is enough to see what they are for and not enough to run a
+ * pipeline on. The first is where the idea lands — "clients I have not spoken
+ * to in a month" — and wanting a second is the moment the tier is worth
+ * paying for. A lock would instead hide the idea entirely, which sells
+ * nothing.
+ */
+export const FREE_SMART_LISTS = 1;
+
 type Limits = {
   /** `null` means unlimited. */
   assistantRequestsPerDay: number | null;
   brainDumpsPerDay: number | null;
   /** Cards kept from one bulk scan. Pro+ only is unlimited. */
   bulkCardsPerBatch: number | null;
+  /** Smart lists kept at once. Pro+ only is unlimited. */
+  smartLists: number | null;
 };
 
 export function limitsFor(plan: Plan): Limits {
@@ -110,6 +123,7 @@ export function limitsFor(plan: Plan): Limits {
     assistantRequestsPerDay: pro ? null : FREE_ASSISTANT_REQUESTS_PER_DAY,
     brainDumpsPerDay: pro ? null : FREE_BRAIN_DUMPS_PER_DAY,
     bulkCardsPerBatch: isProPlus(plan) ? null : FREE_BULK_CARDS_PER_BATCH,
+    smartLists: isProPlus(plan) ? null : FREE_SMART_LISTS,
   };
 }
 
@@ -123,17 +137,23 @@ export function limitsFor(plan: Plan): Limits {
 export function can(_plan: Plan, capability: Capability): boolean {
   switch (capability) {
     case 'weeklyRecap':
-      // No screen exists for it, so nothing should route to one. Off the
-      // paywall as well now (§2.56); this stays until it is built.
+      // Built now (app/recap.tsx, §2.70) and free, because it came off the
+      // paywall when it did not exist (§2.56) and putting it back on the card
+      // is a pricing decision rather than a consequence of writing it. Every
+      // number in it is read off the device, so there is nothing to meter.
+      return true;
+    case 'enrichment':
+      // The last of Pro+'s three, and still unwritten: nothing anywhere
+      // mentions LinkedIn, and looking a person up is the one of the three
+      // that cannot be done from what the device already holds. Listed so the
+      // paywall can name what the tier will be, and false so nothing routes
+      // to a screen that is not there.
       return false;
     case 'smartLists':
-    case 'enrichment':
-      // The rest of Pro+'s reason to exist, and neither is written:
-      // "segment" in this codebase is a segmented control, and nothing
-      // anywhere mentions LinkedIn. They are listed so the paywall can name
-      // what the tier will be, and false so nothing routes to a screen that
-      // is not there.
-      return false;
+      // Built (src/features/people/smart-lists.ts, §2.71) and metered rather
+      // than locked, like bulk card scanning: true for every plan, with the
+      // number in `limitsFor`.
+      return true;
     case 'bulkCardScan':
       // Built (app/scan-many.tsx) and metered rather than locked, so this is
       // true for every plan and the number is in `limitsFor` instead. See
@@ -204,4 +224,14 @@ export function bulkCardsLeft(plan: Plan, keptSoFar: number): number {
   const limit = limitsFor(plan).bulkCardsPerBatch;
   if (limit === null) return Infinity;
   return Math.max(0, limit - keptSoFar);
+}
+
+/**
+ * Whether another smart list can be made. Pro+ is unlimited; everyone else
+ * keeps `FREE_SMART_LISTS`, and the screen says so rather than hiding the
+ * button.
+ */
+export function canAddSmartList(plan: Plan, made: number): boolean {
+  const limit = limitsFor(plan).smartLists;
+  return limit === null || made < limit;
 }

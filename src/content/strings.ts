@@ -1392,7 +1392,7 @@ const SETX_en = {
       [
         "spark",
         "Unlimited smart assistant",
-        "Free plan: 10 requests a day."
+        "Free plan: 10 a day need the cloud."
       ],
       [
         "loop",
@@ -1421,7 +1421,7 @@ const SETX_en = {
       [
         "spark",
         "Smart assistant",
-        "10 requests a day."
+        "10 a day need the cloud."
       ],
       [
         "users",
@@ -1443,7 +1443,7 @@ const SETX_en = {
       [
         "list",
         "Smart lists",
-        "Groups that keep themselves up to date as people change."
+        "Groups that keep themselves up to date. Free keeps one."
       ],
       [
         "send",
@@ -1515,7 +1515,7 @@ const SETX_ar: typeof SETX_en = {
       [
         "spark",
         "مساعد ذكي بلا حدود",
-        "الخطة المجانية: ١٠ طلبات يومياً."
+        "الخطة المجانية: ١٠ في اليوم تحتاج السحابة."
       ],
       [
         "loop",
@@ -1544,7 +1544,7 @@ const SETX_ar: typeof SETX_en = {
       [
         "spark",
         "مساعد ذكي",
-        "١٠ طلبات في اليوم."
+        "١٠ في اليوم تحتاج السحابة."
       ],
       [
         "users",
@@ -1566,7 +1566,7 @@ const SETX_ar: typeof SETX_en = {
       [
         "list",
         "قوائم ذكية",
-        "مجموعات تحدّث نفسها كل ما تتغيّر بيانات الناس."
+        "مجموعات تحدّث نفسها. المجاني يحفظ واحدة."
       ],
       [
         "send",

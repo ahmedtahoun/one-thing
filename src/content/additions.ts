@@ -344,6 +344,65 @@ export type Added = {
     fix: string;
     nothing: string;
   };
+  /** Smart lists: a saved rule, re-read every time — §2.71. */
+  smart: {
+    entry: string;
+    entrySub: string;
+    title: string;
+    none: string;
+    noneBody: string;
+    add: string;
+    nameLabel: string;
+    namePh: string;
+    rule: string;
+    and: string;
+    daysN: string;
+    save: string;
+    remove: string;
+    holdsN: string;
+    holdsOne: string;
+    holdsNone: string;
+    needName: string;
+    needRule: string;
+    capped: string;
+    taggedTitle: string;
+    cFavourite: string;
+    cQuiet: string;
+    cWaiting: string;
+    cNever: string;
+    cNoPhone: string;
+    cNoEmail: string;
+  };
+  /** Weekly recap: the week read off what the app recorded — §2.70. */
+  recap: {
+    entry: string;
+    entrySub: string;
+    title: string;
+    empty: string;
+    emptyBody: string;
+    daysN: string;
+    dayOne: string;
+    streakN: string;
+    sentN: string;
+    sentOne: string;
+    calls: string;
+    messages: string;
+    emails: string;
+    meetings: string;
+    notes: string;
+    reached: string;
+    reachedOne: string;
+    timesN: string;
+    timesOne: string;
+    closedN: string;
+    closedOne: string;
+    waitingN: string;
+    waitingOne: string;
+    carrying: string;
+    carryingOne: string;
+    nothingSent: string;
+    allClear: string;
+  };
   /** Questions answered from the app's own data — §2.68. */
   qa: {
     call: string;
@@ -924,6 +983,63 @@ const ADDED: Record<Lang, Added> = {
       fix: 'Fix the fields',
       nothing: 'Nothing was read from this one. Type the name in, or remove it.',
     },
+    smart: {
+      entry: 'Smart lists',
+      entrySub: 'Groups that keep themselves up to date',
+      title: 'Smart lists',
+      none: 'No smart lists yet.',
+      noneBody: 'Make one and it becomes a chip on People, always current.',
+      add: 'New smart list',
+      nameLabel: 'Name',
+      namePh: 'Quiet clients',
+      rule: 'Who it holds',
+      and: 'and',
+      daysN: '{n} days',
+      save: 'Save',
+      remove: 'Delete this list',
+      holdsN: '{n} people',
+      holdsOne: '1 person',
+      holdsNone: 'Nobody, as things stand',
+      needName: 'Give it a name.',
+      needRule: 'Pick at least one thing it holds.',
+      capped: 'Free keeps {n} smart list. Pro+ keeps as many as you like.',
+      taggedTitle: 'Tagged',
+      cFavourite: 'A favourite',
+      cQuiet: 'No word for',
+      cWaiting: 'Owes me a reply',
+      cNever: 'Never written to',
+      cNoPhone: 'No number',
+      cNoEmail: 'No email',
+    },
+    recap: {
+      entry: 'Your week',
+      entrySub: 'What moved in the last seven days',
+      title: 'Your week',
+      empty: 'Nothing to show yet.',
+      emptyBody: 'Finish a task or send a message and this fills in.',
+      daysN: 'You finished something on {n} of 7 days',
+      dayOne: 'You finished something on 1 of 7 days',
+      streakN: '{n}-day streak',
+      sentN: '{n} things went out',
+      sentOne: '1 thing went out',
+      calls: 'calls',
+      messages: 'messages',
+      emails: 'emails',
+      meetings: 'meetings',
+      notes: 'notes',
+      reached: 'You reached {n} people',
+      reachedOne: 'You reached 1 person',
+      timesN: '{n} times',
+      timesOne: 'once',
+      closedN: '{n} follow-ups closed',
+      closedOne: '1 follow-up closed',
+      waitingN: '{n} still waiting on a reply',
+      waitingOne: '1 still waiting on a reply',
+      carrying: '{n} carrying into next week',
+      carryingOne: '1 carrying into next week',
+      nothingSent: 'Nothing went out this week.',
+      allClear: 'Nothing is carrying over. You start next week clear.',
+    },
     qa: {
       call: 'Call',
       whatsapp: 'WhatsApp',
@@ -1397,6 +1513,63 @@ const ADDED: Record<Lang, Added> = {
       read: 'اللي انقرأ',
       fix: 'عدّل البيانات',
       nothing: 'ما انقرأ شيء من هذي. اكتب الاسم، أو احذفها.',
+    },
+    smart: {
+      entry: 'قوائم ذكية',
+      entrySub: 'مجموعات تحدّث نفسها',
+      title: 'قوائم ذكية',
+      none: 'ما فيه قوائم ذكية بعد.',
+      noneBody: 'اعمل واحدة وتطلع شريحة في الأشخاص، محدّثة دايم.',
+      add: 'قائمة ذكية جديدة',
+      nameLabel: 'الاسم',
+      namePh: 'عملاء ساكتين',
+      rule: 'مين تضم',
+      and: 'و',
+      daysN: '{n} يوم',
+      save: 'حفظ',
+      remove: 'احذف هذه القائمة',
+      holdsN: '{n} أشخاص',
+      holdsOne: 'شخص واحد',
+      holdsNone: 'ما فيه أحد، بالوضع الحالي',
+      needName: 'سمّها أولًا.',
+      needRule: 'اختر شيئًا واحدًا على الأقل تضمّه.',
+      capped: 'المجاني يحفظ {n} قائمة ذكية. برو+ يحفظ اللي تبي.',
+      taggedTitle: 'التصنيف',
+      cFavourite: 'من المفضلة',
+      cQuiet: 'ما وصله شيء من',
+      cWaiting: 'يدين لي برد',
+      cNever: 'ما كتبت له أبدًا',
+      cNoPhone: 'بدون رقم',
+      cNoEmail: 'بدون إيميل',
+    },
+    recap: {
+      entry: 'أسبوعك',
+      entrySub: 'اللي صار في آخر سبعة أيام',
+      title: 'أسبوعك',
+      empty: 'ما فيه شيء نعرضه بعد.',
+      emptyBody: 'خلّص مهمة أو ابعت رسالة ويتعبّى هذا.',
+      daysN: 'خلّصت شيء في {n} من ٧ أيام',
+      dayOne: 'خلّصت شيء في يوم واحد من ٧',
+      streakN: '{n} يوم متواصل',
+      sentN: 'طلع {n} شيء',
+      sentOne: 'طلع شيء واحد',
+      calls: 'اتصالات',
+      messages: 'رسائل',
+      emails: 'إيميلات',
+      meetings: 'اجتماعات',
+      notes: 'ملاحظات',
+      reached: 'وصلت {n} أشخاص',
+      reachedOne: 'وصلت شخص واحد',
+      timesN: '{n} مرات',
+      timesOne: 'مرة واحدة',
+      closedN: 'أقفلت {n} متابعات',
+      closedOne: 'أقفلت متابعة واحدة',
+      waitingN: '{n} لسه مستنيين ردك',
+      waitingOne: 'واحد لسه مستني ردك',
+      carrying: '{n} ينقلون للأسبوع الجاي',
+      carryingOne: 'واحد ينقل للأسبوع الجاي',
+      nothingSent: 'ما طلع شيء هذا الأسبوع.',
+      allClear: 'ما فيه شيء ينقل. تبدأ الأسبوع الجاي صافي.',
     },
     qa: {
       call: 'اتصال',

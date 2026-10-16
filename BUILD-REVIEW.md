@@ -2473,3 +2473,317 @@ that was already a fixed height.
 The phrases are listed in `ASSISTANT-PHRASES.md`, for the store listing and
 the help text, with a note that each line is covered by a test so the list
 cannot quietly stop being true.
+
+### 2.69 A feature that worked offline and did nothing in production
+
+`src/lib/parse/index.ts` asked the backend first and fell back to the
+on-device rules only when it could not answer:
+
+```ts
+return ((await askBackend('parse', text, ctx, invoke)) as ParsedTask | null)
+  ?? localParser.parse(text, ctx);
+```
+
+`AssistTask` on the wire has no `kind` field
+(`supabase/functions/_shared/assist-contract.ts`), and `kind` is where
+`promise` and `waiting` live. Only `src/lib/parse/promise.ts` finds them, and
+it runs on the device. So with the backend asked first, a reply could never
+carry either shape, and `app/capture.tsx:158` — `if (parsed.kind ===
+'waiting') addFollowUp(...)` — was unreachable whenever a backend was
+configured.
+
+"Waiting for Sara to reply about the quote" became an ordinary task instead of
+a follow-up. "I told Omar I'd send the contract Thursday" lost the promise
+tag. `promise.ts` is 143 lines with 158 lines of tests, `LoopTag` draws the
+badge, and `brain-dump.tsx:95` has the same branch: all of it worked in the
+tests, worked offline, and did nothing for a signed-in user. The tests passed
+because they call `localParser` directly; nothing exercised the router with a
+backend that answers.
+
+#### The rules go first now
+
+The order is inverted, with a gate (`src/lib/parse/confidence.ts`) deciding
+whether the sentence was explicit enough that the rules cannot be guessing.
+Three signals, all of which the parser already computed and threw away:
+
+- **a promise or a waiting** — not a preference: the server cannot express it
+- **a day or a time was actually said** — `dayOf().said`, `timeOf()`, `partOf()`
+- **a channel word and somebody already in People** — "email Sara", "كلم عمر"
+
+Anything else goes to the server, which is what it is good at: "the deck thing
+for sara" gets a model, "Call Sara at 4" does not. A brain dump is held to a
+stricter rule — every piece explicit — because splitting a messy paragraph is
+the one thing the server is plainly better at; the exception is a dump holding
+a promise, where going to the server would throw the promise away, and a
+clumsier split is the lesser loss.
+
+`keepKind` then puts the shape back onto any answer that did come from the
+server. Under this gate a promise never reaches it, so that function should
+never have anything to do. It is there so the bug cannot return by accident:
+loosen the gate later and the missing `kind` still cannot silently drop the
+feature.
+
+#### What the test said, and what it says now
+
+One test failed, and it was the right one:
+
+```
+it('uses Claude’s reading when the backend answers')
+  → parse('send sara the deck tomorrow at 10')
+```
+
+That note is now answered on the device, so the assertion had to change
+rather than be made to pass. It is two tests now — one for a vague note, which
+does go to the server, and one asserting the backend was **not called** for an
+explicit one, by counting the calls rather than inferring it. Five more cover
+the bug itself: a waiting, a promise, the Assistant's own path, a dump
+carrying a promise, and that nothing invents a `kind` for an ordinary note.
+
+#### One thing this leaves inconsistent, on purpose
+
+`app/assistant.tsx:586` spends the client's meter *before* calling the parser,
+so an Assistant message still costs one of the Free plan's ten even when the
+answer never left the phone. The server's meter only ticks when a request
+actually arrives, so the two now disagree, and the client over-counts.
+
+Making them agree is a one-line change — the gate is exported — but it is not
+a mechanical fix: it would mean the Free plan's ten go much further and the
+paywall appears less often, which is a pricing decision and not a bug. Left as
+it was, and raised rather than taken.
+
+### 2.70 Weekly recap, without inventing it
+
+Weekly recap was on the paywall before it existed, and came off the card
+rather than being faked (§2.56). SCREENS.md never described it, so writing it
+meant deciding what it *is* — the thing §2.1 refused to do by guessing at a
+lock the design never drew.
+
+One rule kept that honest: **every line comes off something the app genuinely
+dates, and no row is filled with an estimate.** That rules things out, and the
+exclusions are the interesting part:
+
+- **Tasks closed this week cannot be counted.** `Task` has a `status` and no
+  "finished at", so the number does not exist. It is not shown, and not
+  approximated from `createdAt`.
+- What *is* dated: the days a win was recorded (`src/lib/wins.ts`), every
+  history entry (`at`), when a follow-up was last acted on (`lastActionAt`),
+  and when a person was last messaged (`touchedAt`).
+
+So the recap is five things: the days something was finished out of seven,
+with the streak; what went out, by kind; who heard from you, most often
+first; follow-ups closed and still waiting; and what carries into next week.
+`src/features/recap/week.ts` is that reading, pure, with 14 tests —
+including that a closed follow-up is not counted as something *sent*, that
+somebody since deleted is left out rather than drawn as a blank row, and that
+a week with only a future task still reads as empty.
+
+An empty week says so in a sentence. A column of noughts reads like a broken
+screen, and the first week of use is exactly when someone looks.
+
+**It is free.** `can('weeklyRecap')` is true for every plan. It came off the
+paywall because it had no screen; putting it back on the card now that it has
+one is a pricing decision, not a consequence of writing it, so that is left
+to the owner. It reads only what is already on the device, so there is nothing
+to meter either.
+
+#### The drift the entry point cost
+
+A `LinkRow` in Settings shifted the two probes below it — `coffee` and
+`signOut` — by exactly 61pt, the height of one row, identically in both
+languages. Four baseline lines changed, all `+61`:
+
+```
+-  "settings/en/coffee": 751,     +  "settings/en/coffee": 812,
+-  "settings/en/signOut": 967.5,  +  "settings/en/signOut": 1028.5,
+```
+
+Recorded here because §2.66's lesson was that a baseline written without
+looking is how a missing feature survives nine builds. This one was looked at:
+one row's height, only the probes below the insertion, both languages
+agreeing, nothing else moved.
+
+### 2.71 Smart lists: a rule, not a folder
+
+Pro+'s second feature, and the card already said what it had to be: "groups
+that keep themselves up to date as people change". That sentence rules out the
+obvious implementation. A folder people are *put into* goes stale the moment
+someone answers an email, and then needs tending — which is work the app
+exists to remove.
+
+So a smart list stores a **rule** and nothing else, and what it holds is
+computed every time the chip is drawn. Somebody leaves "owes me a reply" by
+replying. Somebody joins "quiet clients" by going quiet. Nobody files
+anything.
+
+Seven conditions, each reading something already on the device: a label, a
+favourite, no word for 7 / 14 / 30 / 90 days, an open follow-up, never written
+to, no number, no email. They join with **and**, deliberately: "clients I have
+not spoken to in a month" is `label:Client` and `quiet:30`, which is the shape
+real questions take, and mixing and with or needs a query builder — a
+different product from an app whose argument is fewer taps.
+
+Three decisions worth recording:
+
+- **An empty rule holds nobody, not everybody.** Deleting a list's last
+  condition and finding it now matches all 400 people would be a nasty
+  surprise, and the builder has nothing to show for it either.
+- **"Never written to" is its own condition, not "quiet for a long time".** A
+  contact added this morning has no `touchedAt`, and a list about relationships
+  going cold should not open with people you have never had one with.
+- **A chip whose list was deleted shows nobody and falls back to All.** The
+  alternative — an unresolved rule matching everything — would look like the
+  filter had broken.
+
+It lives on the device, with favourites and keep-in-touch rhythms
+(`src/lib/cadence.ts`), for the same reason: a smart list is not part of a
+contact, and a table the server has never seen is dropped on the next sync.
+
+**Metered, not locked**, like bulk card scanning and for the same reason —
+`FOR_SALE` still does not include Pro+, so a lock would hide the idea from
+everyone who could buy it. `FREE_SMART_LISTS = 1`: one is enough to see what
+they are for, and wanting a second is the moment the tier is worth paying for.
+The Pro+ card now says "Free keeps one" rather than describing the feature as
+though it were the tier's alone.
+
+#### What the smoke suite asserts
+
+The promise is "keeps itself up to date", so that is the check. It builds a
+list through the real screen, taps its chip on People, counts who is in it,
+then closes every follow-up in storage and taps the same chip again:
+
+```
+answering them empties the list without anyone editing it
+```
+
+Plus the deleted-list fallback, and that Free stops at one. 116 checks in
+smoke-people, 751 unit tests, 16 of them on the rule engine. Drift is
+unchanged: chips scroll sideways and the new way in is a row inside a sheet,
+so nothing on the screen itself moved.
+
+Pro+ is now two of three. Enrichment is the one left, and the only one of the
+three that cannot be answered from what the phone already holds.
+
+### 2.72 The meter counts requests again
+
+§2.69 moved the parser to the device, and §2.68 began answering questions from
+the person's own data. Both left `app/assistant.tsx` spending the meter before
+either ran:
+
+```ts
+meter.spend();
+intent = await textParser.interpret(text, …);
+```
+
+So an Assistant message cost one of the Free plan's ten whether or not
+anything was sent anywhere, while the server's own meter
+(`supabase/functions/assist/handler.ts`) ticked only on a request that
+actually arrived. The two counted different things, and the device counted
+more — far more, now that most notes never leave it. Someone could be locked
+out of an Assistant the server would happily have answered, on the strength of
+ten messages it never saw.
+
+The gate is already exported, so the fix is where the spend happens:
+
+```ts
+const needsServer = !localIsEnough(text, { lang, now: new Date(), contacts });
+if (needsServer) { …paywall check… }
+if (needsServer) meter.spend();
+```
+
+The number is unchanged — ten is still ten, still the one limit the handoff
+ever specified — but it now means ten *requests*, which is what it always
+said. In practice the Free plan stretches a long way: an explicit note, a
+question about your own people, hello and thanks all cost nothing, and only a
+note the rules cannot read is worth a request.
+
+Brain dump's meter is deliberately untouched. `canDump` counts **sorting a
+dump**, a feature with its own number on the card, not a call to anything;
+spending it is right whether the split happened on the device or not.
+
+#### What the card says now
+
+"10 requests a day" was accurate when every message was one. It now
+understates what Free gives, which is the safer direction but still not what
+is true, so the Pro card reads **"Free plan: 10 a day need the cloud."**
+
+Writing that turned up a smaller thing. The Free card does not render its
+features as rows at all — it joins their *names* into one line, "Smart
+assistant · People and follow-ups · Brain dumps" — so the sub-line edited
+alongside it is not displayed anywhere. Found by looking at the captured
+screenshot rather than by reasoning about the component, which is the only
+way that kind of thing surfaces. The string was left short and accurate
+rather than carrying a paragraph nothing shows.
+
+#### What the smoke suite asserts
+
+The old block ended on "the one real task did spend one". That task is
+"Call Faisal tomorrow at 11 about the contract" — a channel, a person and a
+time — so it is read on the device and now spends nothing. The assertions are
+inverted and extended:
+
+```
+none of those five questions spent a request
+…and nor did the explicit task, which the device read itself
+a note that needs the server spends one
+an explicit note still works with the day's requests gone
+…and still spends nothing
+the eleventh request on Free opens the paywall
+```
+
+The fourth is the user-visible change: running out no longer means losing the
+Assistant, only the part of it that needs a server.
+
+### 2.73 The Contacts tab opens, and exports
+The user drawer's Contacts tab showed four things about each saved person —
+name, position · company, one phone, one email — and had no way to get the
+list out. It now opens a row for the rest, and the Owner or Support can
+download the whole list as a CSV.
+
+**What a row holds now.** `UserDetail['contactList']` gained `phone2`,
+`email2` and `channel` (the user's preferred way of reaching them). Tapping a
+row opens them underneath it; tapping again closes it. Nothing is shown that
+was not shown before until a row is asked for.
+
+**What it still does not hold, on purpose.** The `contact` table also stores
+the person's `address`, the user's `labels` for them and the user's
+`remember_note` about them. None of those is selected, in the tab or in the
+file. The reason is the published Privacy Policy, under "Who at our company
+can see it":
+
+> Our support team can see your account details (name, email, phone, job
+> title), your tasks, the contacts you save (**name, position, company,
+> phone and email**) and your message drafts.
+
+That sentence is the promise, it was reviewed by a lawyer, and it is live on
+the website. Three fields sit outside it, and the note is the user's own
+writing about somebody else rather than a detail of that person. Widening
+what the panel can see means widening the sentence first — the controller's
+call and the lawyer's, not this screen's. `contactSelect` in
+`admin/src/data/db.ts` is the one place to change, and
+`src/data/csv.test.ts` asserts the file offers no `address`, `label` or
+`note` column so the decision cannot be undone by accident.
+
+**The download is logged as a copy, not a view.** It needs `export-user`, the
+same permission as sending a user their own export, because it is the same
+data leaving the panel. It writes its own audit line with the row count —
+`Downloaded contacts (CSV, 10) · Khalid Al-Mansouri` — so the log
+distinguishes a page that was read from a copy that was taken. Viewing the
+tab already wrote `Viewed contacts · …`; that has not changed.
+
+**Where the button had to go.** It is 12 px text beside "This view is
+logged", above the table, and that is a fidelity constraint rather than a
+taste. `06-user-contacts` probes where "Position · company" sits, and the
+harness gets there with `scrollIntoView`. The first attempt put a proper
+pill button in a row *below* the table: the extra 46 px of scrollable height
+let the drawer scroll further than the prototype can, so the probe moved
+`dy -46` and the screen went from 0.02 % to 2.19 % different. Anything added
+below that table moves it. Above it, at the same 12 px as the text it sits
+with, costs no height and nothing moves — `npm run fidelity` reports 56
+probes, 0 failing.
+
+**Checked:** `npm run typecheck` and `npm test` in `admin/` (11 CSV tests
+added), `npm run test:db` (13 against Postgres with every migration — the new
+one seeds an address, labels and a note and asserts none of the three reaches
+the file), `npm run smoke` (38 checks, including that the second number is
+hidden until a row is opened, that the download reports its count, and that
+both audit lines are written) and `npm run fidelity` (0 failing probes).

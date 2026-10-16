@@ -7,13 +7,20 @@
  */
 import { followUpStatus, type Contact, type FollowUp } from '@/lib/model-types';
 import { normalizeArabic } from '@/lib/parse/names';
+import { peopleIn, type SmartList } from './smart-lists';
 
 export type BaseFilter = 'all' | 'waiting' | 'favorites' | 'recent' | 'followups';
-/** A label is a chip too: `label:Client` shows everyone labelled Client. */
-export type PeopleFilter = BaseFilter | `label:${string}`;
+/**
+ * A label is a chip too: `label:Client` shows everyone labelled Client. So is
+ * a smart list — `smart:<id>` — which is a saved rule rather than a field, and
+ * is re-read every time the chip is tapped (./smart-lists.ts).
+ */
+export type PeopleFilter = BaseFilter | `label:${string}` | `smart:${string}`;
 
 export const labelFilter = (label: string): PeopleFilter => `label:${label}`;
 export const isLabelFilter = (filter: PeopleFilter): filter is `label:${string}` => filter.startsWith('label:');
+export const smartFilter = (id: string): PeopleFilter => `smart:${id}`;
+export const isSmartFilter = (filter: PeopleFilter): filter is `smart:${string}` => filter.startsWith('smart:');
 
 /** Every label in use, the most used first. */
 export function labelsIn(contacts: readonly Contact[]): string[] {
@@ -34,6 +41,8 @@ export type FilterContext = {
   followUps: readonly FollowUp[];
   favorites: ReadonlySet<string>;
   now: Date;
+  /** The person's smart lists, so a `smart:` chip can resolve its rule. */
+  smartLists?: readonly SmartList[];
 };
 
 /**
@@ -78,6 +87,11 @@ export function isRecent(contact: Contact, now: Date): boolean {
 
 /** The people a chip shows, in the order worth reading them in. */
 export function filterPeople(filter: PeopleFilter, contacts: readonly Contact[], context: FilterContext): Contact[] {
+  if (isSmartFilter(filter)) {
+    const list = context.smartLists?.find((l) => l.id === filter.slice('smart:'.length));
+    // A chip whose list has been deleted shows nobody rather than everybody.
+    return list ? peopleIn(list, contacts, { favorites: context.favorites, followUps: context.followUps, now: context.now }) : [];
+  }
   if (isLabelFilter(filter)) {
     const label = filter.slice('label:'.length);
     return contacts.filter((c) => c.labels?.includes(label));
