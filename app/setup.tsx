@@ -97,7 +97,11 @@ export default function Setup() {
         hitSlop={12}
         style={{ paddingVertical: 6, alignSelf: 'flex-start' }}
       >
-        <Icon name="back" size={24} strokeWidth={2} />
+        {/* A glyph, so it mirrors; the layout around it the root already
+            handles. Every other back chevron in the app does this. */}
+        <View style={{ transform: [{ scaleX: dir.isRTL ? -1 : 1 }] }}>
+          <Icon name="back" size={24} strokeWidth={2} />
+        </View>
       </Pressable>
 
       <View style={{ gap: 10, paddingTop: 12 }}>

@@ -96,6 +96,13 @@ const ROUTES = [
   // Nameless, as the prototype's demo account is; the name is shown in 24-paywall-named.
   { path: '/paywall', name: '24-paywall', signedIn: true, firstRun: false, session: { firstName: '' } },
   { path: '/paywall', name: '24-paywall-named', signedIn: true, firstRun: false },
+  // The three screens built after the handoff. They have no prototype shot to
+  // sit beside, so no pair in screen-pairs.json and nothing for `compare` to
+  // say — which is exactly why they need capturing: an eye on the Arabic is
+  // the only check they get (RELEASE.md § What is actually left, item 10).
+  { path: '/scan-many', name: '25-scan-many', signedIn: true, firstRun: false, seedPeople: true },
+  { path: '/recap', name: '26-recap', signedIn: true, firstRun: false, seedTasks: true, seedPeople: true, oneThing: true },
+  { path: '/smart-lists', name: '27-smart-lists', signedIn: true, firstRun: false, seedPeople: true, seedTasks: true },
 ];
 
 const MIME = {

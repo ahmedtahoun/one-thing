@@ -117,7 +117,11 @@ export const SendRow = forwardRef<
         accessibilityLabel={sendLabel}
         style={{ width: 50, height: 50, borderRadius: 25, backgroundColor: ink.solid, alignItems: 'center', justifyContent: 'center' }}
       >
-        <Icon name="send" size={18} color={surface.white} strokeWidth={1.7} />
+        {/* The plane points the way the words go, so it mirrors — the same
+            control on a contact's page already does. */}
+        <View style={{ transform: [{ scaleX: dir.isRTL ? -1 : 1 }] }}>
+          <Icon name="send" size={18} color={surface.white} strokeWidth={1.7} />
+        </View>
       </Pressable>
     </View>
   );

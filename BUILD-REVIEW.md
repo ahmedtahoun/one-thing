@@ -3060,3 +3060,70 @@ rule), `npm run smoke` (six suites, 328 checks — the sheet's order, its
 pills, its wording and that picking somebody still opens the draft),
 `npm run drift` (no failures), `npm run compare` (unchanged — it reports
 pixels and does not gate) and `npm run verify:colours`.
+
+### 2.78 Two arrows pointed the wrong way in Arabic
+The Arabic read beside the prototype's screenshots — the one check no
+automation can do (RELEASE.md, item 10) — found two glyphs that never
+mirrored.
+
+| Where | What Arabic showed |
+|---|---|
+| `app/setup.tsx` | the back chevron at the top **right**, pointing **left** |
+| `src/features/capture/SendRow.tsx` | a paper plane flying **right**, on Assistant and Quick capture |
+
+Both are the same mistake. Writing direction on the root flips where a
+control *sits*; nothing flips which way a glyph *points*, so each raw
+`<Icon>` has to be wrapped in `scaleX: dir.isRTL ? -1 : 1`. `BackButton`
+does it, and so do the twelve screens that draw the icon directly — these
+two were the exceptions. The send one is the plainer of the two: the
+identical control on a contact's page already mirrored, so the same Arabic
+app had two send buttons pointing opposite ways.
+
+**Nothing could have caught them.** No unit test reads a transform. No
+drift probe measures one. `compare` is pixels, and a 22px glyph is 0.03% of
+a 402×874 screen — the setup screen's Arabic actually scored *better*
+against the prototype than its English (2.24% vs 2.61%) while the arrow was
+backwards. That is the argument for the human read, and also the argument
+for not relying on it twice.
+
+So `src/ui/back-chevron.test.ts` now reads the source instead, where the
+mistake is made: every `<Icon name="…">` whose path data points along the
+line of writing — `back`, `send`, `chevR`, `arrow` — must have a `scaleX`
+or a `rotate` within a few lines of it. `chev` is excluded because its own
+path (`m6 9 6 6 6-6`) points **down**, and mirroring a vertical glyph does
+nothing — `CountryPicker` depends on that (§2.21). `loop` and `search` are
+excluded because neither platform mirrors a refresh circle or a magnifier.
+The test was written against the bugs: with either fix reverted it fails
+and names the file and line.
+
+**Checked and correct**, so recorded rather than changed: the tab bar, the
+quick actions, People's header cluster, every segmented control (including
+Language, whose logical order is `[English, العربية]` in both), the
+follow-up filter chips, the thread's bubbles (`alignSelf: 'flex-end'` and
+`borderTopEndRadius` are already direction-aware), and the phone field,
+which deliberately stays LTR in Arabic because a number is an LTR island —
+the prototype's own Arabic screenshot does the same. Compose's "Last time"
+chevron still points the opposite way to the prototype, which remains
+right: §2.19 records that the prototype double-mirrors it.
+
+Two things found on the way that are **not** mine to decide:
+
+- **`/tasks` is a `Redirect` to `/today`**, so `07-tasks` captures Today and
+  `screen-pairs.json` compares it against the prototype's all-tasks screen.
+  That pair is the largest number in the whole `compare` report (26%) and
+  means nothing. Either drop the pair or capture Today's "All" segment.
+- **Arabic mixes two digit systems.** Hand-written Arabic copy uses
+  Arabic-Indic (`٧ أيام`, `٥ أكتوبر`); everything computed comes out Latin,
+  because it is `String(n)`. Settings shows "جرّب Pro مجاناً ٧ أيام" and
+  "45 د" in the same list. The prototype's own convention is Arabic-Indic
+  for counts and Latin for prices, which the app follows except where the
+  number is computed. One string has both inside one sentence:
+  `daysN: 'خلّصت شيء في {n} من ٧ أيام'`.
+
+### 2.79 Three screens had no screenshot in either language
+`/scan-many`, `/recap` and `/smart-lists` were built after the handoff, so
+they have no prototype shot, no pair in `screen-pairs.json` — and, it turns
+out, no route in `scripts/capture-screens.js` either. An eye on the Arabic
+was the only check they were ever going to get, and there was nothing to
+look at. They are captured now, as `25-scan-many`, `26-recap` and
+`27-smart-lists`, in both languages.
