@@ -750,6 +750,68 @@ creates two accounts for one person, and there is no merge path.
 
 ---
 
+### 9.10 A review pass, read as the two reviewers would
+
+Done 16 October, against the App Store Review Guidelines and Play's policy
+pages, using this repository as the evidence rather than a checklist.
+
+**Would be rejected, in the order it would happen:**
+
+1. **The paywall shows prices nothing fetched — Apple 3.1.2.** `PRICES` in
+   `src/features/paywall/plans.ts` is a constant table in cents, `money()`
+   renders it, and **`purchases.ts` exports no product lookup at all**:
+   `startPurchases`, `startTrial`, `buyTip`, `restorePurchases`,
+   `manageSubscription`, and nothing that asks the store what anything
+   costs. The file's own comment says "the store's own localised figures
+   replace" them — that describes an intention, not the code. So everyone,
+   in every territory, is shown **$6.99 / $39.99** while the store charges
+   a SAR tier to a Saudi buyer. Apple checks the figure on the screen
+   against the product, and a wrong currency is also a refund queue.
+2. **The products do not exist yet** (§9.6, item 2). `pro_monthly`,
+   `pro_yearly`, `tip_small|regular|large`. A reviewer who taps "Start 7
+   days free" and watches nothing happen files a 2.1.
+3. **A paused Supabase project is a rejection.** The free tier sleeps after
+   inactivity; if it is asleep when the reviewer signs in, sign-in fails and
+   the app is unusable. This is the likeliest *surprise* rejection, because
+   nothing in the repository can see it coming. Budget the Pro tier before
+   you submit, not after.
+4. **Nothing has run on hardware** (§9.1). Any launch crash is a 2.1, and
+   the web harness cannot find one.
+
+**Fixed while reviewing:** `expo-contacts` is listed in `plugins` with no
+props, so it fell back to `'Allow $(PRODUCT_NAME) to access your
+contacts'`, and `ios.infoPlist` had no `NSContactsUsageDescription` of its
+own — boilerplate is a documented 5.1.1 rejection, and it would have been
+the one stub among six careful strings. It now says what is true.
+
+**Google Play, specifically:**
+
+- **Data safety must match the policy**, and the plugin adds
+  `READ_CONTACTS` on Android beyond the two permissions `app.json` lists.
+  Declare: name, email, phone numbers, contacts, photos, microphone, app
+  activity. Blocking `WRITE_CONTACTS` and both storage permissions was the
+  right call and already done.
+- **The account-deletion URL is required**, and it exists:
+  `website/delete/index.html`, live on `gh-pages`. Enter that URL in the
+  Play Console — the same one the policy names.
+- **The microphone needs a prominent disclosure** before first use, over
+  and above the Data safety entry.
+
+**A blocker that may not be one.** The plan lists "a reviewer demo account"
+as required because the app is behind sign-in. It offers **Sign in with
+Apple** on iOS and Google on both, so a reviewer can make their own account
+in two taps — which is what Apple asks for. Supply one anyway if the
+backend might be flaky, but it is not the hard gate the list implies.
+
+**What passed, so it is not re-litigated at 2am:** Sign in with Apple is
+offered wherever Google is (4.8). Deletion is in Settings *and* on the web
+(5.1.1(v)). The paywall carries Restore, Terms and Privacy (3.1.1, 3.1.2).
+Tips are IAP and the copy says plainly that they unlock nothing — no
+external payment anywhere in the app. Export compliance is declared. The
+five other purpose strings are specific and honest about when each thing is
+used. The policy is published, names its controller, its recipients, its
+retention and its transfers.
+
 ## What is actually left
 
 Last checked against the repository on 16 October 2026, counting the three
