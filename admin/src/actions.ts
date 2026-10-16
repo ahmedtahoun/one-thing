@@ -16,7 +16,7 @@
 import { authorise } from '@/auth/session';
 import { mode, source } from '@/config';
 import { isUnavailable, type Unavailable } from '@/data/source';
-import type { Plan, SubStatus, UserDetail, UserRow } from '@/data/types';
+import { COMP_MONTHS, type Plan, type SubStatus, type UserDetail, type UserRow } from '@/data/types';
 
 export type Outcome = { toast?: string; error?: string };
 /** An action on one user hands back their record as it now is, under the action's own log line. */
@@ -114,15 +114,44 @@ export async function extendTrial(userId: string): Promise<UserOutcome> {
   }
 }
 
-export async function grantPro(userId: string): Promise<UserOutcome> {
+/**
+ * Pro given free, for a month to a year (0012_comp_grant.sql).
+ *
+ * **Giving, never selling.** Taking money outside the app for something
+ * used inside it is App Store Guideline 3.1.1. Nothing here takes payment,
+ * and `reason` is required so the audit can say a year later why somebody
+ * was not charged.
+ *
+ * It needs no store. What makes a person Pro is `app_user.plan`, which the
+ * app pulls on every sync — a receipt is how a *paid* plan arrives, not
+ * what a plan is.
+ */
+export async function grantComp(userId: string, months: number, reason: string): Promise<UserOutcome> {
+  try {
+    const admin = await authorise('grant');
+    const why = reason.trim();
+    if (!(COMP_MONTHS as readonly number[]).includes(months)) return { error: 'Give a comp for 1, 3, 6 or 12 months.' };
+    if (why.length < 3) return { error: 'Say why this is being given — it goes in the audit log.' };
+    const data = await source();
+    const name = await named(userId);
+    await data.grantComp(userId, months, why, admin.id);
+    const length = months === 12 ? '1 year' : `${months} months`;
+    await data.log(admin.id, `Granted ${months === 1 ? '1 month' : length} Pro · ${name}`, why, userId);
+    return { toast: `${name} has Pro for ${months === 1 ? '1 month' : length}.`, detail: await after(userId) };
+  } catch (e) {
+    return failed(e);
+  }
+}
+
+/** Takes a comp back now, rather than at the end of the hour. */
+export async function revokeComp(userId: string): Promise<UserOutcome> {
   try {
     const admin = await authorise('grant');
     const data = await source();
     const name = await named(userId);
-    const result = await data.grantPro(userId);
-    if (isUnavailable(result)) return NOT_YET(result);
-    await data.log(admin.id, 'Granted 1 month Pro · ' + name, 'Comp', userId);
-    return { toast: 'Pro granted for 1 month.', detail: await after(userId) };
+    await data.revokeComp(userId);
+    await data.log(admin.id, `Took back comped Pro · ${name}`, 'Comp ended early', userId);
+    return { toast: `${name} is back on their own plan.`, detail: await after(userId) };
   } catch (e) {
     return failed(e);
   }
@@ -215,6 +244,42 @@ export async function exportUserContactsCsv(userId: string): Promise<Outcome & {
     const rows = Math.max(0, csv.trimEnd().split('\n').length - 1);
     await data.log(admin.id, `Downloaded contacts (CSV, ${rows}) · ${name}`, 'Support / troubleshooting', userId);
     return { csv, filename: `contacts-${userId}.csv`, toast: `Downloaded ${rows} ${rows === 1 ? 'contact' : 'contacts'}.` };
+  } catch (e) {
+    return failed(e);
+  }
+}
+
+/**
+ * A new password for a teammate, shown to the Owner once.
+ *
+ * For the case the panel otherwise has no answer to: somebody on the team
+ * has forgotten their password. There is no email recovery — the panel has
+ * no mailbox to send from (BUILD-REVIEW § 2.37) — and no self-service
+ * reset, because a person who cannot sign in cannot reach one.
+ *
+ * Three things keep it narrow:
+ *
+ * - **Owner only** (`reset-password`), checked here on the server, not by
+ *   hiding a button.
+ * - **Never your own.** An Owner who has forgotten their own password
+ *   cannot sign in to use this, so a self-reset would only ever be a
+ *   signed-in session changing its own credentials — and if that session is
+ *   not the owner's, the reset hands the account over for good. Refused.
+ * - **Nothing is kept.** The password is returned to the caller and
+ *   forgotten. It is not stored, and the audit line records that a reset
+ *   happened, never what it was.
+ */
+export async function resetAdminPassword(memberId: string): Promise<Outcome & { password?: string; who?: string }> {
+  try {
+    const admin = await authorise('reset-password');
+    if (memberId === admin.id) return { error: 'Change your own password in Supabase — a reset here is for somebody else.' };
+    const data = await source();
+    const member = (await data.team()).find((m) => m.id === memberId);
+    if (!member) return { error: 'No such admin.' };
+    const result = await data.resetAdminPassword(memberId);
+    if (isUnavailable(result)) return NOT_YET(result);
+    await data.log(admin.id, `Reset password · ${member.name}`, 'Team & roles');
+    return { password: result.password, who: member.name, toast: `New password for ${member.name}. It is shown once.` };
   } catch (e) {
     return failed(e);
   }

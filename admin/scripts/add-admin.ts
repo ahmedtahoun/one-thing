@@ -12,13 +12,13 @@
  *
  * Not yet run against a real project — there is none (BUILD-REVIEW.md §2.37).
  */
-import { randomBytes } from 'node:crypto';
 import readline from 'node:readline/promises';
 
 import { createClient } from '@supabase/supabase-js';
 import postgres from 'postgres';
 
 import { adminDomainList, isAdminEmail } from '../src/auth/domains';
+import { newPassword } from '../src/auth/password';
 
 const [email, name, role] = process.argv.slice(2);
 const ROLES = ['Owner', 'Support', 'Analyst'];
@@ -34,7 +34,7 @@ async function main() {
   if (!url || !anon || !service || !database) throw new Error('Set NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY and DATABASE_URL.');
 
   // A one-time password, shown once, for the new admin to sign in with.
-  const password = randomBytes(12).toString('base64url');
+  const password = newPassword();
   const adminApi = createClient(url, service, { auth: { persistSession: false } });
   const { data: created, error: createError } = await adminApi.auth.admin.createUser({ email, password, email_confirm: true });
   if (createError || !created.user) throw createError ?? new Error('Could not create the account.');

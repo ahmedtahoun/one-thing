@@ -2829,3 +2829,169 @@ bad address, and `npm run fidelity` still reports 56 probes, 0 failing.
 `npm run test:db` (13), `npm run smoke` (39 — the refusal message, and that
 an `@wheretospot.com` address gets past the gate) and `npm run fidelity`
 (0 failing).
+
+### 2.75 The Owner can reset a teammate's password
+The panel had no answer for a forgotten password. There is no email
+recovery — no mailbox to send from (§2.37) — and `/setup` closes the moment
+an Owner exists, so the only route was the Supabase dashboard. **Team &
+roles → Reset password** now sets a new one and shows it to the Owner once,
+to hand over.
+
+**What it deliberately is not.** Three flows were on the table and two were
+left out:
+
+- *Change your own password, signed in.* Useful, but it rescues nobody: a
+  person who has forgotten theirs cannot sign in to reach it.
+- *Email a recovery link.* The familiar flow, and the one that cannot work
+  here — Supabase's built-in mailer delivers only to members of the Supabase
+  team, so it would ship dead until an email provider exists, like the data
+  export and the support reply.
+- Neither helps the case that prompted this: a **sole Owner** locked out.
+  Nothing inside the panel can, by definition. That stays the dashboard, or
+  emptying `admin_member` and running `/setup` again, and DEPLOY.md § 4 now
+  says so.
+
+**The guards, in the order they run.** Each is on the server; none is a
+hidden button:
+
+1. `authorise('reset-password')` — a new permission, Owner only. Support and
+   Analyst cannot reach Team & roles at all, and would be refused here even
+   if they could.
+2. **Never your own account.** An Owner who has forgotten their password
+   cannot sign in to use this, so a self-reset could only ever be a
+   signed-in session rewriting its own credentials — which, if that session
+   is not the Owner's, hands over the account for good. Refused with a
+   message pointing at Supabase.
+3. The target must be on the team: `admin_member` is checked by `user_id`,
+   which is also why `TeamMember` now carries `id`.
+4. **It changes the password and nothing else.** The authenticator stays
+   enrolled — a forgotten password is not a lost phone — and existing
+   sessions stay alive. If the worry is a stolen account rather than a
+   forgotten password, **Suspend** is the button: it bans the account in
+   Supabase Auth outright. Two problems, two tools.
+
+**The password.** 16 random bytes, base64url, about 22 characters, from
+`src/auth/password.ts`, which `scripts/add-admin.ts` now shares instead of
+generating its own 12. It is returned to the browser, shown once with a Copy
+button, and forgotten: never stored, and the audit line says
+`Reset password · Dana Al-Anazi` and never what the password was. A smoke
+check asserts the log does not contain it.
+
+**It does not force the key into production.** Setting a password needs
+`SUPABASE_SERVICE_ROLE_KEY`, which DEPLOY.md § 4 previously had the deployer
+delete after setup. Rather than make keeping it a condition of this feature,
+the action returns the familiar `Unavailable` and the button says "Not
+connected yet — resetting a password needs SUPABASE_SERVICE_ROLE_KEY…". The
+deployment decides; § 4 now lays out both choices and what each costs. The
+check order matters and is tested: *who* before *can we*, so an id that is
+nobody's says "No such admin" whether or not the key is set, instead of the
+answer changing with the deployment.
+
+**What it will not do behind Supabase's back.** The panel's own connection
+could reach into `auth.users` and rewrite the password hash directly — it
+runs as a role that bypasses RLS. It does not. That table is Supabase's, and
+a change on their side would turn a silent success into a locked-out admin.
+The test against Postgres asserts the account is byte-identical after a
+reset refused for want of the key.
+
+**Where the button sits.** On each member's row, 30 px inside a 34 px row,
+so the list keeps the prototype's geometry; the confirm strip and the
+password card open *underneath* a row rather than inside it. Scene
+`13-team-roles` still reports its probes in place — 56 probes, 0 failing —
+and the pixel difference goes from 0.10 % to 0.22 %, which is the two
+buttons the prototype never drew.
+
+**Checked:** `npm run typecheck`, `npm test` (20, three new on the password
+helper plus the permission tests), `npm run test:db` (15 — the refusal
+without the key, that nothing changed, that a non-admin id is rejected, and
+that every team member carries the id a reset needs), `npm run smoke`
+(47 — the Owner is not offered a reset of their own row, it asks first,
+Cancel leaves nothing on screen, the password is 22 characters, Done clears
+it, and the audit line holds the reset but not the password) and
+`npm run fidelity` (0 failing).
+
+### 2.76 Pro can be given, for a month to a year
+"Grant Pro (comp)" and "Extend trial 7 days" have always answered *"Not
+connected yet — comp Pro needs the stores' promotional offers."* That read
+our own system wrongly. What makes somebody Pro is `app_user.plan`, which
+the app pulls on every sync (`src/lib/sync/engine.ts:421`); a receipt is how
+a *paid* plan arrives, not what a plan is. A gift needs no store at all.
+
+The drawer's Subscription card now gives Pro for **1, 3, 6 or 12 months**,
+with a reason, and takes it back.
+
+**Giving, never selling.** Taking money outside the app for something used
+inside it is App Store Guideline 3.1.1. Nothing here takes payment; the
+panel says so where the choice is made, the migration's header says so, and
+`reason` is `not null` with a non-blank check so the audit can say a year
+later why somebody was not charged.
+
+**Why a table of its own** (`comp_grant`, 0012) rather than a `subscription`
+row:
+
+- `subscription.user_id` is the **primary key** — one row per person. A comp
+  written there would overwrite a real store subscription, including the
+  `original_transaction_id` the webhooks match a notification back to.
+- Overview's revenue estimate counts `subscription` rows at list price. A
+  gift is not revenue, and keeping it out of that table means it cannot
+  become revenue by accident. A test asserts a comped user is not counted
+  among paying subscribers.
+- A person can be comped more than once. One row cannot hold that, and the
+  second grant **stacks** on the end of the first rather than replacing it:
+  three months then one month is four, not one.
+
+**What the sweep had to learn.** `lapse_expired_subscriptions()` (0007) is
+replaced, for two reasons:
+
+1. It would have lapsed the very person a comp was paying for — their store
+   subscription ending is exactly when the gift is meant to carry them.
+2. It listed `('trial', 'pro')`, which 0011 did not revisit when it added
+   `pro_plus`, so a Pro+ subscriber would never have lapsed at all. Latent,
+   because nothing writes that plan yet.
+
+A second function, `expire_comp_grants()`, puts a person back when the gift
+ends **or is taken back** — `lapsed` if they ever had a subscription of
+their own, `free` if they never did — and leaves alone anybody still covered
+by another comp or a live subscription. It runs hourly beside the lapse
+sweep, and the panel calls it directly when the Owner takes a comp back, so
+that is immediate rather than up to an hour late.
+
+**A bug the Postgres tests caught before it shipped.** `set plan = case …
+then 'lapsed' else 'free' end` is `text`, and the column is `plan_kind`:
+every expiry would have thrown. Both arms are cast now. It would not have
+shown up in any browser test, because the sweep runs on a schedule.
+
+**Where it sits.** The button keeps the prototype's exact label and width;
+the lengths, the reason and the warning open *underneath* it inside the same
+card, so the Subscription card keeps its shape until it is asked for. A
+comped user sees "Comped Pro until 16 Jan — Ticket #1182" and a "Take the
+comp back" button instead of a second grant. `npm run fidelity`: 56 probes,
+0 failing.
+
+**It goes into the person's own data export, and CI insisted.** Every table
+with a `user_id` must be either exported or excluded with a reason, checked
+against the live schema by `scripts/test-export-db.ts` — a guard that caught
+this table the moment it existed, which is exactly what it is for. A comp is
+exported for the same reason `subscription` is: it is why their plan was
+what it was. `granted_by` is not: it names a member of staff, and staff are
+not part of a user's data, which is why `admin_member` is excluded outright.
+`Exported` gained an optional `hide`, and `exportDocument` drops those
+columns as it builds — pure, and unit-tested.
+
+**Still not built:** "Extend trial 7 days" stays unavailable. A trial is the
+store's own object with the store's own rules, and stretching one is not
+something our `plan` column can honestly do. A comp is the answer to the
+same support problem.
+
+**Checked:** `npm run typecheck`, `npm test` (20), `npm run test:db`
+in `admin/` (21 — six new: that a comp makes somebody Pro with no store, that a second
+stacks, that it is not counted as a subscription, that the sweep does not
+lapse a comped user but does once it is revoked, that expiry returns `free`
+or `lapsed` correctly, that taking it back is immediate and keeps the row,
+and that the table refuses a 2-month length, a blank reason and a plan that
+is not Pro), `npm run smoke` (58 — the picker is shut until asked for, a
+comp with no reason is refused, the grant shows its end date and reason, a
+comped user is not offered a second one, and both the grant and the
+take-back are logged with the reason) and `npm run fidelity` (0 failing).
+At the root: `npm test` (755, four new on the export document),
+`npm run test:db` (33) and `npm run verify:colours`.

@@ -21,10 +21,11 @@ export type Permission =
   | 'delete' // Delete account, Delete now
   | 'codes' // offer codes
   | 'audit' // read the audit log
-  | 'team'; // Team & roles
+  | 'team' // Team & roles
+  | 'reset-password'; // set a teammate's password, shown once
 
 const ROLE: Record<Role, Permission[]> = {
-  Owner: ['overview', 'dataset', 'personal', 'trial', 'reply', 'export-user', 'fix', 'grant', 'suspend', 'delete', 'codes', 'audit', 'team'],
+  Owner: ['overview', 'dataset', 'personal', 'trial', 'reply', 'export-user', 'fix', 'grant', 'suspend', 'delete', 'codes', 'audit', 'team', 'reset-password'],
   Support: ['overview', 'personal', 'trial', 'reply', 'export-user', 'fix'],
   Analyst: ['overview', 'dataset'],
 };

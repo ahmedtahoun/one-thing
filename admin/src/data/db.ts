@@ -12,8 +12,11 @@
 import 'server-only';
 
 import { createHash, createHmac } from 'node:crypto';
+
+import { createClient } from '@supabase/supabase-js';
 import postgres from 'postgres';
 
+import { newPassword } from '../auth/password';
 import { contactsToCsv, usersToCsv } from './csv';
 import { dateKey, day as dayLabel, rel, TIME_ZONE } from './format';
 import type { DataSource } from './source';
@@ -229,6 +232,12 @@ export function dbSource(url: string): DataSource {
     const oneThings = await sql`select to_char("date", 'YYYY-MM-DD') as date, title, focus_minutes, done from one_thing where user_id = ${id}::uuid order by "date" desc limit 10`;
     const closed = await sql`select what, last_action_at from follow_up where user_id = ${id}::uuid and last_action = 'closed' and last_action_at is not null order by last_action_at desc limit 10`;
 
+    // The comp paying for this person's plan, if one is (0012).
+    const [live] = await sql`
+      select plan, months, reason, ends_at from comp_grant
+      where user_id = ${id}::uuid and revoked_at is null and ends_at > now()
+      order by ends_at desc limit 1`;
+
     const contactList = contacts.map(toContact);
 
     const notifications = (extra?.notifications_allowed as boolean | null) ?? null;
@@ -322,6 +331,14 @@ export function dbSource(url: string): DataSource {
       notifications,
       subRenewsAt: row.sub && row.sub !== 'cancelled' && row.sub !== 'refunded' ? iso(r.sub_renews as Date | null) : null,
       subEndsAt: row.sub === 'cancelled' || row.sub === 'refunded' ? iso(r.sub_ends as Date | null) : null,
+      comp: live
+        ? {
+            plan: live.plan as Plan,
+            months: Number(live.months),
+            reason: String(live.reason),
+            endsAt: iso(live.ends_at as Date) as string,
+          }
+        : null,
       storeConsoleUrl:
         r.sub_store === 'app_store'
           ? process.env.APP_STORE_CONNECT_URL ?? null
@@ -607,11 +624,11 @@ export function dbSource(url: string): DataSource {
 
     async team() {
       const rows = await sql`
-        select m.name, m.role, u.email,
+        select m.user_id, m.name, m.role, u.email,
           exists (select 1 from auth.mfa_factors f where f.user_id = m.user_id and f.factor_type = 'totp' and f.status = 'verified') as two_step
         from admin_member m join auth.users u on u.id = m.user_id
         order by m.role, m.name`;
-      return rows.map((r): TeamMember => ({ name: String(r.name), email: String(r.email), role: r.role as Role, twoStep: Boolean(r.two_step) }));
+      return rows.map((r): TeamMember => ({ id: String(r.user_id), name: String(r.name), email: String(r.email), role: r.role as Role, twoStep: Boolean(r.two_step) }));
     },
 
     async badges() {
@@ -666,8 +683,39 @@ export function dbSource(url: string): DataSource {
     async extendTrial() {
       return { unavailable: 'trials are the stores’ own; extending one needs their APIs' };
     },
-    async grantPro() {
-      return { unavailable: 'comp Pro needs the stores’ promotional offers' };
+    /**
+     * Pro given, not sold (0012_comp_grant.sql). No store is involved:
+     * `app_user.plan` is what the app reads on every sync, and the grant
+     * row is what puts it back when the gift runs out.
+     *
+     * A second grant stacks on the end of one already running, so two
+     * months given twice is four, not a month that quietly replaced a
+     * month. `greatest(now(), …)` keeps a grant made after an old one
+     * lapsed from being backdated into the past.
+     */
+    async grantComp(userId, months, reason, adminId) {
+      await sql.begin(async (tx) => {
+        await tx`
+          insert into comp_grant (user_id, plan, months, reason, granted_by, ends_at)
+          values (
+            ${userId}::uuid, 'pro', ${months}, ${reason}, ${adminId}::uuid,
+            greatest(now(), coalesce((select max(g.ends_at) from comp_grant g where g.user_id = ${userId}::uuid and g.revoked_at is null), now()))
+              + make_interval(months => ${months})
+          )`;
+        await tx`update app_user set plan = 'pro' where id = ${userId}::uuid`;
+      });
+    },
+
+    /**
+     * Ends every comp running for this person and puts their plan back the
+     * same way the hourly sweep would, rather than leaving them Pro until
+     * it next runs.
+     */
+    async revokeComp(userId) {
+      await sql.begin(async (tx) => {
+        await tx`update comp_grant set revoked_at = now() where user_id = ${userId}::uuid and revoked_at is null and ends_at > now()`;
+        await tx`select public.expire_comp_grants()`;
+      });
     },
     async exportUser() {
       return { unavailable: 'sending an export needs an email provider' };
@@ -680,6 +728,37 @@ export function dbSource(url: string): DataSource {
           resync: 'asking the app to re-sync needs push notifications from the server',
         }[kind],
       };
+    },
+
+    /**
+     * A new password on a teammate's account, handed back once.
+     *
+     * Needs SUPABASE_SERVICE_ROLE_KEY, which DEPLOY.md § 4 has the deployer
+     * remove after the first Owner is made. Without it this says so rather
+     * than half-working: the panel's own connection could reach into
+     * `auth.users` and rewrite the hash there, and deliberately does not —
+     * that is Supabase's to own, and a schema change on their side would
+     * turn a silent success into a locked-out admin.
+     *
+     * It changes the password and nothing else. The authenticator stays
+     * enrolled, because a forgotten password is not a lost phone, and any
+     * session the person already has stays alive — if the worry is a
+     * stolen account rather than a forgotten password, Suspend is the
+     * button for that: it bans the account in Supabase Auth outright.
+     */
+    async resetAdminPassword(memberId) {
+      // Who it is first, then whether we can: an id that is nobody's should
+      // say so whether or not the key happens to be set, or the answer
+      // changes with the deployment rather than with the truth.
+      const [member] = await sql`select 1 from admin_member where user_id = ${memberId}::uuid`;
+      if (!member) throw new Error('No such admin.');
+      const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+      if (!serviceKey) return { unavailable: 'resetting a password needs SUPABASE_SERVICE_ROLE_KEY in the panel’s environment (DEPLOY.md § 4)' };
+      const password = newPassword();
+      const api = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL as string, serviceKey, { auth: { persistSession: false } });
+      const { error } = await api.auth.admin.updateUserById(memberId, { password });
+      if (error) throw new Error(`Supabase would not set the password: ${error.message}`);
+      return { password };
     },
 
     async usersCsv() {

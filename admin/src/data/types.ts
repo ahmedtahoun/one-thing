@@ -54,6 +54,13 @@ export type UserRow = {
   suspended: boolean;
 };
 
+/**
+ * The lengths a comp may be given for, matching `comp_grant`'s own check
+ * constraint. Here rather than in `actions.ts`, which is `'use server'` and
+ * may export nothing but async functions.
+ */
+export const COMP_MONTHS = [1, 3, 6, 12] as const;
+
 export type CheckFix = 'howto' | 'receipt' | 'resync';
 export type Check = { status: 'ok' | 'warn' | 'bad'; title: string; detail: string; fix: CheckFix | null };
 
@@ -68,6 +75,11 @@ export type UserDetail = UserRow & {
   subRenewsAt: string | null;
   subEndsAt: string | null;
   storeConsoleUrl: string | null;
+  /**
+   * Pro given rather than sold, if one is running (`comp_grant`). Null is
+   * the ordinary case; a store subscription is `sub` and is separate.
+   */
+  comp: { plan: Plan; months: number; reason: string; endsAt: string } | null;
   checks: Check[];
   issues: { kind: 'No phone' | 'No email' | 'Duplicate'; text: string; value: string }[];
   tickets: { id: string; text: string; resolved: boolean }[];
@@ -135,7 +147,8 @@ export type PrivacyRequest = {
 };
 
 export type AuditEntry = { at: string; who: string; what: string; why: string };
-export type TeamMember = { name: string; email: string; role: Role; twoStep: boolean };
+/** `id` is the Supabase Auth user id — what `admin_member` is keyed on. */
+export type TeamMember = { id: string; name: string; email: string; role: Role; twoStep: boolean };
 export type OfferCode = { code: string; description: string; used: number; active: boolean };
 
 export type Overview = {

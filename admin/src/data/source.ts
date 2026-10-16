@@ -52,7 +52,13 @@ export interface DataSource {
   toggleCode(code: string): Promise<void | Unavailable>;
   createCode(code: string): Promise<void | Unavailable>;
   extendTrial(userId: string): Promise<void | Unavailable>;
-  grantPro(userId: string): Promise<void | Unavailable>;
+  /**
+   * Gives Pro for a number of months, free. Stacks on a comp already
+   * running rather than replacing it, so granting twice adds up.
+   */
+  grantComp(userId: string, months: number, reason: string, adminId: string): Promise<void>;
+  /** Ends every comp running for this person, now. */
+  revokeComp(userId: string): Promise<void>;
   /** Emails the user their data. */
   exportUser(userId: string): Promise<void | Unavailable>;
   /** The drawer's Troubleshoot fixes. */
@@ -66,6 +72,11 @@ export interface DataSource {
   contactsCsv(userId: string): Promise<string>;
   /** The pseudonymised analytics dataset: file name → CSV. */
   dataset(): Promise<Record<string, string>>;
+  /**
+   * Sets a new password on a teammate's account and hands it back, once, for
+   * the Owner to pass on. Unavailable without the service role key.
+   */
+  resetAdminPassword(memberId: string): Promise<{ password: string } | Unavailable>;
 }
 
 export const isUnavailable = (x: unknown): x is Unavailable =>

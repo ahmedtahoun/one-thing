@@ -230,6 +230,109 @@ describe('the admin panel against Postgres', () => {
     assert.equal((await source.contactsCsv(U2)).trimEnd().split('\n').length, 1, 'a user with no contacts gets a header only');
   });
 
+  /**
+   * The Owner's "Reset password". Without SUPABASE_SERVICE_ROLE_KEY — which
+   * DEPLOY.md § 4 has the deployer remove after setup, and which this test
+   * run does not have — it must say so rather than half-work, and must not
+   * touch `auth.users` behind Supabase's back.
+   */
+  it('says a password reset needs the service role key, and changes nothing without it', async () => {
+    const row = () => cluster.psql(`select row_to_json(u) from auth.users u where id = '${OWNER}'`).trim();
+    const before = row();
+    assert.deepEqual(await source.resetAdminPassword(OWNER), {
+      unavailable: 'resetting a password needs SUPABASE_SERVICE_ROLE_KEY in the panel’s environment (DEPLOY.md § 4)',
+    });
+    assert.equal(row(), before, 'the account was changed anyway');
+    // And it refuses an id that is not an admin's, key or no key.
+    await assert.rejects(source.resetAdminPassword(U1), /No such admin/);
+  });
+
+  it('knows who is on the team, by the id admin_member is keyed on', async () => {
+    const team = await source.team();
+    const owner = team.find((m) => m.role === 'Owner')!;
+    assert.equal(owner.id, OWNER);
+    assert.equal(owner.email, 'khalid@onlyonething.app');
+    assert.ok(team.every((m) => m.id), 'a member with no id cannot be reset');
+  });
+
+  /**
+   * Pro given rather than sold (0012). U2 is on Free with no subscription
+   * of their own, so a comp running out must put them back to `free`; U1
+   * pays, so the sweep must leave them alone.
+   */
+  describe('a comp', () => {
+    const planOf = (id: string) => cluster.psql(`select plan from app_user where id = '${id}'`).trim();
+    const endsOf = (id: string) => cluster.psql(`select max(ends_at) from comp_grant where user_id = '${id}' and revoked_at is null`).trim();
+
+    it('makes somebody Pro without a store, and stacks when given twice', async () => {
+      await source.grantComp(U2, 3, 'Ticket #1182 — sync bug cost them a week', OWNER);
+      assert.equal(planOf(U2), 'pro');
+      const after3 = Date.parse(endsOf(U2));
+      assert.ok(after3 > Date.now() + 80 * 86400000, 'three months is not three months');
+
+      const u = (await source.user(U2))!;
+      assert.equal(u.comp?.months, 3);
+      assert.equal(u.comp?.plan, 'pro');
+      assert.equal(u.comp?.reason, 'Ticket #1182 — sync bug cost them a week');
+
+      // A second grant adds to the end of the first rather than replacing it.
+      await source.grantComp(U2, 1, 'And one more for the trouble', OWNER);
+      assert.ok(Date.parse(endsOf(U2)) > after3 + 25 * 86400000, 'the second month did not stack');
+      assert.equal(cluster.psql(`select count(*) from comp_grant where user_id = '${U2}'`).trim(), '2');
+    });
+
+    it('is not counted as a subscription, so it cannot read as revenue', async () => {
+      assert.equal(cluster.psql(`select count(*) from subscription where user_id = '${U2}'`).trim(), '0');
+      const { stats } = await source.subscriptions('all');
+      assert.equal(stats.active, 1, 'the comp was counted among paying subscribers');
+    });
+
+    it('keeps the hourly sweep from lapsing the person it is paying for', async () => {
+      // Their own subscription has run out; the gift is what carries them.
+      cluster.psql(`update subscription set ends_at = now() - interval '1 day' where user_id = '${U1}'`);
+      await source.grantComp(U1, 1, 'Goodwill while billing is sorted out', OWNER);
+      cluster.psql(`select public.lapse_expired_subscriptions()`);
+      assert.equal(planOf(U1), 'pro', 'a comped user was lapsed anyway');
+
+      // Without the comp the same sweep does lapse them.
+      await source.revokeComp(U1);
+      cluster.psql(`select public.lapse_expired_subscriptions()`);
+      assert.equal(planOf(U1), 'lapsed');
+    });
+
+    it('puts the person back where they were when it runs out', async () => {
+      cluster.psql(`update comp_grant set ends_at = now() - interval '1 minute' where user_id = '${U2}'`);
+      cluster.psql(`select public.expire_comp_grants()`);
+      assert.equal(planOf(U2), 'free', 'U2 never paid, so they are free, not lapsed');
+
+      await source.grantComp(U1, 1, 'Second goodwill', OWNER);
+      assert.equal(planOf(U1), 'pro');
+      cluster.psql(`update comp_grant set ends_at = now() - interval '1 minute' where user_id = '${U1}'`);
+      cluster.psql(`select public.expire_comp_grants()`);
+      assert.equal(planOf(U1), 'lapsed', 'U1 did pay once, so they lapse rather than go free');
+    });
+
+    it('is taken back at once, not at the end of the hour', async () => {
+      await source.grantComp(U2, 12, 'A year, by mistake', OWNER);
+      assert.equal(planOf(U2), 'pro');
+      await source.revokeComp(U2);
+      assert.equal(planOf(U2), 'free');
+      assert.equal((await source.user(U2))!.comp, null);
+      // The row stays, for the record.
+      assert.ok(Number(cluster.psql(`select count(*) from comp_grant where user_id = '${U2}' and revoked_at is not null`).trim()) >= 1);
+    });
+
+    it('refuses a length and a reason the table does not allow', () => {
+      for (const bad of [
+        `insert into comp_grant (user_id, plan, months, reason, ends_at) values ('${U2}', 'pro', 2, 'two months', now())`,
+        `insert into comp_grant (user_id, plan, months, reason, ends_at) values ('${U2}', 'pro', 1, '   ', now())`,
+        `insert into comp_grant (user_id, plan, months, reason, ends_at) values ('${U2}', 'free', 1, 'free is not a gift', now())`,
+      ]) {
+        assert.throws(() => cluster.psql(bad), /violates check constraint|invalid input value/);
+      }
+    });
+  });
+
   it('exports analytics without a name, an email or a phone number in it', async () => {
     process.env.DATASET_KEY = 'test-key';
     const files = await source.dataset();

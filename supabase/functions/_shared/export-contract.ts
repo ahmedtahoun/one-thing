@@ -16,8 +16,15 @@
  * and PDPL's equivalent), and a person who wants to read it can.
  */
 
-/** A table the export carries, and what it is called in the document. */
-export type Exported = { table: string; as: string; by: 'user_id' | 'id' };
+/**
+ * A table the export carries, and what it is called in the document.
+ *
+ * `hide` drops columns from the rows before they are written. It exists for
+ * one narrow case: a column that names a member of staff. Everything about
+ * the person goes in; who on the team touched it is theirs, not the
+ * reader's, and `admin_member` is excluded for the same reason.
+ */
+export type Exported = { table: string; as: string; by: 'user_id' | 'id'; hide?: readonly string[] };
 
 /**
  * Every table holding the person's own rows. `app_user` is keyed by `id`;
@@ -43,6 +50,10 @@ export const EXPORTED: readonly Exported[] = [
   { table: 'analytics_event', as: 'analyticsEvents', by: 'user_id' },
   { table: 'active_day', as: 'activeDays', by: 'user_id' },
   { table: 'assist_usage', as: 'assistantUsage', by: 'user_id' },
+  // Pro given rather than bought (0012). It belongs here for the same
+  // reason `subscription` does: it is why their plan was what it was. The
+  // admin who gave it does not — see `hide`.
+  { table: 'comp_grant', as: 'compedPro', by: 'user_id', hide: ['granted_by'] },
 ];
 
 /** Children that travel with their parent rather than being queried alone. */
@@ -93,10 +104,17 @@ export function exportDocument(options: {
 }): ExportDocument {
   const { userId, requestedAt, producedAt, rows } = options;
   const names = [...EXPORTED.map((e) => e.as), ...Object.values(THROUGH_PARENT).map((c) => c.as)];
+  const hidden = new Map(EXPORTED.filter((e) => e.hide?.length).map((e) => [e.as, e.hide as readonly string[]]));
   const data: Record<string, unknown[]> = {};
   // Every section appears, empty or not: "we hold nothing here" is an answer,
   // and a missing key reads like something withheld.
-  for (const name of names) data[name] = rows[name] ?? [];
+  for (const name of names) {
+    const found = rows[name] ?? [];
+    const drop = hidden.get(name);
+    data[name] = drop
+      ? found.map((row) => Object.fromEntries(Object.entries(row as Record<string, unknown>).filter(([key]) => !drop.includes(key))))
+      : found;
+  }
   return {
     about: { app: APP_NAME, user: userId, requestedAt, producedAt, contains: names, omits: { ...EXCLUDED } },
     data,

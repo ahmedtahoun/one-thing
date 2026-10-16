@@ -1,7 +1,9 @@
 /** 13 · Team & roles (ADMIN.md § 13). */
+import { can } from '@/auth/permissions';
 import { requireAdmin } from '@/auth/session';
 import { source } from '@/config';
 import { Heading } from '@/ui/bits';
+import { TeamList } from '@/ui/TeamList';
 
 /** The prototype's role cards (`admin-logic.js`: ROLES). `src/auth/permissions.ts` is what enforces them. */
 const ROLES: [string, string[]][] = [
@@ -11,7 +13,7 @@ const ROLES: [string, string[]][] = [
 ];
 
 export default async function TeamPage() {
-  await requireAdmin('team');
+  const admin = await requireAdmin('team');
   const team = await (await source()).team();
   return (
     <>
@@ -31,19 +33,7 @@ export default async function TeamPage() {
           </div>
         ))}
       </div>
-      <div style={{ background: '#fff', borderRadius: 18, overflow: 'hidden' }}>
-        {team.map((m) => (
-          <div key={m.email} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 18px', borderBottom: '1px solid #f3f2ee' }}>
-            <span style={{ width: 34, height: 34, borderRadius: '50%', background: '#0b0b0b', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 600 }}>{m.name[0]}</span>
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-              <span style={{ fontSize: 14, fontWeight: 500 }}>{m.name}</span>
-              <span style={{ fontSize: 12, color: '#6b6b68' }}>{m.email}</span>
-            </div>
-            <span style={{ fontSize: 13 }}>{m.role}</span>
-            {m.twoStep ? <span style={{ fontSize: 12, color: 'oklch(0.45 0.12 150)' }}>2FA on</span> : null}
-          </div>
-        ))}
-      </div>
+      <TeamList team={team} meId={admin.id} canReset={can(admin.role, 'reset-password')} />
     </>
   );
 }
