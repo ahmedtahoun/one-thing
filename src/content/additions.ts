@@ -72,6 +72,15 @@ export type Added = {
   helpNoMail: string;
   micOff: string;
   micFailed: string;
+  /**
+   * The microphone notice shown before the first recording
+   * (`src/features/mic/`). `body` is the Voice notes paragraph of the
+   * published policy **word for word** — Google asks that a prominent
+   * disclosure agree with the policy, and `mic-notice.test.ts` fails if the
+   * two ever drift apart. Edit `priv` in `strings.ts` and this moves with
+   * it, or the build stops.
+   */
+  micNotice: { title: string; body: string; background: string; allow: string; deny: string };
   customTime: string;
   customTimeBad: string;
   customTimePast: string;
@@ -699,6 +708,14 @@ const ADDED: Record<Lang, Added> = {
     /** The microphone or speech permission was refused. */
     micOff: 'Microphone access is off. Turn it on in Settings, or type it instead.',
     micFailed: 'Couldn’t hear that. Try again, or type it instead.',
+    micNotice: {
+      title: 'Speak instead of typing',
+      body:
+        'When you tap the microphone, your phone’s own speech recogniser (Apple’s or Google’s, under their privacy terms) turns what you say into text. The One Thing uses that text and does not keep the audio.',
+      background: 'The microphone is on only while you are recording it, never in the background.',
+      allow: 'Use the microphone',
+      deny: 'Not now',
+    },
     /** Reschedule: a time that is not one of the half-hour chips. */
     customTime: 'Or type a time',
     customTimeBad: 'Type a time like 5:45 PM.',
@@ -1284,6 +1301,14 @@ const ADDED: Record<Lang, Added> = {
     helpNoMail: 'ما قدرنا نفتح البريد. راسلنا على {email}.',
     micOff: 'الميكروفون مقفل. شغّله من الإعدادات، أو اكتب بدالها.',
     micFailed: 'ما قدرت أسمع. جرّب مرة ثانية، أو اكتب بدالها.',
+    micNotice: {
+      title: 'تكلّم بدل ما تكتب',
+      body:
+        'لما تضغط على الميكروفون، يحوّل مُتعرّف الكلام في جوالك (من آبل أو قوقل، وفق شروط خصوصيتهم) كلامك إلى نص. «الشيء الواحد» يستخدم هذا النص ولا يحتفظ بالتسجيل الصوتي.',
+      background: 'الميكروفون يشتغل بس وأنت تسجّل، وما يشتغل في الخلفية أبداً.',
+      allow: 'استخدم الميكروفون',
+      deny: 'مو الآن',
+    },
     customTime: 'أو اكتب وقت',
     customTimeBad: 'اكتب الوقت مثل 5:45 م.',
     customTimePast: 'هذا الوقت فات — اختر وقت أبعد.',

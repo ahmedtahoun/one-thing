@@ -152,8 +152,21 @@ written to match the code and must be re-read whenever the code changes.
 | Contacts | Reads one contact at a time, only when the user picks it. Never the whole address book on its own. |
 | Camera | Photographs a business card (read on the device; only the confirmed text is kept) **or** takes a picture for a person or the user. Both screens call `launchCameraAsync`. |
 | Photo library | Chooses a card image **or** a picture for a person or the user. Both screens call `launchImageLibraryAsync`. |
-| Microphone / Speech | Turns a spoken note into text. No recording is kept. |
+| Microphone / Speech | Turns a spoken note into text. No recording is kept. The app also explains this in a sheet of its own before the first recording — Play requires it and Apple does not (BUILD-REVIEW §2.87). |
 | Notifications | Reminders the user set. |
+
+---
+
+## Play's prominent disclosure, and where it is
+
+Play asks for more than the Data safety entry for the microphone: an
+in-app disclosure, before the permission request, saying what is collected
+and what happens to it, in wording that agrees with the policy. It is
+`src/features/mic/MicNotice.tsx`, shown once per device on each of the
+three screens with a mic, and its text **is** the policy's Voice notes
+paragraph — `mic-notice.test.ts` fails the build if the two ever differ.
+If a reviewer asks where the disclosure is, that is the answer; it is also
+why the policy paragraph must not be edited in isolation.
 
 ---
 

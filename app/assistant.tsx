@@ -77,6 +77,7 @@ import { smallTalk } from '@/lib/parse/small';
 import { followUpFromParsed, taskFromParsed } from '@/lib/parse/to-task';
 import { LoopTag } from '@/features/capture/LoopTag';
 import { promiseDraft } from '@/features/compose/drafts';
+import { MicNotice, useMicGate } from '@/features/mic/MicNotice';
 import { telUrl, whatsAppUrl } from '@/features/compose/recipient';
 import { useCadence } from '@/lib/cadence';
 import { useFavorites } from '@/lib/favorites';
@@ -147,6 +148,7 @@ export default function Assistant() {
   const cadence = useCadence();
   const meter = useAssistantMeter();
   const toast = useToast();
+  const mic = useMicGate();
   // Quick capture hands over a sentence that is really "save this person".
   const { say } = useLocalSearchParams<{ say?: string }>();
 
@@ -519,6 +521,11 @@ export default function Assistant() {
   /** Tap to talk in the app's language; long-press to talk in the other one. */
   const talk = (otherLanguage = false) => {
     if (listening) return stopListeningRef.current?.();
+    // Explained before it is opened, once per device — src/features/mic/.
+    mic.ask(() => listen(otherLanguage));
+  };
+
+  const listen = (otherLanguage: boolean) => {
     const speak = otherLanguage ? (lang === 'ar' ? 'en' : 'ar') : lang;
     const stop = startListening(
       speak,
@@ -917,6 +924,7 @@ export default function Assistant() {
           />
         </View>
       </Screen>
+      <MicNotice open={mic.asking} onAllow={mic.allow} onClose={mic.dismiss} />
       <ClipSheet open={clipOpen} copy={copy.clip} onClose={() => setClipOpen(false)} onChoose={chooseClip} />
       <PersonSearchSheet
         open={searchFor !== null}

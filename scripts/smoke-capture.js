@@ -4,8 +4,9 @@
  * person confirms it.
  *
  *   Capture:    typing and speaking both reach the parsed card; the card
- *               follows edits; Save writes one task; Close writes none; with
- *               no recogniser the mic falls back to typing.
+ *               follows edits; Save writes one task; Close writes none; the
+ *               mic explains itself before it opens and is not explained
+ *               twice; with no recogniser the mic falls back to typing.
  *   Dump:       an empty box sorts nothing; the sample splits into six; a tap
  *               drops one; Edit keeps the text; Save writes only what is kept.
  *   Assistant:  greets by name; a task waits for "Looks right"; the plan and
@@ -134,9 +135,21 @@ const D_SAMPLE =
   await page.evaluate(() => {
     window.__heard = 'Call Sara tomorrow at 3pm';
   });
+  // Google wants the microphone explained in the app before it is asked
+  // for, in the policy's own words — src/features/mic/notice.ts.
   await page.getByTestId('capture-mic').click();
-  await page.waitForTimeout(200);
-  check('the mic listens', (await count('capture-stop')) === 1);
+  await page.waitForTimeout(250);
+  check('the mic explains itself before it opens', (await count('mic-notice')) === 1 && (await count('capture-stop')) === 0);
+  check('…in the words the published policy uses', (await text('mic-notice')).includes('speech recogniser'), await text('mic-notice'));
+  await page.getByTestId('mic-notice-deny').click();
+  await page.waitForTimeout(250);
+  check('“Not now” records nothing and opens nothing', (await count('capture-stop')) === 0 && (await read('ot.mic.notice')) === null);
+  await page.getByTestId('capture-mic').click();
+  await page.waitForTimeout(250);
+  check('…so it is asked again next time', (await count('mic-notice')) === 1);
+  await page.getByTestId('mic-notice-allow').click();
+  await page.waitForTimeout(250);
+  check('the mic listens once it is agreed to', (await count('capture-stop')) === 1 && (await read('ot.mic.notice')) === true);
   await page.getByTestId('capture-stop').click();
   await page.waitForTimeout(300);
   const heardCard = await text('capture-card');
@@ -153,7 +166,8 @@ const D_SAMPLE =
     delete window.webkitSpeechRecognition;
   });
   await page.getByTestId('capture-mic').click();
-  await page.waitForTimeout(200);
+  await page.waitForTimeout(250);
+  check('the notice is not shown twice on one device', (await count('mic-notice')) === 0);
   check('with no recogniser, the mic falls back to typing', (await count('capture-stop')) === 0 && (await page.evaluate(() => document.activeElement?.getAttribute('data-testid'))) === 'capture-type-input');
 
   // ------------------------------------------------------------------- Dump
@@ -178,7 +192,12 @@ const D_SAMPLE =
   await page.evaluate(() => {
     window.__heard = 'call Hamad';
   });
+  // A fresh seed, so the notice is owed again on this device.
   await page.getByTestId('dump-talk').click();
+  await page.waitForTimeout(250);
+  check('Brain dump explains the mic as well', (await count('mic-notice')) === 1);
+  await page.getByTestId('mic-notice-allow').click();
+  await page.waitForTimeout(250);
   await page.getByTestId('dump-talk').click();
   await page.waitForTimeout(200);
   check('talking adds to what is written', (await page.getByTestId('dump-text').inputValue()) === `${D_SAMPLE}\ncall Hamad`);
