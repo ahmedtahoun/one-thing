@@ -18,6 +18,7 @@
         "CFBundleAllowMixedLocalizations": true,
         "ITSAppUsesNonExemptEncryption": false,
         "NSCameraUsageDescription": "Used when you take a photo of a business card to read, or a picture for a person or for yourself. The camera is never used in the background.",
+        "NSContactsUsageDescription": "Used only when you tap Import to pick one person from your phone's contacts. The One Thing never reads your contact list on its own.",
         "NSSupportsLiveActivities": true
       },
       "appleTeamId": "55BRQ92599"
