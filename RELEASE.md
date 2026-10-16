@@ -166,7 +166,7 @@ set the accounts up. BUILD-REVIEW §2.41.
 
 | Work | Where it lands | Blocked on |
 |---|---|---|
-| ~~Supabase project, apply the migrations, fill `.env`, deploy the functions~~ — **live and verified** (§4.1) | `.env` (see `.env.example`); `npm run schema:check` applies the whole sequence to a throwaway Postgres first | — |
+| ~~Supabase project, apply the migrations, fill `.env`, deploy the functions~~ — **live and verified** (§4.1). Applying the migrations is not finished for good: nothing applies a *new* one, so every merge that adds one needs it run by hand before the panel is used (admin/DEPLOY.md § 5) | `.env` (see `.env.example`); `npm run schema:check` applies the whole sequence to a throwaway Postgres first | — |
 | ~~Real Apple + Google sign-in~~ — written, unrun | `src/lib/auth/`, wired into `app/sign-in.tsx`. Needs the client IDs and a build on a device | Apple §2.3, Google §3.2–3.3 |
 | ~~Purchases~~ — written, unrun | `src/features/paywall/store.ts` through expo-iap: the trial, the tips, Restore and Manage. Each carries the Supabase user id and makes nobody Pro on its own; the plan comes from the webhooks (BUILD-REVIEW §2.50). Needs the products in both consoles and a build on a device | §2.5 / §3.5 |
 | ~~The assistant / capture parsing~~ — built, never called | `supabase/functions/assist` with the limit in `0005_assist.sql`; `src/lib/parse/local.ts` is the fallback. Needs deploying, and an API key to have ever run | a Supabase project |
