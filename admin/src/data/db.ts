@@ -232,6 +232,12 @@ export function dbSource(url: string): DataSource {
     const oneThings = await sql`select to_char("date", 'YYYY-MM-DD') as date, title, focus_minutes, done from one_thing where user_id = ${id}::uuid order by "date" desc limit 10`;
     const closed = await sql`select what, last_action_at from follow_up where user_id = ${id}::uuid and last_action = 'closed' and last_action_at is not null order by last_action_at desc limit 10`;
 
+    // The comp paying for this person's plan, if one is (0012).
+    const [live] = await sql`
+      select plan, months, reason, ends_at from comp_grant
+      where user_id = ${id}::uuid and revoked_at is null and ends_at > now()
+      order by ends_at desc limit 1`;
+
     const contactList = contacts.map(toContact);
 
     const notifications = (extra?.notifications_allowed as boolean | null) ?? null;
@@ -325,6 +331,14 @@ export function dbSource(url: string): DataSource {
       notifications,
       subRenewsAt: row.sub && row.sub !== 'cancelled' && row.sub !== 'refunded' ? iso(r.sub_renews as Date | null) : null,
       subEndsAt: row.sub === 'cancelled' || row.sub === 'refunded' ? iso(r.sub_ends as Date | null) : null,
+      comp: live
+        ? {
+            plan: live.plan as Plan,
+            months: Number(live.months),
+            reason: String(live.reason),
+            endsAt: iso(live.ends_at as Date) as string,
+          }
+        : null,
       storeConsoleUrl:
         r.sub_store === 'app_store'
           ? process.env.APP_STORE_CONNECT_URL ?? null
@@ -669,8 +683,39 @@ export function dbSource(url: string): DataSource {
     async extendTrial() {
       return { unavailable: 'trials are the stores’ own; extending one needs their APIs' };
     },
-    async grantPro() {
-      return { unavailable: 'comp Pro needs the stores’ promotional offers' };
+    /**
+     * Pro given, not sold (0012_comp_grant.sql). No store is involved:
+     * `app_user.plan` is what the app reads on every sync, and the grant
+     * row is what puts it back when the gift runs out.
+     *
+     * A second grant stacks on the end of one already running, so two
+     * months given twice is four, not a month that quietly replaced a
+     * month. `greatest(now(), …)` keeps a grant made after an old one
+     * lapsed from being backdated into the past.
+     */
+    async grantComp(userId, months, reason, adminId) {
+      await sql.begin(async (tx) => {
+        await tx`
+          insert into comp_grant (user_id, plan, months, reason, granted_by, ends_at)
+          values (
+            ${userId}::uuid, 'pro', ${months}, ${reason}, ${adminId}::uuid,
+            greatest(now(), coalesce((select max(g.ends_at) from comp_grant g where g.user_id = ${userId}::uuid and g.revoked_at is null), now()))
+              + make_interval(months => ${months})
+          )`;
+        await tx`update app_user set plan = 'pro' where id = ${userId}::uuid`;
+      });
+    },
+
+    /**
+     * Ends every comp running for this person and puts their plan back the
+     * same way the hourly sweep would, rather than leaving them Pro until
+     * it next runs.
+     */
+    async revokeComp(userId) {
+      await sql.begin(async (tx) => {
+        await tx`update comp_grant set revoked_at = now() where user_id = ${userId}::uuid and revoked_at is null and ends_at > now()`;
+        await tx`select public.expire_comp_grants()`;
+      });
     },
     async exportUser() {
       return { unavailable: 'sending an export needs an email provider' };

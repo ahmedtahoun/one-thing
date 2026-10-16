@@ -2909,3 +2909,77 @@ that every team member carries the id a reset needs), `npm run smoke`
 Cancel leaves nothing on screen, the password is 22 characters, Done clears
 it, and the audit line holds the reset but not the password) and
 `npm run fidelity` (0 failing).
+
+### 2.76 Pro can be given, for a month to a year
+"Grant Pro (comp)" and "Extend trial 7 days" have always answered *"Not
+connected yet — comp Pro needs the stores' promotional offers."* That read
+our own system wrongly. What makes somebody Pro is `app_user.plan`, which
+the app pulls on every sync (`src/lib/sync/engine.ts:421`); a receipt is how
+a *paid* plan arrives, not what a plan is. A gift needs no store at all.
+
+The drawer's Subscription card now gives Pro for **1, 3, 6 or 12 months**,
+with a reason, and takes it back.
+
+**Giving, never selling.** Taking money outside the app for something used
+inside it is App Store Guideline 3.1.1. Nothing here takes payment; the
+panel says so where the choice is made, the migration's header says so, and
+`reason` is `not null` with a non-blank check so the audit can say a year
+later why somebody was not charged.
+
+**Why a table of its own** (`comp_grant`, 0012) rather than a `subscription`
+row:
+
+- `subscription.user_id` is the **primary key** — one row per person. A comp
+  written there would overwrite a real store subscription, including the
+  `original_transaction_id` the webhooks match a notification back to.
+- Overview's revenue estimate counts `subscription` rows at list price. A
+  gift is not revenue, and keeping it out of that table means it cannot
+  become revenue by accident. A test asserts a comped user is not counted
+  among paying subscribers.
+- A person can be comped more than once. One row cannot hold that, and the
+  second grant **stacks** on the end of the first rather than replacing it:
+  three months then one month is four, not one.
+
+**What the sweep had to learn.** `lapse_expired_subscriptions()` (0007) is
+replaced, for two reasons:
+
+1. It would have lapsed the very person a comp was paying for — their store
+   subscription ending is exactly when the gift is meant to carry them.
+2. It listed `('trial', 'pro')`, which 0011 did not revisit when it added
+   `pro_plus`, so a Pro+ subscriber would never have lapsed at all. Latent,
+   because nothing writes that plan yet.
+
+A second function, `expire_comp_grants()`, puts a person back when the gift
+ends **or is taken back** — `lapsed` if they ever had a subscription of
+their own, `free` if they never did — and leaves alone anybody still covered
+by another comp or a live subscription. It runs hourly beside the lapse
+sweep, and the panel calls it directly when the Owner takes a comp back, so
+that is immediate rather than up to an hour late.
+
+**A bug the Postgres tests caught before it shipped.** `set plan = case …
+then 'lapsed' else 'free' end` is `text`, and the column is `plan_kind`:
+every expiry would have thrown. Both arms are cast now. It would not have
+shown up in any browser test, because the sweep runs on a schedule.
+
+**Where it sits.** The button keeps the prototype's exact label and width;
+the lengths, the reason and the warning open *underneath* it inside the same
+card, so the Subscription card keeps its shape until it is asked for. A
+comped user sees "Comped Pro until 16 Jan — Ticket #1182" and a "Take the
+comp back" button instead of a second grant. `npm run fidelity`: 56 probes,
+0 failing.
+
+**Still not built:** "Extend trial 7 days" stays unavailable. A trial is the
+store's own object with the store's own rules, and stretching one is not
+something our `plan` column can honestly do. A comp is the answer to the
+same support problem.
+
+**Checked:** `npm run typecheck`, `npm test` (20), `npm run test:db`
+(21 — six new: that a comp makes somebody Pro with no store, that a second
+stacks, that it is not counted as a subscription, that the sweep does not
+lapse a comped user but does once it is revoked, that expiry returns `free`
+or `lapsed` correctly, that taking it back is immediate and keeps the row,
+and that the table refuses a 2-month length, a blank reason and a plan that
+is not Pro), `npm run smoke` (58 — the picker is shut until asked for, a
+comp with no reason is refused, the grant shows its end date and reason, a
+comped user is not offered a second one, and both the grant and the
+take-back are logged with the reason) and `npm run fidelity` (0 failing).

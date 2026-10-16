@@ -156,6 +156,58 @@ async function signOut(page) {
     check('taking a copy of the contacts is logged, with the count', body.includes('Downloaded contacts (CSV, 10) · Khalid Al-Mansouri'));
     check('suspending and restoring are logged', body.includes('Suspended · Sara Haddad') && body.includes('Restored · Sara Haddad'));
 
+    // --------------------------------------------------- comped Pro ----
+    await click(page, 'Users');
+    await page.waitForTimeout(500);
+    await click(page, 'Free');
+    await page.waitForTimeout(500);
+    const freeName = (await page.locator('[data-probe="user-row"], tbody tr, div').filter({ hasText: /Free/ }).first().innerText().catch(() => '')) || '';
+    await page.getByText('Faisal Al-Otaibi', { exact: true }).first().click().catch(() => {});
+    await page.waitForTimeout(600);
+    if (!(await text(page)).includes('Grant Pro (comp)')) {
+      await click(page, '✕').catch(() => {});
+      await click(page, 'All');
+      await page.waitForTimeout(400);
+      // Whoever is first and not already paying.
+      for (const name of ['Noura Al-Harbi', 'Omar Khalid', 'Reem Al-Qahtani', 'Yousef Al-Dosari']) {
+        await page.getByText(name, { exact: true }).first().click().catch(() => {});
+        await page.waitForTimeout(600);
+        if ((await text(page)).includes('Grant Pro (comp)')) break;
+        await click(page, '✕').catch(() => {});
+      }
+    }
+    body = await text(page);
+    check('a non-paying user can be comped', body.includes('Grant Pro (comp)'), freeName);
+    check('the lengths are not shown until asked for', !body.includes('Give Pro'));
+    await click(page, 'Grant Pro (comp)');
+    await page.waitForTimeout(300);
+    body = await text(page);
+    check('the picker offers a month to a year', ['1 month', '3 months', '6 months', '1 year'].every((m) => body.includes(m)));
+    check('it says it is a gift, not a sale', body.includes('takes no payment'));
+    await page.locator('[data-probe="give-comp"]').click();
+    await page.waitForTimeout(600);
+    check('a comp with no reason is refused', (await text(page)).includes('Say why this is being given'));
+
+    await click(page, 'Grant Pro (comp)');
+    await page.waitForTimeout(300);
+    await click(page, '3 months');
+    await page.getByPlaceholder('Why — a ticket number, a reason (required)').fill('Ticket #1182 — sync bug');
+    await page.locator('[data-probe="give-comp"]').click();
+    await page.waitForTimeout(900);
+    body = await text(page);
+    check('the comp is given and says until when', body.includes('Comped Pro until') && body.includes('Ticket #1182 — sync bug'));
+    check('a comp can be taken back', body.includes('Take the comp back'));
+    check('a comped user is not offered a second grant', !body.includes('Grant Pro (comp)'));
+    await page.locator('[data-probe="revoke-comp"]').click();
+    await page.waitForTimeout(900);
+    check('taking it back restores the grant button', (await text(page)).includes('Grant Pro (comp)'));
+    await click(page, '✕');
+
+    await click(page, 'Audit log');
+    body = await text(page);
+    check('the comp is logged with its length and reason', body.includes('Granted 3 months Pro') && body.includes('Ticket #1182 — sync bug'));
+    check('taking it back is logged too', body.includes('Took back comped Pro'));
+
     // ------------------------------------------------------ team & roles ----
     await click(page, 'Team & roles');
     body = await text(page);

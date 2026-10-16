@@ -767,8 +767,11 @@ Play's tester gate behind us, there is no multi-week wait left in this plan.
    now, and the purchase carries the Supabase user id (BUILD-REVIEW §2.50).
    What is left is creating the products, including a Play subscription with
    the id `pro`, deploying the two functions, and a first purchase in each
-   store's sandbox. This is the only thing that makes anyone Pro, and the only
-   thing that gives the admin panel's subscription screens anything to show.
+   store's sandbox. This is the only thing that makes anyone *pay*, and the
+   only thing that gives the subscription screens real data — though since
+   BUILD-REVIEW § 2.76 the panel can **give** Pro for a month to a year,
+   which is how the paid experience can be walked before any product
+   exists.
 3. **The forms and the account a reviewer needs** (§7): Apple's App Privacy
    answers and Play's Data safety form — both already written out with their
    evidence in `STORE-PRIVACY.md`, so this is transcription rather than

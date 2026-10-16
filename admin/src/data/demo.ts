@@ -141,6 +141,12 @@ const TEAM: TeamMember[] = [
   { id: 'demo-support', name: 'Dana Al-Anazi', email: 'dana@onlyonething.app', role: 'Support', twoStep: true },
   { id: 'demo-analyst', name: 'Turki Al-Ghamdi', email: 'turki@onlyonething.app', role: 'Analyst', twoStep: true },
 ];
+/**
+ * Comps granted in this session, by user id. Empty to begin with, so the
+ * drawer matches the prototype until one is given.
+ */
+const comps = new Map<string, NonNullable<UserDetail['comp']>>();
+
 /** Demo admins are named by their first name in the log, as the prototype does. */
 const ADMIN_NAMES: Record<string, string> = { 'demo-owner': 'Khalid', 'demo-support': 'Dana (Support)', 'demo-analyst': 'Turki (Analyst)' };
 
@@ -182,6 +188,7 @@ function detail(cu: Seed): UserDetail {
     subRenewsAt: cu.sub && cu.sub !== 'cancelled' ? ago(-(4 + rnd(cu.contacts, 26))) : null,
     subEndsAt: cu.sub === 'cancelled' ? ago(-14) : null,
     storeConsoleUrl: null,
+    comp: comps.get(cu.id) ?? null,
     checks,
     issues,
     tickets: state.tickets.filter((t) => t.u === ui).map((t) => ({ id: String(t.id), text: t.thread[0]![1], resolved: t.st === 'done' })),
@@ -403,8 +410,23 @@ export const demoSource: DataSource = {
   async extendTrial(userId) {
     state.users = state.users.map((u) => (u.id === userId ? { ...u, plan: 'trial', sub: 'trial' } : u));
   },
-  async grantPro(userId) {
-    state.users = state.users.map((u) => (u.id === userId ? { ...u, plan: 'pro', sub: 'active' } : u));
+  /**
+   * Demo mode keeps the comp beside the seed users rather than in a table.
+   * It starts empty, so every drawer matches the prototype until somebody
+   * grants one (`npm run fidelity`).
+   */
+  async grantComp(userId: string, months: number, reason: string) {
+    const from = comps.get(userId);
+    const start = from && Date.parse(from.endsAt) > Date.now() ? new Date(from.endsAt) : NOW();
+    const ends = new Date(start);
+    ends.setMonth(ends.getMonth() + months);
+    comps.set(userId, { plan: 'pro', months, reason, endsAt: ends.toISOString() });
+    state.users = state.users.map((u) => (u.id === userId ? { ...u, plan: 'pro' } : u));
+  },
+
+  async revokeComp(userId: string) {
+    comps.delete(userId);
+    state.users = state.users.map((u) => (u.id === userId ? { ...u, plan: u.sub ? 'lapsed' : 'free' } : u));
   },
   async exportUser() {},
 

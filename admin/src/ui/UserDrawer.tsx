@@ -24,7 +24,7 @@ import { Fragment, useEffect, useState, type CSSProperties } from 'react';
 
 import * as act from '@/actions';
 import { day, clock, initials, rel } from '@/data/format';
-import { paying, planLabel, type UserDetail } from '@/data/types';
+import { COMP_MONTHS, paying, planLabel, type UserDetail } from '@/data/types';
 import { download, mono, Pill, tabular } from '@/ui/bits';
 import { CHECK, GREEN, PLAN, RED, SUB, TT } from '@/ui/palette';
 import { useToast } from '@/ui/Toast';
@@ -65,6 +65,10 @@ export function UserDrawer({
   const [tab, setTab] = useState<Tab>('trouble');
   /** Which contact row is open. Closed by default, so the table matches the prototype. */
   const [shown, setShown] = useState<number | null>(null);
+  /** The comp picker: shut, so the Subscription card matches the prototype. */
+  const [granting, setGranting] = useState(false);
+  const [months, setMonths] = useState<number>(1);
+  const [why, setWhy] = useState('');
 
   useEffect(() => {
     let live = true;
@@ -113,17 +117,9 @@ export function UserDrawer({
   const renews = u.subEndsAt ? 'Ends ' + day(u.subEndsAt, now) : u.subRenewsAt ? 'Renews ' + day(u.subRenewsAt, now) : '';
   const subActs = [
     ...(!paying(u.plan) && can.trial ? [{ label: 'Extend trial 7 days', go: () => run(() => act.extendTrial(u.id)) }] : []),
-    ...(!paying(u.plan) && can.grant
-      ? [
-          {
-            label: 'Grant Pro (comp)',
-            go: () => {
-              if (!window.confirm('Give ' + u.first + ' free Pro for 1 month? This is logged.')) return;
-              void run(() => act.grantPro(u.id));
-            },
-          },
-        ]
-      : []),
+    // Same label and width as the prototype's: the lengths and the reason
+    // open underneath, so the card keeps its shape until it is asked for.
+    ...(!u.comp && !paying(u.plan) && can.grant ? [{ label: 'Grant Pro (comp)', go: () => setGranting((g) => !g) }] : []),
     ...(u.sub ? [{ label: u.platform === 'Android' ? 'Open in Play Console' : 'Open in App Store Connect', go: () => run(() => act.openStore(u.id)) }] : []),
   ];
   const stats: [string, number][] = [
@@ -193,7 +189,67 @@ export function UserDrawer({
                 {a.label}
               </button>
             ))}
+            {u.comp && can.grant ? (
+              <button
+                data-probe="revoke-comp"
+                onClick={() => {
+                  if (!window.confirm(`Take ${u.first}’s comped Pro back now? They go back to their own plan.`)) return;
+                  void run(() => act.revokeComp(u.id));
+                }}
+                style={outlined}
+              >
+                Take the comp back
+              </button>
+            ) : null}
           </div>
+
+          {u.comp ? (
+            <div style={{ fontSize: 12, color: '#6b6b68', lineHeight: 1.5 }}>
+              Comped Pro until {day(u.comp.endsAt, now)} — {u.comp.reason}. Given, not sold: it costs them nothing and is not counted as revenue.
+            </div>
+          ) : null}
+
+          {granting ? (
+            <div style={{ borderTop: '1px solid #f3f2ee', paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div style={{ fontSize: 13, fontWeight: 600 }}>Give {u.first} Pro, free</div>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                {COMP_MONTHS.map((m) => (
+                  <button
+                    key={m}
+                    onClick={() => setMonths(m)}
+                    style={{ height: 32, padding: '0 14px', borderRadius: 999, border: '1px solid ' + (months === m ? '#0b0b0b' : '#e4e4e0'), background: months === m ? '#0b0b0b' : '#fff', color: months === m ? '#fff' : '#0b0b0b', fontSize: 13, cursor: 'pointer' }}
+                  >
+                    {m === 12 ? '1 year' : `${m} month${m === 1 ? '' : 's'}`}
+                  </button>
+                ))}
+              </div>
+              <input
+                value={why}
+                onChange={(e) => setWhy(e.target.value)}
+                placeholder="Why — a ticket number, a reason (required)"
+                style={{ height: 40, border: '1px solid #e4e4e0', borderRadius: 10, padding: '0 12px', fontSize: 13, outline: 'none' }}
+              />
+              <div style={{ fontSize: 12, color: '#8a8a86', lineHeight: 1.5 }}>
+                This gives Pro away and takes no payment. Charging for it outside the app would be App Store Guideline 3.1.1.
+              </div>
+              <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                <button onClick={() => setGranting(false)} style={{ height: 36, padding: '0 14px', borderRadius: 999, border: 0, background: 'none', fontSize: 13, cursor: 'pointer', color: '#55554f' }}>
+                  Cancel
+                </button>
+                <button
+                  data-probe="give-comp"
+                  onClick={() => {
+                    setGranting(false);
+                    setWhy('');
+                    void run(() => act.grantComp(u.id, months, why));
+                  }}
+                  style={{ height: 36, padding: '0 16px', borderRadius: 999, border: 0, background: '#0b0b0b', color: '#fff', fontSize: 13, fontWeight: 500, cursor: 'pointer' }}
+                >
+                  Give Pro
+                </button>
+              </div>
+            </div>
+          ) : null}
         </div>
       </div>
 
