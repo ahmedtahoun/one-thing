@@ -93,6 +93,11 @@ jobs:
       - name: Behaviour
         run: npm run smoke
 
+      # The design is drawn at 402 x 874; Play's small-phone baseline is 360
+      # x 640, and a size nothing renders is a size nothing protects.
+      - name: A small Android phone
+        run: npm run narrow
+
       - name: Keep the screenshots
         if: always()
         uses: actions/upload-artifact@v4
