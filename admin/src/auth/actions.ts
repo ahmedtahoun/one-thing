@@ -3,7 +3,8 @@
  * 01 · Sign in and 02 · Two-step verification (ADMIN.md § 01–02).
  *
  * The prototype's own checks come first and use its words: the email must
- * be @onlyonething.app, the password at least six characters, the code six
+ * be one of the team's domains (`./domains.ts` — the prototype knew only
+ * @onlyonething.app), the password at least six characters, the code six
  * digits. Live, Supabase then checks the password and the TOTP code, and
  * five failures in 15 minutes lock the email for 15 minutes.
  *
@@ -13,7 +14,8 @@
  */
 import { cookies } from 'next/headers';
 
-import { ADMIN_EMAIL_DOMAIN, mode, source } from '@/config';
+import { mode, source } from '@/config';
+import { adminDomainList, isAdminEmail } from './domains';
 import { DEMO_COOKIE, demoAdminFor } from './session';
 import { authClient } from './supabase';
 
@@ -21,7 +23,7 @@ export type StepResult = { ok: true } | { ok: false; error: string };
 
 /** The prototype's messages. */
 const SAYS = {
-  domain: `Use your @${ADMIN_EMAIL_DOMAIN} email.`,
+  domain: `Use your ${adminDomainList()} email.`,
   password: 'Enter your password.',
   code: 'The code is 6 digits.',
 };
@@ -50,7 +52,7 @@ async function fail(email: string, error: string): Promise<StepResult> {
 
 export async function passwordStep(emailInput: string, password: string): Promise<StepResult> {
   const email = emailInput.trim().toLowerCase();
-  if (!new RegExp(`@${ADMIN_EMAIL_DOMAIN.replace('.', '\\.')}$`).test(email)) return { ok: false, error: SAYS.domain };
+  if (!isAdminEmail(email)) return { ok: false, error: SAYS.domain };
   if (password.length < 6) return { ok: false, error: SAYS.password };
   if (mode() === 'demo') return { ok: true };
 

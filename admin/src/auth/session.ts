@@ -3,7 +3,8 @@
  * every action.
  *
  * Live: a Supabase session at assurance level 2 (password and the TOTP
- * code), an @onlyonething.app email, and a row in admin_member — all three,
+ * code), an email on one of the team's domains (`./domains.ts`), and a row
+ * in admin_member — all three,
  * or nobody. Demo: the cookie the demo sign-in sets, with the prototype's
  * own team.
  */
@@ -12,7 +13,8 @@ import 'server-only';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 
-import { ADMIN_EMAIL_DOMAIN, mode } from '@/config';
+import { mode } from '@/config';
+import { isAdminEmail } from './domains';
 import type { Role } from '@/data/types';
 import { can, type Permission } from './permissions';
 import { authClient } from './supabase';
@@ -41,7 +43,7 @@ export async function currentAdmin(): Promise<Admin | null> {
   const auth = await authClient();
   const { data } = await auth.auth.getUser();
   const user = data.user;
-  if (!user?.email || !user.email.toLowerCase().endsWith('@' + ADMIN_EMAIL_DOMAIN)) return null;
+  if (!user?.email || !isAdminEmail(user.email)) return null;
   const { data: level } = await auth.auth.mfa.getAuthenticatorAssuranceLevel();
   if (level?.currentLevel !== 'aal2') return null;
   const { memberById } = await import('@/data/db');

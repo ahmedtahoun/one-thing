@@ -69,7 +69,14 @@ async function signOut(page) {
     await page.getByPlaceholder('you@onlyonething.app').fill('khalid@gmail.com');
     await page.getByPlaceholder('Password').fill('secret1');
     await click(page, 'Continue');
-    check('an outside email is refused', (await text(page)).includes('Use your @onlyonething.app email.'));
+    check('an outside email is refused', (await text(page)).includes('Use your @onlyonething.app or @wheretospot.com email.'));
+
+    // The second team domain gets past the gate the first one does.
+    await page.getByPlaceholder('you@onlyonething.app').fill('info@wheretospot.com');
+    await page.getByPlaceholder('Password').fill('secret1');
+    await click(page, 'Continue');
+    check('the panel’s own domain is let through', !(await text(page)).includes('Use your @'));
+    await page.goto(`${BASE}/sign-in`);
 
     await page.getByPlaceholder('you@onlyonething.app').fill('khalid@onlyonething.app');
     await page.getByPlaceholder('Password').fill('123');
