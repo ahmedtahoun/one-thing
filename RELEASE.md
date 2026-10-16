@@ -353,21 +353,38 @@ neither has ever run on hardware.
   route. Play requires a web-accessible deletion path, not only the in-app
   one. `app/legal.tsx` is the in-app copy of the text (BUILD-REVIEW §3).
 
-  ~~Nobody owns the website.~~ `.github/workflows/site.yml` publishes
-  `website/` to GitHub Pages on every push to `main`, so the pages exist and
-  stay current without anyone remembering to upload them. Their links are
-  relative, so they serve from the Pages sub-path now and from
+  ~~Nobody owns the website.~~ ~~The pages are not published.~~ Both settled.
+  `.github/workflows/site.yml` rebuilds `website/` from
+  `src/content/strings.ts` and replaces the **`gh-pages` branch** with it on
+  every push to `main`, and `checks.yml` fails on any diff between the two, so
+  editing the strings and forgetting to publish is no longer possible. Their
+  links are relative, so they serve from the Pages sub-path now and from
   `onlyonething.app` the day it points here, with no rebuild and no change to
   the workflow.
 
-  **One thing to switch on by hand, once:** Settings → Pages → Source →
-  GitHub Actions. Until it is set the workflow fails at the deploy step
-  rather than publishing somewhere unexpected.
+  First published on 16 October from `873e448`, as `gh-pages` commit
+  `ea91d45`; the served privacy page is byte-identical to the app's own text.
+  Before that, `gh-pages` had last been updated **by hand on 14 October** and
+  was a whole rewrite behind (BUILD-REVIEW §2.64).
+
+  **One thing to confirm by hand, once:** Settings → Pages → Source → Deploy
+  from a branch → `gh-pages`. The branch target is deliberate — it is what
+  this repository was already serving — so this is a check that nothing moved,
+  not a switch to throw. A push to the branch succeeds either way, so the
+  workflow going green does not prove the page is being served: load
+  `/privacy/` once and read it.
 
   ~~**The domain in the app's copy no longer matches the bundle ID.**~~
-  Settled. All six user-facing places now say `onlyonething.app`, in both
-  languages: `privacy@onlyonething.app` ×4 (`src/content/strings.ts` 1057,
-  1073, 1165, 1173) and `onlyonething.app/delete` ×2 (1061, 1214). The
+  Settled, with one part deliberately held back. The mailbox says
+  `privacy@onlyonething.app` throughout — six places in
+  `src/content/strings.ts`, twelve lines across the two languages: each
+  document's controller line and footer, the contact-data paragraph in both,
+  and the rights paragraph — because an address can be made to work without a
+  website. The deletion route cannot, so it says
+  `ahmedtahoun.github.io/one-thing/delete` instead, which resolves today: 4
+  places, both languages. **Those four revert the day the domain points
+  here** — search for `ahmedtahoun.github.io`, and expect the count rather
+  than the line numbers to be the stable thing. The
   handoff's own files still say `theonething.app`; they are the record of what
   was asked for, not configuration, so the admin panel's fidelity check
   records the divergence as `{ app, prototype }` rather than failing on it
@@ -376,9 +393,12 @@ neither has ever run on hardware.
   **What the strings promise that still does not exist.** A reviewer clicks
   these. Two gaps are left:
 
-  - `privacy@onlyonething.app` has to receive mail. The policy names it four
-    times as the way to exercise a right, so it is a promise rather than a
-    courtesy, and nothing in this repo can make a mailbox.
+  - `privacy@onlyonething.app` has to receive mail. The rewritten notice names
+    it in six places, twelve lines across the two languages — including the
+    rights paragraph, where it is the way to exercise a right — so it is a
+    promise rather than a courtesy, and nothing in this repo can make a
+    mailbox. (It was four before the rewrite; the count moved when the policy
+    grew, which is why the thing to search for is the address, not a number.)
   - ~~The in-app copy says `onlyonething.app/delete`, which points at nothing
     until the domain is aimed at Pages.~~ Changed on 15 October, because the
     domain is not pointed yet and a dead link inside a shipped app is worse
@@ -388,10 +408,9 @@ neither has ever run on hardware.
     deletion note never carried the route at all and does now.
 
     **These four revert the day the domain is live** — search for
-    `ahmedtahoun.github.io`. The policy's four `privacy@onlyonething.app`
-    mentions were left alone: a mailbox is a separate purchase from a
-    website, and guessing at a replacement address would be worse than
-    leaving the real one.
+    `ahmedtahoun.github.io`. The `privacy@onlyonething.app` mentions were left
+    alone: a mailbox is a separate purchase from a website, and guessing at a
+    replacement address would be worse than leaving the real one.
 - ~~**Legal review of that text.**~~ Settled. `ACC` was rewritten from summary
   copy into a full notice: the controller named (Where To Spot, a sole
   proprietorship on the Damanhour register, no. 101557, owned by Ahmed Salah
@@ -722,30 +741,84 @@ creates two accounts for one person, and there is no merge path.
 
 ## What is actually left
 
-With both accounts already shipping-ready and Play's tester gate behind us,
-there is no multi-week wait left in this plan. Everything below is work, and
-most of it is ours:
+Last checked against the repository on 16 October 2026, at `main` after PR #12
+merged. With both accounts already shipping-ready and Play's tester gate
+behind us, there is no multi-week wait left in this plan.
 
-1. ~~**Pick the data region**~~ — the project exists, in `eu-west-1` (§1.3).
-   What is left there is a decision, not a task: keep Ireland, or move while
-   moving is still free.
-2. ~~**Settle the domain**~~ — done; the app says `onlyonething.app`
-   everywhere (§7). What the strings promise is not: the `privacy@` mailbox
-   and `/delete` both belong to item 5. **Yours.**
-3. **A build on hardware** (§9.1). Notifications, account deletion, both
+**The one that matters most:**
+
+1. **A build on hardware** (§9.1). Notifications, account deletion, both
    sign-in flows and the assist function have between them never run on a
-   phone or against a live server. This is where the surprises are.
-4. **Purchases** (§9.6). The webhooks and the in-app purchase are both written
+   phone or against a live server. This is where the surprises are, and
+   nothing in this repository can find them.
+
+**Work in the store consoles, none of which the code can do:**
+
+2. **Purchases** (§9.6). The webhooks and the in-app purchase are both written
    now, and the purchase carries the Supabase user id (BUILD-REVIEW §2.50).
    What is left is creating the products, including a Play subscription with
    the id `pro`, deploying the two functions, and a first purchase in each
-   store's sandbox. This is the only thing that makes anyone Pro,
-   and the only thing that gives the admin panel's subscription screens
-   anything to show.
-5. **The website**, three pages plus a Support URL (§7, §9.4).
-6. **Weekly recap and the Pro gating matrix** — now a proposal to approve
-   rather than a blank page (§9.5, §9.5.1). Weekly recap is the urgent half:
-   a Pro buyer gets nothing for that bullet today. **Yours.**
+   store's sandbox. This is the only thing that makes anyone Pro, and the only
+   thing that gives the admin panel's subscription screens anything to show.
+3. **The forms and the account a reviewer needs** (§7): Apple's App Privacy
+   answers and Play's Data safety form — both already written out with their
+   evidence in `STORE-PRIVACY.md`, so this is transcription rather than
+   decision — a reviewer demo account, since the app is behind a sign-in wall,
+   and the age-rating questionnaire on both stores. **Yours.**
 
-Items 1, 2 and 6 are decisions only you can make. 3, 4 and 5 are work, and 5
-has no owner yet.
+**Promises the published text makes that nothing answers yet:**
+
+4. **`privacy@onlyonething.app` has to receive mail.** The policy names it four
+   times and a reviewer will click it. **Yours.**
+5. **The domain.** The name is settled and the policy is live at the GitHub
+   Pages address, but `onlyonething.app` is not aimed anywhere yet. Four
+   strings deliberately say `ahmedtahoun.github.io/one-thing/delete`, which
+   resolves today; **they revert the day the domain is live** — search for
+   `ahmedtahoun.github.io` (§7). **Yours.**
+6. **A Sentry DSN.** Crash reporting is wired and deliberately narrow
+   (BUILD-REVIEW §2.58) and stays off until `EXPO_PUBLIC_SENTRY_DSN` is set.
+   **Yours.**
+
+**Legal, and outside this repository entirely:**
+
+7. **Egypt's PDPL licence**, deadline around 1 November 2026. The controller is
+   an Egyptian sole proprietorship, so Law 151/2020 applies. **Yours.**
+8. **One sentence the lawyer has not seen.** The approved text gained a line
+   naming Sentry under "Who we share it with", because it is a recipient
+   outside both Egypt and the Kingdom. Naming it is right; it is still a
+   substantive edit to reviewed text. **Yours.**
+
+**Code that is sold or listed and not written:**
+
+9. **Weekly recap.** `can('weeklyRecap')` is false and there is no screen. No
+   longer urgent — it came off the paywall (BUILD-REVIEW §2.56), so nobody is
+   paying for a blank — but it is the one Pro bullet with nothing behind it.
+10. **Pro+'s other two features.** Smart lists and LinkedIn enrichment are
+    both false in `src/policy/entitlements.ts`, which is exactly why Pro+ is
+    priced and `FOR_SALE` does not include it (BUILD-REVIEW §2.67). Bulk card
+    scanning, the third, is built and metered.
+11. **Arabic read beside the prototype's screenshots.** The only check no
+    automation can do: `src/content/copy.test.ts` verifies the *copy* in both
+    languages, and no test can see a horizontal flip. Worth a human eye before
+    submission.
+
+**Settled since this list was first written, and no longer work:**
+
+- ~~**Pick the data region**~~ — Ireland stays, with the reasoning recorded
+  (§1.3). With an Egyptian controller there is no region inside both
+  countries, so moving would trade one transfer for another.
+- ~~**The website**~~ — done, and it can no longer drift. `website/` is
+  generated from `src/content/strings.ts`, `site.yml` republishes `gh-pages`
+  on every push to `main`, and `checks.yml` fails on any diff between the two.
+  Live as of `873e448`; the published page is byte-identical to the app's own
+  policy. What remains of the old item 5 is the mailbox, now item 4 above.
+  **One thing to confirm by hand, once:** that Settings → Pages → Source is
+  still the `gh-pages` branch.
+- ~~**The Pro gating matrix**~~ — settled and built (§9.5.1). Every rule lives
+  in `src/policy/entitlements.ts`, and a meter is preferred to a lock wherever
+  the choice exists.
+- ~~**Legal review**~~, ~~**screenshots**~~, ~~**export compliance**~~ — see
+  §7.
+
+Items 3 to 8 are yours alone. 1 and 2 are work nobody has started. 9 to 11 are
+code, and 11 is the only one that blocks a submission.
