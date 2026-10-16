@@ -580,6 +580,12 @@ add it back when the screen exists.** Note the copy lives in the generated
 `strings.ts`, so the edit goes through `scripts/port-content.js` or the next
 `content:port` reverts it (BUILD-REVIEW §2.53).
 
+**Closed both ways.** The bullet came off the card first (§2.56), and the
+screen exists now — `app/recap.tsx`, reached from Settings (§2.70). It reads
+only what is already on the device, so `can('weeklyRecap')` is true on every
+plan: nothing to meter and nothing to lock. Putting it back on the card is a
+pricing decision now, not a consequence of writing it.
+
 ### 9.5.1 The gating matrix, proposed
 
 §2.1 left everything except the assistant open, deliberately, because
@@ -614,8 +620,8 @@ Sent row's Change, but it has to ask.
 
 **Three bullets came off the card rather than being locked**, which is the
 cheaper mistake to undo: a bullet is one line of copy, a lock is design
-work in a screen, and after launch a lock is a take-away. Weekly recap has
-no screen. Client history is the person's own notes about their own
+work in a screen, and after launch a lock is a take-away. Weekly recap had
+no screen when this was decided, and has one now (§9.5). Client history is the person's own notes about their own
 contacts. And "Meetings, webinars & courses" sold two things with no door:
 the event form builds all four types, but every route into it passes
 `meeting` since Today went from eight tiles to four. The capabilities all
@@ -741,9 +747,9 @@ creates two accounts for one person, and there is no merge path.
 
 ## What is actually left
 
-Last checked against the repository on 16 October 2026, at `main` after PR #12
-merged. With both accounts already shipping-ready and Play's tester gate
-behind us, there is no multi-week wait left in this plan.
+Last checked against the repository on 16 October 2026, counting the three
+features in PR #13 as written. With both accounts already shipping-ready and
+Play's tester gate behind us, there is no multi-week wait left in this plan.
 
 **The one that matters most:**
 
@@ -790,17 +796,19 @@ behind us, there is no multi-week wait left in this plan.
 
 **Code that is sold or listed and not written:**
 
-9. **Weekly recap.** `can('weeklyRecap')` is false and there is no screen. No
-   longer urgent — it came off the paywall (BUILD-REVIEW §2.56), so nobody is
-   paying for a blank — but it is the one Pro bullet with nothing behind it.
-10. **Pro+'s other two features.** Smart lists and LinkedIn enrichment are
-    both false in `src/policy/entitlements.ts`, which is exactly why Pro+ is
-    priced and `FOR_SALE` does not include it (BUILD-REVIEW §2.67). Bulk card
-    scanning, the third, is built and metered.
-11. **Arabic read beside the prototype's screenshots.** The only check no
+9. **LinkedIn enrichment**, the last of Pro+'s three and the only one that
+   cannot be done from what the phone already holds: it needs a service
+   outside the app. `can('enrichment')` is false, which is why Pro+ is priced
+   and `FOR_SALE` still leaves it out. The other two are written and metered
+   rather than locked — bulk card scanning (five a batch on Free, BUILD-REVIEW
+   §2.67) and smart lists (one on Free, unlimited on Pro+, §2.71) — and weekly
+   recap, the Pro bullet that had nothing behind it, has a screen now (§2.70).
+10. **Arabic read beside the prototype's screenshots.** The only check no
     automation can do: `src/content/copy.test.ts` verifies the *copy* in both
-    languages, and no test can see a horizontal flip. Worth a human eye before
-    submission.
+    languages, and no test can see a horizontal flip. Three more screens need
+    it now — `/scan-many`, `/recap` and `/smart-lists` — and those three have
+    no prototype screenshot to measure against either, so a human eye is the
+    whole check. Worth doing before submission.
 
 **Settled since this list was first written, and no longer work:**
 
@@ -820,5 +828,5 @@ behind us, there is no multi-week wait left in this plan.
 - ~~**Legal review**~~, ~~**screenshots**~~, ~~**export compliance**~~ — see
   §7.
 
-Items 3 to 8 are yours alone. 1 and 2 are work nobody has started. 9 to 11 are
-code, and 11 is the only one that blocks a submission.
+Items 3 to 8 are yours alone. 1 and 2 are work nobody has started. 9 and 10
+are code, and 10 is the only one that blocks a submission.
