@@ -1,7 +1,21 @@
 # Store listing — copy to paste into App Store Connect and Play Console
 
-Version 1.0.0 · iOS build 7 · Android versionCode 7 · Bundle / package `app.onlyonething`.
-Text only; the screenshots are in `store-assets/marketing/` (see "Screenshots" at the end).
+Version 1.0.0 · iOS build 9 · Android versionCode 9 · Bundle / package `app.onlyonething`.
+Text only; the screenshots are in `store-assets/` (see "Screenshots" at the end —
+the folder changed, and `store-assets/marketing/` is an older set).
+
+Last checked against the build on 16 October 2026, and five things were out
+of date: the build numbers, the URLs (the domain still does not resolve), the
+line claiming data stays on the phone unless you sign in — which the app and
+its privacy policy both contradict, and which would be a metadata question a
+reviewer asks — the screenshot folder and its names, and the absence of any
+mention of the subscription the app sells. All five are corrected below.
+
+Every field with a character limit was measured, not estimated: app name 13
+(Arabic 12), Apple subtitle 30 (21), promotional text 133 (110), keywords 93
+(57), Play short description 71 (73), long descriptions 2045 (1640). The
+subtitle is exactly at its limit, so a word cannot be added to it without
+taking one out.
 
 ## Names and one-liners
 
@@ -29,7 +43,15 @@ a while, and tells you what to do next.
 • KEEP IN TOUCH: set how often you want to hear from someone, add labels like Client or Lead, and add a second number or email.
 • Dark mode, 12-hour clock, and Arabic right to left.
 
-Your tasks and contacts stay on your phone unless you sign in to sync.
+You sign in with Apple or Google to use the app, and your tasks and contacts
+sync to your account so a new phone starts where the old one stopped. Photos,
+card images and files you import stay on your device. You can download
+everything, or delete your account and all of it, from Settings.
+
+The One Thing Pro is an optional subscription: an unlimited assistant,
+unlimited brain dumps, and follow-ups that nudge you before anyone waits too
+long. The free plan stays usable without it, and the price in your own
+currency is shown in the app before you buy.
 
 ## Long description — Arabic
 
@@ -44,7 +66,9 @@ Your tasks and contacts stay on your phone unless you sign in to sync.
 • خلّك على تواصل: حدّد كل كم تبي تسمع من شخص، وأضف تصنيفات مثل عميل أو مهتم، ورقمًا أو إيميلًا ثانيًا.
 • الوضع الداكن، ونظام 12 ساعة، وعربي من اليمين لليسار.
 
-مهامك وجهاتك تبقى على جوالك إلا إذا سجّلت دخولك للمزامنة.
+تسجّل دخولك بحساب آبل أو قوقل عشان تستخدم التطبيق، ومهامك وجهات اتصالك تتزامن مع حسابك فيبدأ جوالك الجديد من حيث وقف القديم. والصور وصور البطاقات والملفات اللي تستوردها تبقى على جهازك. وتقدر تحمّل كل بياناتك أو تحذف حسابك وكل اللي فيه من الإعدادات.
+
+واشتراك Pro اختياري: مساعد بلا حدود، و«فضفض» بلا حدود، ومتابعات تنبّهك قبل ما ينتظر أحد طويلاً. والخطة المجانية تبقى صالحة للاستخدام بدونه، والسعر بعملتك يظهر لك داخل التطبيق قبل الشراء.
 
 ## What's new (1.0.0)
 
@@ -67,10 +91,10 @@ Collected, linked to the account, not used for tracking:
 Not collected: location, health, browsing history, financial info, advertising ID.
 Photos: a picture the person picks for a contact or their own profile is copied into the app and stays on the phone; it is never uploaded.
 Camera: used to read a business card on the device and to take a contact's picture. The photo of a card is not kept; the text read from it goes into a contact the person confirms.
-Microphone and speech recognition: used on the device's own recogniser only while recording a note; audio is not stored by the app.
+Microphone and speech recognition: used on the device's own recogniser only while recording a note; audio is not stored by the app. Play also requires a prominent in-app disclosure before the first recording, and there is one: a sheet carrying the policy's own Voice notes paragraph, shown once per device on each screen with a mic (BUILD-REVIEW §2.87, STORE-PRIVACY.md).
 Contacts: only a contact the person picks is read; the address book is never read on its own.
 Files: a spreadsheet, PDF or contacts file the person chooses is read on the device to import contacts; the file itself is not uploaded.
-Deletion: in Settings, and at `onlyonething.app/delete`.
+Deletion: in Settings, and on the web at `ahmedtahoun.github.io/one-thing/delete/` (see URLs below).
 Apple Privacy Manifest note: `NSPhotoLibraryUsageDescription` and `NSCameraUsageDescription` are now real uses (contact photos, card scan).
 
 ## Review notes (Apple "App Review Information" / Play "App access")
@@ -85,25 +109,55 @@ business card or take a contact's photo. Notifications are local reminders.
 
 ## URLs both stores require
 
-- Privacy policy: `https://onlyonething.app/privacy` (**must resolve before submitting**)
-- Terms: `https://onlyonething.app/terms`
-- Support URL: `https://onlyonething.app/support`, contact `privacy@onlyonething.app` (**mailbox must exist**)
-- Account deletion page (Play requires a web path): `https://onlyonething.app/delete`
+`onlyonething.app` is not aimed anywhere yet, so **none of the four addresses
+this file used to list resolve.** What resolves today is GitHub Pages, which
+is where `.github/workflows/site.yml` publishes the same text the app shows
+(RELEASE.md §7). Enter these:
+
+- Privacy policy: `https://ahmedtahoun.github.io/one-thing/privacy/`
+- Terms: `https://ahmedtahoun.github.io/one-thing/terms/`
+- Support URL: `https://ahmedtahoun.github.io/one-thing/`
+- Account deletion page (Play requires a web path):
+  `https://ahmedtahoun.github.io/one-thing/delete/` — the same address four
+  strings inside the app give, deliberately, until the domain is live.
+- Support contact: `privacy@onlyonething.app` (**the mailbox still has to
+  exist** — the policy names it and a reviewer will click it).
+
+The day `onlyonething.app` points at Pages, these four and the four in-app
+strings change together; search the repository for `ahmedtahoun.github.io`.
 
 ## Screenshots
 
-Folder: `store-assets/marketing/`. Six per language for Apple (1320×2868, the
-6.9-inch size; Apple scales it for the other iPhone sizes) and Play (1080×2160),
-plus Play's 1024×500 feature graphic (`play-en-feature-graphic.png`,
-`play-ar-feature-graphic.png`) and the 512×512 icon in `store-assets/`.
+Folder: **`store-assets/`**, regenerated 16 October 2026 by
+`npm run capture:store` from the current build, and committed, so nobody
+needs the toolchain to upload them.
 
-Order to upload (English → `apple-en-*`, Arabic → `apple-ar-*`):
-1. `1-today` — Know what to do next
-2. `2-voice` — Save contacts by talking
-3. `3-asks` — It asks only what it needs
-4. `5-people` — Reach anyone in one tap
-5. `6-followups` — Know who owes you a reply
-6. `7-language` — English and العربية
+Six screens per store per language, at exactly the size each store takes:
+Apple **1320 × 2868** (the 6.9-inch iPhone, which Apple scales down for every
+smaller one) and Play **1080 × 2160** (Play will not accept the app's real
+2.17:1 shape, so the Play set is rendered at 432 × 864 points — inside the
+2:1 limit and within 30 points of the design frame). Both are flattened to
+24-bit RGB, because Play rejects an alpha channel.
 
-They were captured before the compact Home cards and the person thread page;
-re-capture when the store should show those.
+Order to upload — `apple-en-*` / `apple-ar-*`, `play-en-*` / `play-ar-*`:
+
+1. `1-today` — one thing today, and the day around it
+2. `2-people` — who owes you a reply, and who has gone quiet
+3. `3-focus` — the focus session
+4. `4-compose` — the message, already written
+5. `5-assistant` — say it, and it becomes a task
+6. `6-contact` — everything about one person
+
+Also in the folder, both required by Play and neither by Apple:
+`play-en-feature-graphic.png` and `play-ar-feature-graphic.png` (1024 × 500,
+the app's own sign-in lockup — honest, and a placeholder a designer should
+replace) and `play-icon-512.png`.
+
+**Do not upload `store-assets/marketing/`.** It is an older generation of
+this listing — different screens, a Today without the One Thing card, names
+like `2-voice` and `3-asks` that no script produces any more. It is left in
+the repository rather than deleted because nothing here should throw away
+somebody else's work on its own; delete it when you are sure you do not want
+it. The four `*-2-tasks.png` files were removed, because the same script now
+writes `*-2-people.png` in that slot and two screenshots for one position is
+how the wrong one gets uploaded.

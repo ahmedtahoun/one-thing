@@ -3468,3 +3468,70 @@ at 10.79%. Arabic shifts 0.04 of a point, which is `$39.99` becoming
 **This is not finished until the products exist.** Until then every device
 falls back, exactly as before. What has changed is that the day the
 products are created, the right prices appear without another build.
+
+### 2.87 The microphone is explained before it is opened
+
+Google's Prominent Disclosure & Consent requirement is not satisfied by
+Android's own permission dialog. Before an app asks for the microphone it
+has to say, inside the app, what will be collected and what will happen to
+it, in wording that agrees with the privacy policy. Nothing did: all three
+screens with a mic — Quick capture, Brain dump, the Assistant — called
+`startListening`, which called `requestPermissionsAsync` directly, so the
+system prompt was the whole of the disclosure. RELEASE.md §9.10 recorded
+it as a Play-specific risk; this closes it.
+
+A sheet now stands between the tap and the recorder, once per device:
+
+- **It is the policy's own paragraph, not a paraphrase.** `micNotice.body`
+  is the Voice notes section of the published notice, character for
+  character, in both languages — and `src/features/mic/mic-notice.test.ts`
+  reads both out of `strings.ts` and fails if they ever differ. Two copies
+  of a sentence in one repository drift; here the drift would be the
+  breach, so it cannot be left to discipline.
+- **"Not now" writes nothing.** Only agreement is stored
+  (`src/lib/mic-consent.ts`), so declining brings the notice back on the
+  next tap rather than recording a refusal — nothing was consented to and
+  the microphone was never opened. Each screen puts the cursor in the box
+  it could already be typed into.
+- **An unread flag shows the notice.** `needsMicNotice` leans the way
+  `onboarded.ts` does: a tap arriving before storage has been read sees it
+  again. Showing it twice costs a tap; skipping it is the thing the policy
+  forbids.
+- **Both phones, not only Android.** Apple does not require this, and an
+  explanation before a prompt is the thing that makes people grant it. One
+  app, one behaviour.
+
+Five new checks in `smoke-capture.js` drive it in a browser: the first tap
+opens the notice and starts nothing, the text is the policy's, "Not now"
+leaves `ot.mic.notice` unset, the next tap asks again, agreeing both
+records and starts — and a later tap on the same device does not ask
+twice. Brain dump is walked through the same sheet.
+
+### 2.88 A small Android phone, measured at last
+
+Everything in this repository is measured at 402 × 874, the iPhone the
+design was drawn on. RELEASE.md §9.9 recorded that shooting the Play set
+at 360 showed the greeting truncating and the tab bar covering the list,
+and that nothing rendered the app at that size — which is why the Play
+screenshots are taken at 432 × 864 instead.
+
+`npm run narrow` renders eight screens in both languages at **360 × 640**,
+Play's small-phone baseline, and asserts three things: that nothing makes
+the page scroll sideways, that the strings whose point is to be read (the
+greeting, the four tab labels) are not cut off, and that scrolled to the
+end, the last row clears the floating tab bar instead of hiding under it.
+36 checks, in CI beside the behavioural suites.
+
+**All 36 pass, which corrects the note that prompted them.** With the
+longest first name in the demo set — "Good morning, Abdulrahman" — the
+greeting fits at 360, and the end of every list clears the bar. The checks
+were shown to bite rather than to pass vacuously by running the same suite
+at `OT_FRAME=280x560`, where the greeting and two tab labels do truncate.
+`capture-screens.js` takes the same variable, so the whole 72-screen set
+can be shot at any size without editing it.
+
+What the Play set's note described is still true of a *screenshot*: at
+rest, before anything is scrolled, the floating bar sits over the bottom of
+Today's content. That is the design — the bar floats, and the inset below
+the content is 150 pt so nothing is unreachable — but it is not what a
+store listing should show, so the Play shots stay at 432 × 864.
