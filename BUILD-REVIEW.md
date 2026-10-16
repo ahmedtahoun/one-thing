@@ -2662,3 +2662,73 @@ so nothing on the screen itself moved.
 
 Pro+ is now two of three. Enrichment is the one left, and the only one of the
 three that cannot be answered from what the phone already holds.
+
+### 2.72 The meter counts requests again
+
+§2.69 moved the parser to the device, and §2.68 began answering questions from
+the person's own data. Both left `app/assistant.tsx` spending the meter before
+either ran:
+
+```ts
+meter.spend();
+intent = await textParser.interpret(text, …);
+```
+
+So an Assistant message cost one of the Free plan's ten whether or not
+anything was sent anywhere, while the server's own meter
+(`supabase/functions/assist/handler.ts`) ticked only on a request that
+actually arrived. The two counted different things, and the device counted
+more — far more, now that most notes never leave it. Someone could be locked
+out of an Assistant the server would happily have answered, on the strength of
+ten messages it never saw.
+
+The gate is already exported, so the fix is where the spend happens:
+
+```ts
+const needsServer = !localIsEnough(text, { lang, now: new Date(), contacts });
+if (needsServer) { …paywall check… }
+if (needsServer) meter.spend();
+```
+
+The number is unchanged — ten is still ten, still the one limit the handoff
+ever specified — but it now means ten *requests*, which is what it always
+said. In practice the Free plan stretches a long way: an explicit note, a
+question about your own people, hello and thanks all cost nothing, and only a
+note the rules cannot read is worth a request.
+
+Brain dump's meter is deliberately untouched. `canDump` counts **sorting a
+dump**, a feature with its own number on the card, not a call to anything;
+spending it is right whether the split happened on the device or not.
+
+#### What the card says now
+
+"10 requests a day" was accurate when every message was one. It now
+understates what Free gives, which is the safer direction but still not what
+is true, so the Pro card reads **"Free plan: 10 a day need the cloud."**
+
+Writing that turned up a smaller thing. The Free card does not render its
+features as rows at all — it joins their *names* into one line, "Smart
+assistant · People and follow-ups · Brain dumps" — so the sub-line edited
+alongside it is not displayed anywhere. Found by looking at the captured
+screenshot rather than by reasoning about the component, which is the only
+way that kind of thing surfaces. The string was left short and accurate
+rather than carrying a paragraph nothing shows.
+
+#### What the smoke suite asserts
+
+The old block ended on "the one real task did spend one". That task is
+"Call Faisal tomorrow at 11 about the contract" — a channel, a person and a
+time — so it is read on the device and now spends nothing. The assertions are
+inverted and extended:
+
+```
+none of those five questions spent a request
+…and nor did the explicit task, which the device read itself
+a note that needs the server spends one
+an explicit note still works with the day's requests gone
+…and still spends nothing
+the eleventh request on Free opens the paywall
+```
+
+The fourth is the user-visible change: running out no longer means losing the
+Assistant, only the part of it that needs a server.

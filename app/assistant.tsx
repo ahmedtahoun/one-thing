@@ -9,8 +9,10 @@
  * because ParsedTask / AssistantIntent have no room for anything else
  * (src/lib/parse/types.ts).
  *
- * Each message sent spends one of the Free plan's 10 a day. The eleventh opens
- * the paywall instead of sending — BUILD-REVIEW.md §2.34.
+ * A message spends one of the Free plan's 10 a day **only when it needs the
+ * server** — a note the on-device rules can read, and any question answered
+ * from the person's own data, costs nothing (§2.69, §2.72). The eleventh that
+ * does need it opens the paywall instead of sending — BUILD-REVIEW.md §2.34.
  */
 import { clockOf } from '@/lib/clock-format';
 import { useEffect, useRef, useState } from 'react';
@@ -39,7 +41,7 @@ import { ink, surface, typeColour } from '@/design/tokens';
 import { useDirection, useLanguage } from '@/i18n/LanguageProvider';
 import { useAssistantMeter } from '@/lib/assistant-meter';
 import { dateKey, followUpStatus, isOnDay, type Task } from '@/lib/model-types';
-import { AssistLimitError, textParser, type AssistantIntent, type ParsedTask } from '@/lib/parse';
+import { AssistLimitError, localIsEnough, textParser, type AssistantIntent, type ParsedTask } from '@/lib/parse';
 import {
   answerFromText,
   clarify,
@@ -577,13 +579,23 @@ export default function Assistant() {
       clear();
       return answerSmall(text, small);
     }
-    if (!meter.ready) return;
-    if (pending) setMessages((list) => list.map((m) => ('kind' in m && m.kind === 'ask' ? { ...m, answered: true } : m)));
-    if (!meter.canAsk) {
-      router.push('/paywall');
-      return;
+    /**
+     * Only a note the rules cannot read themselves costs one of the day's
+     * requests, so this count and the server's mean the same thing (§2.72).
+     * Before, the meter ticked on every message and the server's ticked only
+     * on a real request, so the device over-counted and could lock someone
+     * out of an Assistant the server would still have answered.
+     */
+    const needsServer = !localIsEnough(text, { lang, now: new Date(), contacts });
+    if (needsServer) {
+      if (!meter.ready) return;
+      if (!meter.canAsk) {
+        router.push('/paywall');
+        return;
+      }
     }
-    meter.spend();
+    if (pending) setMessages((list) => list.map((m) => ('kind' in m && m.kind === 'ask' ? { ...m, answered: true } : m)));
+    if (needsServer) meter.spend();
     const sent = newId();
     setMessages((list) => [...list, { id: sent, from: 'me', text }]);
     clear();

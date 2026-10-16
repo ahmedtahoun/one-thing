@@ -593,7 +593,7 @@ number. The other three name a feature outright, which reads as Pro-only:
 
 | Capability | What the card promises | Free today | Proposed |
 |---|---|---|---|
-| `assistant` | "Unlimited smart assistant · Free plan: 10 requests a day" | 10/day | **unchanged** — the one limit the handoff ever specified |
+| `assistant` | "Unlimited smart assistant · Free plan: 10 a day need the cloud" | 10/day | the number is **unchanged** — the one limit the handoff ever specified — but since §2.72 it counts only the notes that actually reach the server, so the ten go much further and the card says so |
 | `brainDump` | "**Unlimited** brain dumps" | open | **3 a day on Free**, counted at sorting |
 | `autoFollowUps` | "**Auto** follow-ups" | open | **the chase starts by itself on Pro only** — no cap on how many |
 | `clientHistory` | "Client history — every call, message and meeting, by date" | open | **off the card**, left open |

@@ -252,11 +252,31 @@ const D_SAMPLE =
   check('…and asks nothing', (await count('assistant-ask')) === 0);
 
   check('none of those five questions spent a request', (await spent()) === afterTask, `${await spent()} vs ${afterTask}`);
-  check('…and the one real task did spend one', afterTask === 1, String(afterTask));
+  // "Call Faisal tomorrow at 11" names a channel, a person and a time, so the
+  // rules read it on the device and the server is never asked (§2.69). The
+  // meter counts requests, so it counts none of this (§2.72).
+  check('…and nor did the explicit task, which the device read itself', afterTask === 0, String(afterTask));
+
+  // A note the rules cannot be sure of is what a request is actually for.
+  await page.getByTestId('assistant-input').fill('the deck thing for sara');
+  await page.getByTestId('assistant-send').click();
+  await page.waitForTimeout(900);
+  check('a note that needs the server spends one', (await spent()) === 1, String(await spent()));
 
   await page.evaluate((day) => localStorage.setItem('ot.assistantUsage', JSON.stringify({ date: day, used: 10 })), dateKey(new Date()));
   await open('/assistant');
   await page.getByTestId('assistant-input').fill('Email Sara the deck');
+  await page.getByTestId('assistant-send').click();
+  await page.waitForTimeout(800);
+  // Out of requests no longer means out of Assistant: this one is read on the
+  // device, so it is answered rather than sent to the paywall.
+  check('an explicit note still works with the day’s requests gone', page.url().endsWith('/assistant'), page.url());
+  check('…and still spends nothing', (await read('ot.assistantUsage')).used === 10);
+
+  // A fresh screen: that note left a "when?" open, and typing into an open
+  // question answers it rather than starting a new errand.
+  await open('/assistant');
+  await page.getByTestId('assistant-input').fill('the deck thing for sara');
   await page.getByTestId('assistant-send').click();
   await page.waitForTimeout(800);
   check('the eleventh request on Free opens the paywall', page.url().endsWith('/paywall'), page.url());
@@ -265,7 +285,7 @@ const D_SAMPLE =
   await seed({ ...SESSION, plan: 'pro' });
   await page.evaluate((day) => localStorage.setItem('ot.assistantUsage', JSON.stringify({ date: day, used: 10 })), dateKey(new Date()));
   await open('/assistant');
-  await page.getByTestId('assistant-input').fill('Email Sara the deck');
+  await page.getByTestId('assistant-input').fill('the deck thing for sara');
   await page.getByTestId('assistant-send').click();
   await page.waitForTimeout(1000);
   // The eleventh request on Free opened the paywall; on Pro the same request
