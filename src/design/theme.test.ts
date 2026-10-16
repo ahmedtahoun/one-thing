@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { afterEach, describe, it } from 'node:test';
 
 import { applyTheme, currentTheme } from './theme';
-import { ink, status, surface, typeColour } from './tokens';
+import { ink, planBadge, status, surface, typeColour } from './tokens';
 
 afterEach(() => applyTheme('light'));
 
@@ -74,5 +74,44 @@ describe('applyTheme', () => {
   it('keeps a primary button readable: dark text on the light button', () => {
     applyTheme('dark');
     assert.ok(contrast(surface.white, ink.base) >= 7);
+  });
+});
+
+/**
+ * The badge's gradients are the one place in the app where text sits on a
+ * colour that *varies*, so the usual "foreground on background" check is not
+ * enough: it has to hold at the worst stop. For a light badge that is the
+ * lightest stop, for a dark one the darkest, and `pairs` names both ends so
+ * neither can be quietly brightened later.
+ *
+ * This is not hypothetical. The first green drawn for Pro started at
+ * #00A184, which carries white at 3.26:1.
+ */
+describe('the plan badge', () => {
+  const ends = () => [
+    ['pro, top', planBadge.proText, planBadge.proTop],
+    ['pro, bottom', planBadge.proText, planBadge.proBottom],
+    ['plus, top', planBadge.plusText, planBadge.plusTop],
+    ['plus, bottom', planBadge.plusText, planBadge.plusBottom],
+    ['trial', planBadge.trialText, planBadge.trialBg],
+  ] as const;
+
+  it('carries its text at both ends of every gradient, in light', () => {
+    for (const [name, fg, bg] of ends()) {
+      assert.ok(contrast(fg, bg) >= 4.5, `${name}: ${contrast(fg, bg).toFixed(2)}`);
+    }
+  });
+
+  it('…and in dark', () => {
+    applyTheme('dark');
+    for (const [name, fg, bg] of ends()) {
+      assert.ok(contrast(fg, bg) >= 4.5, `${name}: ${contrast(fg, bg).toFixed(2)}`);
+    }
+  });
+
+  it('gives Pro and Pro+ different ink, so the tiers are told apart by more than a word', () => {
+    assert.notEqual(planBadge.proTop, planBadge.plusTop);
+    applyTheme('dark');
+    assert.notEqual(planBadge.proTop, planBadge.plusTop);
   });
 });

@@ -235,3 +235,36 @@ export function canAddSmartList(plan: Plan, made: number): boolean {
   const limit = limitsFor(plan).smartLists;
   return limit === null || made < limit;
 }
+
+/**
+ * Which badge a plan wears in Settings.
+ *
+ * Its own function because `isPro` is the wrong question here. `isPro` is
+ * true for `trial`, `pro` and `pro_plus` alike — deliberately, so that every
+ * "has this person paid" check keeps working — and the badge used to ask
+ * only that, so a Pro+ subscriber and somebody four days into a free trial
+ * both read "Pro". The one place a plan is *named* has to tell them apart,
+ * and the five plans collapse to four badges rather than three:
+ *
+ *   free, lapsed → 'free'   a lapsed subscriber is on Free now, and saying
+ *                            so is honest; the nudge to come back is the
+ *                            card underneath, not the badge
+ *   trial        → 'trial'   says the clock is running
+ *   pro          → 'pro'
+ *   pro_plus     → 'plus'
+ */
+export type PlanBadgeKind = 'free' | 'trial' | 'pro' | 'plus';
+
+export function planBadge(plan: Plan): PlanBadgeKind {
+  switch (plan) {
+    case 'pro_plus':
+      return 'plus';
+    case 'pro':
+      return 'pro';
+    case 'trial':
+      return 'trial';
+    case 'free':
+    case 'lapsed':
+      return 'free';
+  }
+}

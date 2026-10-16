@@ -11,7 +11,7 @@
  * "the page" (it becomes near-black). A primary button is `ink.base` with
  * `surface.white` text, so in dark it is a light button with dark text.
  */
-import { ink, noteColour, settingsTile, status, surface, typeColour } from './tokens';
+import { ink, noteColour, planBadge, settingsTile, status, surface, typeColour } from './tokens';
 
 export type ThemeMode = 'light' | 'dark';
 
@@ -22,6 +22,7 @@ type Palette = {
   typeColour: Record<string, { fg: string; bg: string }>;
   noteColour: { fg: string; bg: string };
   settingsTile: Record<string, { fg: string; bg: string }>;
+  planBadge: Record<string, string>;
 };
 
 /**
@@ -114,6 +115,22 @@ const DARK: Palette = {
     course: { fg: '#B5CC5E', bg: '#2B3315' },
   },
   noteColour: { fg: '#F0D58A', bg: '#2B2615' },
+  // Pro lightens and takes dark text, the way every filled thing does in
+  // dark. Pro+ inverts outright: ink and gold swap, because a near-black
+  // pill on a near-black card is not a badge.
+  planBadge: {
+    proTop: '#00C79E',
+    proBottom: '#00A884',
+    proText: '#06231C',
+    proEdge: 'rgba(255,255,255,0.30)',
+    plusTop: '#F0D291',
+    plusBottom: '#C9A354',
+    plusText: '#2A1D00',
+    plusEdge: 'rgba(255,255,255,0.40)',
+    trialBg: '#2E2614',
+    trialLine: '#514428',
+    trialText: '#F0D291',
+  },
   settingsTile: {
     reminders: { bg: '#2A2640', fg: '#B8A3F0' },
     notifications: { bg: '#3A2A1B', fg: '#F5A25D' },
@@ -140,6 +157,7 @@ function snapshot(): Palette {
     typeColour: copy(typeColour),
     noteColour: copy(noteColour),
     settingsTile: copy(settingsTile),
+    planBadge: copy(planBadge),
   };
 }
 
@@ -150,6 +168,7 @@ function assign(palette: Palette): void {
   for (const [key, value] of Object.entries(palette.typeColour)) Object.assign(writable(typeColour)[key] as object, value);
   Object.assign(writable(noteColour), palette.noteColour);
   for (const [key, value] of Object.entries(palette.settingsTile)) Object.assign(writable(settingsTile)[key] as object, value);
+  Object.assign(writable(planBadge), palette.planBadge);
 }
 
 /** Makes every token read as `next` from now on. Cheap, and safe to call on every render. */

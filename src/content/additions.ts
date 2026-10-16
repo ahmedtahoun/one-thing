@@ -29,6 +29,11 @@ export type Added = {
     days: string;
     weeks: string;
   };
+  /**
+   * The two plan badges the handoff never had. "Pro" and "Free" are still
+   * `SETX.st.pro` / `.free`, which the handoff did supply.
+   */
+  plan: { plus: string; trial: string };
   pickCancel: string;
   ask: {
     ambiguous: string;
@@ -610,6 +615,10 @@ const ADDED: Record<Lang, Added> = {
       days: '{n}d',
       weeks: '{n}w',
     },
+    // Not translated in either language: the app already writes Pro in Latin
+    // inside Arabic copy ("جرّب Pro مجاناً ٧ أيام"), so a transliterated
+    // "برو" on the badge would be the only place it is spelled out.
+    plan: { plus: 'Pro+', trial: 'Trial' },
     pickCancel: 'Cancel',
     /** The Assistant and Quick capture asking before they propose a task. */
     ask: {
@@ -1168,6 +1177,7 @@ const ADDED: Record<Lang, Added> = {
       days: '{n} ي',
       weeks: '{n} أ',
     },
+    plan: { plus: 'Pro+', trial: 'تجربة' },
     pickCancel: 'إلغاء',
     ask: {
       ambiguous: 'أي {n} تقصد؟',

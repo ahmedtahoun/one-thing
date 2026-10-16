@@ -25,6 +25,7 @@ import {
 import { PhotoSheet } from '@/features/people/PhotoSheet';
 import { DeleteSheet, TipSheet } from '@/features/settings/sheets';
 import { Avatar } from '@/ui/Avatar';
+import { PlanBadge } from '@/ui/PlanBadge';
 import { ForwardChevron } from '@/ui/ForwardChevron';
 import { Icon } from '@/ui/Icon';
 import { Screen } from '@/ui/Screen';
@@ -229,18 +230,7 @@ export default function Settings() {
               </Text>
             ) : null}
           </View>
-          <View
-            style={{
-              paddingVertical: 5,
-              paddingHorizontal: 10,
-              borderRadius: 999,
-              backgroundColor: pro ? ink.solid : surface.fill,
-            }}
-          >
-            <Text token="micro" weight="600" color={pro ? surface.white : ink.s4}>
-              {pro ? st.pro : st.free}
-            </Text>
-          </View>
+          <PlanBadge plan={session?.plan ?? 'free'} testID="settings-plan" />
         </View>
 
         {!pro ? (

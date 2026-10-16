@@ -3127,3 +3127,52 @@ out, no route in `scripts/capture-screens.js` either. An eye on the Arabic
 was the only check they were ever going to get, and there was nothing to
 look at. They are captured now, as `25-scan-many`, `26-recap` and
 `27-smart-lists`, in both languages.
+
+### 2.80 The plan badge says which plan, and looks like one
+Settings showed one flat green pill reading "Pro". The ask was to make it
+look premium; the reason it looked thin was underneath it.
+
+**It was asking the wrong question.** The badge ran on `isPro`, which is
+true for `trial`, `pro` and `pro_plus` alike — correctly, because every
+"has this person paid" check depends on that — so a Pro+ subscriber and
+somebody four days into a free trial both read **Pro**. A badge that cannot
+tell your best-paying customer from a trialist is not plain, it is wrong,
+and no amount of gradient fixes it. `planBadge()` in
+`src/policy/entitlements.ts` is the separate question: five plans to four
+badges, with `lapsed` reading Free, because a lapsed subscriber *is* on
+Free now and the nudge to come back is the card underneath.
+
+**The look** is `src/ui/PlanBadge.tsx`: a two-stop vertical gradient, a
+hairline of light along the top edge, and the `star` glyph the contact menu
+already uses. Pro is the app's green; **Pro+ is the only place in the app
+where ink and gold meet**, the gold being `typeColour.visit`'s family
+lightened to carry on near-black. A trial is deliberately *not* dressed as
+a tier you bought: no gradient, no star, a warm outline instead.
+
+**The gradients are set by contrast, not by eye.** White has to clear 4.5:1
+against the *lightest* stop, so Pro starts at `ink.solid` itself and goes
+darker. The green drawn first in the mock-up, #00A184, carries white at
+**3.26:1** and would have shipped a badge that fails. `theme.test.ts` now
+holds both ends of every gradient to 4.5:1 in both themes, so the next
+person to brighten one finds out at `npm test`.
+
+**Arabic found its own bug.** "Pro+" is Latin letters with a neutral `+`
+after them, and in an RTL paragraph bidi resolves that trailing neutral to
+the other side: the badge rendered **"+Pro"**. The label is an `LTRText`
+now. `Trial` and `Free` are *not* — "تجربة" and "مجاني" are Arabic words,
+not product names, and forcing them LTR would be the same mistake pointing
+the other way.
+
+Height is unchanged on purpose: 11px text, 5px padding, as the old pill.
+The profile row's name is a drift probe and a taller badge would push it.
+
+Checked in a browser rather than argued about: `smoke-analytics` sets each
+of the four plans in turn and asserts that plan renders its own badge with
+its own word, plus one check named for the bug — **"Pro+ is not wearing the
+Pro badge"**.
+
+**Not built, and why.** The badge says "Trial" with no countdown. Nothing
+on the device knows when a trial ends: `Session` carries `plan` and no
+date, and no expiry is synced down from the store or the `subscription`
+table. "Trial · 5 days" needs that date first, and inventing one would be
+worse than the plain word.
