@@ -210,6 +210,37 @@ export const settingsTile = {
   help: { bg: '#D4F6F8', fg: '#00666D' },
 } as const;
 
+/**
+ * The plan badge in Settings — `src/ui/PlanBadge.tsx`.
+ *
+ * Each tier is a two-stop vertical gradient with a hairline of light along
+ * its top edge, which is what makes a flat pill read as an object rather
+ * than a label. The gradients are constrained by contrast, not by taste:
+ * white has to clear 4.5:1 against the *lightest* stop, so Pro starts at
+ * `ink.solid` itself and goes darker. A brighter green above it (#00A184
+ * was drawn first) comes out at 3.26:1 and fails.
+ *
+ * Pro+ is the only place in the app where ink and gold meet. The gold is
+ * `typeColour.visit`'s family, lightened to carry on near-black.
+ *
+ * In dark the polarity flips, as it does for every filled thing here: the
+ * fill lightens and the text goes dark. `src/design/theme.test.ts` holds
+ * every pair to 4.5:1 in both themes.
+ */
+export const planBadge = {
+  proTop: '#008069',
+  proBottom: '#00594A',
+  proText: '#FFFFFF',
+  proEdge: 'rgba(255,255,255,0.34)',
+  plusTop: '#2A2A26',
+  plusBottom: '#0B0B0B',
+  plusText: '#F4D58B',
+  plusEdge: 'rgba(255,214,130,0.44)',
+  trialBg: '#F9EED1',
+  trialLine: '#E8D6A6',
+  trialText: '#6F4100',
+} as const;
+
 /** README § Radius. */
 export const radius = {
   pill: 999,

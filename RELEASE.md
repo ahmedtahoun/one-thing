@@ -166,7 +166,7 @@ set the accounts up. BUILD-REVIEW §2.41.
 
 | Work | Where it lands | Blocked on |
 |---|---|---|
-| ~~Supabase project, apply the migrations, fill `.env`, deploy the functions~~ — **live and verified** (§4.1) | `.env` (see `.env.example`); `npm run schema:check` applies the whole sequence to a throwaway Postgres first | — |
+| ~~Supabase project, apply the migrations, fill `.env`, deploy the functions~~ — **live and verified** (§4.1). Applying the migrations is not finished for good: nothing applies a *new* one, so every merge that adds one needs it run by hand before the panel is used (admin/DEPLOY.md § 5) | `.env` (see `.env.example`); `npm run schema:check` applies the whole sequence to a throwaway Postgres first | — |
 | ~~Real Apple + Google sign-in~~ — written, unrun | `src/lib/auth/`, wired into `app/sign-in.tsx`. Needs the client IDs and a build on a device | Apple §2.3, Google §3.2–3.3 |
 | ~~Purchases~~ — written, unrun | `src/features/paywall/store.ts` through expo-iap: the trial, the tips, Restore and Manage. Each carries the Supabase user id and makes nobody Pro on its own; the plan comes from the webhooks (BUILD-REVIEW §2.50). Needs the products in both consoles and a build on a device | §2.5 / §3.5 |
 | ~~The assistant / capture parsing~~ — built, never called | `supabase/functions/assist` with the limit in `0005_assist.sql`; `src/lib/parse/local.ts` is the fallback. Needs deploying, and an API key to have ever run | a Supabase project |
@@ -478,10 +478,12 @@ neither has ever run on hardware.
    reminder can arrive some minutes late. That is survivable for the evening
    nudge and awkward for the focus timer's end. Your call: keep it and justify
    it as a reminder app, or drop it and accept the window.
-6. **Arabic completeness.** Four strings are still missing in Arabic — the
-   three notification rows (§2.25) and "Plan tomorrow" (§2.30). An Arabic
-   listing with English strings inside the app is the kind of thing a reviewer
-   does notice.
+6. **Four Arabic strings are stand-ins, not translations.** Nothing shows
+   English inside the Arabic app — this was written as "missing", which
+   overstated it. The three notification rows (§2.25) and "Plan tomorrow"
+   (§2.30) read fine in both languages; they are simply the nearest copy that
+   already existed, because the handoff never supplied the real wording.
+   Supply four strings and they go in; leave them and nothing is broken.
 
 ---
 
@@ -809,12 +811,26 @@ Play's tester gate behind us, there is no multi-week wait left in this plan.
    rather than locked — bulk card scanning (five a batch on Free, BUILD-REVIEW
    §2.67) and smart lists (one on Free, unlimited on Pro+, §2.71) — and weekly
    recap, the Pro bullet that had nothing behind it, has a screen now (§2.70).
-10. **Arabic read beside the prototype's screenshots.** The only check no
-    automation can do: `src/content/copy.test.ts` verifies the *copy* in both
-    languages, and no test can see a horizontal flip. Three more screens need
-    it now — `/scan-many`, `/recap` and `/smart-lists` — and those three have
-    no prototype screenshot to measure against either, so a human eye is the
-    whole check. Worth doing before submission.
+10. ~~**Arabic read beside the prototype's screenshots.**~~ Done, 16 October
+    — BUILD-REVIEW §2.78. It found two glyphs that never mirrored: the back
+    chevron on account setup, and the send plane on Assistant and Quick
+    capture, which pointed the opposite way to the identical button on a
+    contact's page. Both fixed. Nothing could have caught them — no test reads
+    a transform, and a 22px glyph is 0.03% of a screen, so setup's Arabic
+    scored *better* than its English against the prototype while the arrow was
+    backwards. `src/ui/back-chevron.test.ts` now guards the whole class from
+    the source, and fails if either fix is reverted.
+
+    `/scan-many`, `/recap` and `/smart-lists` had no screenshot in either
+    language — no prototype shot, and no route in `scripts/capture-screens.js`
+    either — so they are captured now (§2.79) and read with the rest.
+
+    **Two things it turned up are yours, not code:** whether Arabic should use
+    Arabic-Indic digits for computed numbers (today hand-written copy does,
+    `String(n)` does not, and Settings shows both in one list), and whether
+    the evening-review eyebrow `"مراجعة المسا"` is the colloquial spelling you
+    want — it is the handoff's own string, and the rest of the Arabic is
+    colloquial Gulf, so it may well be right.
 
 **Settled since this list was first written, and no longer work:**
 
@@ -834,5 +850,7 @@ Play's tester gate behind us, there is no multi-week wait left in this plan.
 - ~~**Legal review**~~, ~~**screenshots**~~, ~~**export compliance**~~ — see
   §7.
 
-Items 3 to 8 are yours alone. 1 and 2 are work nobody has started. 9 and 10
-are code, and 10 is the only one that blocks a submission.
+Items 3 to 8 are yours alone. 1 and 2 are work nobody has started. 9 is
+code and needs a service outside the app. 10 is done, so nothing in the
+code blocks a submission any more — what is left is the hardware build and
+the store consoles.

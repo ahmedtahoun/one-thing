@@ -2995,3 +2995,184 @@ comped user is not offered a second one, and both the grant and the
 take-back are logged with the reason) and `npm run fidelity` (0 failing).
 At the root: `npm test` (755, four new on the export document),
 `npm run test:db` (33) and `npm run verify:colours`.
+
+### 2.77 The "Who?" sheet is ordered by what is owed
+Tapping Call, Email or WhatsApp on Home opens a sheet asking who. It listed
+favourites, then everyone in the order they were added, with a phone number
+under each name. With ninety contacts that is a scroll, and the phone number
+was never why anybody opened it.
+
+**The ordering is the decision, and it is not a chat app's.** A messaging
+app sorts by recency because you reopen what you just closed. This app is
+for the opposite case: the person at the top of a recency list is the one
+you spoke to an hour ago and could not forget, and the one slipping away is
+the one who has been waiting since Tuesday. So the sheet goes:
+
+```
+1. they owe you a reply, and it is overdue   ← longest wait first
+2. they owe you a reply
+3. you reached them lately                   ← most recent first
+4. you have not reached them in a while
+5. you never have
+```
+
+**A favourite no longer jumps the queue.** It breaks a tie inside its own
+group and nothing more. Starring somebody says "I deal with them often",
+which is not "they need me first" — and under the old `floatFavorites` a
+starred person with nothing outstanding sat above somebody who had been
+waiting a week. A test holds that line, because it is the rule most likely
+to be undone by someone who thinks it is a bug.
+
+So **the row carries a small star instead.** The old sheet marked nobody: a
+favourite was simply at the top, and position *was* the mark. Taking the
+float away without putting a star on the row would have removed the only
+answer the sheet gave to "who are my regulars?", which is a feature lost by
+accident rather than a decision. The smoke run stars Sara and then asserts
+both halves at once: the star is on her row, and her row is still third.
+
+**Each row now says what last happened** — "Waiting on a reply — Logo final
+files", "You emailed", "Nothing lately", "Never reached" — with a short age
+at the end ("Yesterday", "3d", "6w") and a pill, Overdue or Waiting, when
+something is owed. The pills reuse `status.dangerBg` / `overdueFg` and
+`warnBg` / `warnFg`; no colour was invented.
+
+**No gendered copy.** The mock-up said "Waiting on her — the coffee quote".
+The app is never told anyone's gender and guessing it from a name is how you
+get it wrong about somebody every day, so it reads "Waiting on a reply". A
+smoke check fails on "his", "her" or "him" anywhere in the sheet.
+
+**It costs nothing.** `pick-order.ts` is pure and reads only what the phone
+already holds — follow-ups, contact history, favourites, all from
+`usePeople()`. No request, no table, no permission, and it works offline.
+Follow-ups saved without a `contactId` are matched by `nameKey`, the same
+folding People's own chips use, so an older follow-up carrying "Noura ·
+Designer" still finds her.
+
+**Not measured against the prototype.** `PickSheet` has no drift probe and
+no pair in `screen-pairs.json` — it is a build decision the prototype never
+drew (§2.37's sheet-over-Home). So the layout was free, and the sheet also
+had no browser coverage at all until now.
+
+**Checked:** `npm run typecheck`, `npm run typecheck:functions`, `npm test`
+(769 — 14 new on the ordering, including that a future date reads as today,
+that somebody else's history is nobody's, and both halves of the favourite
+rule), `npm run smoke` (six suites, 328 checks — the sheet's order, its
+pills, its wording and that picking somebody still opens the draft),
+`npm run drift` (no failures), `npm run compare` (unchanged — it reports
+pixels and does not gate) and `npm run verify:colours`.
+
+### 2.78 Two arrows pointed the wrong way in Arabic
+The Arabic read beside the prototype's screenshots — the one check no
+automation can do (RELEASE.md, item 10) — found two glyphs that never
+mirrored.
+
+| Where | What Arabic showed |
+|---|---|
+| `app/setup.tsx` | the back chevron at the top **right**, pointing **left** |
+| `src/features/capture/SendRow.tsx` | a paper plane flying **right**, on Assistant and Quick capture |
+
+Both are the same mistake. Writing direction on the root flips where a
+control *sits*; nothing flips which way a glyph *points*, so each raw
+`<Icon>` has to be wrapped in `scaleX: dir.isRTL ? -1 : 1`. `BackButton`
+does it, and so do the twelve screens that draw the icon directly — these
+two were the exceptions. The send one is the plainer of the two: the
+identical control on a contact's page already mirrored, so the same Arabic
+app had two send buttons pointing opposite ways.
+
+**Nothing could have caught them.** No unit test reads a transform. No
+drift probe measures one. `compare` is pixels, and a 22px glyph is 0.03% of
+a 402×874 screen — the setup screen's Arabic actually scored *better*
+against the prototype than its English (2.24% vs 2.61%) while the arrow was
+backwards. That is the argument for the human read, and also the argument
+for not relying on it twice.
+
+So `src/ui/back-chevron.test.ts` now reads the source instead, where the
+mistake is made: every `<Icon name="…">` whose path data points along the
+line of writing — `back`, `send`, `chevR`, `arrow` — must have a `scaleX`
+or a `rotate` within a few lines of it. `chev` is excluded because its own
+path (`m6 9 6 6 6-6`) points **down**, and mirroring a vertical glyph does
+nothing — `CountryPicker` depends on that (§2.21). `loop` and `search` are
+excluded because neither platform mirrors a refresh circle or a magnifier.
+The test was written against the bugs: with either fix reverted it fails
+and names the file and line.
+
+**Checked and correct**, so recorded rather than changed: the tab bar, the
+quick actions, People's header cluster, every segmented control (including
+Language, whose logical order is `[English, العربية]` in both), the
+follow-up filter chips, the thread's bubbles (`alignSelf: 'flex-end'` and
+`borderTopEndRadius` are already direction-aware), and the phone field,
+which deliberately stays LTR in Arabic because a number is an LTR island —
+the prototype's own Arabic screenshot does the same. Compose's "Last time"
+chevron still points the opposite way to the prototype, which remains
+right: §2.19 records that the prototype double-mirrors it.
+
+Two things found on the way that are **not** mine to decide:
+
+- **`/tasks` is a `Redirect` to `/today`**, so `07-tasks` captures Today and
+  `screen-pairs.json` compares it against the prototype's all-tasks screen.
+  That pair is the largest number in the whole `compare` report (26%) and
+  means nothing. Either drop the pair or capture Today's "All" segment.
+- **Arabic mixes two digit systems.** Hand-written Arabic copy uses
+  Arabic-Indic (`٧ أيام`, `٥ أكتوبر`); everything computed comes out Latin,
+  because it is `String(n)`. Settings shows "جرّب Pro مجاناً ٧ أيام" and
+  "45 د" in the same list. The prototype's own convention is Arabic-Indic
+  for counts and Latin for prices, which the app follows except where the
+  number is computed. One string has both inside one sentence:
+  `daysN: 'خلّصت شيء في {n} من ٧ أيام'`.
+
+### 2.79 Three screens had no screenshot in either language
+`/scan-many`, `/recap` and `/smart-lists` were built after the handoff, so
+they have no prototype shot, no pair in `screen-pairs.json` — and, it turns
+out, no route in `scripts/capture-screens.js` either. An eye on the Arabic
+was the only check they were ever going to get, and there was nothing to
+look at. They are captured now, as `25-scan-many`, `26-recap` and
+`27-smart-lists`, in both languages.
+
+### 2.80 The plan badge says which plan, and looks like one
+Settings showed one flat green pill reading "Pro". The ask was to make it
+look premium; the reason it looked thin was underneath it.
+
+**It was asking the wrong question.** The badge ran on `isPro`, which is
+true for `trial`, `pro` and `pro_plus` alike — correctly, because every
+"has this person paid" check depends on that — so a Pro+ subscriber and
+somebody four days into a free trial both read **Pro**. A badge that cannot
+tell your best-paying customer from a trialist is not plain, it is wrong,
+and no amount of gradient fixes it. `planBadge()` in
+`src/policy/entitlements.ts` is the separate question: five plans to four
+badges, with `lapsed` reading Free, because a lapsed subscriber *is* on
+Free now and the nudge to come back is the card underneath.
+
+**The look** is `src/ui/PlanBadge.tsx`: a two-stop vertical gradient, a
+hairline of light along the top edge, and the `star` glyph the contact menu
+already uses. Pro is the app's green; **Pro+ is the only place in the app
+where ink and gold meet**, the gold being `typeColour.visit`'s family
+lightened to carry on near-black. A trial is deliberately *not* dressed as
+a tier you bought: no gradient, no star, a warm outline instead.
+
+**The gradients are set by contrast, not by eye.** White has to clear 4.5:1
+against the *lightest* stop, so Pro starts at `ink.solid` itself and goes
+darker. The green drawn first in the mock-up, #00A184, carries white at
+**3.26:1** and would have shipped a badge that fails. `theme.test.ts` now
+holds both ends of every gradient to 4.5:1 in both themes, so the next
+person to brighten one finds out at `npm test`.
+
+**Arabic found its own bug.** "Pro+" is Latin letters with a neutral `+`
+after them, and in an RTL paragraph bidi resolves that trailing neutral to
+the other side: the badge rendered **"+Pro"**. The label is an `LTRText`
+now. `Trial` and `Free` are *not* — "تجربة" and "مجاني" are Arabic words,
+not product names, and forcing them LTR would be the same mistake pointing
+the other way.
+
+Height is unchanged on purpose: 11px text, 5px padding, as the old pill.
+The profile row's name is a drift probe and a taller badge would push it.
+
+Checked in a browser rather than argued about: `smoke-analytics` sets each
+of the four plans in turn and asserts that plan renders its own badge with
+its own word, plus one check named for the bug — **"Pro+ is not wearing the
+Pro badge"**.
+
+**Not built, and why.** The badge says "Trial" with no countdown. Nothing
+on the device knows when a trial ends: `Session` carries `plan` and no
+date, and no expiry is synced down from the store or the `subscription`
+table. "Trial · 5 days" needs that date first, and inventing one would be
+worse than the plain word.

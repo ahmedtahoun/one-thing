@@ -183,6 +183,28 @@ const ONE_THING = { en: 'Finish the investor proposal', ar: 'أخلّص عرض �
   const stamped = (await queue()).every((e) => typeof e.at === 'string' && !Number.isNaN(Date.parse(e.at)));
   check('every event is stamped with when it happened', stamped);
 
+  // ------------------------------------------------- the plan badge
+  // The bug worth a browser check: isPro() is true for trial, pro and
+  // pro_plus alike, so all three used to render the same "Pro" pill.
+  for (const [plan, probe, word] of [
+    ['free', 'settings-plan-free', 'Free'],
+    ['pro', 'settings-plan-pro', 'Pro'],
+    ['pro_plus', 'settings-plan-plus', 'Pro+'],
+    ['trial', 'settings-plan-trial', 'Trial'],
+  ]) {
+    await seed();
+    await page.evaluate((p) => {
+      const s = JSON.parse(localStorage.getItem('ot.session') || '{}');
+      localStorage.setItem('ot.session', JSON.stringify({ ...s, plan: p }));
+    }, plan);
+    await open('/settings');
+    check(`${plan} wears its own badge`, (await page.getByTestId(probe).count()) === 1, probe);
+    check(`…and it says ${word}`, (await page.getByTestId(probe).innerText()).trim() === word, await page.getByTestId(probe).innerText());
+  }
+  // The one that used to be wrong, stated as its own check so a regression
+  // names itself: Pro+ must not render the Pro badge.
+  check('Pro+ is not wearing the Pro badge', (await page.getByTestId('settings-plan-pro').count()) === 0);
+
   // ---------------------------------------------------------- the export
   await open('/settings');
   await page.getByTestId('settings-privacy').click();
