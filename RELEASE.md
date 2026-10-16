@@ -757,7 +757,7 @@ pages, using this repository as the evidence rather than a checklist.
 
 **Would be rejected, in the order it would happen:**
 
-1. **The paywall shows prices nothing fetched — Apple 3.1.2.** `PRICES` in
+1. ~~**The paywall shows prices nothing fetched — Apple 3.1.2.**~~ **Fixed**, BUILD-REVIEW §2.86: `store.prices()` reads what `fetchProducts` was already returning, the live pair replaces both figures or neither, and everything derived moves with it. It still falls back to the table until the products exist, so item 2 remains the gate. `PRICES` in
    `src/features/paywall/plans.ts` is a constant table in cents, `money()`
    renders it, and **`purchases.ts` exports no product lookup at all**:
    `startPurchases`, `startTrial`, `buyTip`, `restorePurchases`,

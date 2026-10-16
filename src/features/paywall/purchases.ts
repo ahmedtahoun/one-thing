@@ -50,6 +50,7 @@ const store = createStore({
 });
 
 export const startPurchases = store.start;
+export const storePrices = store.prices;
 export const startTrial = store.startTrial;
 export const buyTip = store.buyTip;
 export const restorePurchases = store.restore;

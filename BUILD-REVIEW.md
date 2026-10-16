@@ -3419,3 +3419,52 @@ inside the bubble flip.
 
 Not built: no way to see it again. `src/lib/tour.ts` has the `reset()` a
 Settings row would call, next to `onboarded.ts`'s.
+
+### 2.86 The paywall asks the store what it charges
+Found reading the app as a reviewer (§9.10 of RELEASE.md): the cards
+rendered `PRICES`, a table of US cents typed by hand, through a `money()`
+that prefixed a dollar sign — so a buyer in Riyadh was shown **$6.99** and
+charged a SAR tier. `plans.ts` claimed "the store's own localised figures
+replace" them; **nothing did**. `purchases.ts` exported `startPurchases`,
+`startTrial`, `buyTip`, `restorePurchases` and `manageSubscription`, and
+no product lookup at all.
+
+The amounts were already arriving. `fetchProducts` is called before every
+purchase — StoreKit will not sell a product it has not loaded — and the
+price on the result was being thrown away. `store.prices()` reads it now,
+once, when the paywall opens.
+
+**Live or fallback, never a mixture.** `resolvePrices` takes the store's
+pair or none of it. One live period beside one typed one would put a SAR
+year next to a USD month and compute a saving between the two — a number
+that is simply false, and the kind a regulator reads literally. The same
+rule hides the "Save 52%" badge outright when the two are not in one
+currency, rather than printing a figure it cannot stand behind.
+
+**Everything derived moves with it.** The per-month figure on the yearly
+card, the year's total in the fine print and the savings percentage are
+all computed from whichever pair is in force, in its own currency. The
+percentage still rounds *down*.
+
+Three details that only show up away from a US phone, each with a test:
+
+- **Play's base plans are a list of pricing phases.** A plan with a free
+  trial opens with a zero phase, so reading phase zero would advertise
+  free as the price forever. It takes the last paying phase.
+- **Not every currency has two decimals.** KWD, BHD, OMR and three others
+  have three; JPY and KRW none. `minorUnits` knows, so a Kuwaiti price is
+  not out by a factor of ten.
+- **`Intl` is the only thing that knows the form.** SAR reads `6.99 ر.س.`
+  in Arabic and `SAR 6.99` in English; no `$${n}` can be right in more
+  than one country. Digits are pinned to Latin so the paywall does not
+  become the one screen disagreeing with the rest of the app while that
+  question is open.
+
+Nothing visible changed in English, because with no store the fallback is
+the table that was always there — `compare` reports `en-paywall` unmoved
+at 10.79%. Arabic shifts 0.04 of a point, which is `$39.99` becoming
+`39.99 US$` through `Intl`.
+
+**This is not finished until the products exist.** Until then every device
+falls back, exactly as before. What has changed is that the day the
+products are created, the right prices appear without another build.

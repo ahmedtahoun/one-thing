@@ -28,17 +28,14 @@ import { Pressable, View } from 'react-native';
 import { router } from 'expo-router';
 
 import { track } from '@/lib/analytics/track';
-import { restorePurchases, startTrial, type Period } from '@/features/paywall/purchases';
+import { restorePurchases, startTrial, storePrices, type Period } from '@/features/paywall/purchases';
 import {
-  PRICES,
+  fallbackPrices,
   PRODUCT_ID,
   isForSale,
-  money,
-  perMonth,
-  savingsPercent,
-  yearlyTotal,
   type Tier,
 } from '@/features/paywall/plans';
+import { formatMoney, perMonthOf, resolvePrices, savingsOf, type Money } from '@/features/paywall/live-prices';
 import { added } from '@/content/additions';
 import { BalancedText } from '@/ui/BalancedText';
 import { Icon } from '@/ui/Icon';
@@ -101,14 +98,36 @@ export default function Paywall() {
     toast.show(message, { undo: false });
   };
 
+  /**
+   * What the store charges, fetched once. Until it answers — and on the
+   * web, and before the products exist — the cards show the table in
+   * `plans.ts`, which is what they always showed. A price is never blank
+   * and never half-live: `resolvePrices` takes the store's pair or none of
+   * it (src/features/paywall/live-prices.ts).
+   */
+  const [fromStore, setFromStore] = useState<Partial<Record<Period, Money>>>({});
+  useEffect(() => {
+    let gone = false;
+    void storePrices()
+      .then((found) => !gone && setFromStore(found))
+      .catch(() => {});
+    return () => {
+      gone = true;
+    };
+  }, []);
+
+  const priceOf = (key: Tier) => resolvePrices(fallbackPrices(key), key === tier ? fromStore : {});
+  const show = (m: Money) => formatMoney(m, lang === 'ar' ? 'ar' : 'en');
+
   const periods: { key: Period; name: string }[] = [
     { key: 'year', name: pw.year },
     { key: 'month', name: pw.month },
   ];
 
+  const shown = priceOf(tier).prices;
   const fine = period === 'year'
-    ? pw.fineY.replace('{price}', yearlyTotal(tier))
-    : pw.fineM.replace('{price}', money(PRICES[tier].month));
+    ? pw.fineY.replace('{price}', show(shown.year))
+    : pw.fineM.replace('{price}', show(shown.month));
 
   // Purchasable tiers sit above the button and anything not yet on sale
   // below it. The redesign had pushed the button to 1153 pt on an 874 pt
@@ -128,7 +147,7 @@ export default function Paywall() {
           const sub = key === 'free'
             ? pw.current
             : period === 'year'
-              ? pw.yearSub.replace('{price}', yearlyTotal(key))
+              ? pw.yearSub.replace('{price}', show(priceOf(key).prices.year))
               : pw.monthSub;
 
           return (
@@ -175,7 +194,7 @@ export default function Paywall() {
                 {paid ? (
                   <View style={{ alignItems: 'flex-end', gap: 2 }}>
                     <LTRText token="title" testID={`paywall-price-${key}`}>
-                      {perMonth(key, period)}
+                      {show(perMonthOf(priceOf(key).prices, period))}
                     </LTRText>
                     <Text token="micro" color={ink.s4}>
                       {pw.per}
@@ -219,7 +238,7 @@ export default function Paywall() {
                   amount — which is exactly why one typed badge was wrong.
                   Only on a tier you can actually buy: a saving advertised
                   on something not for sale is an offer that is not open. */}
-              {sellable && period === 'year' ? (
+              {sellable && period === 'year' && savingsOf(priceOf(key).prices) !== null ? (
                 <View
                   testID={`paywall-save-${key}`}
                   style={{
@@ -235,7 +254,7 @@ export default function Paywall() {
                   }}
                 >
                   <Text size={11} weight="600" color={surface.white}>
-                    {pw.save.replace('{n}', String(savingsPercent(key)))}
+                    {pw.save.replace('{n}', String(savingsOf(priceOf(key).prices)))}
                   </Text>
                 </View>
               ) : null}

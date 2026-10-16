@@ -18,6 +18,8 @@
  *   consumed, so the same tip can be bought again.
  */
 
+import { applePrices, playPrices, type Money } from './live-prices';
+
 export type Period = 'year' | 'month';
 export type TipProduct = 'tip_small' | 'tip_regular' | 'tip_large';
 export type Platform = 'ios' | 'android';
@@ -168,6 +170,26 @@ export function createStore(deps: Deps) {
     /** Connect early, so a purchase left unfinished last launch is finished now. */
     start: (): void => {
       if (deps.platform) connect().catch(() => {});
+    },
+
+    /**
+     * What the store charges for the two periods, in the buyer's currency.
+     * `{}` on the web, without a store, or when the products do not exist
+     * yet — and the paywall then shows the table it always showed, so a
+     * dead network is a stale price rather than a blank card.
+     */
+    prices: async (): Promise<Partial<Record<Period, Money>>> => {
+      if (!deps.platform) return {};
+      try {
+        const iap = deps.iap();
+        await iap.initConnection();
+        if (deps.platform === 'android') {
+          return playPrices(await iap.fetchProducts({ skus: [PLAY_SUBSCRIPTION], type: 'subs' }), PLAY_SUBSCRIPTION, PLAY_BASE_PLAN);
+        }
+        return applePrices(await iap.fetchProducts({ skus: [APPLE_PRODUCT.month, APPLE_PRODUCT.year], type: 'subs' }), APPLE_PRODUCT);
+      } catch {
+        return {};
+      }
     },
 
     /** Starts the 7-day trial on the period chosen on the paywall. */
