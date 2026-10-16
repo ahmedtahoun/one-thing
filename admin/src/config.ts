@@ -14,7 +14,9 @@ import 'server-only';
 import { demoSource } from './data/demo';
 import type { DataSource } from './data/source';
 
-export const ADMIN_EMAIL_DOMAIN = 'onlyonething.app';
+// The admin email domains moved to `auth/domains.ts`, which the add-admin
+// script can import and this `server-only` module cannot be.
+export { ADMIN_EMAIL_DOMAIN, ADMIN_EMAIL_DOMAINS, adminDomainList, isAdminEmail } from './auth/domains';
 
 export type Mode = 'demo' | 'live';
 

@@ -18,15 +18,15 @@ import readline from 'node:readline/promises';
 import { createClient } from '@supabase/supabase-js';
 import postgres from 'postgres';
 
+import { adminDomainList, isAdminEmail } from '../src/auth/domains';
+
 const [email, name, role] = process.argv.slice(2);
 const ROLES = ['Owner', 'Support', 'Analyst'];
-const ADMIN_EMAIL_DOMAIN = 'onlyonething.app';
 
 async function main() {
   if (!email || !name || !role || !ROLES.includes(role)) throw new Error('Usage: add-admin.ts <email> "<full name>" <Owner|Support|Analyst>');
-  // The same domain as src/config.ts's ADMIN_EMAIL_DOMAIN, repeated because
-  // that module is `server-only` and this is a CLI script. Change both.
-  if (!email.endsWith(`@${ADMIN_EMAIL_DOMAIN}`)) throw new Error(`Admins sign in with an @${ADMIN_EMAIL_DOMAIN} address.`);
+  // One list, shared with the panel: src/auth/domains.ts.
+  if (!isAdminEmail(email)) throw new Error(`Admins sign in with an ${adminDomainList()} address.`);
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   const service = process.env.SUPABASE_SERVICE_ROLE_KEY;

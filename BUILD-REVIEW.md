@@ -2787,3 +2787,45 @@ one seeds an address, labels and a note and asserts none of the three reaches
 the file), `npm run smoke` (38 checks, including that the second number is
 hidden until a row is opened, that the download reports its count, and that
 both audit lines are written) and `npm run fidelity` (0 failing probes).
+
+### 2.74 Two domains may sign in to the panel
+The panel is served from `admin.onething.wheretospot.com` and its owner's
+mail is at `wheretospot.com`, but only `@onlyonething.app` could sign in.
+Both are accepted now.
+
+**One list, not two copies.** The domain was written out twice — once in
+`src/config.ts` and once in `scripts/add-admin.ts` — under a comment asking
+whoever changed one to remember the other. It is now
+`ADMIN_EMAIL_DOMAINS` in `src/auth/domains.ts`, which has no `server-only`
+import and so can be read by the script as well as by the sign-in gate, the
+session check and the setup page. The comment asking for two edits is gone
+because there is one place.
+
+**Added rather than replaced.** Switching to `wheretospot.com` alone was the
+other option and is the dangerous one: the gate runs before the password, so
+dropping a domain locks out every admin holding an address there, including
+whoever is signed in at the time. Adding one does not by itself admit
+anybody — an admin still needs a Supabase Auth account, a verified
+authenticator and a row in `admin_member`, none of which they can give
+themselves. `domains.test.ts` says so in a test, so the next person to read
+the list knows what it does and does not decide.
+
+**The check is `@domain`, not `domain`.** `isAdminEmail` matches
+`@onlyonething.app` with the at-sign, so `someone@bonlyonething.app`,
+`someone@mail.onlyonething.app` and `someone@wheretospot.com.attacker.com`
+are all refused; each is a test. It also trims and lower-cases, because
+people capitalise their own address about half the time. The old sign-in
+path built a regex from the domain with `.replace('.', '\\.')`, which
+escapes only the first dot — harmless for a one-dot domain, and no longer
+there.
+
+**The refusal now names both**, "Use your @onlyonething.app or
+@wheretospot.com email." That is a divergence from the prototype's wording,
+which knew one domain, and the same kind already recorded for the team's
+email domain in `fidelity.js`. No probe reads it: it appears only after a
+bad address, and `npm run fidelity` still reports 56 probes, 0 failing.
+
+**Checked:** `npm run typecheck`, `npm test` (17, six of them new),
+`npm run test:db` (13), `npm run smoke` (39 — the refusal message, and that
+an `@wheretospot.com` address gets past the gate) and `npm run fidelity`
+(0 failing).

@@ -17,7 +17,8 @@ import { timingSafeEqual } from 'node:crypto';
 
 import { createClient } from '@supabase/supabase-js';
 
-import { ADMIN_EMAIL_DOMAIN, mode, source } from '@/config';
+import { mode, source } from '@/config';
+import { adminDomainList, isAdminEmail } from './domains';
 import { authClient } from './supabase';
 
 export type SetupResult<T = object> = ({ ok: true } & T) | { ok: false; error: string };
@@ -56,7 +57,7 @@ export async function startSetup(
   const blocked = await guard(secret);
   if (blocked) return { ok: false, error: blocked };
   const email = emailInput.trim().toLowerCase();
-  if (!email.endsWith(`@${ADMIN_EMAIL_DOMAIN}`)) return { ok: false, error: `Use your @${ADMIN_EMAIL_DOMAIN} email.` };
+  if (!isAdminEmail(email)) return { ok: false, error: `Use your ${adminDomainList()} email.` };
   if (password.length < MIN_PASSWORD) return { ok: false, error: `Use a password of at least ${MIN_PASSWORD} characters.` };
 
   const made = await makeAccount(email, password);

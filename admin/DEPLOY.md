@@ -87,8 +87,8 @@ Vercel, both removed again once you are in.
 3. Fill in:
    - the setup secret from step 1;
    - your name;
-   - an email ending in **`@onlyonething.app`** (it does not need a real
-     mailbox; the panel sends no email);
+   - an email ending in **`@onlyonething.app`** or **`@wheretospot.com`**
+     (it does not need a real mailbox; the panel sends no email);
    - a password of 10 or more characters.
 
    Then press **Continue**.
@@ -119,13 +119,19 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=… \
 It prints a setup key for their authenticator app ("enter a setup key"),
 asks for the 6-digit code it shows, and then prints their password, once.
 The service role key is used only on that computer; it never goes into
-Vercel. Admin emails must end in `@onlyonething.app`, which is
-`ADMIN_EMAIL_DOMAIN` in `src/config.ts` and `scripts/add-admin.ts`; to use a
-different domain, change it in both files.
+Vercel.
+
+Admin emails must end in **`@onlyonething.app`** or **`@wheretospot.com`**.
+Both are in `ADMIN_EMAIL_DOMAINS` in `src/auth/domains.ts`, which is the one
+place to change — the sign-in page, the session check, the setup page and
+this script all read that list. Adding a domain is safe; **taking one off
+locks out every admin who signs in with it**, at the gate, before their
+password is checked.
 
 ## 5. Check it
 
-- Signing in with a non-team email is refused.
+- Signing in with a non-team email is refused (the message names both
+  domains).
 - **Overview** shows real counts. They are zero or close to it until the app
   has users.
 - **Audit log** has your sign-in.
