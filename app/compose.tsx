@@ -16,13 +16,15 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState, Linking, Platform, Pressable, Share, TextInput, View } from 'react-native';
 import { Redirect, router, useLocalSearchParams } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
-import * as DocumentPicker from 'expo-document-picker';
 import * as MailComposer from 'expo-mail-composer';
+import * as Sharing from 'expo-sharing';
 
 import { track } from '@/lib/analytics/track';
 import { EmailFields, LockedRecipient, PhoneField, SubjectField } from '@/features/compose/fields';
 import { added } from '@/content/additions';
 import { DRAFT_KINDS, writeDraft, type DraftKind } from '@/features/compose/drafts';
+import { AttachRow, type PickedFile } from '@/features/compose/AttachRow';
+import { sharePlan, type SharePlatform } from '@/features/compose/share-plan';
 import {
   emailState,
   emailValid,
@@ -231,12 +233,7 @@ function ComposeTask({ task }: { task: Task }) {
   };
 
   // Files to go with the email. The system composer takes them; a mail link cannot.
-  const [files, setFiles] = useState<{ uri: string; name: string }[]>([]);
-  const attach = async () => {
-    const picked = await DocumentPicker.getDocumentAsync({ type: '*/*', multiple: true, copyToCacheDirectory: true }).catch(() => null);
-    if (!picked || picked.canceled) return;
-    setFiles((current) => [...current, ...picked.assets.map((a) => ({ uri: a.uri, name: a.name }))]);
-  };
+  const [files, setFiles] = useState<PickedFile[]>([]);
   const [appsOpen, setAppsOpen] = useState(false);
   const [clients, setClients] = useState<string[]>([]);
   useEffect(() => {
@@ -279,15 +276,31 @@ function ComposeTask({ task }: { task: Task }) {
     if (!emailValid(email)) return setTried(true);
     remember({ email });
     await Clipboard.setStringAsync(draft).catch(() => {});
+
+    const plan = sharePlan(Platform.OS as SharePlatform, files.length, await Sharing.isAvailableAsync().catch(() => false));
+    const copy = added(lang).attach;
+
+    if (plan.kind === 'file') {
+      // `shareAsync` carries the file and no text, so the draft stays on the
+      // clipboard and the toast reads the address out instead.
+      const file = files[0];
+      if (!file) return;
+      const shared = await Sharing.shareAsync(file.uri, { dialogTitle: subject })
+        .then(() => true)
+        .catch(() => false);
+      if (!shared) return;
+      const said = plan.left > 0 ? copy.sharedFileMore.replace('{n}', String(plan.left)) : copy.sharedFile;
+      toast.show(said.replace('{to}', email), { undo: false });
+      return armSent();
+    }
+
     const result = await Share.share(
-      { message: draft, title: subject, ...(files[0] ? { url: files[0].uri } : {}) },
+      { message: draft, title: subject, ...(plan.kind === 'textAndFile' && files[0] ? { url: files[0].uri } : {}) },
       { subject, dialogTitle: subject }
     ).catch(() => null);
     if (!result || result.action === Share.dismissedAction) return;
     await Clipboard.setStringAsync(email).catch(() => {});
-    const carried = Platform.OS === 'ios' && files[0] ? 1 : 0;
-    const copy = added(lang).attach;
-    toast.show((files.length > carried ? copy.sharedNoFiles : copy.shared).replace('{to}', email), { undo: false });
+    toast.show((plan.left > 0 ? copy.sharedNoFiles : copy.shared).replace('{to}', email), { undo: false });
     armSent();
   };
 
@@ -733,29 +746,7 @@ function ComposeTask({ task }: { task: Task }) {
             />
             {isEmail ? (
               <View style={{ gap: 8 }}>
-                <View style={{ flexDirection: dir.row, flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
-                  {files.map((f) => (
-                    <Pressable
-                      key={f.uri}
-                      testID="compose-file"
-                      onPress={() => setFiles((current) => current.filter((x) => x.uri !== f.uri))}
-                      accessibilityRole="button"
-                      accessibilityHint="Remove"
-                      style={{ flexDirection: dir.row, alignItems: 'center', gap: 6, paddingVertical: 6, paddingHorizontal: 12, borderRadius: 999, backgroundColor: surface.fill, maxWidth: '100%' }}
-                    >
-                      <Icon name="note" size={14} color={ink.s2} strokeWidth={2} />
-                      <Text token="caption" weight="600" color={ink.s2} numberOfLines={1} style={{ flexShrink: 1 }}>
-                        {f.name}
-                      </Text>
-                      <Icon name="x" size={12} color={ink.s4} strokeWidth={2.2} />
-                    </Pressable>
-                  ))}
-                  <Pressable testID="compose-attach" onPress={() => void attach()} accessibilityRole="button" hitSlop={8}>
-                    <Text token="caption" weight="600" color={ink.s3}>
-                      + {added(lang).attach.button}
-                    </Text>
-                  </Pressable>
-                </View>
+                <AttachRow files={files} onChange={setFiles} testID="compose" />
               </View>
             ) : null}
             {draft.trim().length > 8 ? (
@@ -934,7 +925,15 @@ function ComposeTask({ task }: { task: Task }) {
             {added(lang).attach.share}
           </Text>
           <Text token="micro" color={ink.s4}>
-            {Platform.OS === 'ios' ? added(lang).attach.shareSub : added(lang).attach.shareSubNoFile}
+            {/* The row used to promise "the subject, the message and a file"
+                everywhere, and on Android the file was quietly dropped. It
+                now says what this platform will really do with what is
+                attached right now. */}
+            {Platform.OS === 'ios'
+              ? added(lang).attach.shareSub
+              : files.length > 0
+                ? added(lang).attach.shareSubFile
+                : added(lang).attach.shareSubNoFile}
           </Text>
         </Pressable>
         <Text token="caption" color={ink.s4}>

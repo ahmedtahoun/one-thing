@@ -66,3 +66,28 @@ export function chunk<T>(list: readonly T[], size: number): T[][] {
 export function recipientsOf(channel: BulkChannel, contacts: Contact[], selected: ReadonlySet<string>): Contact[] {
   return contacts.filter((c) => selected.has(c.id) && reachable(channel, c)).slice(0, MAX_RECIPIENTS);
 }
+
+/**
+ * Whether files attached to this run will actually arrive.
+ *
+ * Three ways they do not, and the screen has to say which:
+ *
+ *   - **WhatsApp**: a `wa.me` link carries text and nothing else. There is
+ *     no deep link that attaches a file, so the channel can never do it.
+ *   - **No mail composer**: the run falls back to a `mailto:` link, and no
+ *     mail link of any kind carries a file (`app/compose.tsx` has the same
+ *     fork, and the same reason).
+ *   - Nothing attached, in which case there is nothing to warn about.
+ *
+ * Returning the *reason* rather than a boolean is the point: a run that
+ * quietly drops an attachment is the failure worth designing against,
+ * because the sender thinks it went and the recipient never knew there was
+ * one. BUILD-REVIEW §2.59 made that call once already, for the share sheet.
+ */
+export type FileOutcome = 'none' | 'willGo' | 'notOnWhatsApp' | 'needsComposer';
+
+export function fileOutcome(channel: BulkChannel, fileCount: number, mailAvailable: boolean): FileOutcome {
+  if (fileCount === 0) return 'none';
+  if (channel === 'whatsapp') return 'notOnWhatsApp';
+  return mailAvailable ? 'willGo' : 'needsComposer';
+}

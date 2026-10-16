@@ -120,6 +120,9 @@ export type Added = {
     messagePh: string;
     insertName: string;
     waNote: string;
+    /** Files are attached but the channel or the send path will not carry them. */
+    filesNotOnWhatsApp: string;
+    filesNeedComposer: string;
     bccNote: string;
     personalNote: string;
     recipients: string;
@@ -314,6 +317,8 @@ export type Added = {
     reading: string;
     unsupported: string;
     androidNote: string;
+    /** Android, after a scan that worked: the Arabic side was not read. */
+    latinOnly: string;
     nothing: string;
     cameraOff: string;
     name: string;
@@ -488,15 +493,25 @@ export type Added = {
   /** Attachments and the choice of mail app. */
   attach: {
     button: string;
+    /** Spoken label on a file chip: compose used a hard-coded English "Remove". */
+    remove: string;
     onlyComposer: string;
     chooseApp: string;
     defaultApp: string;
     share: string;
     shareSub: string;
     shared: string;
-    /** Android, where a share carries no file, and wherever one was dropped. */
+    /** Android with nothing attached, and wherever a file was dropped. */
     shareSubNoFile: string;
     sharedNoFiles: string;
+    /**
+     * Android with something attached: `expo-sharing` carries one file and
+     * no text, so the message goes on the clipboard and the address is read
+     * out instead of copied — `src/features/compose/share-plan.ts`.
+     */
+    shareSubFile: string;
+    sharedFile: string;
+    sharedFileMore: string;
     note: string;
   };
   /** Today's tasks on the Lock Screen (iPhone). */
@@ -719,6 +734,8 @@ const ADDED: Record<Lang, Added> = {
       messagePh: 'Write your message…',
       insertName: 'Insert {name}',
       waNote: 'WhatsApp opens one chat at a time. You press send in each and the next one is ready when you come back.',
+      filesNotOnWhatsApp: '{n} attached — WhatsApp can’t carry files. Switch to Email, or send them another way.',
+      filesNeedComposer: '{n} attached — there’s no mail account on this phone, so they can’t go. Add one in Settings, or send them another way.',
       bccNote: 'Goes as one email. Nobody can see the other recipients.',
       personalNote: 'Each person gets their own email, addressed by name. It moves on by itself once you send.',
       recipients: 'Who gets it',
@@ -762,6 +779,7 @@ const ADDED: Record<Lang, Added> = {
     },
     attach: {
       button: 'Attach a file',
+      remove: 'Remove',
       onlyComposer: 'Attachments only go with “Send email”, in the Mail composer.',
       chooseApp: 'Open in another mail app',
       defaultApp: 'Default mail app',
@@ -770,6 +788,9 @@ const ADDED: Record<Lang, Added> = {
       shared: '{to} is copied. Paste it into “To”.',
       shareSubNoFile: 'Takes the subject and the message. Pick the app, then paste the address.',
       sharedNoFiles: '{to} is copied. Paste it into “To” — attachments need “Send email”.',
+      shareSubFile: 'Takes the subject and the file. Your message is copied to paste.',
+      sharedFile: 'The file went. Your message is copied — paste it, and send to {to}.',
+      sharedFileMore: 'One file went. Your message is copied — paste it, and send to {to}. The other {n} need “Send email”.',
       note: 'Zoho opens a mail link empty, so use “Zoho, Spark or another app”. Or add your Zoho account to iPhone Mail and use “Send email”, which keeps everything.',
     },
     bar: {
@@ -980,7 +1001,8 @@ const ADDED: Record<Lang, Added> = {
       choose: 'Choose a photo',
       reading: 'Reading the card…',
       unsupported: 'Reading cards needs the phone app. Fill the details in by hand.',
-      androidNote: 'On Android, cards in Latin letters are read. For Arabic cards, fill the details in by hand.',
+      androidNote: 'On Android the Arabic side of a card isn’t read — the English side, the phone and the email are. Most cards here have both, so it’s still worth a photo.',
+      latinOnly: 'Arabic isn’t read on Android, so anything printed only in Arabic — usually the name — needs checking.',
       nothing: 'I couldn’t read any text. Try a clearer photo, or type it in.',
       cameraOff: 'Camera access is off. Turn it on in Settings, or choose a photo instead.',
       name: 'Name',
@@ -1272,6 +1294,8 @@ const ADDED: Record<Lang, Added> = {
       messagePh: 'اكتب رسالتك…',
       insertName: 'أدرج {الاسم}',
       waNote: 'واتساب يفتح محادثة وحدة كل مرة. تضغط إرسال وترجع، والتالي يكون جاهز.',
+      filesNotOnWhatsApp: '{n} ملف مرفق — واتساب ما يقدر يرسل ملفات. حوّل للإيميل، أو أرسلها بطريقة ثانية.',
+      filesNeedComposer: '{n} ملف مرفق — ما في حساب بريد على الجوال، فما راح توصل. ضيف حساب من الإعدادات، أو أرسلها بطريقة ثانية.',
       bccNote: 'تروح إيميل واحد. ما أحد يشوف باقي المستلمين.',
       personalNote: 'كل شخص ياخذ إيميل خاص فيه باسمه. وينتقل للي بعده تلقائيًا بعد ما ترسل.',
       recipients: 'لمين تروح',
@@ -1315,6 +1339,7 @@ const ADDED: Record<Lang, Added> = {
     },
     attach: {
       button: 'أرفق ملف',
+      remove: 'احذف',
       onlyComposer: 'المرفقات تروح فقط مع «أرسل الإيميل»، في نافذة البريد.',
       chooseApp: 'افتحه في تطبيق بريد ثاني',
       defaultApp: 'تطبيق البريد الافتراضي',
@@ -1323,6 +1348,9 @@ const ADDED: Record<Lang, Added> = {
       shared: 'نسخنا {to}. الصقه في خانة «إلى».',
       shareSubNoFile: 'يأخذ العنوان والرسالة. اختر التطبيق، بعدين الصق الإيميل.',
       sharedNoFiles: '{to} اننسخ. الصقه في «إلى» — المرفقات تحتاج «إرسال إيميل».',
+      shareSubFile: 'ينقل العنوان والملف. ورسالتك منسوخة عشان تلصقها.',
+      sharedFile: 'الملف راح. رسالتك منسوخة — الصقها، وأرسلها لـ {to}.',
+      sharedFileMore: 'ملف واحد راح. رسالتك منسوخة — الصقها، وأرسلها لـ {to}. و{n} الباقية تحتاج «أرسل الإيميل».',
       note: 'Zoho يفتح رابط البريد فاضي، فاستخدم «Zoho أو Spark أو تطبيق ثاني». أو أضف حساب Zoho لتطبيق البريد في الآيفون واستخدم «أرسل الإيميل»، وكل شي يوصل.',
     },
     bar: {
@@ -1533,7 +1561,8 @@ const ADDED: Record<Lang, Added> = {
       choose: 'اختر صورة',
       reading: 'أقرأ البطاقة…',
       unsupported: 'قراءة البطاقات تحتاج تطبيق الجوال. عبّي البيانات بنفسك.',
-      androidNote: 'على أندرويد تنقرأ البطاقات بالأحرف اللاتينية. للبطاقات العربية، عبّي البيانات بنفسك.',
+      androidNote: 'على أندرويد ما ينقرأ الوجه العربي من البطاقة — بس الإنجليزي والجوال والإيميل ينقرأون. وأغلب البطاقات عندنا فيها الاثنين، فتستاهل صورة.',
+      latinOnly: 'العربي ما ينقرأ على أندرويد، فاللي مكتوب بالعربي بس — غالبًا الاسم — يحتاج مراجعة.',
       nothing: 'ما قدرت أقرأ أي نص. جرّب صورة أوضح، أو اكتبها.',
       cameraOff: 'الكاميرا مقفلة. شغّلها من الإعدادات، أو اختر صورة بدالها.',
       name: 'الاسم',

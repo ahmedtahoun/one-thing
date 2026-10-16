@@ -16,6 +16,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { added } from '@/content/additions';
 import { ContactCard } from '@/features/capture/ContactCard';
 import { parseCard } from '@/features/card/parse';
+import { scanOutcome } from '@/features/card/scan-note';
 import { emailInvalid, findDuplicate, nameValid, phoneInvalid } from '@/features/contact/form-rules';
 import { Button } from '@/ui/Button';
 import { Icon } from '@/ui/Icon';
@@ -24,7 +25,7 @@ import { Text } from '@/ui/Text';
 import { Toast, useToast } from '@/ui/Toast';
 import { ink, surface, typeColour } from '@/design/tokens';
 import { useDirection, useLanguage } from '@/i18n/LanguageProvider';
-import { canReadCards, readCard } from '@/lib/card-reader';
+import { canReadCards, readCard, readsArabicCards } from '@/lib/card-reader';
 import { applyEdit, dialFor, type ContactEdit, type ContactFields } from '@/lib/parse/contact';
 import { usePeople } from '@/lib/people';
 import { deviceRegion } from '@/lib/speech';
@@ -53,9 +54,14 @@ export default function ScanCard() {
   const back = () => (router.canGoBack() ? router.back() : router.replace('/people'));
 
   const review = (read: string[], message: string | null) => {
+    const found = read.length > 0 ? parseCard(read, { region, prefer: lang }) : {};
     setLines(read);
-    setFields(read.length > 0 ? parseCard(read, { region, prefer: lang }) : {});
-    setNote(message);
+    setFields(found);
+    // The note belongs here rather than only before the photo: on Android
+    // the Arabic was dropped silently, and the field it would have filled —
+    // usually the name — is the one in front of the person right now.
+    const outcome = scanOutcome(readsArabicCards, found);
+    setNote(message ?? (outcome === 'nothing' ? copy.nothing : outcome === 'latinOnly' ? copy.latinOnly : null));
     setStage('review');
   };
 
@@ -71,7 +77,7 @@ export default function ScanCard() {
     setStage('reading');
     if (!canReadCards()) return review([], copy.unsupported);
     const read = await readCard(uri).catch(() => []);
-    review(read, read.length === 0 ? copy.nothing : null);
+    review(read, null);
   };
 
   const take = async () => {

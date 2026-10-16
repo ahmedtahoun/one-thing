@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { bccMailto, chunk, MAX_RECIPIENTS, personalise, reachable, recipientsOf, usesName, whatsAppLink } from './plan';
+import { bccMailto, chunk, fileOutcome, MAX_RECIPIENTS, personalise, reachable, recipientsOf, usesName, whatsAppLink } from './plan';
 import type { Contact } from '@/lib/model-types';
 
 const person = (id: string, name: string, over: Partial<Contact> = {}): Contact => ({
@@ -68,5 +68,42 @@ describe('recipientsOf', () => {
   it('stops at the limit', () => {
     const many = Array.from({ length: MAX_RECIPIENTS + 20 }, (_, i) => person(`p${i}`, `P${i}`));
     assert.equal(recipientsOf('email', many, new Set(many.map((c) => c.id))).length, MAX_RECIPIENTS);
+  });
+});
+
+describe('whether attached files will actually arrive', () => {
+  it('says nothing when nothing is attached', () => {
+    assert.equal(fileOutcome('email', 0, true), 'none');
+    assert.equal(fileOutcome('whatsapp', 0, false), 'none');
+  });
+
+  it('lets them go on email, with a composer', () => {
+    assert.equal(fileOutcome('email', 1, true), 'willGo');
+    assert.equal(fileOutcome('email', 9, true), 'willGo');
+  });
+
+  it('refuses WhatsApp whatever else is true — a wa.me link carries text only', () => {
+    assert.equal(fileOutcome('whatsapp', 1, true), 'notOnWhatsApp');
+    assert.equal(fileOutcome('whatsapp', 1, false), 'notOnWhatsApp');
+  });
+
+  it('refuses email with no composer, because the fallback is a mailto link', () => {
+    assert.equal(fileOutcome('email', 1, false), 'needsComposer');
+  });
+
+  /**
+   * The point of the function. Every case where files are attached and will
+   * not arrive has to be *nameable*, because the screen has to say which —
+   * a silent drop is the failure that reaches the recipient as nothing at
+   * all. So no combination may answer 'willGo' unless it really will.
+   */
+  it('never says files will go when they will not', () => {
+    for (const channel of ['email', 'whatsapp'] as const) {
+      for (const mail of [true, false]) {
+        const answer = fileOutcome(channel, 2, mail);
+        if (answer === 'willGo') assert.ok(channel === 'email' && mail, `${channel}/${mail} claimed willGo`);
+        else assert.notEqual(answer, 'none', `${channel}/${mail} must name a reason, not stay silent`);
+      }
+    }
   });
 });

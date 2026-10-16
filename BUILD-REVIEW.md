@@ -3176,3 +3176,137 @@ on the device knows when a trial ends: `Session` carries `plan` and no
 date, and no expiry is synced down from the store or the `subscription`
 table. "Trial · 5 days" needs that date first, and inventing one would be
 worse than the plain word.
+
+### 2.81 Send to many can attach a file
+One-to-one email could attach; Send to many could not, and the gap was not
+a platform limit — `app/bulk.tsx` already called the same
+`MailComposer.composeAsync` that takes `attachments` in `app/compose.tsx`.
+It simply had no file state and no row.
+
+**The row is shared now.** `src/features/compose/AttachRow.tsx` owns the
+chips, the picker and the remove tap, and both screens mount it. Written
+twice, what goes wrong is not the look — it is that one screen learns a
+rule about which send path drops a file and the other does not.
+
+**What cannot carry a file is said before the run, not after it.**
+`fileOutcome(channel, fileCount, mailAvailable)` in
+`src/features/bulk/plan.ts` names the reason rather than returning a
+boolean, because the screen has to print which:
+
+| | |
+|---|---|
+| `notOnWhatsApp` | a `wa.me` link carries text and nothing else — there is no deep link that attaches |
+| `needsComposer` | no mail account, so the run falls back to a `mailto:`, and no mail link carries a file |
+| `willGo` | email, with a composer |
+
+So the attach row is offered on Email only, and a warning in
+`status.overdueFg` appears the moment what is attached would not arrive.
+This is the same call §2.59 made for the share sheet: an attachment that
+silently vanishes is the worst of the failures, because the sender thinks
+it went and the recipient never knew there was one. A test holds the line
+directly — no combination may answer `willGo` unless it really will, and
+every other case with files attached must name a reason rather than stay
+silent.
+
+**Files survive a channel switch.** Somebody who attaches a PDF, flips to
+WhatsApp to check the list and flips back should not have to find it
+again, so the state is kept and only the row is hidden.
+
+**The same files go to everyone**, which is what one message to many means.
+The body is still personalised per person; the attachments are not.
+
+Two small things fixed on the way. Compose's file chip carried
+`accessibilityHint="Remove"` — hard-coded English, read aloud in Arabic;
+it is `attach.remove` in both languages now. And `compose-attach` became
+`compose-add`, matching `bulk-add`; nothing referenced the old id.
+
+Still not possible, and not pretended: **attachments on WhatsApp**, in
+either screen. The only route would be the share sheet, which carries a
+file but makes WhatsApp ask who to send it to — losing the addressed chat
+that is the point of both screens. Worth doing only if asked for
+explicitly.
+
+### 2.82 An Android share can carry the file now
+§2.59 found that "Zoho, Spark or another app" promised a file on both
+platforms and delivered one on neither — React Native's `Share` takes
+`url` on iOS only, so an Android share carried the text alone. That was
+told the truth about rather than fixed, for want of a dependency.
+
+`expo-sharing` is that dependency, and it has a catch worth stating
+plainly: **`shareAsync(uri)` carries one file and no text.** So on Android
+with something attached there is no "both" to choose — it is the message
+or the file.
+
+**It picks the file.** A message is one paste from the clipboard; a file
+is a trip back through the picker. So the draft stays on the clipboard,
+the file goes to the mail app, and the address is *read out in the toast*
+rather than copied, because the clipboard holds one thing and the draft is
+the longer one to retype. With nothing attached, Android is unchanged:
+message shared, address copied.
+
+`sharePlan(platform, fileCount, sharingAvailable)` in
+`src/features/compose/share-plan.ts` makes the choice, pure, so both
+platforms can be asked at once — which is the only way this class of bug
+is catchable, since the broken one was always the platform you were not
+holding. Its `left` is every attached file that will not arrive, and a
+test holds it to exactly that so a toast built from it can never
+undercount.
+
+| | carries |
+|---|---|
+| iOS | the message and one file (`Share`) |
+| Android, something attached | one file, no message (`Sharing.shareAsync`) |
+| Android, nothing attached | the message |
+| Android without the module, and the web build | the message |
+
+The row's sub-label now depends on the file count as well as the platform,
+because "Takes the subject and the message" stopped being true the moment
+Android could send a file.
+
+### 2.83 Arabic cards on Android: the limit is real, the copy about it was not
+Asked to fix Arabic card scanning on Android. **It cannot be fixed from
+here, and the reason is worth writing down so nobody tries again.**
+
+`expo-text-extractor` uses Apple's Vision on iPhone and Google's ML Kit on
+Android. Vision reads Arabic, and `patches/` already asks it for `ar-SA`
+alongside `en-US` (§2.45's patch). **ML Kit has no Arabic recogniser at
+all** — text recognition v2 ships Latin, Chinese, Devanagari, Japanese and
+Korean, each as its own ~38 MB model, and Arabic is not among them. The
+Android source is `TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)`,
+which is the Latin one; there is nothing to switch it to.
+
+The two ways out, and what each costs:
+
+- **Another on-device engine** (Tesseract with `ara.traineddata`). Keeps
+  the privacy promise, needs a native module nobody has written for Expo,
+  adds the language data to the bundle, and reads stylised card type
+  markedly worse than either Vision or ML Kit. Untestable in this
+  repository — there is no Android toolchain here and no device.
+- **A cloud OCR.** Reads Arabic well, and **breaks a published promise**:
+  the Privacy Policy says in both languages that "a photo of a business
+  card is read on your phone and not kept" (§2.59 checked that claim was
+  true). Changing it means new policy text, a new consent, both store
+  privacy forms, a new recipient outside the Kingdom and Egypt, and the
+  lawyer again. That is a product decision, not a fix.
+
+**What was actually wrong was the sentence.** The screen told Android
+users that for an Arabic card they should "fill the details in by hand".
+Gulf business cards are usually bilingual, and the Latin pass returns the
+English name, the job title, the company, the phone, the email and the
+address — a test now proves exactly that, parsing what ML Kit would return
+from a bilingual Saudi card and asserting the whole contact comes out. So
+the old note was talking people out of a scan that works.
+
+It now says what is true before the photo — the Arabic side is not read,
+the English side and the numbers are, and most cards have both — and
+`scanOutcome` in `src/features/card/scan-note.ts` says it again *after*
+the scan, where it matters, because the field the missing Arabic would
+have filled is usually the name and it is on the screen being reviewed.
+Three outcomes: `nothing`, `readInFull` (iPhone), `latinOnly` (Android,
+something found). Pure, so both phones are asked at once.
+
+One thing that moved while wiring it: `handle()` used to decide the
+"nothing was read" message from `read.length === 0`, which is the lines
+off the photo rather than the fields parsed from them. `review()` now
+decides from the parsed fields, so a photo that yields lines but no usable
+field no longer reports success.

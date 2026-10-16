@@ -22,6 +22,18 @@ function extractor(): Extractor | null {
 
 export const canReadCards = (): boolean => extractor()?.isSupported === true;
 
+/**
+ * Whether the reader on this phone knows Arabic.
+ *
+ * iPhone yes, through the patch that asks Vision for `ar-SA` alongside
+ * `en-US`. Android no, and not for want of asking: ML Kit's text
+ * recognition v2 ships Latin, Chinese, Devanagari, Japanese and Korean, and
+ * there is no Arabic recogniser to switch on. The Latin pass still returns
+ * the English half of a bilingual card, which is most of them here — see
+ * `src/features/card/scan-note.ts`.
+ */
+export const readsArabicCards = Platform.OS === 'ios';
+
 /** The lines found on the photo, top to bottom; empty when nothing could be read. */
 export async function readCard(uri: string): Promise<string[]> {
   const module = extractor();

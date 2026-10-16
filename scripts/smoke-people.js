@@ -383,6 +383,14 @@ const SESSION = { userId: 'smoke', name: 'Khalid Al-Mansouri', firstName: 'Khali
   await open('/bulk');
   check('…and Send to many on its own still starts empty', !(await text('bulk-start')).includes('2'), await text('bulk-start'));
 
+  // Attachments in Send to many. The channel starts on WhatsApp, which
+  // cannot carry a file, so the row must not be offered there at all.
+  check('WhatsApp offers no attachment row', (await page.getByTestId('bulk-add').count()) === 0);
+  await page.getByText('Email', { exact: true }).first().click();
+  await page.waitForTimeout(400);
+  check('switching to Email offers one', (await page.getByTestId('bulk-add').count()) === 1);
+  check('…and says nothing alarming before anything is attached', (await page.getByTestId('bulk-files-warning').count()) === 0);
+
   // ------------------------------------------------------------------ Form
   await seed();
   await open('/people');
