@@ -2829,3 +2829,83 @@ bad address, and `npm run fidelity` still reports 56 probes, 0 failing.
 `npm run test:db` (13), `npm run smoke` (39 — the refusal message, and that
 an `@wheretospot.com` address gets past the gate) and `npm run fidelity`
 (0 failing).
+
+### 2.75 The Owner can reset a teammate's password
+The panel had no answer for a forgotten password. There is no email
+recovery — no mailbox to send from (§2.37) — and `/setup` closes the moment
+an Owner exists, so the only route was the Supabase dashboard. **Team &
+roles → Reset password** now sets a new one and shows it to the Owner once,
+to hand over.
+
+**What it deliberately is not.** Three flows were on the table and two were
+left out:
+
+- *Change your own password, signed in.* Useful, but it rescues nobody: a
+  person who has forgotten theirs cannot sign in to reach it.
+- *Email a recovery link.* The familiar flow, and the one that cannot work
+  here — Supabase's built-in mailer delivers only to members of the Supabase
+  team, so it would ship dead until an email provider exists, like the data
+  export and the support reply.
+- Neither helps the case that prompted this: a **sole Owner** locked out.
+  Nothing inside the panel can, by definition. That stays the dashboard, or
+  emptying `admin_member` and running `/setup` again, and DEPLOY.md § 4 now
+  says so.
+
+**The guards, in the order they run.** Each is on the server; none is a
+hidden button:
+
+1. `authorise('reset-password')` — a new permission, Owner only. Support and
+   Analyst cannot reach Team & roles at all, and would be refused here even
+   if they could.
+2. **Never your own account.** An Owner who has forgotten their password
+   cannot sign in to use this, so a self-reset could only ever be a
+   signed-in session rewriting its own credentials — which, if that session
+   is not the Owner's, hands over the account for good. Refused with a
+   message pointing at Supabase.
+3. The target must be on the team: `admin_member` is checked by `user_id`,
+   which is also why `TeamMember` now carries `id`.
+4. **It changes the password and nothing else.** The authenticator stays
+   enrolled — a forgotten password is not a lost phone — and existing
+   sessions stay alive. If the worry is a stolen account rather than a
+   forgotten password, **Suspend** is the button: it bans the account in
+   Supabase Auth outright. Two problems, two tools.
+
+**The password.** 16 random bytes, base64url, about 22 characters, from
+`src/auth/password.ts`, which `scripts/add-admin.ts` now shares instead of
+generating its own 12. It is returned to the browser, shown once with a Copy
+button, and forgotten: never stored, and the audit line says
+`Reset password · Dana Al-Anazi` and never what the password was. A smoke
+check asserts the log does not contain it.
+
+**It does not force the key into production.** Setting a password needs
+`SUPABASE_SERVICE_ROLE_KEY`, which DEPLOY.md § 4 previously had the deployer
+delete after setup. Rather than make keeping it a condition of this feature,
+the action returns the familiar `Unavailable` and the button says "Not
+connected yet — resetting a password needs SUPABASE_SERVICE_ROLE_KEY…". The
+deployment decides; § 4 now lays out both choices and what each costs. The
+check order matters and is tested: *who* before *can we*, so an id that is
+nobody's says "No such admin" whether or not the key is set, instead of the
+answer changing with the deployment.
+
+**What it will not do behind Supabase's back.** The panel's own connection
+could reach into `auth.users` and rewrite the password hash directly — it
+runs as a role that bypasses RLS. It does not. That table is Supabase's, and
+a change on their side would turn a silent success into a locked-out admin.
+The test against Postgres asserts the account is byte-identical after a
+reset refused for want of the key.
+
+**Where the button sits.** On each member's row, 30 px inside a 34 px row,
+so the list keeps the prototype's geometry; the confirm strip and the
+password card open *underneath* a row rather than inside it. Scene
+`13-team-roles` still reports its probes in place — 56 probes, 0 failing —
+and the pixel difference goes from 0.10 % to 0.22 %, which is the two
+buttons the prototype never drew.
+
+**Checked:** `npm run typecheck`, `npm test` (20, three new on the password
+helper plus the permission tests), `npm run test:db` (15 — the refusal
+without the key, that nothing changed, that a non-admin id is rejected, and
+that every team member carries the id a reset needs), `npm run smoke`
+(47 — the Owner is not offered a reset of their own row, it asks first,
+Cancel leaves nothing on screen, the password is 22 characters, Done clears
+it, and the audit line holds the reset but not the password) and
+`npm run fidelity` (0 failing).

@@ -12,8 +12,11 @@
 import 'server-only';
 
 import { createHash, createHmac } from 'node:crypto';
+
+import { createClient } from '@supabase/supabase-js';
 import postgres from 'postgres';
 
+import { newPassword } from '../auth/password';
 import { contactsToCsv, usersToCsv } from './csv';
 import { dateKey, day as dayLabel, rel, TIME_ZONE } from './format';
 import type { DataSource } from './source';
@@ -607,11 +610,11 @@ export function dbSource(url: string): DataSource {
 
     async team() {
       const rows = await sql`
-        select m.name, m.role, u.email,
+        select m.user_id, m.name, m.role, u.email,
           exists (select 1 from auth.mfa_factors f where f.user_id = m.user_id and f.factor_type = 'totp' and f.status = 'verified') as two_step
         from admin_member m join auth.users u on u.id = m.user_id
         order by m.role, m.name`;
-      return rows.map((r): TeamMember => ({ name: String(r.name), email: String(r.email), role: r.role as Role, twoStep: Boolean(r.two_step) }));
+      return rows.map((r): TeamMember => ({ id: String(r.user_id), name: String(r.name), email: String(r.email), role: r.role as Role, twoStep: Boolean(r.two_step) }));
     },
 
     async badges() {
@@ -680,6 +683,37 @@ export function dbSource(url: string): DataSource {
           resync: 'asking the app to re-sync needs push notifications from the server',
         }[kind],
       };
+    },
+
+    /**
+     * A new password on a teammate's account, handed back once.
+     *
+     * Needs SUPABASE_SERVICE_ROLE_KEY, which DEPLOY.md § 4 has the deployer
+     * remove after the first Owner is made. Without it this says so rather
+     * than half-working: the panel's own connection could reach into
+     * `auth.users` and rewrite the hash there, and deliberately does not —
+     * that is Supabase's to own, and a schema change on their side would
+     * turn a silent success into a locked-out admin.
+     *
+     * It changes the password and nothing else. The authenticator stays
+     * enrolled, because a forgotten password is not a lost phone, and any
+     * session the person already has stays alive — if the worry is a
+     * stolen account rather than a forgotten password, Suspend is the
+     * button for that: it bans the account in Supabase Auth outright.
+     */
+    async resetAdminPassword(memberId) {
+      // Who it is first, then whether we can: an id that is nobody's should
+      // say so whether or not the key happens to be set, or the answer
+      // changes with the deployment rather than with the truth.
+      const [member] = await sql`select 1 from admin_member where user_id = ${memberId}::uuid`;
+      if (!member) throw new Error('No such admin.');
+      const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+      if (!serviceKey) return { unavailable: 'resetting a password needs SUPABASE_SERVICE_ROLE_KEY in the panel’s environment (DEPLOY.md § 4)' };
+      const password = newPassword();
+      const api = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL as string, serviceKey, { auth: { persistSession: false } });
+      const { error } = await api.auth.admin.updateUserById(memberId, { password });
+      if (error) throw new Error(`Supabase would not set the password: ${error.message}`);
+      return { password };
     },
 
     async usersCsv() {

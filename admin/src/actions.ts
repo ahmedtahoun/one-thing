@@ -220,6 +220,42 @@ export async function exportUserContactsCsv(userId: string): Promise<Outcome & {
   }
 }
 
+/**
+ * A new password for a teammate, shown to the Owner once.
+ *
+ * For the case the panel otherwise has no answer to: somebody on the team
+ * has forgotten their password. There is no email recovery — the panel has
+ * no mailbox to send from (BUILD-REVIEW § 2.37) — and no self-service
+ * reset, because a person who cannot sign in cannot reach one.
+ *
+ * Three things keep it narrow:
+ *
+ * - **Owner only** (`reset-password`), checked here on the server, not by
+ *   hiding a button.
+ * - **Never your own.** An Owner who has forgotten their own password
+ *   cannot sign in to use this, so a self-reset would only ever be a
+ *   signed-in session changing its own credentials — and if that session is
+ *   not the owner's, the reset hands the account over for good. Refused.
+ * - **Nothing is kept.** The password is returned to the caller and
+ *   forgotten. It is not stored, and the audit line records that a reset
+ *   happened, never what it was.
+ */
+export async function resetAdminPassword(memberId: string): Promise<Outcome & { password?: string; who?: string }> {
+  try {
+    const admin = await authorise('reset-password');
+    if (memberId === admin.id) return { error: 'Change your own password in Supabase — a reset here is for somebody else.' };
+    const data = await source();
+    const member = (await data.team()).find((m) => m.id === memberId);
+    if (!member) return { error: 'No such admin.' };
+    const result = await data.resetAdminPassword(memberId);
+    if (isUnavailable(result)) return NOT_YET(result);
+    await data.log(admin.id, `Reset password · ${member.name}`, 'Team & roles');
+    return { password: result.password, who: member.name, toast: `New password for ${member.name}. It is shown once.` };
+  } catch (e) {
+    return failed(e);
+  }
+}
+
 export async function exportDataset(): Promise<Outcome & { files?: Record<string, string> }> {
   try {
     const admin = await authorise('dataset');

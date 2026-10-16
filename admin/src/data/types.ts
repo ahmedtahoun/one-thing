@@ -135,7 +135,8 @@ export type PrivacyRequest = {
 };
 
 export type AuditEntry = { at: string; who: string; what: string; why: string };
-export type TeamMember = { name: string; email: string; role: Role; twoStep: boolean };
+/** `id` is the Supabase Auth user id — what `admin_member` is keyed on. */
+export type TeamMember = { id: string; name: string; email: string; role: Role; twoStep: boolean };
 export type OfferCode = { code: string; description: string; used: number; active: boolean };
 
 export type Overview = {

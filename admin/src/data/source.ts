@@ -66,6 +66,11 @@ export interface DataSource {
   contactsCsv(userId: string): Promise<string>;
   /** The pseudonymised analytics dataset: file name → CSV. */
   dataset(): Promise<Record<string, string>>;
+  /**
+   * Sets a new password on a teammate's account and hands it back, once, for
+   * the Owner to pass on. Unavailable without the service role key.
+   */
+  resetAdminPassword(memberId: string): Promise<{ password: string } | Unavailable>;
 }
 
 export const isUnavailable = (x: unknown): x is Unavailable =>

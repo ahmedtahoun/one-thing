@@ -8,6 +8,7 @@
  * database, and `config.ts` only allows it when ADMIN_DEMO=1.
  */
 import { dateKey, day, zoned } from './format';
+import { newPassword } from '../auth/password';
 import { contactsToCsv, usersToCsv } from './csv';
 import type { DataSource } from './source';
 import type {
@@ -136,9 +137,9 @@ const state = {
 };
 
 const TEAM: TeamMember[] = [
-  { name: 'Khalid Al-Mansouri', email: 'khalid@onlyonething.app', role: 'Owner', twoStep: true },
-  { name: 'Dana Al-Anazi', email: 'dana@onlyonething.app', role: 'Support', twoStep: true },
-  { name: 'Turki Al-Ghamdi', email: 'turki@onlyonething.app', role: 'Analyst', twoStep: true },
+  { id: 'demo-owner', name: 'Khalid Al-Mansouri', email: 'khalid@onlyonething.app', role: 'Owner', twoStep: true },
+  { id: 'demo-support', name: 'Dana Al-Anazi', email: 'dana@onlyonething.app', role: 'Support', twoStep: true },
+  { id: 'demo-analyst', name: 'Turki Al-Ghamdi', email: 'turki@onlyonething.app', role: 'Analyst', twoStep: true },
 ];
 /** Demo admins are named by their first name in the log, as the prototype does. */
 const ADMIN_NAMES: Record<string, string> = { 'demo-owner': 'Khalid', 'demo-support': 'Dana (Support)', 'demo-analyst': 'Turki (Analyst)' };
@@ -355,6 +356,16 @@ export const demoSource: DataSource = {
 
   async team() {
     return TEAM;
+  },
+
+  /**
+   * Demo mode changes no real account, so this hands back a password of the
+   * same shape without touching anything — enough to drive the screen, and
+   * worth nothing to anybody, like every other value in this file.
+   */
+  async resetAdminPassword(memberId: string) {
+    if (!TEAM.some((m) => m.id === memberId)) throw new Error('No such admin.');
+    return { password: newPassword() };
   },
 
   async badges() {

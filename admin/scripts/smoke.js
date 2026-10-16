@@ -156,6 +156,33 @@ async function signOut(page) {
     check('taking a copy of the contacts is logged, with the count', body.includes('Downloaded contacts (CSV, 10) · Khalid Al-Mansouri'));
     check('suspending and restoring are logged', body.includes('Suspended · Sara Haddad') && body.includes('Restored · Sara Haddad'));
 
+    // ------------------------------------------------------ team & roles ----
+    await click(page, 'Team & roles');
+    body = await text(page);
+    check('the team is listed', body.includes('Dana Al-Anazi') && body.includes('Turki Al-Ghamdi'));
+    check('the Owner is not offered a reset of their own password', (body.match(/Reset password/g) ?? []).length === 2, String((body.match(/Reset password/g) ?? []).length));
+    await page.getByText('Reset password', { exact: true }).first().click();
+    await page.waitForTimeout(300);
+    check('it asks before it does it', (await text(page)).includes('Their old one stops working'));
+    await click(page, 'Cancel');
+    check('cancel leaves no password on screen', !(await text(page)).includes('new password'));
+    await page.getByText('Reset password', { exact: true }).first().click();
+    await page.waitForTimeout(300);
+    await page.locator('[data-probe="confirm-reset"]').click();
+    await page.waitForTimeout(700);
+    body = await text(page);
+    check('a new password is shown once', body.includes('’s new password') && body.includes('Shown once'));
+    const shown = await page.locator('[data-probe="new-password"]').innerText();
+    check('the password is long enough to be worth handing over', shown.trim().length === 22, shown.trim().length + ' chars');
+    await click(page, 'Done');
+    check('Done takes it off the screen', !(await text(page)).includes('Shown once'));
+
+    await click(page, 'Audit log');
+    check('the reset is logged, without the password', await (async () => {
+      const log = await text(page);
+      return log.includes('Reset password · Dana Al-Anazi') && !log.includes(shown.trim());
+    })());
+
     // ---------------------------------------------------------- support ----
     await click(page, 'Support');
     const badgeBefore = await page.locator('[data-probe="nav-support"] span').nth(1).innerText();

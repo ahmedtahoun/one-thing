@@ -230,6 +230,31 @@ describe('the admin panel against Postgres', () => {
     assert.equal((await source.contactsCsv(U2)).trimEnd().split('\n').length, 1, 'a user with no contacts gets a header only');
   });
 
+  /**
+   * The Owner's "Reset password". Without SUPABASE_SERVICE_ROLE_KEY — which
+   * DEPLOY.md § 4 has the deployer remove after setup, and which this test
+   * run does not have — it must say so rather than half-work, and must not
+   * touch `auth.users` behind Supabase's back.
+   */
+  it('says a password reset needs the service role key, and changes nothing without it', async () => {
+    const row = () => cluster.psql(`select row_to_json(u) from auth.users u where id = '${OWNER}'`).trim();
+    const before = row();
+    assert.deepEqual(await source.resetAdminPassword(OWNER), {
+      unavailable: 'resetting a password needs SUPABASE_SERVICE_ROLE_KEY in the panel’s environment (DEPLOY.md § 4)',
+    });
+    assert.equal(row(), before, 'the account was changed anyway');
+    // And it refuses an id that is not an admin's, key or no key.
+    await assert.rejects(source.resetAdminPassword(U1), /No such admin/);
+  });
+
+  it('knows who is on the team, by the id admin_member is keyed on', async () => {
+    const team = await source.team();
+    const owner = team.find((m) => m.role === 'Owner')!;
+    assert.equal(owner.id, OWNER);
+    assert.equal(owner.email, 'khalid@onlyonething.app');
+    assert.ok(team.every((m) => m.id), 'a member with no id cannot be reset');
+  });
+
   it('exports analytics without a name, an email or a phone number in it', async () => {
     process.env.DATASET_KEY = 'test-key';
     const files = await source.dataset();

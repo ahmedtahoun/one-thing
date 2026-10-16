@@ -96,8 +96,24 @@ Vercel, both removed again once you are in.
    the 6-digit code the app shows, and press **Finish setup**. You land on
    Overview, signed in as **Owner**.
 5. The page now closes itself: `/setup` shows "not found" for everyone.
-   **Delete both `ADMIN_SETUP_SECRET` and `SUPABASE_SERVICE_ROLE_KEY` from
-   Vercel**, then redeploy. Nothing else in the panel uses them.
+   **Delete `ADMIN_SETUP_SECRET` from Vercel**, then redeploy. Nothing else
+   uses it.
+
+   `SUPABASE_SERVICE_ROLE_KEY` is a choice, not a leftover:
+
+   - **Delete it** and the panel can never set a password. A teammate who
+     forgets theirs is reset from the Supabase dashboard, or by emptying
+     `admin_member` and running `/setup` again. This is the tighter
+     deployment and the one to pick if you are the only admin.
+   - **Keep it** and the Owner gets **Team & roles → Reset password**: the
+     panel sets a new password and shows it once, for the Owner to hand
+     over (BUILD-REVIEW § 2.75). The cost is that the server then holds a
+     key which can create, change or delete any account in the project —
+     including app users, not only admins. Weigh that against how often
+     somebody will be locked out.
+
+   Either way the button is there; without the key it says "Not connected
+   yet" and changes nothing.
 
 From then on, sign in at `https://admin.onething.wheretospot.com` with the
 email, the password and the code from the app.
@@ -132,6 +148,8 @@ password is checked.
 
 - Signing in with a non-team email is refused (the message names both
   domains).
+- **Team & roles → Reset password** either sets a password or says it needs
+  the service role key — whichever you chose above.
 - **Overview** shows real counts. They are zero or close to it until the app
   has users.
 - **Audit log** has your sign-in.
