@@ -2995,3 +2995,61 @@ comped user is not offered a second one, and both the grant and the
 take-back are logged with the reason) and `npm run fidelity` (0 failing).
 At the root: `npm test` (755, four new on the export document),
 `npm run test:db` (33) and `npm run verify:colours`.
+
+### 2.77 The "Who?" sheet is ordered by what is owed
+Tapping Call, Email or WhatsApp on Home opens a sheet asking who. It listed
+favourites, then everyone in the order they were added, with a phone number
+under each name. With ninety contacts that is a scroll, and the phone number
+was never why anybody opened it.
+
+**The ordering is the decision, and it is not a chat app's.** A messaging
+app sorts by recency because you reopen what you just closed. This app is
+for the opposite case: the person at the top of a recency list is the one
+you spoke to an hour ago and could not forget, and the one slipping away is
+the one who has been waiting since Tuesday. So the sheet goes:
+
+```
+1. they owe you a reply, and it is overdue   ← longest overdue first
+2. they owe you a reply
+3. you reached them lately                   ← most recent first
+4. you have not reached them in a while
+5. you never have
+```
+
+**A favourite no longer jumps the queue.** It breaks a tie inside its own
+group and nothing more. Starring somebody says "I deal with them often",
+which is not "they need me first" — and under the old `floatFavorites` a
+starred person with nothing outstanding sat above somebody who had been
+waiting a week. A test holds that line, because it is the rule most likely
+to be undone by someone who thinks it is a bug.
+
+**Each row now says what last happened** — "Waiting on a reply — Logo final
+files", "You emailed", "Nothing lately", "Never reached" — with a short age
+at the end ("Yesterday", "3d", "6w") and a pill, Overdue or Waiting, when
+something is owed. The pills reuse `status.dangerBg` / `overdueFg` and
+`warnBg` / `warnFg`; no colour was invented.
+
+**No gendered copy.** The mock-up said "Waiting on her — the coffee quote".
+The app is never told anyone's gender and guessing it from a name is how you
+get it wrong about somebody every day, so it reads "Waiting on a reply". A
+smoke check fails on "his", "her" or "him" anywhere in the sheet.
+
+**It costs nothing.** `pick-order.ts` is pure and reads only what the phone
+already holds — follow-ups, contact history, favourites, all from
+`usePeople()`. No request, no table, no permission, and it works offline.
+Follow-ups saved without a `contactId` are matched by `nameKey`, the same
+folding People's own chips use, so an older follow-up carrying "Noura ·
+Designer" still finds her.
+
+**Not measured against the prototype.** `PickSheet` has no drift probe and
+no pair in `screen-pairs.json` — it is a build decision the prototype never
+drew (§2.37's sheet-over-Home). So the layout was free, and the sheet also
+had no browser coverage at all until now.
+
+**Checked:** `npm run typecheck`, `npm run typecheck:functions`, `npm test`
+(769 — 14 new on the ordering, including that a future date reads as today,
+that somebody else's history is nobody's, and both halves of the favourite
+rule), `npm run smoke` (six suites, 328 checks — the sheet's order, its
+pills, its wording and that picking somebody still opens the draft),
+`npm run drift` (no failures), `npm run compare` (unchanged — it reports
+pixels and does not gate) and `npm run verify:colours`.

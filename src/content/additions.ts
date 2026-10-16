@@ -12,6 +12,23 @@ export type Added = {
   restored: string;
   storeFailed: string;
   pickWho: { whatsapp: string; email: string; call: string };
+  /**
+   * The "Who?" sheet's second line, its pills and its short ages. The order
+   * the rows come in is `src/features/today/pick-order.ts`.
+   */
+  pick: {
+    owed: string;
+    owedWhat: string;
+    overdue: string;
+    waiting: string;
+    did: { call: string; email: string; whatsapp: string; meeting: string; visit: string; note: string; followup_closed: string };
+    cold: string;
+    never: string;
+    today: string;
+    yesterday: string;
+    days: string;
+    weeks: string;
+  };
   pickCancel: string;
   ask: {
     ambiguous: string;
@@ -570,6 +587,29 @@ const ADDED: Record<Lang, Added> = {
     storeFailed: 'The store couldn’t complete the purchase. Please try again.',
     /** People when Today's Call / Email / WhatsApp tile sent you there. */
     pickWho: { whatsapp: 'Who do you want to message?', email: 'Who do you want to email?', call: 'Who do you want to call?' },
+    pick: {
+      owed: 'Waiting on a reply',
+      owedWhat: 'Waiting on a reply — {what}',
+      overdue: 'Overdue',
+      waiting: 'Waiting',
+      // No "he" or "she": the app is never told which, and guessing from a
+      // name is how you get it wrong about somebody every day.
+      did: {
+        call: 'You called',
+        email: 'You emailed',
+        whatsapp: 'You messaged',
+        meeting: 'You met',
+        visit: 'You visited',
+        note: 'You were in touch',
+        followup_closed: 'You closed a follow-up',
+      },
+      cold: 'Nothing lately',
+      never: 'Never reached',
+      today: 'Today',
+      yesterday: 'Yesterday',
+      days: '{n}d',
+      weeks: '{n}w',
+    },
     pickCancel: 'Cancel',
     /** The Assistant and Quick capture asking before they propose a task. */
     ask: {
@@ -1107,6 +1147,27 @@ const ADDED: Record<Lang, Added> = {
     restored: 'رجّعنا مشترياتك.',
     storeFailed: 'المتجر ما قدر يكمّل الشراء. جرّب مرة ثانية.',
     pickWho: { whatsapp: 'مين تبي ترسل له؟', email: 'مين تبي تكتب له إيميل؟', call: 'مين تبي تتصل فيه؟' },
+    pick: {
+      owed: 'بانتظار الرد',
+      owedWhat: 'بانتظار الرد — {what}',
+      overdue: 'متأخر',
+      waiting: 'بالانتظار',
+      did: {
+        call: 'اتصلت',
+        email: 'أرسلت إيميل',
+        whatsapp: 'راسلت',
+        meeting: 'اجتمعت',
+        visit: 'زرت',
+        note: 'كان بينكم تواصل',
+        followup_closed: 'أقفلت المتابعة',
+      },
+      cold: 'ما في شيء مؤخرًا',
+      never: 'ما تواصلت معه',
+      today: 'اليوم',
+      yesterday: 'أمس',
+      days: '{n} ي',
+      weeks: '{n} أ',
+    },
     pickCancel: 'إلغاء',
     ask: {
       ambiguous: 'أي {n} تقصد؟',
