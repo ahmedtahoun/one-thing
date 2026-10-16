@@ -133,23 +133,29 @@ const ONE_THING = { en: 'Finish the investor proposal', ar: 'أخلّص عرض �
   check('and marketing recorded separately, unticked', consent.some((c) => c.kind === 'marketing' && c.granted === false), JSON.stringify(consent));
 
   // ------------------------------------------------------------ the events
-  await seed('en', { oneThing: false });
-  await open('/priority');
-  await page.getByTestId('priority-input').fill('Rewrite the pricing page');
-  await page.getByTestId('priority-save').click();
-  await page.waitForTimeout(700);
-  check('setting the One Thing records one_thing_set', (await names()).includes('one_thing_set'));
-
-  await open('/tasks');
-  const firstTick = page.getByTestId(/^task-check-/).first();
+  await seed('en');
+  await open('/today');
+  // Count the event rather than look for it: earlier sections have already
+  // recorded task_done, so "includes" would pass whatever this click does.
+  const doneCount = async () => (await names()).filter((n) => n === 'task_done').length;
+  const statusOf = (id) =>
+    page.evaluate((i) => (JSON.parse(localStorage.getItem('ot.tasks') || '[]').find((t) => t.id === i) || {}).status, id);
+  const firstTick = page.locator('[data-testid^="next-"][data-testid$="-done"]').first();
+  const tickId = (await firstTick.getAttribute('data-testid')) || '';
+  const taskId = tickId.replace(/^next-task:/, '').replace(/-done$/, '');
+  const before = await doneCount();
   await firstTick.click();
   await page.waitForTimeout(500);
-  check('finishing a task records task_done', (await names()).includes('task_done'));
-  // Unticking is not a second done.
-  const doneBefore = (await names()).filter((n) => n === 'task_done').length;
-  await firstTick.click();
+  check('finishing a task marks it done', (await statusOf(taskId)) === 'done', await statusOf(taskId));
+  check('…and records one task_done', (await doneCount()) === before + 1, `${await doneCount()} vs ${before}`);
+  // A finished card leaves the queue, so there is no tick to press again:
+  // taking it back is the toast's Undo, and that is not a second finish.
+  check('…and the card leaves the queue', (await page.getByTestId(tickId).count()) === 0);
+  const afterDone = await doneCount();
+  await page.getByTestId('toast-undo').click();
   await page.waitForTimeout(500);
-  check('un-finishing it records nothing', (await names()).filter((n) => n === 'task_done').length === doneBefore);
+  check('Undo puts it back', (await statusOf(taskId)) === 'open', await statusOf(taskId));
+  check('…and records nothing', (await doneCount()) === afterDone, `${await doneCount()} vs ${afterDone}`);
 
   await open('/paywall');
   await page.waitForTimeout(400);

@@ -1,6 +1,13 @@
 /**
- * The normal One Thing card on Today: `fill` background, radius 26, the day's
- * priority, the focus-session meta and the Lock In button. SCREENS.md § 06.
+ * Today's normal state: the One Thing card. SCREENS.md § 06.
+ *
+ * `#F3F2EE`, radius 26. Eyebrow + Edit, the title at 28/600, the focus
+ * session line, Lock In, and the way out when it is too big to start.
+ *
+ * It is also the only thing in the app that links to Focus and Overwhelm.
+ * The redesign dropped this card and left those two screens reachable only
+ * from each other — a closed pair nothing else pointed at (BUILD-REVIEW.md
+ * § 2.66). So the two links below are load-bearing, not decoration.
  */
 import { Pressable, View } from 'react-native';
 
@@ -19,8 +26,11 @@ export function OneThingCard({
   onLockIn,
   onShrink,
 }: {
+  /** What they said they would do today. */
   title: string;
+  /** The focus session's length, as the meta line reads it. */
   focusMinutes: number;
+  /** Done turns the button into a pill: there is nothing left to start. */
   done: boolean;
   onEdit: () => void;
   onLockIn: () => void;
@@ -38,23 +48,32 @@ export function OneThingCard({
         paddingTop: 24,
         paddingHorizontal: 22,
         paddingBottom: 20,
-        gap: 16,
+        gap: 14,
       }}
     >
-      <View style={{ flexDirection: dir.row, justifyContent: 'space-between', alignItems: 'center' }}>
+      <View style={{ flexDirection: dir.row, alignItems: 'center', justifyContent: 'space-between' }}>
         <Text token="eyebrow" color={ink.s4}>
           {t.h_k}
         </Text>
+        {/* The only way to change your One Thing after the first run. */}
         <Pressable testID="one-thing-edit" onPress={onEdit} accessibilityRole="button" hitSlop={10}>
-          <Text token="caption" weight="500" color={ink.s3}>
+          <Text token="caption" weight="600" color={ink.s4}>
             {t.edit}
           </Text>
         </Pressable>
       </View>
 
-      <BalancedText token="h1" lh={33.6} testID="one-thing-title" style={{ letterSpacing: -0.28 }}>
+      {/* 28 / 1.2, balanced — the same treatment the evening card gives its title. */}
+      <BalancedText token="h1" lh={33.6}>
         {title}
       </BalancedText>
+
+      <View style={{ flexDirection: dir.row, alignItems: 'center', gap: 6 }}>
+        <Icon name="clock" size={14} color={ink.s4} strokeWidth={1.9} />
+        <Text token="bodyS" color={ink.s4}>
+          {t.focusMeta.replace('{n}', String(focusMinutes))}
+        </Text>
+      </View>
 
       {done ? (
         <View
@@ -62,45 +81,30 @@ export function OneThingCard({
           style={{
             flexDirection: dir.row,
             alignItems: 'center',
+            justifyContent: 'center',
             gap: 8,
+            height: 54,
+            borderRadius: radius.card,
             backgroundColor: surface.white,
-            borderRadius: radius.small,
-            paddingHorizontal: 14,
-            paddingVertical: 12,
           }}
         >
-          <Icon name="check" size={16} strokeWidth={2.4} />
-          <Text token="bodyS" weight="500">
+          <Icon name="check" size={16} strokeWidth={2.2} />
+          <Text token="body" weight="600">
             {t.doneToday}
           </Text>
         </View>
       ) : (
         <>
-          <View style={{ flexDirection: dir.row, alignItems: 'center', gap: 6 }}>
-            <Icon name="clock" size={16} color={ink.s3} strokeWidth={1.8} />
-            <Text token="bodyS" color={ink.s3}>
-              {t.focusMeta.replace('{n}', String(focusMinutes))}
-            </Text>
-          </View>
-
-          <Button testID="lock-in" label={t.lockin} onPress={onLockIn} style={{ height: 54, borderRadius: 27 }} />
-
-          <Pressable
-            testID="shrink-it"
-            onPress={onShrink}
-            accessibilityRole="button"
-            style={{
-              alignSelf: 'center',
-              // The prototype grows the tap target with padding and pulls it
-              // back with negative margins, so the link keeps its 44 pt target
-              // without adding height to the card.
-              paddingVertical: 10,
-              paddingHorizontal: 8,
-              marginTop: -6,
-              marginBottom: -10,
-            }}
-          >
-            <Text token="caption" color={ink.s3} align="center">
+          {/* Ink, not the primary green: SCREENS.md § 06 specifies ink here and
+              the prototype renders it black. Button's primary is #008069. */}
+          <Button
+            testID="one-thing-lock-in"
+            label={t.lockin}
+            onPress={onLockIn}
+            style={{ height: 54, backgroundColor: ink.base }}
+          />
+          <Pressable testID="one-thing-shrink" onPress={onShrink} accessibilityRole="button" hitSlop={8}>
+            <Text token="bodyS" color={ink.s4} style={{ textAlign: 'center' }}>
               {t.stuckLink}
             </Text>
           </Pressable>

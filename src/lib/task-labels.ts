@@ -9,9 +9,10 @@
  * Note the two separators are the prototype's, not a typo: tomorrow is a space
  * and a later day is " · ".
  */
+import { clockOf } from './clock-format';
 import type { InlineCopy } from '@/content/inline-copy';
 import type { Copy } from '@/content/strings';
-import { dateKey, timeLabel, type Task } from './model-types';
+import { dateKey, type Task } from './model-types';
 
 /** "Mon 13" — weekday from `wk`, then the day of the month. */
 export function dayLabel(iso: string, t: Copy): string {
@@ -29,7 +30,7 @@ export function whenLabel(task: Task, t: Copy, inline: InlineCopy, now: Date = n
   const today = dateKey(now);
   if (day === today) return '';
 
-  const time = timeLabel(task.dueAt);
+  const time = clockOf(task.dueAt);
   const tomorrow = dateKey(new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1));
   if (day === tomorrow) return `${inline.tmwPrefix}${time}`;
   return `${dayLabel(task.dueAt, t)} · ${time}`;

@@ -38,7 +38,8 @@ export function splitNumber(raw: string, countryCode?: string): { dial: string |
   const compact = raw.replace(/[^\d+]/g, '').replace(/^00/, '+');
   if (compact.startsWith('+')) {
     const dial = DIALS.find((d) => compact.startsWith(d));
-    if (dial) return { dial, phone: compact.slice(dial.length) };
+    // "+20 0122…": a trunk 0 written after the country code is not part of the number (Italy keeps its own).
+    if (dial) return { dial, phone: dial === '+39' ? compact.slice(dial.length) : compact.slice(dial.length).replace(/^0+(?=\d)/, '') };
     return { dial: null, phone: compact.slice(1) };
   }
   const local = compact.replace(/^0/, '');

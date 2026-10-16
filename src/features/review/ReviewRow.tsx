@@ -64,8 +64,8 @@ export function ReviewRow({
           height: 32,
           borderRadius: 16,
           borderWidth: 1,
-          borderColor: dropped ? ink.base : surface.line,
-          backgroundColor: dropped ? ink.base : surface.white,
+          borderColor: dropped ? ink.solid : surface.line,
+          backgroundColor: dropped ? ink.solid : surface.white,
           alignItems: 'center',
           justifyContent: 'center',
         }}
@@ -99,7 +99,7 @@ function Pill({
         borderRadius: radius.pill,
         borderWidth: 1,
         borderColor: ink.base,
-        backgroundColor: on ? ink.base : surface.white,
+        backgroundColor: on ? ink.solid : surface.white,
       }}
     >
       <Text token="micro" color={on ? surface.white : ink.base}>

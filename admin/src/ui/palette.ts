@@ -13,6 +13,10 @@ export const PLAN: Record<Plan, [string, string, string]> = {
   free: ['Free', '#f3f2ee', '#55554f'],
   trial: ['Trial', 'oklch(0.95 0.04 250)', 'oklch(0.42 0.13 250)'],
   pro: ['Pro', '#0b0b0b', '#fff'],
+  // Solid like Pro, because it is also a paying chip, but in the app's
+  // own green so the dearer tier reads as a step up rather than a
+  // different thing. No demo user carries it yet, so no screen changes.
+  pro_plus: ['Pro+', GREEN, '#fff'],
   lapsed: ['Lapsed', 'oklch(0.95 0.04 25)', 'oklch(0.48 0.16 25)'],
 };
 

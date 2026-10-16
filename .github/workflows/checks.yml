@@ -49,6 +49,18 @@ jobs:
         run: npm run test:db
       - name: OKLCH colours match Chromium
         run: npm run verify:colours
+      # website/ is generated from src/content/strings.ts so that the policy
+      # the stores read and the policy inside the app are one text. Nothing
+      # regenerates it on commit, so this is what notices when someone edits
+      # the strings and forgets — which would publish two different privacy
+      # policies without anyone meaning to.
+      - name: The published policy still matches the app's
+        run: |
+          npx tsx scripts/build-site.ts
+          git diff --exit-code -- website/ || {
+            echo "::error::website/ is out of date. Run: npx tsx scripts/build-site.ts"
+            exit 1
+          }
 
   fidelity:
     name: Fidelity and behaviour

@@ -7,7 +7,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { eveningNudgeAt, inQuietHours, planNotifications, shouldAlert } from './plan';
+import { COMEBACK_AFTER_DAYS, eveningNudgeAt, inQuietHours, planNotifications, shouldAlert } from './plan';
 import { DEFAULT_PREFS } from '@/lib/prefs';
 import type { FollowUp, Prefs, Task } from '@/lib/model-types';
 
@@ -217,5 +217,35 @@ describe('the pending cap', () => {
     assert.ok(plan.length <= 60);
     const times = plan.map((n) => n.at);
     assert.deepEqual([...times].sort(), times);
+  });
+});
+
+describe('habit nudges', () => {
+  const plan = (over: Partial<Parameters<typeof planNotifications>[0]> = {}) =>
+    planNotifications({ tasks: [], followUps: [], prefs: prefs(), now: NOW, habit: true, ...over });
+
+  it('are off unless asked for', () => {
+    assert.deepEqual(planNotifications({ tasks: [], followUps: [], prefs: prefs(), now: NOW }), []);
+  });
+
+  it('plans a morning nudge for each of the next days, never one already past', () => {
+    const mornings = plan().filter((n) => n.kind === 'morning');
+    // 09:00 today has gone (it is 09:20); the next seven mornings remain.
+    assert.equal(mornings.length, 7);
+    assert.equal(mornings[0]?.at, new Date('2026-10-11T09:00:00').toISOString());
+    assert.equal(mornings[0]?.id, 'morning:2026-10-11');
+  });
+
+  it('calls someone back after two and five quiet days', () => {
+    const back = plan().filter((n) => n.kind === 'comeback');
+    assert.deepEqual(back.map((n) => n.id), COMEBACK_AFTER_DAYS.map((d) => `comeback:${d}`));
+    assert.equal(back[0]?.at, new Date('2026-10-12T10:00:00').toISOString());
+  });
+
+  it('stays inside the 60 the phone allows, soonest first', () => {
+    const many = Array.from({ length: 80 }, (_, i) => task({ id: `t${i}`, dueAt: new Date(`2026-10-1${1 + (i % 4)}T11:00:00`).toISOString() }));
+    const planned = plan({ tasks: many });
+    assert.equal(planned.length, 60);
+    assert.deepEqual([...planned].sort((a, b) => a.at.localeCompare(b.at)), planned);
   });
 });

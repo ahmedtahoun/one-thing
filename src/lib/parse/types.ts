@@ -21,8 +21,14 @@ export type ParsedTask = {
   who: string | null;
   /** The contact `who` was matched to, so the task links to them. */
   contactId: string | null;
-  /** When it is due: a full ISO instant. */
+  /** When it is due: a full ISO instant. For a `waiting`, when to check in. */
   when: string;
+  /**
+   * `promise`: something the person owes ("I told Omar I'd send it"), saved as
+   * a task. `waiting`: something they are owed, saved as a follow-up that comes
+   * back when it is time to check. Absent for an ordinary task.
+   */
+  kind?: 'promise' | 'waiting';
 };
 
 /**

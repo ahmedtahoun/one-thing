@@ -1,9 +1,15 @@
 /**
  * The frame every screen sits in: a 54 pt status-bar spacer, the screen
  * background, and the active writing direction. README § Spacing.
+ *
+ * It also lifts everything above the keyboard on iOS (Android resizes the
+ * window itself), and bounds the content to the space left on screen, so a
+ * ScrollView placed inside a non-scrolling Screen scrolls instead of growing
+ * past the bottom edge. React Native's default flexShrink is 0, which is what
+ * let it grow.
  */
 import type { ReactNode } from 'react';
-import { ScrollView, View, type ViewStyle } from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView, View, type ViewStyle } from 'react-native';
 
 import { useLanguage } from '@/i18n/LanguageProvider';
 import { space, surface } from '@/design/tokens';
@@ -40,24 +46,26 @@ export function Screen({
     paddingHorizontal: paddingX,
     paddingBottom,
     paddingTop,
-    flexGrow: 1,
     ...style,
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor, direction: dir }}>
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      style={{ flex: 1, backgroundColor, direction: dir }}
+    >
       <View style={{ height: space.statusBar }} />
       {scroll ? (
         <ScrollView
-          contentContainerStyle={inner}
+          contentContainerStyle={{ ...inner, flexGrow: 1 }}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
           {children}
         </ScrollView>
       ) : (
-        <View style={inner}>{children}</View>
+        <View style={{ ...inner, flex: 1 }}>{children}</View>
       )}
-    </View>
+    </KeyboardAvoidingView>
   );
 }

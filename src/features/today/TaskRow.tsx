@@ -6,6 +6,7 @@
  * limit come from the prototype's own drag handling. In Arabic the gesture
  * mirrors, so the physical direction is converted to a logical one first.
  */
+import { clockOf } from '@/lib/clock-format';
 import { useRef } from 'react';
 import { Animated, PanResponder, Pressable, View } from 'react-native';
 
@@ -15,7 +16,7 @@ import { TYPE_ICON } from '@/design/icon-paths';
 import { ink, radius, status, surface, typeColour } from '@/design/tokens';
 import { useDirection, useLanguage } from '@/i18n/LanguageProvider';
 import type { InlineCopy } from '@/content/inline-copy';
-import { minutesUntil, timeLabel, type Task } from '@/lib/model-types';
+import { minutesUntil, type Task } from '@/lib/model-types';
 
 /** How far a swipe must travel before it commits. */
 const COMMIT = 90;
@@ -141,7 +142,7 @@ export function TaskRow({
             borderRadius: 13,
             borderWidth: 1.5,
             borderColor: ink.base,
-            backgroundColor: done ? ink.base : surface.white,
+            backgroundColor: done ? ink.solid : surface.white,
             alignItems: 'center',
             justifyContent: 'center',
           }}
@@ -173,7 +174,7 @@ export function TaskRow({
               token="body"
               weight="500"
               numberOfLines={1}
-              color={done ? '#9A9A96' : ink.base}
+              color={done ? ink.muted : ink.base}
               style={done ? { textDecorationLine: 'line-through' } : undefined}
             >
               {task.title}
@@ -199,7 +200,7 @@ export function TaskRow({
 
           <View style={{ alignItems: 'flex-end', gap: 2 }}>
             <LTRText token="caption" tabular>
-              {timeLabel(task.dueAt)}
+              {clockOf(task.dueAt)}
             </LTRText>
             {relative ? (
               <Text token="eyebrow" weight="500" color={status.dangerFg} style={{ letterSpacing: 0 }}>

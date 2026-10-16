@@ -1,6 +1,10 @@
 {
-  "CFBundleDisplayName": "الشيء الواحد",
-  "NSMicrophoneUsageDescription": "نستخدمه فقط وأنت تسجّل ملاحظتك، عشان تضيف مهمة بصوتك بدل ما تكتبها.",
-  "NSSpeechRecognitionUsageDescription": "نستخدمه لتحويل الملاحظة اللي قلتها إلى مهمة. ما نسجّل شي في الخلفية.",
-  "NSContactsUsageDescription": "نستخدمها فقط لما تختار جهة اتصال تضيفها إلى الأشخاص. الشيء الواحد ما يقرأ جهات اتصالك من نفسه."
+  "ios": {
+    "CFBundleDisplayName": "الشيء الواحد",
+    "NSMicrophoneUsageDescription": "نستخدمه فقط وأنت تسجّل ملاحظتك، عشان تضيف مهمة بصوتك بدل ما تكتبها.",
+    "NSSpeechRecognitionUsageDescription": "نستخدمه لتحويل الملاحظة اللي قلتها إلى مهمة. ما نسجّل شي في الخلفية.",
+    "NSContactsUsageDescription": "نستخدمها فقط لما تختار جهة اتصال تضيفها إلى الأشخاص. الشيء الواحد ما يقرأ جهات اتصالك من نفسه.",
+    "NSPhotoLibraryUsageDescription": "نستخدمها فقط لما تختار صورة بطاقة عمل نقرأها. الشيء الواحد ما يقرأ باقي صورك.",
+    "NSCameraUsageDescription": "نستخدمها فقط لما تصوّر بطاقة عمل، عشان نقرأها على جوالك ونضيف الشخص."
+  }
 }

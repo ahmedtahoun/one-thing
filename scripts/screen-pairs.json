@@ -101,7 +101,7 @@
   },
   {
     "name": "en-priority",
-    "app": "en-05-morning-priority.png",
+    "app": "en-06-today-first-run.png",
     "proto": "en-08-morning-priority.png"
   },
   {
@@ -126,7 +126,7 @@
   },
   {
     "name": "ar-priority",
-    "app": "ar-05-morning-priority.png",
+    "app": "ar-06-today-first-run.png",
     "proto": "ar-08-morning-priority.png"
   },
   {

@@ -3,13 +3,15 @@
  * chips, the scrolling time row, the seven study-day toggles, the person
  * chips and the lessons counter. SCREENS.md § 09.
  */
-import type { ReactNode } from 'react';
-import { Pressable, ScrollView, View } from 'react-native';
+import { useState, type ReactNode } from 'react';
+import { Pressable, ScrollView, TextInput, View } from 'react-native';
 
 import { Chip } from '@/ui/Chip';
 import { LTRText, Text } from '@/ui/Text';
-import { ink, radius, space, surface, typeColour } from '@/design/tokens';
+import { fontFamily, ink, radius, space, status, surface, typeColour } from '@/design/tokens';
 import { useDirection } from '@/i18n/LanguageProvider';
+import { parseClock } from '@/lib/clock';
+import { clockFromHHMM } from '@/lib/clock-format';
 import { initials, type Contact } from '@/lib/model-types';
 import type { EventType } from './model';
 
@@ -75,49 +77,101 @@ export function ChipRow({
 /**
  * The hours, scrolling sideways. Selected is ink-filled rather than the
  * chips' soft fill, and the times stay left-to-right in Arabic.
+ *
+ * With `custom`, a box under the chips takes any time the chips do not cover
+ * ("5:45 PM"); both feed the same `onSelect`.
  */
 export function TimeRow({
   times,
   selected,
   onSelect,
+  custom,
 }: {
   times: readonly string[];
   selected: string;
   onSelect: (time: string) => void;
+  custom?: { label: string; bad: string };
 }) {
   const dir = useDirection();
+  const [typed, setTyped] = useState('');
+  const parsed = parseClock(typed);
+  const bad = typed.trim() !== '' && parsed === null;
   return (
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      style={{ marginHorizontal: -space.screenX, flexGrow: 0 }}
-      contentContainerStyle={{ flexDirection: dir.row, gap: space.gridGap, paddingHorizontal: space.screenX }}
-    >
-      {times.map((time) => {
-        const on = time === selected;
-        return (
-          <Pressable
-            key={time}
-            testID={`event-time-${time}`}
-            onPress={() => onSelect(time)}
-            accessibilityRole="button"
-            accessibilityState={{ selected: on }}
-            style={{
-              borderWidth: 1.5,
-              borderColor: on ? ink.base : surface.line,
-              backgroundColor: on ? ink.base : surface.white,
-              borderRadius: radius.small,
-              paddingVertical: 10,
-              paddingHorizontal: 14,
-            }}
-          >
-            <LTRText token="body" tabular color={on ? surface.white : ink.base}>
-              {time}
-            </LTRText>
-          </Pressable>
-        );
-      })}
-    </ScrollView>
+    <View style={{ gap: 10 }}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={{ marginHorizontal: -space.screenX, flexGrow: 0 }}
+        contentContainerStyle={{ flexDirection: dir.row, gap: space.gridGap, paddingHorizontal: space.screenX }}
+      >
+        {times.map((time) => {
+          const on = time === selected;
+          return (
+            <Pressable
+              key={time}
+              testID={`event-time-${time}`}
+              onPress={() => onSelect(time)}
+              accessibilityRole="button"
+              accessibilityState={{ selected: on }}
+              style={{
+                borderWidth: 1.5,
+                borderColor: on ? ink.solid : surface.line,
+                backgroundColor: on ? ink.solid : surface.white,
+                borderRadius: radius.small,
+                paddingVertical: 10,
+                paddingHorizontal: 14,
+              }}
+            >
+              <LTRText token="body" tabular color={on ? surface.white : ink.base}>
+                {clockFromHHMM(time)}
+              </LTRText>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
+      {custom ? (
+        <View style={{ gap: 6 }}>
+          <View style={{ flexDirection: dir.row, alignItems: 'center', gap: 10 }}>
+            <Text token="bodyS" color={ink.s4}>
+              {custom.label}
+            </Text>
+            <TextInput
+              testID="event-custom-time"
+              value={typed}
+              onChangeText={(text) => {
+                setTyped(text);
+                const next = parseClock(text);
+                if (next) onSelect(next);
+              }}
+              placeholder={clockFromHHMM('17:45')}
+              placeholderTextColor={ink.s5}
+              keyboardType="numbers-and-punctuation"
+              maxLength={8}
+              returnKeyType="done"
+              autoCorrect={false}
+              style={{
+                width: 96,
+                height: 40,
+                borderRadius: radius.small,
+                borderWidth: 1.5,
+                borderColor: bad ? status.invalid : parsed ? ink.solid : surface.line,
+                paddingHorizontal: 12,
+                fontFamily: `${fontFamily}_400Regular`,
+                fontSize: 16,
+                color: ink.base,
+                textAlign: 'center',
+                writingDirection: 'ltr',
+              }}
+            />
+          </View>
+          {bad ? (
+            <Text token="micro" color={status.invalid}>
+              {custom.bad}
+            </Text>
+          ) : null}
+        </View>
+      ) : null}
+    </View>
   );
 }
 
@@ -148,8 +202,8 @@ export function StudyDays({
               height: 42,
               borderRadius: radius.small,
               borderWidth: 1.5,
-              borderColor: on ? ink.base : surface.line,
-              backgroundColor: on ? ink.base : surface.white,
+              borderColor: on ? ink.solid : surface.line,
+              backgroundColor: on ? ink.solid : surface.white,
               alignItems: 'center',
               justifyContent: 'center',
             }}
@@ -196,7 +250,7 @@ export function PersonChips({
               alignItems: 'center',
               gap: 8,
               borderWidth: 1.5,
-              borderColor: on ? ink.base : surface.line,
+              borderColor: on ? ink.solid : surface.line,
               backgroundColor: on ? surface.fill : surface.white,
               borderRadius: radius.pill,
               paddingVertical: 5,
@@ -209,7 +263,7 @@ export function PersonChips({
                 width: 28,
                 height: 28,
                 borderRadius: 14,
-                backgroundColor: on ? ink.base : surface.avatar,
+                backgroundColor: on ? ink.solid : surface.avatar,
                 alignItems: 'center',
                 justifyContent: 'center',
               }}

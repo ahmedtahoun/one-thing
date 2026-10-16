@@ -1,22 +1,44 @@
 /**
  * 24 · Paywall. SCREENS.md § 24.
  *
- * 4 / 22 / 36 with a 22 pt gap. Close and Restore; the badge, the title with
- * the person's first name, and the six features; the two plans, Yearly
- * selected and tagged "Save 40%"; the trial button, the required fine print
- * for the selected plan, and Terms / Privacy.
+ * Close and Restore; the badge and the title with the person's first name;
+ * a Yearly / Monthly switch; then one card per tier — Free, Pro, Pro+ — and
+ * the trial button with the required fine print for what is selected.
  *
- * All six features are listed as designed, Weekly recap included, though no
- * recap exists (BUILD-REVIEW.md §2.2): the product owner has kept the line
- * for now, to be designed or dropped before submission (§2.34). Nothing here
- * routes to it — `can(plan, 'weeklyRecap')` is false for everyone.
+ * **Three cards stacked, not three columns.** At 402 pt a three-column
+ * price table is unreadable, and three tiers across two periods is six
+ * prices. The switch takes the period out of the cards so each one shows a
+ * single number.
+ *
+ * **Every number here is derived** from src/features/paywall/plans.ts —
+ * the per-month figure, the annual total in the fine print, and the saving.
+ * The saving used to be the typed string "Save 40%", which was right for
+ * $4.99 / $35.88 and silently wrong at any other price. It also differs by
+ * tier (Pro saves more than Pro+), so one badge for the screen could not
+ * have been true anyway.
+ *
+ * **Pro+ is shown and cannot be bought.** Its three features do not exist,
+ * so `isForSale` leaves it out, the card says so plainly, and nothing takes
+ * money for it. Listing a tier whose bullets are not built is the Weekly
+ * recap mistake (§2.56) at $12.99 a month; showing it as coming is how the
+ * price gets seen without anyone paying for air.
  */
 import { useEffect, useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { router } from 'expo-router';
 
 import { track } from '@/lib/analytics/track';
-import { PRODUCT, restorePurchases, startTrial, type Period } from '@/features/paywall/purchases';
+import { restorePurchases, startTrial, type Period } from '@/features/paywall/purchases';
+import {
+  PRICES,
+  PRODUCT_ID,
+  isForSale,
+  money,
+  perMonth,
+  savingsPercent,
+  yearlyTotal,
+  type Tier,
+} from '@/features/paywall/plans';
 import { added } from '@/content/additions';
 import { BalancedText } from '@/ui/BalancedText';
 import { Icon } from '@/ui/Icon';
@@ -28,8 +50,9 @@ import { ink, paywallFeature, status, surface } from '@/design/tokens';
 import { useDirection, useLanguage } from '@/i18n/LanguageProvider';
 import { useSession } from '@/lib/session';
 
-/** Per-month prices as the plan cards show them. The store's localised prices replace these once products exist. */
-const PRICE: Record<Period, string> = { year: '$2.99', month: '$4.99' };
+/** Free first, so the person reads what they already have before a price. */
+const CARDS = ['free', 'pro', 'pro_plus'] as const;
+type CardKey = (typeof CARDS)[number];
 
 export default function Paywall() {
   const { setx, acc, inline, a11y, lang } = useLanguage();
@@ -40,6 +63,10 @@ export default function Paywall() {
 
   // Yearly is the default (SCREENS.md § 24).
   const [period, setPeriod] = useState<Period>('year');
+  // The tier the button would buy. Only one is on sale today, so this never
+  // changes by itself — it exists so that selling Pro+ is a change to
+  // FOR_SALE and nothing here.
+  const [tier, setTier] = useState<Tier>('pro');
 
   const first = session?.firstName?.trim() ?? '';
   const title = pw.title.replace('{n}', first ? inline.paywallName.replace('{n}', first) : '');
@@ -63,7 +90,7 @@ export default function Paywall() {
       // separately and the store reports one event: the trial is the start of
       // the subscription, and `purchase` names which product it was.
       track({ name: 'trial_started', period });
-      track({ name: 'purchase', product: PRODUCT[period] });
+      track({ name: 'purchase', product: PRODUCT_ID[tier][period] });
       close();
     }
   };
@@ -74,10 +101,147 @@ export default function Paywall() {
     toast.show(message, { undo: false });
   };
 
-  const plans: { key: Period; name: string; sub: string; tag?: string }[] = [
-    { key: 'year', name: pw.year, sub: pw.yearSub, tag: pw.save },
-    { key: 'month', name: pw.month, sub: pw.monthSub },
+  const periods: { key: Period; name: string }[] = [
+    { key: 'year', name: pw.year },
+    { key: 'month', name: pw.month },
   ];
+
+  const fine = period === 'year'
+    ? pw.fineY.replace('{price}', yearlyTotal(tier))
+    : pw.fineM.replace('{price}', money(PRICES[tier].month));
+
+  // Purchasable tiers sit above the button and anything not yet on sale
+  // below it. The redesign had pushed the button to 1153 pt on an 874 pt
+  // screen — a paywall whose buy button is off-screen, with a card nobody
+  // can act on sitting between the offer and the action. Driven by
+  // `isForSale`, so Pro+ moves up on its own the day it ships.
+  const offered = CARDS.filter((key) => key === 'free' || isForSale(key));
+  const coming = CARDS.filter((key) => key !== 'free' && !isForSale(key));
+
+  const card = (key: CardKey) => {
+          const paid = key !== 'free';
+          const sellable = paid && isForSale(key);
+          const chosen = paid && key === tier && sellable;
+          const feats = key === 'free' ? pw.freeFeats : key === 'pro' ? pw.feats : pw.plusFeats;
+          const name = key === 'free' ? pw.tierFree : key === 'pro' ? pw.tierPro : pw.tierPlus;
+          // Free has no price; Pro+ has one and no way to pay it.
+          const sub = key === 'free'
+            ? pw.current
+            : period === 'year'
+              ? pw.yearSub.replace('{price}', yearlyTotal(key))
+              : pw.monthSub;
+
+          return (
+            <Pressable
+              key={key}
+              testID={`paywall-tier-${key}`}
+              onPress={sellable ? () => setTier(key) : undefined}
+              accessibilityRole={sellable ? 'radio' : undefined}
+              aria-checked={sellable ? chosen : undefined}
+              // Dimmed rather than hidden: the point of showing Pro+ is
+              // that the price is seen. Not pressable, so nothing suggests
+              // it can be bought.
+              style={{
+                gap: 14,
+                padding: 18,
+                borderWidth: 2,
+                borderColor: chosen ? ink.base : surface.line,
+                borderRadius: 18,
+                backgroundColor: surface.white,
+                opacity: paid && !sellable ? 0.72 : 1,
+              }}
+            >
+              <View style={{ flexDirection: dir.row, alignItems: 'flex-start', gap: 12 }}>
+                <View style={{ flex: 1, gap: 2 }}>
+                  <View style={{ flexDirection: dir.row, alignItems: 'center', gap: 8 }}>
+                    <Text token="bodyL" weight="600">
+                      {name}
+                    </Text>
+                    {paid && !sellable ? (
+                      <View
+                        testID={`paywall-soon-${key}`}
+                        style={{ paddingVertical: 3, paddingHorizontal: 8, borderRadius: 999, backgroundColor: surface.fill }}
+                      >
+                        <Text size={11} weight="600" color={ink.s4}>
+                          {pw.soon}
+                        </Text>
+                      </View>
+                    ) : null}
+                  </View>
+                  <Text token="caption" color={ink.s4}>
+                    {paid && !sellable ? pw.soonSub : sub}
+                  </Text>
+                </View>
+                {paid ? (
+                  <View style={{ alignItems: 'flex-end', gap: 2 }}>
+                    <LTRText token="title" testID={`paywall-price-${key}`}>
+                      {perMonth(key, period)}
+                    </LTRText>
+                    <Text token="micro" color={ink.s4}>
+                      {pw.per}
+                    </Text>
+                  </View>
+                ) : null}
+              </View>
+
+              {/* Free is context, not an offer, so it gets one line instead of
+                  three rows. Three full cards put the button a whole screen
+                  below the fold, and the comparison that matters is Pro
+                  against Pro+. */}
+              {key === 'free' ? (
+                <Text token="caption" lh={19} color={ink.s4}>
+                  {feats.map(([, featName]) => featName).join(' · ')}
+                </Text>
+              ) : null}
+
+              <View style={{ gap: 12, display: key === 'free' ? 'none' : 'flex' }}>
+                {feats.map(([icon, featName, featSub], i) => {
+                  const colour = paywallFeature[i] ?? paywallFeature[0];
+                  return (
+                    <View key={featName} style={{ flexDirection: dir.row, gap: 12, alignItems: 'flex-start' }}>
+                      <View style={{ width: 30, height: 30, borderRadius: 9, backgroundColor: colour.bg, alignItems: 'center', justifyContent: 'center' }}>
+                        <Icon name={icon as IconName} size={16} color={colour.fg} strokeWidth={1.9} />
+                      </View>
+                      <View style={{ flex: 1, gap: 1 }}>
+                        <Text token="bodyS" weight="600">
+                          {featName}
+                        </Text>
+                        <Text token="micro" lh={17} color={ink.s4}>
+                          {featSub}
+                        </Text>
+                      </View>
+                    </View>
+                  );
+                })}
+              </View>
+
+              {/* Per tier, because Pro and Pro+ do not discount by the same
+                  amount — which is exactly why one typed badge was wrong.
+                  Only on a tier you can actually buy: a saving advertised
+                  on something not for sale is an offer that is not open. */}
+              {sellable && period === 'year' ? (
+                <View
+                  testID={`paywall-save-${key}`}
+                  style={{
+                    position: 'absolute',
+                    top: -11,
+                    // The inline end, set physically: React Native Web reads
+                    // `end` from the app-wide direction (§2.19).
+                    ...(dir.isRTL ? { left: 16 } : { right: 16 }),
+                    paddingVertical: 4,
+                    paddingHorizontal: 9,
+                    borderRadius: 999,
+                    backgroundColor: status.saveTag,
+                  }}
+                >
+                  <Text size={11} weight="600" color={surface.white}>
+                    {pw.save.replace('{n}', String(savingsPercent(key)))}
+                  </Text>
+                </View>
+              ) : null}
+            </Pressable>
+          );
+  };
 
   return (
     <>
@@ -113,90 +277,44 @@ export default function Paywall() {
           </Text>
         </View>
 
-        <View style={{ gap: 14 }}>
-          {pw.feats.map(([icon, name, sub], i) => {
-            const colour = paywallFeature[i] ?? paywallFeature[0];
-            return (
-              <View key={name} style={{ flexDirection: dir.row, gap: 14, alignItems: 'flex-start' }}>
-                <View style={{ width: 36, height: 36, borderRadius: 11, backgroundColor: colour.bg, alignItems: 'center', justifyContent: 'center' }}>
-                  <Icon name={icon as IconName} size={18} color={colour.fg} strokeWidth={1.9} />
-                </View>
-                <View style={{ flex: 1, gap: 2 }}>
-                  <Text token="body" weight="600">
-                    {name}
-                  </Text>
-                  <Text token="caption" lh={18.85} color={ink.s4}>
-                    {sub}
-                  </Text>
-                </View>
-              </View>
-            );
-          })}
-        </View>
-
-        <View style={{ gap: 10 }}>
-          {plans.map((plan) => {
-            const on = plan.key === period;
-            const edge = on ? ink.base : surface.line;
+        {/* The period once, instead of once per card: three tiers across two
+            periods is six prices, and only one of them is being compared. */}
+        <View
+          style={{
+            flexDirection: dir.row,
+            gap: 4,
+            padding: 4,
+            borderRadius: 14,
+            backgroundColor: surface.fill,
+          }}
+        >
+          {periods.map((p) => {
+            const on = p.key === period;
             return (
               <Pressable
-                key={plan.key}
-                testID={`paywall-plan-${plan.key}`}
-                onPress={() => setPeriod(plan.key)}
+                key={p.key}
+                testID={`paywall-plan-${p.key}`}
+                onPress={() => setPeriod(p.key)}
                 accessibilityRole="radio"
                 aria-checked={on}
                 style={{
-                  flexDirection: dir.row,
+                  flex: 1,
+                  height: 40,
+                  borderRadius: 11,
                   alignItems: 'center',
-                  gap: 14,
-                  padding: 16,
-                  borderWidth: 2,
-                  borderColor: edge,
-                  borderRadius: 18,
-                  backgroundColor: surface.white,
+                  justifyContent: 'center',
+                  backgroundColor: on ? surface.white : 'transparent',
                 }}
               >
-                <View style={{ width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: edge, alignItems: 'center', justifyContent: 'center' }}>
-                  <View style={{ width: 11, height: 11, borderRadius: 5.5, backgroundColor: on ? ink.base : 'transparent' }} />
-                </View>
-                <View style={{ flex: 1, gap: 2 }}>
-                  <Text token="bodyL" weight="600">
-                    {plan.name}
-                  </Text>
-                  <Text token="caption" color={ink.s4}>
-                    {plan.sub}
-                  </Text>
-                </View>
-                <View style={{ alignItems: 'flex-end', gap: 2 }}>
-                  <LTRText token="title">{PRICE[plan.key]}</LTRText>
-                  <Text token="micro" color={ink.s4}>
-                    {pw.per}
-                  </Text>
-                </View>
-                {plan.tag ? (
-                  <View
-                    testID={`paywall-tag-${plan.key}`}
-                    style={{
-                      position: 'absolute',
-                      top: -11,
-                      // The inline end, set physically: React Native Web reads
-                      // `end` from the app-wide direction (§2.19).
-                      ...(dir.isRTL ? { left: 16 } : { right: 16 }),
-                      paddingVertical: 4,
-                      paddingHorizontal: 9,
-                      borderRadius: 999,
-                      backgroundColor: status.saveTag,
-                    }}
-                  >
-                    <Text size={11} weight="600" color={surface.white}>
-                      {plan.tag}
-                    </Text>
-                  </View>
-                ) : null}
+                <Text token="body" weight={on ? '600' : '400'} color={on ? ink.base : ink.s4}>
+                  {p.name}
+                </Text>
               </Pressable>
             );
           })}
         </View>
+
+        <View style={{ gap: 12 }}>{offered.map(card)}</View>
 
         <View style={{ gap: 10 }}>
           <Pressable
@@ -206,7 +324,7 @@ export default function Paywall() {
             style={({ pressed }) => ({
               height: 56,
               borderRadius: 28,
-              backgroundColor: ink.base,
+              backgroundColor: ink.solid,
               alignItems: 'center',
               justifyContent: 'center',
               transform: [{ scale: pressed ? 0.98 : 1 }],
@@ -218,8 +336,13 @@ export default function Paywall() {
           </Pressable>
           {/* Required wording, for the plan selected — SCREENS.md § 24. */}
           <Text token="micro" lh={18} color={ink.s4} align="center" testID="paywall-fine">
-            {period === 'year' ? pw.fineY : pw.fineM}
+            {fine}
           </Text>
+        </View>
+
+        {coming.length ? <View style={{ gap: 12 }}>{coming.map(card)}</View> : null}
+
+        <View>
           <View style={{ flexDirection: dir.row, justifyContent: 'center', gap: 16 }}>
             <Pressable testID="paywall-terms" onPress={() => router.push('/legal?tab=terms')} accessibilityRole="link">
               <Text token="micro" color={ink.s4} style={{ textDecorationLine: 'underline' }}>

@@ -13,9 +13,10 @@ import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 
 import { focusEndNotification, planNotifications, type PlanInput, type PlannedNotification } from './plan';
-import { eveningText, followUpText, focusEndText, taskText } from './copy';
+import { comebackText, eveningText, followUpText, focusEndText, morningText, taskText } from './copy';
+import type { Added } from '@/content/additions';
 import type { Copy, PFX } from '@/content/strings';
-import type { Prefs } from '@/lib/model-types';
+import type { OneThing, Prefs } from '@/lib/model-types';
 
 /** The action buttons on a task reminder. SCREENS.md § Notifications. */
 export const TASK_CATEGORY = 'task';
@@ -26,6 +27,8 @@ export type NotificationPayload =
   | { kind: 'task' | 'task_repeat'; taskId: string }
   | { kind: 'followup'; followUpId: string }
   | { kind: 'evening' }
+  | { kind: 'morning' }
+  | { kind: 'comeback' }
   | { kind: 'focus_end' };
 
 export const SNOOZE_MINUTES = 10;
@@ -69,12 +72,18 @@ export async function registerCategories(t: Copy, pfx: (typeof PFX)['en']): Prom
   ]);
 }
 
+/** What the nudges that are not about one task need to say what they say. */
+export type NudgeContext = { oneThing?: OneThing | null; nudge: Added['nudge'] };
+
 function textFor(
   planned: PlannedNotification,
   { tasks, followUps }: Pick<PlanInput, 'tasks' | 'followUps'>,
-  t: Copy
+  t: Copy,
+  context?: NudgeContext
 ) {
   if (planned.kind === 'evening') return eveningText(t);
+  if (planned.kind === 'morning') return context ? morningText(new Date(planned.at), tasks, context.oneThing, context.nudge) : null;
+  if (planned.kind === 'comeback') return context ? comebackText(context.nudge) : null;
   if (planned.kind === 'followup') {
     const followUp = followUps.find((f) => f.id === planned.followUpId);
     return followUp ? followUpText(followUp, t) : null;
@@ -85,6 +94,8 @@ function textFor(
 
 function payloadFor(planned: PlannedNotification): NotificationPayload {
   if (planned.kind === 'evening') return { kind: 'evening' };
+  if (planned.kind === 'morning') return { kind: 'morning' };
+  if (planned.kind === 'comeback') return { kind: 'comeback' };
   if (planned.kind === 'focus_end') return { kind: 'focus_end' };
   if (planned.kind === 'followup') return { kind: 'followup', followUpId: planned.followUpId as string };
   return { kind: planned.kind, taskId: planned.taskId as string };
@@ -98,7 +109,7 @@ function payloadFor(planned: PlannedNotification): NotificationPayload {
  * other sixty. The focus-session notification is left alone — it is scheduled
  * by the Focus screen, not derived from state.
  */
-export async function sync(input: PlanInput, t: Copy): Promise<PlannedNotification[]> {
+export async function sync(input: PlanInput, t: Copy, context?: NudgeContext): Promise<PlannedNotification[]> {
   if (!supported || !(await hasPermission())) return [];
 
   const planned = planNotifications(input);
@@ -116,7 +127,7 @@ export async function sync(input: PlanInput, t: Copy): Promise<PlannedNotificati
 
   for (const [key, notification] of wanted) {
     if (keep.has(key)) continue;
-    const text = textFor(notification, input, t);
+    const text = textFor(notification, input, t, context);
     if (!text) continue;
     await schedule(key, notification, text, input.prefs);
   }

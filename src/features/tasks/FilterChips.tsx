@@ -1,6 +1,8 @@
 /**
- * The Tasks filter chips: All · Calls · Emails · WhatsApp · Reminders · Done.
- * SCREENS.md § 07 — horizontal scroll, no scrollbar.
+ * The filters inside Home's "All" view: Open · Calls · Emails · WhatsApp ·
+ * Reminders · Done. SCREENS.md § 07 — horizontal scroll, no scrollbar. The
+ * chips look like People's (filled, round) so one kind of chip reads the same
+ * everywhere; the four channels keep their colour dot.
  *
  * The row bleeds into the screen's own side padding (margin −20 / padding 20)
  * so the first chip lines up with the title while the rest can scroll past
@@ -9,17 +11,10 @@
 import { Pressable, ScrollView, View } from 'react-native';
 
 import { TASK_FILTERS, type TaskFilter } from './groups';
+import { added } from '@/content/additions';
 import { Text } from '@/ui/Text';
-import { ink, radius, space, surface, typeColour } from '@/design/tokens';
+import { ink, space, surface, typeColour } from '@/design/tokens';
 import { useDirection, useLanguage } from '@/i18n/LanguageProvider';
-
-/** Only the four channel filters carry a colour dot. */
-const DOT: Partial<Record<TaskFilter, string>> = {
-  call: typeColour.call.fg,
-  email: typeColour.email.fg,
-  whatsapp: typeColour.whatsapp.fg,
-  reminder: typeColour.reminder.fg,
-};
 
 export function FilterChips({
   active,
@@ -28,22 +23,25 @@ export function FilterChips({
   active: TaskFilter;
   onPick: (filter: TaskFilter) => void;
 }) {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const dir = useDirection();
 
   const label = (filter: TaskFilter) =>
-    filter === 'all' ? t.all : filter === 'done' ? t.doneF : t.fl[filter as keyof typeof t.fl];
+    filter === 'all' ? added(lang).today.open : filter === 'done' ? t.doneF : t.fl[filter as keyof typeof t.fl];
+  // Only the four channel filters carry a colour dot; read when drawn, so the dot follows the theme.
+  const dot = (filter: TaskFilter): string | undefined =>
+    filter === 'call' || filter === 'email' || filter === 'whatsapp' || filter === 'reminder' ? typeColour[filter].fg : undefined;
 
   return (
     <ScrollView
       horizontal
       showsHorizontalScrollIndicator={false}
       style={{ marginHorizontal: -space.screenX, flexGrow: 0 }}
-      contentContainerStyle={{ flexDirection: dir.row, gap: 6, paddingHorizontal: space.screenX }}
+      contentContainerStyle={{ flexDirection: dir.row, gap: 8, paddingHorizontal: space.screenX }}
     >
       {TASK_FILTERS.map((filter) => {
         const on = filter === active;
-        const dot = DOT[filter];
+        const colour = dot(filter);
         return (
           <Pressable
             key={filter}
@@ -52,19 +50,17 @@ export function FilterChips({
             accessibilityRole="button"
             accessibilityState={{ selected: on }}
             style={{
-              height: 34,
-              paddingHorizontal: 12,
-              borderRadius: radius.pill,
-              borderWidth: 1,
-              borderColor: on ? ink.base : surface.line,
-              backgroundColor: on ? ink.base : surface.white,
+              height: 38,
+              paddingHorizontal: 16,
+              borderRadius: 999,
               flexDirection: dir.row,
               alignItems: 'center',
-              gap: 6,
+              gap: 7,
+              backgroundColor: on ? ink.solid : surface.fill,
             }}
           >
-            {dot ? <View style={{ width: 7, height: 7, borderRadius: 3.5, backgroundColor: dot }} /> : null}
-            <Text token="caption" color={on ? surface.white : ink.base} numberOfLines={1}>
+            {colour ? <View style={{ width: 7, height: 7, borderRadius: 3.5, backgroundColor: on ? surface.white : colour }} /> : null}
+            <Text token="bodyS" weight="600" color={on ? surface.white : ink.s2} numberOfLines={1}>
               {label(filter)}
             </Text>
           </Pressable>

@@ -8,10 +8,13 @@
  */
 import { Pressable, TextInput, View } from 'react-native';
 
+import { Avatar } from '@/ui/Avatar';
 import { CountryButton, CountryList } from '@/ui/CountryPicker';
 import { Icon } from '@/ui/Icon';
 import { LTRText, Text } from '@/ui/Text';
 import type { Country } from '@/content/countries';
+import { added } from '@/content/additions';
+import { canPickFromPhone } from '@/lib/phone-contacts';
 import { fontFamily, ink, status, surface, typeColour } from '@/design/tokens';
 import { useDirection, useLanguage } from '@/i18n/LanguageProvider';
 import { initials, type Contact } from '@/lib/model-types';
@@ -23,7 +26,10 @@ const PHONE_PLACEHOLDER = '5X XXX XXXX';
 
 const inputText = {
   fontFamily: `${fontFamily}_400Regular`,
-  color: ink.base,
+  // A getter, so the colour is read when a field renders (and follows the theme), not once at import.
+  get color() {
+    return ink.base;
+  },
   paddingVertical: 0,
   writingDirection: 'ltr' as const,
   textAlign: 'left' as const,
@@ -43,6 +49,7 @@ export function PhoneField({
   onPickCountry,
   onChangePhone,
   onPickContact,
+  onPickFromPhone,
 }: {
   dial: string;
   phone: string;
@@ -53,12 +60,15 @@ export function PhoneField({
   onPickCountry: (country: Country) => void;
   onChangePhone: (phone: string) => void;
   onPickContact: (contact: Contact) => void;
+  /** Opens the phone's own contact picker, for someone not saved here yet. */
+  onPickFromPhone?: () => void;
 }) {
   const { t } = useLanguage();
   const border =
     state === 'bad' ? status.invalid : state === 'ok' ? typeColour.whatsapp.fg : phone ? ink.base : surface.line;
   const message = state === 'bad' ? t.c_phoneErr : state === 'ok' ? t.savedNext : t.c_phoneAsk;
-  const showSuggestions = state !== 'ok' && !pickerOpen && localDigits(phone).length > 0 && suggestions.length > 0;
+  const showSuggestions = state !== 'ok' && !pickerOpen && suggestions.length > 0;
+  const asking = state !== 'ok' && !pickerOpen && localDigits(phone).length === 0;
 
   return (
     // Above what follows, so the open country list can lie over it.
@@ -115,8 +125,10 @@ export function PhoneField({
           value={(c) => `${c.dial ?? ''} ${c.phone ?? ''}`.trim()}
           onPick={onPickContact}
           style={{ marginTop: -6 }}
+          typing={!asking}
         />
       ) : null}
+      {asking && onPickFromPhone && canPickFromPhone ? <FromPhone onPress={onPickFromPhone} /> : null}
     </View>
   );
 }
@@ -129,6 +141,7 @@ export function EmailFields({
   onChangeEmail,
   onChangeSubject,
   onPickContact,
+  onPickFromPhone,
 }: {
   email: string;
   subject: string;
@@ -137,12 +150,14 @@ export function EmailFields({
   onChangeEmail: (email: string) => void;
   onChangeSubject: (subject: string) => void;
   onPickContact: (contact: Contact) => void;
+  onPickFromPhone?: () => void;
 }) {
   const { t } = useLanguage();
   const dir = useDirection();
   const border = state === 'bad' ? status.invalid : state === 'ok' ? typeColour.email.fg : surface.line;
   const message = state === 'bad' ? t.c_emailErr : state === 'ok' ? t.savedNext : t.c_emailAsk;
-  const showSuggestions = state !== 'ok' && email.length > 0 && suggestions.length > 0;
+  const showSuggestions = state !== 'ok' && suggestions.length > 0;
+  const asking = state !== 'ok' && email.length === 0;
 
   const row = {
     flexDirection: dir.row,
@@ -203,8 +218,9 @@ export function EmailFields({
         {message}
       </Text>
       {showSuggestions ? (
-        <Suggestions contacts={suggestions} value={(c) => c.email ?? ''} onPick={onPickContact} style={{ marginTop: -6 }} />
+        <Suggestions contacts={suggestions} value={(c) => c.email ?? ''} onPick={onPickContact} style={{ marginTop: -6 }} typing={!asking} />
       ) : null}
+      {asking && onPickFromPhone && canPickFromPhone ? <FromPhone onPress={onPickFromPhone} /> : null}
     </>
   );
 }
@@ -215,19 +231,21 @@ function Suggestions({
   value,
   onPick,
   style,
+  typing = true,
 }: {
   contacts: Contact[];
   value: (c: Contact) => string;
   onPick: (c: Contact) => void;
   style?: object;
+  /** Matches for what is typed; otherwise the people already saved, offered before anything is typed. */
+  typing?: boolean;
 }) {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const dir = useDirection();
   return (
     <View style={[{ gap: 6 }, style]} testID="compose-suggestions">
-      {/* Only ever shown while typing, so always "Matches", never "Sent before". */}
       <Text token="micro" color={ink.s4}>
-        {t.sugMatch}
+        {typing ? t.sugMatch : added(lang).lock.fromPeople}
       </Text>
       <View style={{ borderWidth: 1, borderColor: surface.cardLine, borderRadius: 14, overflow: 'hidden' }}>
         {contacts.map((c) => (
@@ -273,5 +291,121 @@ function Suggestions({
         ))}
       </View>
     </View>
+  );
+}
+
+/**
+ * Who it is going to, shown rather than asked for: their picture, name and the
+ * number or address already on file. Nothing to type; "Change" opens the field
+ * for the rare time it is wrong.
+ */
+export function LockedRecipient({
+  contact,
+  value,
+  channel,
+  changeLabel,
+  onChange,
+}: {
+  contact: Contact;
+  /** The number (with dial code) or the email address, as it will be used. */
+  value: string;
+  channel: 'whatsapp' | 'email' | 'call';
+  changeLabel: string;
+  /** Omitted for a call, which has nothing to change here. */
+  onChange?: () => void;
+}) {
+  const dir = useDirection();
+  return (
+    <View
+      testID="compose-recipient"
+      style={{
+        flexDirection: dir.row,
+        alignItems: 'center',
+        gap: 14,
+        padding: 12,
+        borderRadius: 18,
+        backgroundColor: surface.fill,
+      }}
+    >
+      <Avatar name={contact.name} contactId={contact.id} size={48} channel={channel} />
+      <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
+        <Text token="body" weight="600" numberOfLines={1}>
+          {contact.name}
+        </Text>
+        <LTRText token="bodyS" color={ink.s3} numberOfLines={1} align={dir.textAlign}>
+          {value}
+        </LTRText>
+      </View>
+      {onChange ? (
+        <Pressable
+          testID="compose-recipient-change"
+          onPress={onChange}
+          accessibilityRole="button"
+          hitSlop={8}
+          style={{ paddingVertical: 8, paddingHorizontal: 12, borderRadius: 999, backgroundColor: surface.white }}
+        >
+          <Text token="caption" weight="600">
+            {changeLabel}
+          </Text>
+        </Pressable>
+      ) : null}
+    </View>
+  );
+}
+
+/** The subject on its own, for when the address is already on file and shown above. */
+export function SubjectField({ subject, onChange }: { subject: string; onChange: (subject: string) => void }) {
+  const { t } = useLanguage();
+  const dir = useDirection();
+  return (
+    <View
+      style={{
+        flexDirection: dir.row,
+        alignItems: 'center',
+        gap: 10,
+        height: 52,
+        paddingHorizontal: 14,
+        borderWidth: 1.5,
+        borderColor: surface.line,
+        borderRadius: 14,
+        backgroundColor: surface.white,
+      }}
+    >
+      <Text token="caption" color={ink.s4} style={{ width: 58 }}>
+        {t.c_subject}
+      </Text>
+      <TextInput
+        testID="compose-subject"
+        value={subject}
+        onChangeText={onChange}
+        style={{
+          ...inputText,
+          flex: 1,
+          minWidth: 0,
+          fontSize: 15,
+          writingDirection: dir.isRTL ? 'rtl' : 'ltr',
+          textAlign: dir.textAlign,
+        }}
+      />
+    </View>
+  );
+}
+
+/** "Choose from your phone contacts": the number or address of someone who is not saved here yet. */
+function FromPhone({ onPress }: { onPress: () => void }) {
+  const { lang } = useLanguage();
+  const dir = useDirection();
+  return (
+    <Pressable
+      testID="compose-from-phone"
+      onPress={onPress}
+      accessibilityRole="button"
+      style={{ flexDirection: dir.row, alignItems: 'center', gap: 8, alignSelf: 'flex-start', paddingVertical: 10, paddingHorizontal: 14, borderRadius: 999, backgroundColor: surface.fill }}
+    >
+      <Icon name="users" size={16} color={ink.s2} strokeWidth={1.9} />
+      <Text token="bodyS" weight="600" color={ink.s2}>
+        {added(lang).lock.fromPhone}
+      </Text>
+    </Pressable>
   );
 }

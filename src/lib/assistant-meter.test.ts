@@ -6,7 +6,15 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import { spendOne, usedOn } from './assistant-meter';
-import { assistantRequestsLeft, canUseAssistant, FREE_ASSISTANT_REQUESTS_PER_DAY } from '@/policy/entitlements';
+import {
+  assistantRequestsLeft,
+  can,
+  canAutoChase,
+  canBrainDump,
+  canUseAssistant,
+  FREE_ASSISTANT_REQUESTS_PER_DAY,
+  FREE_BRAIN_DUMPS_PER_DAY,
+} from '@/policy/entitlements';
 
 describe('the daily assistant meter', () => {
   it('allows ten requests a day on Free, and not an eleventh', () => {
@@ -34,5 +42,36 @@ describe('the daily assistant meter', () => {
 
   it('treats a lapsed subscription as Free', () => {
     assert.equal(canUseAssistant('lapsed', 10), false);
+  });
+});
+
+describe('the gates settled in October 2026', () => {
+  it('meters brain dumps on Free and not on Pro', () => {
+    assert.ok(canBrainDump('free', 0));
+    assert.ok(canBrainDump('free', FREE_BRAIN_DUMPS_PER_DAY - 1));
+    assert.equal(canBrainDump('free', FREE_BRAIN_DUMPS_PER_DAY), false);
+    assert.ok(canBrainDump('pro', 500));
+    assert.ok(canBrainDump('trial', 500));
+    assert.equal(canBrainDump('lapsed', FREE_BRAIN_DUMPS_PER_DAY), false);
+  });
+
+  it('starts the chase by itself only on Pro', () => {
+    // Not a count: how many people may be waiting is not limited at all,
+    // because follow-ups accumulate rather than being added, and a cap would
+    // fail invisibly on the message that most needed chasing.
+    assert.equal(canAutoChase('free'), false);
+    assert.equal(canAutoChase('lapsed'), false);
+    assert.ok(canAutoChase('pro'));
+    assert.ok(canAutoChase('trial'));
+  });
+
+  it('leaves what the card no longer sells alone', () => {
+    // Client history is the person's own notes; the event types have no way
+    // in since Today went to four tiles; Weekly recap has no screen at all.
+    // All three are off the paywall rather than locked.
+    assert.ok(can('free', 'clientHistory'));
+    assert.ok(can('free', 'events'));
+    assert.ok(can('free', 'autoFollowUps'));
+    assert.equal(can('pro', 'weeklyRecap'), false);
   });
 });

@@ -16,7 +16,7 @@ import { useEffect, useState, type CSSProperties } from 'react';
 
 import * as act from '@/actions';
 import { day, clock, initials, rel } from '@/data/format';
-import type { UserDetail } from '@/data/types';
+import { paying, planLabel, type UserDetail } from '@/data/types';
 import { mono, Pill, tabular } from '@/ui/bits';
 import { CHECK, GREEN, PLAN, RED, SUB, TT } from '@/ui/palette';
 import { useToast } from '@/ui/Toast';
@@ -99,11 +99,11 @@ export function UserDrawer({
     ['Last active', rel(u.lastActiveAt, now)],
     ['App version', u.appVersion ?? '—'],
   ];
-  const subLine = u.sub ? `Pro · ${u.billing} · ${SUB[u.sub][0]}` : u.plan === 'lapsed' ? 'Pro ended' : 'Free plan';
+  const subLine = u.sub ? `${planLabel(u.plan)} · ${u.billing} · ${SUB[u.sub][0]}` : planLabel(u.plan);
   const renews = u.subEndsAt ? 'Ends ' + day(u.subEndsAt, now) : u.subRenewsAt ? 'Renews ' + day(u.subRenewsAt, now) : '';
   const subActs = [
-    ...(u.plan !== 'pro' && can.trial ? [{ label: 'Extend trial 7 days', go: () => run(() => act.extendTrial(u.id)) }] : []),
-    ...(u.plan !== 'pro' && can.grant
+    ...(!paying(u.plan) && can.trial ? [{ label: 'Extend trial 7 days', go: () => run(() => act.extendTrial(u.id)) }] : []),
+    ...(!paying(u.plan) && can.grant
       ? [
           {
             label: 'Grant Pro (comp)',

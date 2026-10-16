@@ -100,7 +100,7 @@ export function Toast() {
           alignItems: 'center',
           gap: 16,
           maxWidth: '100%',
-          backgroundColor: ink.base,
+          backgroundColor: ink.card,
           borderRadius: radius.pill,
           paddingVertical: 13,
           paddingHorizontal: 20,
@@ -111,7 +111,7 @@ export function Toast() {
           elevation: 8,
         }}
       >
-        <Text token="caption" color={surface.white} style={{ flexShrink: 1 }}>
+        <Text token="caption" color={surface.onCard} style={{ flexShrink: 1 }}>
           {state.message}
         </Text>
         {state.undo ? (
@@ -124,7 +124,7 @@ export function Toast() {
             accessibilityRole="button"
             hitSlop={10}
           >
-            <Text token="caption" weight="600" color={surface.white} style={{ textDecorationLine: 'underline' }}>
+            <Text token="caption" weight="600" color={surface.onCard} style={{ textDecorationLine: 'underline' }}>
               {t.undo}
             </Text>
           </Pressable>

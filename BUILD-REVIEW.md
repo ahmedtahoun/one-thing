@@ -1530,7 +1530,7 @@ explained by Apple's or Google's own sheet."* That is true for a failure
 raised while the sheet is up. It is not true for the two that happen after it
 closes successfully — `signInWithIdToken` being rejected by Supabase, and a
 provider returning no token at all. Those are the realistic ones: a client ID
-the project does not know, a paused project, no network, EAS built without
+the project does not know, a paused project, no network, a build made without
 `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID`. The user taps, authenticates, the sheet
 closes, and the screen sits there having apparently done nothing.
 
@@ -1605,3 +1605,871 @@ directly rather than through their npm scripts.
 
 Verified by touching a source file and watching `smoke-day.js` refuse to
 run.
+
+### 2.53 A comment is not a safeguard, and three names that went missing
+
+Two unrelated findings from reviewing build 9, except that both are about a
+rule that was written down and then not kept.
+
+**The generator would have withdrawn the privacy policy.** `strings.ts` is
+generated from the handoff and its banner has said "do not hand-edit" since
+the first version. It was hand-edited anyway. Between 9 and 14 October it
+gained a **Pictures and files** section in both languages — the one
+disclosing the business-card scan, imported spreadsheets and PDFs, and stored
+photos — an expanded account of what a contact record holds, and the Arabic
+Children and Health sections. None of it is in the handoff, so the next
+`npm run content:port` would have reverted all of it. The app would then ship
+a policy that understates what it collects, which is a PDPL and GDPR problem
+before it is a store problem, and nothing would have failed: no test asserts
+on the contents of a string.
+
+§2.51 added `SUBSTITUTIONS` and `ADDITIONS` for exactly this, and they were
+not used — which is the useful part of the finding. A mechanism nobody
+reaches for is worth no more than the comment it replaced. So the generator
+now refuses to overwrite a generated file that differs from its own output.
+It cannot tell a revised handoff from a hand edit, and does not try: it
+names the files, prints the `git diff` that answers the question, and stops.
+`--force` after reading the diff is a decision; the silent revert is no
+longer reachable by accident.
+
+**Three names the parser could not see**, each confirmed by probe before the
+fix and covered now by `names.test.ts`, which fails 3 of 7 against the old
+code:
+
+- *"Email the quote to Sara"* found nobody. `candidateName` read only the
+  first match of each rule, and `MARKED` fires at "the" long before it
+  reaches "to Sara"; rejecting "the" skipped to the next **rule** rather than
+  the next match. Every match is read now.
+- *"كلم علي"* found nobody. `normalizeArabic` folds ى to ي, so على (the
+  preposition) and علي (Ali) are one word, and the preposition was in the
+  stop list. The calling rules already consume a leading على before the name,
+  so an علي that survives to be captured is the person. *"رن على نورة"* still
+  reads نورة.
+- `soundsAlike('Ali', 'علي')` was false, so even once the name was found the
+  cross-script question never came. Both reduce to `"l"` — ع has no Latin
+  consonant and the vowels drop — and the key had a two-letter floor. The
+  floor stays except where both names are four characters or fewer, which is
+  the narrowest rule that admits Ali. The cost of a wrong guess is one
+  "did you mean …?".
+
+Ali is among the commonest names in this app's first market, and two separate
+rules had to be wrong for it to disappear. Worth remembering when the next
+sound-alike rule is written: the test that matters is a name somebody is
+actually called.
+
+### 2.54 The behavioural suites, rewritten for the screens that exist
+
+Build 9 redesigned most of the app — a Home with two views, People as
+threads, the Next queue, email through a chooser, a quieter end to sending —
+and the six browser suites still drove the screens it replaced. They did not
+fail honestly: `smoke-tasks` died on a 30-second timeout before printing
+anything, so 262 behavioural checks were not running at all, and CI's
+fidelity job runs `npm run smoke`.
+
+Nothing here changed what the app does. Each suite now drives the screen as
+it is, and every assertion that moved says why:
+
+- **The list is a view, not a route.** `/tasks` redirects to Today, where
+  "All" is component state — so a reload drops back and the suite has to ask
+  for it again. Two reloads were silently testing the wrong screen.
+- **A person is one row.** The three per-row buttons became a press and
+  hold, and the red follow-up dot shares the row's testID prefix, so counting
+  by prefix counted everyone waiting twice.
+- **Adding a person is a menu**: by hand, from a card, from a file, or from
+  the phone. The form is two taps away.
+- **Someone already reachable is shown, not typed.** `compose-phone` and
+  `compose-email` only exist while the recipient is unknown; otherwise it is
+  a row with their name, the number, and Change.
+- **Coming back from WhatsApp or Mail asks once, quietly.** The old sheet of
+  options is a row with "I sent it" and "Not yet", and the chase interval
+  comes from the person's own setting rather than being picked each time.
+  "Not yet" says nothing at all now, so the toast assertion went with it.
+- **Mail is a choice of app**, so opening it is two taps.
+- **Where, how long and the link are behind "More"** on the event form.
+  These checks used `isVisible()`, which returns false without throwing — so
+  they had been failing quietly, under a timeout further down.
+- **The evening review ends on a confirmation**, not a "plan tomorrow"
+  button. It had no testID; `app/review.tsx` gained one, which is the only
+  change to the app in this commit.
+- **Times read as people say them**: "3:00 PM", not "15:00".
+- **The assistant asks rather than guesses.** A note with no "when" now
+  brings back the question, so counting cards was counting the old design.
+
+Two of these were worth the detour. `Pro is not metered` was failing in a
+way that looked like paying users hitting the paywall; instrumenting it
+showed `url=/assistant cards=0` — not metered, just answered with a question
+instead of a card. And `un-finishing it records nothing` looked like
+`task_done` firing twice on one task. It was not: a finished card leaves the
+queue, `.first()` then found the next card and finished that one too. The
+check now holds the card's own id, confirms it leaves, and takes the finish
+back through the toast's Undo — which is how the UI actually offers it.
+
+264 checks, all passing. The lesson is the same one §2.52 and §2.53 keep
+teaching: a check that cannot run, and a rule nobody reaches for, both read
+exactly like success.
+
+### 2.55 The imported number that was wrong and looked right
+
+Reviewing build 9's new surfaces, worst consequence first: the chain from a
+spreadsheet to a bulk send, because a parsing slip there reaches real
+strangers at scale.
+
+`columns.ts` knew that "Excel turns long numbers into 9.66501E+11" and
+expanded the scientific form with `Number(v).toFixed(0)`. The expansion is
+only honest while the mantissa still holds every digit, and Excel's default
+is **six significant figures**. So 966501234567 is written 9.66501E+11 and
+comes back as **966501000000** — the right length, the right country, the
+right operator prefix, the wrong person. No issue was flagged, because
+nothing about the result looks wrong: it passes the digit count, it splits
+into a plausible `+966 50...`, and the import screen shows it as an ordinary
+Saudi mobile for the person to tick.
+
+What it costs is the point. A contact imported that way is then called,
+messaged or WhatsApped — and `app/bulk.tsx` walks a column of them one tap
+at a time. The existing test covered `9.66501234567E+11`, which carries all
+twelve digits and expands correctly; the rounded form nobody had tried.
+
+The expansion is now trusted only where the mantissa's significant digits
+cover the whole number. Where they do not, the cell comes back empty, which
+is what makes `build` flag the row `bad-phone` — so the person sees a number
+that could not be read rather than one that was invented. `5.0E+8` is
+refused on the same rule: digits two through nine are unknowable, and
+guessing zeros is the same mistake in a smaller coat.
+
+My first attempt at the rule was wrong in the other direction — it compared
+both sides with trailing zeros stripped, which makes them equal by
+construction, so it passed the lossy case and rejected the safe one. The
+test caught it, which is the argument for writing the test against real
+Excel output rather than against the fix.
+
+Also found, not fixed: **`app/import.tsx` reads the whole file into memory**
+(`new Uint8Array(await (await fetch(uri)).arrayBuffer())`) with no size
+guard. A large workbook or PDF can take the app down on a phone. Picking
+the limit is a judgement about real files on real devices, so it is raised
+here rather than guessed at.
+
+Looked at and found sound: `plan.ts` never sends anything itself — every
+channel opens the person's own app with the message written, which bounds
+what any parsing mistake can do; `bccMailto` keeps a shared email's
+addresses hidden from each other; the PDF reader's loops are all bounded
+`matchAll` passes over the input, with no unbounded `while` and no obvious
+catastrophic backtracking.
+
+### 2.56 Unselling the feature that does not exist, and the guard catching its author
+
+The paywall sold six things. `can()` returns `false` for `weeklyRecap` on
+every plan, Pro included — so somebody pays $35.88 and gets nothing at all
+for one of the six bullets they were shown. Unfinished is survivable;
+charged-for and absent is a 3.1.2 rejection and a refund. The bullet is now
+off the card in both languages. The capability stays in `entitlements.ts`:
+the feature is unsold, not cancelled, and the row goes back the day the
+screen exists.
+
+Getting there took a detour worth writing down.
+
+The copy is generated, so the removal belongs in `port-content.js` rather
+than in `strings.ts`. It needed a third kind of override — `PRUNINGS`,
+which drops a row from a list the handoff wrote and throws if the row is
+not there. Then the guard from §2.53 refused the write, correctly, because
+`strings.ts` still held the hand-edited privacy policy. **So I passed
+`--force`** — and it reverted the "Pictures and files" section in both
+languages, the fuller account of what a contact record holds, and the two
+Arabic sections, exactly as §2.53 predicted. Restored from git.
+
+The guard did its job and said to read the diff first. I read it after.
+Worth stating plainly, because the lesson is not "be careful with
+`--force`": it is that the escape hatch gets used by whoever is in a hurry,
+including the person who built the hatch, so the thing worth protecting
+must not depend on nobody using it.
+
+So the privacy copy is no longer a hand edit. `REPLACEMENTS` carries it in
+the generator, extracted from the file rather than retyped, and
+regenerating now reproduces it. `--force` is no longer load-bearing for
+anything true about the app. The resulting diff is two list entries in two
+languages and nothing else.
+
+One real bug surfaced on the way: `handoffDir(process.argv[2])` read
+`--force` as a path to the handoff. The flag is now skipped when looking
+for one.
+
+**What this does not settle** is whether `strings.ts` should be generated
+at all. The product has outgrown the prototype — the policy now describes
+a card scanner and a spreadsheet importer the handoff never had — and each
+such divergence adds a row to `REPLACEMENTS`. That is sustainable for a
+few and silly for twenty. RELEASE.md §9.5.1 is the matching product
+question; this is the engineering one, and it is worth answering
+deliberately rather than when the list gets long.
+
+### 2.57 strings.ts stops being generated, and the gates go in
+
+Two decisions from RELEASE.md §9.5.1, approved and applied.
+
+**`src/content/strings.ts` is a normal source file now.** It was generated
+from the design handoff, and the tell that the arrangement had ended was
+`REPLACEMENTS` (§2.56): to make regeneration safe I had copied the real
+privacy copy *into* the generator so the generator could reproduce it — a
+generator generating from itself. The handoff describes a prototype with no
+card scanner and no spreadsheet importer, nobody is updating it, and the
+file it produced now carries text that has to be legally true.
+
+The property worth keeping survives: EN/AR key parity comes from
+`const ACC_ar: typeof ACC_en` in the emitted code, not from the generator,
+so a missing translation is still a compile error. `port-content.js` keeps
+porting `icon-paths.ts`, `countries.ts` and `seed.ts`, which really are the
+designer's and which nobody edits, and keeps the refusal guard for those.
+
+**The gating matrix is settled** in `entitlements.ts`, with a meter
+preferred to a lock wherever the choice existed:
+
+- assistant — 10 a day, unchanged
+- brain dumps — 3 a day, metered at *sorting* rather than typing, so
+  rewording and sorting again does not cost two. `useBrainDumpMeter` is the
+  assistant's meter with a different key; running out opens the paywall the
+  same way the eleventh request does.
+- client history — **off the card, left open.** It is the person's own
+  notes about their own contacts; a window on your own data is the lock most
+  likely to produce a support ticket and the hardest to draw well. Dropping
+  a bullet costs one line of copy; building that lock costs design time.
+- weekly recap — off the card already (§2.56), still off for everyone.
+
+The paywall is four bullets now, from six.
+
+**Two premises did not survive the code, and are left undone.**
+
+*Webinars and courses cannot be created anywhere.* The event form supports
+all four types — the field table, lesson tracking, the tests — but every
+route into it passes `meeting` (from a contact, from People) or a type from
+`AddSheet`, which offers only call, email, WhatsApp and reminder since Today
+was trimmed from eight tiles to four. So "Meetings, webinars & courses"
+sells two things with no door, which is the Weekly recap problem again. The
+work is small — the feature is built and lost its entry point — but putting
+tiles back into a sheet the designer deliberately trimmed is a design
+decision, not a gate.
+
+*The follow-up cap has four creation points*, three of which are
+mid-batch: Quick capture, Brain dump and the Assistant each turn a parsed
+list into tasks and waiting items at once. Interrupting a batch with a
+paywall is the wrong answer, and quietly dropping the waiting ones is
+worse. What should happen when a Free account's fourth follow-up arrives
+inside a batch of nine is a product question, so `canAddFollowUp` exists in
+the policy and nothing calls it yet.
+
+### 2.58 Follow-ups: the cap was the wrong shape, and "Auto" was the answer
+
+§2.57 left two gates undone because their premises did not survive the
+code. Both are settled, and the paywall is three bullets.
+
+**"Meetings, webinars & courses" is off the card.** The feature is built —
+field table, lesson tracking, tests — and has no door: every route into the
+event form passes `meeting` since Today went from eight tiles to four. The
+honest options were to put the tiles back or to stop selling it, and with
+no launch date riding on webinars, stopping selling it is the one that can
+be undone cheaply.
+
+**The follow-up cap is gone, and that is the more interesting one.** The
+first design was three waiting follow-ups on Free. Writing it down made the
+mismatch obvious: nobody *adds* a follow-up. They accumulate, as a side
+effect of sending things. So a count cap means the fourth message quietly
+goes unchased — invisible when it happens, and failing exactly where the
+feature is supposed to help. The batch problem (Quick capture, Brain dump
+and the Assistant each turn one parsed list into several waiting items at
+once) was a symptom of that, not the difficulty itself.
+
+The card already said what Pro is: ***Auto*** follow-ups. The word is the
+feature. So the number is not limited at all — `canAutoChase(plan)` gates
+whether the chase starts *on its own* after a send. A Free account can
+still have anyone waiting on it and can still set a chase by hand from the
+Sent row's Change; it just has to ask. One condition in `compose.tsx`, no
+batch problem, no new screen: the Sent row already handled "no chase" and
+now reads "Sent. Pro follows up for you." instead of "Sent".
+
+That is the second time in this round that reading the card's own wording
+settled a question — "Unlimited" meant a meter, "Auto" means automation —
+and both times it beat the number I had reached for first.
+
+**The compose suite was asserting against seed data.** Its session is Free,
+so once the chase stopped starting by itself, `followups[0]` was a *demo*
+follow-up rather than one the test created: the failure detail read
+"Sent Sunday · follow up Tue", which no part of that test wrote. It now
+seeds a plan explicitly, checks the Free path (nothing chases, the row says
+Pro would, Change is still offered) and re-runs the send as Pro for the
+chase itself. 44 checks became 48.
+
+### 2.59 What a share actually carries, and what the Lock Screen shows
+
+Continuing through build 9's new surfaces, outward-facing ones first.
+
+**An Android share was promising a file it could not send.** The "Zoho,
+Spark or another app" row hands the draft to the share sheet, and its
+sub-label read *"Takes the subject, the message and a file."* on both
+platforms. React Native's `Share` takes `url` on iOS only, and
+`expo-sharing` is not a dependency — so on Android the share carried the
+text alone and said nothing. `compose.tsx` had no `Platform` import at all.
+
+The row now tells the truth per platform, and where a file is left behind
+(always on Android, and from the second file on iOS, since a share carries
+one) the toast says attachments need "Send email" instead of only naming
+the address to paste. An attachment that silently does not arrive is worse
+than one the person was told to send another way — the recipient has no
+idea either.
+
+**The privacy policy's two hardest claims are true.** Worth checking rather
+than assuming, because build 9 wrote them:
+
+- *"A photo of a business card is read on your phone and not kept."*
+  `scan-card.tsx` holds the image in component state for the preview and
+  saves no image reference on the contact — only the fields the person
+  confirms.
+- *"A picture you choose for a person … stays on your phone; it is not
+  uploaded."* `src/lib/photos.ts` keeps pictures in the app's own folder
+  with only the file name in storage, deliberately outside sync, and
+  `clearPhotos()` runs through `people.reset()` → `wipeDevice()` on both
+  sign-out and account deletion. So "deletion removes everything" covers
+  them too.
+
+**The Lock Screen bar was on by default** — ~~`let on = true`, turned off
+only by a stored `'off'`~~. **Settled: it now starts off** (`let on = false`,
+turned on only by a stored `'on'`). It puts today's task
+titles, 40 characters each, on a screen anyone can read without unlocking
+the phone — and this app's titles are "Call the lawyer", "Chase the loan",
+client names. Not a legal problem: nothing leaves the device, so neither
+privacy form covers it, and iOS has its own system-wide switch.
+
+It is a judgement call with an asymmetry worth naming. Default off costs
+discoverability of a feature people would like. Default on costs the one
+person whose screen was read over their shoulder, and that person writes
+the review.
+
+Taken as default off, with the discoverability cost paid differently than
+first proposed. Offering it after the first focus session would have meant
+building a prompt nobody asked for; Settings already carries a labelled row
+("Today on the Lock Screen") with a subtitle, which is enough to find. The
+subtitle now says the bar is *readable without unlocking the phone*, in both
+languages — the fact you need in order to make the choice, and the one the
+old copy left out while the default made it for you.
+
+Two things the flip touched beyond the one line. `load()` reads only an
+explicit `'on'`, so an unset key means off rather than on. And the Settings
+row read `barOn !== false`, which rendered **on** during the window before
+the stored choice is read — correct while the default was on, and a visible
+flash from on to off after the flip; it now reads `barOn === true`, and the
+toggle writes `barOn !== true`, so the loading window shows the default
+instead of contradicting it.
+
+Nothing had to change in `TodayBarSync`: it already waits for a non-null
+value and calls `syncBar(null)` when off, so an existing bar is removed
+rather than stranded. Nobody has shipped, so there is no migration to
+worry about — on a device that never stored a choice, the bar simply never
+appears.
+
+### 2.60 An address that steers the link it goes into
+
+`mailtoUrl` interpolates the recipient without encoding it:
+`mailto:${to}?subject=…&body=…`. `?`, `&` and `#` are exactly what separate
+a mailto's parameters, so an address carrying one appends its own.
+
+```
+emailValid('omar@x.sa?body=hello')  →  true
+mailtoUrl(…)  →  mailto:omar@x.sa?body=hello?subject=Hi&body=Body
+```
+
+The mail app reads the first `body`, so the message sent is not the message
+the app showed. That matters more here than in most apps, because the whole
+promise of Compose is that the person presses send themselves — and they
+would be pressing send on text they never saw, from their own account.
+
+**The obvious attack was already blocked, for the wrong reason.**
+`?bcc=someone@else.com` fails only because the pattern refuses a second
+`@`. Nothing was defending the parameter separators; an injection without
+an `@` in it walked through. A defence that holds by coincidence is worth
+no more than the coincidence.
+
+Addresses are not the person's own typing: build 9 taught the app to read
+them from spreadsheets, PDFs and photographed business cards, which is
+exactly the kind of file a partner hands you. So the pattern now refuses
+`?`, `&` and `#`, in `features/compose/recipient.ts` and again in the
+importer, where the row is flagged `bad-email` on the review screen rather
+than stored as a contact that cannot be used safely. Ordinary addresses —
+`a.b+tag@sub.example.co.uk` among them — are unaffected.
+
+Tightening the pattern beats encoding the recipient: `encodeURIComponent`
+would turn `@` into `%40`, which RFC 6068 allows and some mail clients
+still mishandle. The addresses worth sending to do not contain these
+characters.
+
+`maps.ts` was checked at the same time and is clean — fixed https scheme,
+the address properly encoded. `whatsAppUrl` strips everything but digits
+from the number, so it has nothing to steer.
+
+### 2.61 A note that rewrote every contact, once per character
+
+`app/contact.tsx` bound the "Remember for next time" note straight to the
+store: `onChangeText={saveNote}` → `updateContact` → `setContacts`, and a
+contact write serialises the **whole contact list** to storage. So each
+character re-wrote every contact on the phone — and build 9's headline
+feature is importing a few hundred prospects from a spreadsheet, which is
+exactly the person this costs most.
+
+The right pattern was already in the same file, 116 lines down: the quick
+log types into local state and writes on a deliberate action. The note has
+no Save button, so the deliberate action is a pause — 600 ms — with two
+further guards, because a pause is the only thing between a typed note and
+a note that was never kept: leaving the field commits it, and so does
+leaving the screen.
+
+**The test for this was asserting the behaviour, not the promise.** It read
+"the note saves as it is typed" and checked storage 200 ms later, which
+only a per-keystroke write can satisfy. What the person is owed is that
+the note keeps itself without a Save button, which is what it checks now.
+
+A new check covers typing and leaving at once, and it failed the first
+time — usefully. `open()` in the browser suites is `page.goto`, a full page
+load, and a page load never runs a React unmount, so the on-the-way-out
+flush could not fire there. On a device the screen really does unmount and
+it does. The blur guard is what makes the case safe in both, and the test
+says which of the two it is exercising rather than implying the unmount
+path is covered.
+
+### 2.62 The Next queue, and a name spelled the other way
+
+`src/features/next/build.ts` is the best-tested thing in build 9 and holds
+up: the ranking is explainable, `followUpStates` really does only cover
+people with an open follow-up (so "going quiet" cards do appear), and a
+task hidden under "Later" still suppresses its person's quiet card — you
+put it off, you do not then get nudged about them.
+
+One real gap. `personFor` matched a task's `who` to a contact by plain
+lower-cased comparison, and `nameKey` in `people/filters.ts` did the same,
+so محمّد never found the contact saved as محمد. The parser has folded
+Arabic spellings since §2.53 (`normalizeArabic`); these two paths, which
+decide who a card is *about*, had never been told.
+
+What it cost: a task spoken with diacritics came back with no `contactId`,
+so it did not fold into that person's other cards, and it did not stop
+them being listed as having gone quiet — the app would show a card about
+calling Mohammed and, below it, a card saying Mohammed has gone quiet.
+`nameKey` now folds Arabic and is shared by both, which also makes the
+follow-up matching in `followUpStates` tolerant of the same thing.
+
+Also corrected, a doc rather than a defect: the tab badge's comment said
+it counts "how many of those [cards]" are urgent. It counts them *before*
+the fold, which is right — three late tasks with one person are one card
+saying "+2 more" and three on the badge, because three things are waiting.
+The comment now says so, and a test pins it, because the next person to
+read that line would have "fixed" it.
+
+### 2.63 The bilingual copy, checked rather than trusted
+
+`additions.ts` is 907 lines of copy, and copy has no logic to review — so
+the question is not whether it is correct but whether anything is missing,
+in the language neither reviewer reads fluently enough to notice by eye.
+
+TypeScript already covers half of it: each `_ar` block is declared `typeof`
+its `_en` block, so a missing *key* is a compile error. What the compiler
+cannot see is inside the strings. Two things can go wrong there and ship —
+an Arabic line left blank, and one that lost the `{n}` or `{to}` the code
+substitutes into, which renders the braces to the person reading it.
+
+**All 964 pairs pass.** Nothing blank, and every placeholder present on
+both sides. Four pairs differ deliberately — `{name}` against `{الاسم}` —
+and both substitutions accept either spelling, which was worth confirming
+rather than assuming: `saved.ts` and `bulk/plan.ts` each carry
+`/\{(?:name|الاسم)\}/gi`.
+
+Also checked and not a problem: 40 pairs are identical in both languages,
+all of them internal keys ("gentle", "whatsapp"), times, icon names, brand
+names (Zoom, Coursera) and the privacy address. No untranslated sentence
+anywhere.
+
+The useful part is that this is now `src/content/copy.test.ts` rather than
+a throwaway script. A string added in English only, or an Arabic line that
+loses its placeholder in a later edit, now fails before it reaches a store
+reviewer. Confirmed by removing one `{to}` and watching it fail.
+
+Two other things read closely and found sound: `toSaved` escapes a
+person's name before building a `RegExp` from it, so a contact called
+"Sara (Acme)" cannot break the saved-message round trip; and "Send later"
+really does schedule — `remind: 'at'` derives the fire time from the
+`dueAt` it sets, and the evening option correctly disappears once 18:00 is
+less than two hours away.
+
+### 2.64 The admin panel, and one sentence the policy cannot support
+
+The panel had never been reviewed from this side. It holds every user's
+name, phone, email, tasks and contacts, and it reaches Postgres through
+`DATABASE_URL` — a direct connection, so row-level security protects
+nothing here. The code *is* the boundary. It holds up:
+
+- **Three independent conditions to be an admin**, all server-side: a
+  Supabase session at assurance level 2 (password *and* TOTP), an
+  `@onlyonething.app` address, and a row in `admin_member`. Any one missing
+  and `currentAdmin()` returns null.
+- **The configuration fails closed.** `mode()` throws when neither
+  `DATABASE_URL` nor `ADMIN_DEMO=1` is set, throws when both are, and
+  throws when live is set without the Supabase auth variables. A deployment
+  cannot drift into demo mode, where the whole of auth is a cookie.
+- **Nineteen server actions, nineteen `authorise()` calls.** Every page
+  under `(panel)` calls `requireAdmin()`, and so does the layout above
+  them. The three unguarded actions are sign-in, the code step and
+  sign-out, which is right.
+- **Least privilege where the handoff was silent.** An Analyst has
+  `overview` and the pseudonymised `dataset` and nothing else — no route to
+  a named person. Support cannot delete, suspend, grant Pro, issue codes,
+  read the audit log or change the team.
+- **The one-time /setup page** is gated on live mode, on
+  `ADMIN_SETUP_SECRET` being set *and* typed (compared with
+  `timingSafeEqual`), and on the team being empty — re-checked at both
+  steps, with the insert itself conditional on an empty table.
+
+**The gap is in the privacy policy, not the code.** It tells users:
+*"Every time a team member opens your data it is recorded."*
+
+Opening a user's **record** is recorded — the drawer's only route is
+`openUser`, which authorises and writes an audit line before returning
+anything. But the Users **list** is not. `userSelect` returns
+`name, email, phone_dial, phone_number, job_title, country` for every user,
+and the search box queries email and phone directly — so a Support account
+can browse everyone's contact details, and confirm whether a given phone
+number belongs to a user, without leaving a trace.
+
+Read strictly, the sentence is not true. Three ways to make it true, and
+the choice is the product owner's because it is a promise to users:
+
+1. **Narrow the sentence** — "every time a team member opens your record".
+   One line, accurate immediately, and a weaker promise than the one
+   currently made.
+2. **Show less in the list** — name, plan and country, with email and phone
+   only in the audited drawer. The best answer for the user, and a design
+   change.
+3. **Audit list views too.** Honest, and it would bury the log that matters
+   under a row per page load and per keystroke of a search.
+
+Recommend 2, with 1 until it is built. What should not happen is leaving a
+promise in the policy that the panel does not keep.
+
+### 2.65 Two permission strings that promised less than the app does
+
+Writing the App Privacy and Data safety answers down (`STORE-PRIVACY.md`)
+meant reading every permission the app asks for against the code that uses
+it, which is how these surfaced. Both say **only**, and both are false.
+
+```
+NSCameraUsageDescription
+  "Used only when you take a photo of a business card, so it can be
+   read on your phone to add the contact."
+
+NSPhotoLibraryUsageDescription
+  "Used only when you choose a photo of a business card to read.
+   The One Thing never reads your other photos."
+```
+
+The business card is one of two uses. `PhotoSheet.tsx` calls
+`launchCameraAsync` to take a picture for a person or for yourself, and
+`launchImageLibraryAsync` to choose one — the same two APIs `scan-card.tsx`
+calls for a card. So the camera and the library are each used for two things,
+and each string describes one of them and then says "only".
+
+This is the failure mode worth naming: the strings were not vague, they were
+*specific and narrow*, which reads as careful and is harder to doubt. The
+earlier review even recorded the photo-library string as "accurate for build
+9 and worth keeping accurate". It was neither — and it was checked by reading
+the string rather than the call sites.
+
+Apple rejects purpose strings that do not describe real use, and these fail
+in the direction that looks worse: a reviewer taking a profile picture sees a
+prompt that says the camera is only for business cards. Both now name both
+uses and keep the reassurance that matters, which is that nothing happens on
+its own:
+
+```
+Camera  "Used when you take a photo of a business card to read, or a
+         picture for a person or for yourself. The camera is never
+         used in the background."
+
+Photos  "Used when you choose a photo of a business card to read, or a
+         picture for a person or for yourself. The One Thing never
+         reads your other photos."
+```
+
+Four copies, because each string lives in `ios.infoPlist` and again in the
+`expo-image-picker` plugin config. `STORE-PRIVACY.md` carries the same table
+and says which call sites each permission covers, so the next person checks
+the code rather than the string.
+
+### 2.66 The app's namesake feature was not on the home screen
+
+Asked to re-baseline the drift check against build 9, I read the 66 failures
+first. Thirty of them were not failures at all — they were probes resolving
+to nothing, which means the labelled element was not on the screen. Six of
+those, per language, were the One Thing card: its eyebrow, its title, the
+focus meta line, Lock In.
+
+The card was gone. Not moved — **absent**. No such component existed
+anywhere in `app/` or `src/`, and the build-9 screenshot shows Today as
+date, greeting, Today/All switch, four quick-action circles, the Next
+queue, tab bar. The redesign (`fe904d7`) removed it and nothing replaced it.
+
+What went with it:
+
+- **`setOneThing` had exactly one caller**, the first-run card. Skip that
+  once and there was no way to set a One Thing again, ever.
+- **`/focus` and `/overwhelm` linked only to each other.** Nothing else in
+  the app pointed at either. The focus session — Lock In, the thing the
+  paywall and the Live Activity are built around — was unreachable.
+- Four copy keys (`h_k`, `lockin`, plus the quick-actions and small-promises
+  headings) sat in `strings.ts` with no reader.
+- `today.tsx`'s own header comment still read *"otherwise the One Thing card
+  leads"*. It did not.
+
+The uncomfortable part is that the check caught this, in the only way it
+can — thirty probes reporting that elements had stopped existing — and it
+went unread for nine builds because the job was red for other reasons.
+A check nobody reads is a check nobody has. It is also exactly what a
+re-baseline would have buried: recording build 9 as correct would have
+deleted the one signal saying the card was missing.
+
+**Restored** as `src/features/today/OneThingCard.tsx`, to SCREENS.md § 06:
+`#F3F2EE`, radius 26, eyebrow and Edit, title 28/600, the clock and focus
+line, Lock In at 54, "Feeling stuck? Shrink it". Lock In is ink, not the
+primary green — the spec says ink and the prototype renders it black, while
+`Button`'s primary is `#008069`. Edit reopens the card that asks for the One
+Thing, which is also the fix for `setOneThing` having one caller; and per
+SCREENS.md § 06 ("Returning users on a new day: Today or Morning priority if
+no One Thing set") that ask now appears whenever no One Thing is set, not
+only on the first run.
+
+#### What the check compares now
+
+With the card back, every remaining unresolved probe was checked one at a
+time rather than in bulk, and all eleven turned out to be deliberate:
+"QUICK ACTIONS" lost its eyebrow; Restore purchases moved to the paywall,
+where the store wants it; "Small promises" became "Next"; People's subtitle
+and RECENT eyebrow became the filter chips; a contact's email became an
+action row, "Remember for next time" became a placeholder (no `textContent`,
+so unprobeable by construction), and the history became a count; Where and
+Link went behind the new "More" disclosure; Weekly recap came off the
+paywall by decision. Each is removed with its reason written next to it,
+except "Next", which kept its probe through a new per-side `app` override —
+the element is the same one, only renamed, and a rename should not cost a
+measurement.
+
+The 76 positional differences that remain are build 9's design, now the
+reference. They are recorded in `scripts/drift-baseline.json`, and the
+check measures **movement since build 9** rather than distance from a
+prototype the product has deliberately left behind. The distance from the
+design is still printed as `furthestFromDesign`, because a redesign being
+deliberate is not a reason to stop knowing how far it went.
+
+Regenerate with `npm run drift -- --save`, and read the diff before
+committing it. Verified by nudging the card's padding 24 → 44: twelve probes
+failed reading exactly `+20`, and reverting returned it to zero.
+
+### 2.67 A stack of cards, and a camera that called a CDN
+
+Bulk card scanning is Pro+'s first built feature (`app/scan-many.tsx`,
+`src/features/scan-many/`). The brief was a conference hook: continuous
+capture, a counter, background extraction, and a batch review with
+"confidence badges (Green = perfect, Yellow = missing field, Red =
+unreadable)", gated to Pro+. Four things about it were wrong, and the
+interesting one was not in the brief at all.
+
+#### The feature is far cheaper here than it looks
+
+Reading happens on the phone — Apple's Vision, Google's ML Kit, through
+`expo-text-extractor` (`src/lib/card-reader.ts`) — and `parseCard` is a pure
+function over the lines it returns. So a batch of twenty costs nothing per
+card, works in a hall with no signal, and adds no disclosure to a privacy
+notice that has just been through a lawyer. `findDuplicate` already existed,
+so "you already have Ahmed" came free, which matters far more at twenty cards
+than at one. The only real cost was `expo-camera`, because
+`expo-image-picker` opens the system camera for one shot and closes it.
+
+#### There is no confidence to show
+
+The brief's green/yellow/red badge is a confidence score, and neither reader
+returns one — they return lines of text. A percentage would have been
+invented, and invented precision on a screen whose whole job is "check these
+before saving" is the worst place to put it.
+
+What can be said honestly is how much of a card came through, which is also
+the only thing the person can act on: a name and a way to reach them
+(`ready`), a name but nothing to reach them by or a field the contact form
+will reject (`partial`), or no usable name at all (`unreadable`, and not
+savable, because a contact cannot exist without one). Same three colours,
+same glanceability, no claim that isn't true. `Grade` in
+`src/features/scan-many/batch.ts` says so in a comment, so the next person
+does not re-add the score.
+
+#### A lock here would have been a dead end
+
+Gating it to Pro+ as written would have shipped a feature nobody could use:
+`FOR_SALE` in `src/features/paywall/plans.ts` is `['pro']`, so Pro+ cannot be
+bought. More than that, it is the wrong shape — a conference is both when a
+new account most needs this to work and when a cap is most obviously felt, so
+the lock would land at the exact moment the app had earned the sale and give
+the person nothing to buy.
+
+It is metered instead, the pattern §9.5.1 settled: `can('bulkCardScan')` is
+true for everyone, `FREE_BULK_CARDS_PER_BATCH = 5` lives in
+`src/policy/entitlements.ts` with every other limit, and the cap lands at the
+end, on how many of the batch are kept. The camera, the reading and the
+review all run in full. Pro's tier list puts bulk scanning in Pro+ alone, so
+the cap applies to Pro as well; only `pro_plus` is uncapped. The paywall's
+Pro+ row now names what the tier actually adds, with Free's number in it, the
+way the assistant row does.
+
+The cap cannot be exceeded by any route, and the tests say so one route at a
+time: ticking cards one by one, reading more ready cards in (a card is ticked
+for the person when it comes through whole — twenty cards that each need a
+tap is the typing problem again), and Select all, which takes the cards that
+came through whole first.
+
+#### What the brief left out
+
+Twenty saved contacts nobody writes to is a contact import, not a conference.
+The value is the follow-up that evening, and Send to many (`app/bulk.tsx`)
+already does exactly that — one tap per person, fifty in a day. So saving the
+batch opens it with those people already picked (`/bulk?ids=…`), and the
+cards become twenty messages before the car park. "Assign Tier" was dropped:
+there is no tier on a contact, while `labels` exists, is already a filter chip
+on People, and already works in Send to many's own filters.
+
+#### The camera called a CDN
+
+`node scripts/smoke-people.js` failed on a request nobody wrote:
+
+```
+Failed to execute 'importScripts' on 'WorkerGlobalScope': The script at
+'https://cdn.jsdelivr.net/npm/jsqr@1.2.0/dist/jsQR.min.js' failed to load.
+```
+
+`expo-camera`'s web build fetches a QR decoder from a public CDN the moment
+the module is evaluated — not when a camera mounts, which is why it fired on
+a screen that had already decided it could not open one. This app scans no QR
+codes.
+
+It would not have reached a phone, and that is the point worth keeping: a
+third-party request from a screen in an app whose policy was published last
+week is exactly the kind of thing that is found by a reviewer rather than by
+its author. The suite counts `errors` towards its exit code, which is the only
+reason anyone saw it.
+
+The viewfinder is now a file of its own
+(`src/features/scan-many/CameraStage.tsx`), required behind the reader check
+rather than imported — the same lazy-require shape as `card-reader.ts`, for
+the same reason. Where a card cannot be read, the module is never evaluated
+and the request is never made. The web build says so and offers the one-card
+screen, which can still be typed into. Verified by the same suite: 93 checks,
+no errors.
+
+`npm run drift` reports zero movement since build 9. People's header gained a
+third round button, and the row was already a fixed 42pt, so nothing below it
+moved — which is the answer the baseline exists to give, rather than something
+to take on trust.
+
+### 2.68 The Assistant answered questions by making a task about them
+
+The Assistant turned everything into a task. That is right for "call Sara
+tomorrow" and wrong for "what's Sara's number?", which came back as a to-do
+about asking the question — and it got there expensively: the words went to
+`supabase/functions/assist`, one of the Free plan's ten daily requests was
+spent, and the answer came back from a server for a question the phone was
+already holding the answer to.
+
+Three things now happen on the device, before the meter and before the
+network: a question about the person's own data is answered
+(`src/lib/parse/ask-data.ts`), a question outside that is answered as a
+question rather than saved, and a card or a file asked for in words opens the
+same thing the new paperclip does (`src/lib/parse/attach.ts`).
+
+#### Three outcomes, and the difference between two of them is the point
+
+`askData` returns one of three things, and the seam is deliberate:
+
+```
+null              nothing to look up — on to the parser, as before
+{kind:'unknown'}  a question, but not one of these — say so, save nothing
+anything else     the answer
+```
+
+Without that middle case the only choice is between guessing and silence.
+"What is the capital of France?" used to become a card waiting for a time;
+it now says what the Assistant is good at and offers three examples.
+
+The answers are **shapes, not sentences**: `DataAnswer` carries the contacts,
+tasks or follow-ups themselves, and the line is written by
+`src/features/assistant/answer-line.ts` in the person's language. That keeps
+the module pure, keeps the copy in `additions.ts`, and let all nine shapes be
+checked in both languages without a renderer — including that an empty result
+says "Nothing due today" rather than "0 today", which reads like a bug.
+
+#### What the existing code already knew
+
+Four of the six question families needed no new rule, only a caller:
+
+- `intentOf` already recognised "arrange my day" and the follow-ups question.
+  Both were going to the server to be told what a local regex had already
+  decided.
+- `readWho` already matched a name across spellings, so محمّد finds محمد.
+- `next/build.ts` already knew who has gone quiet. `quietIn` uses that same
+  rule rather than a second one, so the Assistant and the Next queue cannot
+  disagree about a person.
+- `clarify.ts` already answered questions "without spending an Assistant
+  request" — the pattern this follows.
+
+#### Five bugs the tests found, in order
+
+1. **`intentOf`'s follow-ups list does not know "owes me a reply".** It knows
+   "waiting". The brief asked for both, so there is a `WAITING_WORD` of its
+   own and `intentOf` is consulted beside it rather than trusted alone.
+2. **"ما كلمته" is in both the history list and the going-quiet list.** With
+   nobody named it means the list, so going quiet is read first, and the
+   history branch now requires a person — otherwise "who haven't I talked
+   to?" answered with a history nobody was in.
+3. **`QUIET_WORD` required "haven't talked" adjacent.** English puts the
+   subject inside the verb — "haven't **I** talked to" — so the commonest
+   phrasing of the commonest question never matched. The gap is part of the
+   pattern now.
+4. **Arabic asks for labels the app stores in English.** The three the app
+   suggests are "Client", "Lead", "Supplier", so "كم عميل عندي؟" could never
+   find them. `LABEL_WORDS` maps those three, longest first so "عميل محتمل"
+   is a Lead and not a Client. A label someone invented is still matched by
+   its own spelling.
+5. **A promise is not a question.** `intentOf` reads "waiting for Sara to
+   reply" as the follow-ups question, which would have answered with the list
+   instead of saving the follow-up. `loopOf` turns its own questions down
+   already, so consulting it first takes only the statements away.
+
+A sixth was a test of ours, not the code: a one-letter contact name matched
+inside "a while", because `readWho` looks for the name anywhere in the text.
+That is its business, not this module's, and a question opening with "who"
+now means a list even when a name brushes it.
+
+#### The paperclip
+
+Beside the microphone, three choices: the camera, a card already in the photo
+library, a file of people. A file goes through the same pipeline as the
+Import screen and is reported in the chat — "Found 45 people in 2 sheets · 3
+already saved · 2 skipped" — with **Add all** and **Review**. Review opens
+Import with the file already read (`read-draft.ts`, the same module-store
+shape as the contact draft), because picking the same file twice is what the
+chat was meant to save. Nothing is uploaded at any point.
+
+#### What the smoke suite now asserts
+
+The old block asserted the old behaviour, so it had to change, and the
+replacement is the better check. It drives five questions through the real
+exported app and then reads the meter:
+
+```
+none of those five questions spent a request
+…and the one real task did spend one
+```
+
+That is the whole claim of this section in two lines. 58 checks in that
+suite, 696 unit tests, zero drift since build 9 — the paperclip sits in a row
+that was already a fixed height.
+
+The phrases are listed in `ASSISTANT-PHRASES.md`, for the store listing and
+the help text, with a note that each line is covered by a test so the list
+cannot quietly stop being true.

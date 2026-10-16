@@ -1,0 +1,69 @@
+# Publishes website/ — Privacy, Terms, Support and the deletion route — to the
+# gh-pages branch, which is where this repository's Pages site is served from.
+#
+# Both stores ask for these as public URLs before they will review the app, and
+# Play wants the deletion page reachable from the web rather than only from
+# inside the app (RELEASE.md § 7).
+#
+# It is published here rather than through the newer "GitHub Actions" Pages
+# source because gh-pages already exists and was being updated by hand — on
+# 14 October, and then not again, so the published privacy policy fell a
+# rewrite behind the app's. That is the failure this replaces: a copy kept in
+# step by somebody remembering.
+#
+# The pages are plain HTML with relative links, so they serve correctly from
+# the Pages sub-path today and from a custom domain the day one is pointed
+# here, with no rebuild and no edit to this file.
+name: Website
+
+on:
+  push:
+    branches: [main]
+    paths: ['website/**', '.github/workflows/site.yml']
+  workflow_dispatch:
+
+# To push the built pages to gh-pages. Nothing else here writes.
+permissions:
+  contents: write
+
+# A queued publish waits for the running one rather than cancelling it: half a
+# published policy is worse than a late one.
+concurrency:
+  group: gh-pages
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Publish to gh-pages
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # Out of the working tree first, because the next step checks out a
+      # branch that does not contain website/.
+      - name: Take the built site aside
+        run: |
+          mkdir -p "$RUNNER_TEMP/site"
+          cp -R website/. "$RUNNER_TEMP/site/"
+          # Without this, Pages runs Jekyll over the folder and drops anything
+          # beginning with an underscore.
+          touch "$RUNNER_TEMP/site/.nojekyll"
+
+      - name: Replace gh-pages with it
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git checkout gh-pages || git checkout --orphan gh-pages
+          # Clear the tracked files rather than the directory, so .git survives
+          # and a page deleted from website/ stops being served.
+          git rm -rq . || true
+          cp -R "$RUNNER_TEMP/site/." .
+          git add -A
+          if git diff --cached --quiet; then
+            echo 'gh-pages is already current; nothing to publish.'
+            exit 0
+          fi
+          git commit -m "Publish website from ${GITHUB_SHA:0:7}"
+          git push origin gh-pages

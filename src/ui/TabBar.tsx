@@ -1,5 +1,5 @@
 /**
- * The glass tab bar: Today · Tasks · [mic] · Follow-ups · People.
+ * The glass tab bar: People · Today · [mic] · Assistant.
  * README § Elevation and SCREENS.md § Main tabs.
  *
  * Floats 24 pt above the bottom, inset 16 pt either side, 64 pt tall at
@@ -7,30 +7,49 @@
  * mic orb is raised 26 pt above the bar. Tapping the orb opens Quick capture,
  * holding it for 450 ms opens Brain dump.
  */
-import { useRef } from 'react';
+import { useRef, type ReactNode } from 'react';
 import { Platform, Pressable, View } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 
+import { Avatar } from './Avatar';
 import { Icon } from './Icon';
 import { Text } from './Text';
 import { type IconName } from '@/design/icon-paths';
-import { ink, motion, surface } from '@/design/tokens';
+import { ink, motion, status, surface } from '@/design/tokens';
+import { added } from '@/content/additions';
 import { useLanguage } from '@/i18n/LanguageProvider';
+import { buildNext } from '@/features/next/build';
+import { useCadence } from '@/lib/cadence';
+import { useFavorites } from '@/lib/favorites';
+import { followUpStatus } from '@/lib/model-types';
+import { useHiddenCards } from '@/lib/next-state';
+import { usePeople } from '@/lib/people';
+import { ME_PHOTO } from '@/lib/photos';
+import { useSession } from '@/lib/session';
+import { useTasks } from '@/lib/tasks';
 
-export type TabKey = 'today' | 'tasks' | 'followups' | 'people';
+/**
+ * People leads: it is where the person you need is, and where follow-ups now
+ * live. The Assistant is a place to go, not a tab you stay on, so it is never
+ * the active one — it opens its own full-screen chat.
+ */
+export type TabKey = 'people' | 'today' | 'assistant' | 'settings';
 
-/** Left pair, then the orb, then the right pair — the design's order. */
-const LEFT: { key: TabKey; icon: IconName; labelIndex: number }[] = [
-  { key: 'today', icon: 'home', labelIndex: 0 },
-  { key: 'tasks', icon: 'list', labelIndex: 1 },
+/** `t.tabs` is Today, Tasks, Follow-ups, People; the Assistant's name is `t.asst`. Tasks and Follow-ups no longer have tabs: they live on Today and in People. */
+const label = (t: { tabs: readonly string[]; asst: string }, names: { me: string; home: string }, key: TabKey): string =>
+  key === 'assistant' ? t.asst : key === 'settings' ? names.me : key === 'today' ? names.home : (t.tabs[3] ?? '');
+
+/** People and Today, then the orb, then the Assistant and the person's own picture (Settings). */
+const LEFT: { key: TabKey; icon: IconName }[] = [
+  { key: 'people', icon: 'users' },
+  { key: 'today', icon: 'home' },
 ];
-const RIGHT: { key: TabKey; icon: IconName; labelIndex: number }[] = [
-  { key: 'followups', icon: 'loop', labelIndex: 2 },
-  { key: 'people', icon: 'users', labelIndex: 3 },
+const RIGHT: { key: TabKey; icon: IconName }[] = [
+  { key: 'assistant', icon: 'spark' },
+  { key: 'settings', icon: 'users' },
 ];
 
-const INACTIVE = '#9A9A96';
 
 export function TabBar({
   active,
@@ -45,14 +64,28 @@ export function TabBar({
   /** Hold the orb for 450 ms. */
   onBrainDump: () => void;
 }) {
-  const { t, dir } = useLanguage();
+  const { t, dir, lang, theme } = useLanguage();
+  const { session } = useSession();
+  const names = { me: added(lang).today.me, home: added(lang).today.home };
+
+  // Counts on the icons, as a chat app has them: who needs a nudge, and what is overdue.
+  const { followUps, contacts } = usePeople();
+  const { tasks } = useTasks();
+  const favorites = useFavorites();
+  const cadence = useCadence();
+  const hidden = useHiddenCards();
+  const now = new Date();
+  const badges: Partial<Record<TabKey, number>> = {
+    people: followUps.filter((f) => followUpStatus(f, now) === 'due').length,
+    today: buildNext({ tasks, followUps, contacts, favorites, cadence, hidden, now }).urgent,
+  };
 
   return (
     <>
       {/* White fade so content scrolling under the bar stays legible. */}
       <LinearGradient
         pointerEvents="none"
-        colors={['rgba(255,255,255,0)', 'rgba(255,255,255,0.85)']}
+        colors={[surface.glassFadeFrom, surface.glassFadeTo]}
         style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 120 }}
       />
 
@@ -70,7 +103,7 @@ export function TabBar({
           borderRadius: 32,
           overflow: 'visible',
           borderWidth: 1,
-          borderColor: 'rgba(255,255,255,0.7)',
+          borderColor: surface.glassBorder,
           shadowColor: 'rgba(20,20,18,1)',
           shadowOpacity: 0.14,
           shadowRadius: 32,
@@ -80,12 +113,12 @@ export function TabBar({
       >
         <BlurView
           intensity={Platform.OS === 'android' ? 40 : 22}
-          tint="light"
+          tint={theme === 'dark' ? 'dark' : 'light'}
           style={{
             ...FILL,
             borderRadius: 32,
             overflow: 'hidden',
-            backgroundColor: 'rgba(250,250,248,0.55)',
+            backgroundColor: surface.glassFill,
           }}
         />
 
@@ -101,8 +134,9 @@ export function TabBar({
             <Tab
               key={tab.key}
               icon={tab.icon}
-              label={t.tabs[tab.labelIndex] ?? ''}
+              label={label(t, names, tab.key)}
               active={active === tab.key}
+              badge={badges[tab.key]}
               onPress={() => onSelect(tab.key)}
             />
           ))}
@@ -115,8 +149,10 @@ export function TabBar({
             <Tab
               key={tab.key}
               icon={tab.icon}
-              label={t.tabs[tab.labelIndex] ?? ''}
+              label={label(t, names, tab.key)}
               active={active === tab.key}
+              badge={badges[tab.key]}
+              avatar={tab.key === 'settings' ? <Avatar name={session?.name ?? ''} contactId={ME_PHOTO} size={26} /> : undefined}
               onPress={() => onSelect(tab.key)}
             />
           ))}
@@ -130,11 +166,17 @@ function Tab({
   icon,
   label,
   active,
+  badge = 0,
+  avatar,
   onPress,
 }: {
   icon: IconName;
   label: string;
   active: boolean;
+  /** A count on the icon; nothing when zero. */
+  badge?: number;
+  /** Drawn in place of the icon: the person's own picture. */
+  avatar?: ReactNode;
   onPress: () => void;
 }) {
   return (
@@ -151,7 +193,7 @@ function Tab({
         alignItems: 'center',
         justifyContent: 'center',
         gap: 2,
-        backgroundColor: active ? 'rgba(255,255,255,0.85)' : 'transparent',
+        backgroundColor: active ? surface.glassActive : 'transparent',
         shadowColor: '#000',
         shadowOpacity: active ? 0.08 : 0,
         shadowRadius: 8,
@@ -159,11 +201,36 @@ function Tab({
         transform: [{ scale: pressed ? 0.94 : 1 }],
       })}
     >
-      <Icon name={icon} size={22} color={active ? ink.base : INACTIVE} strokeWidth={active ? 2 : 1.7} />
+      <View>
+        {avatar ?? <Icon name={icon} size={22} color={active ? ink.base : ink.muted} strokeWidth={active ? 2 : 1.7} />}
+        {badge > 0 ? (
+          <View
+            testID={`tab-badge-${label}`}
+            style={{
+              position: 'absolute',
+              top: -6,
+              right: -12,
+              minWidth: 18,
+              height: 18,
+              borderRadius: 9,
+              paddingHorizontal: 5,
+              backgroundColor: status.invalid,
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderWidth: 1.5,
+              borderColor: surface.glassRing,
+            }}
+          >
+            <Text size={10} weight="700" color="#FFFFFF" align="center">
+              {badge > 99 ? '99+' : badge}
+            </Text>
+          </View>
+        ) : null}
+      </View>
       <Text
         token="tab"
         weight={active ? '600' : '500'}
-        color={active ? ink.base : INACTIVE}
+        color={active ? ink.base : ink.muted}
         numberOfLines={1}
         align="center"
       >
@@ -236,7 +303,7 @@ function MicOrb({ onCapture, onBrainDump }: { onCapture: () => void; onBrainDump
           bottom: -5,
           borderRadius: 35,
           borderWidth: 5,
-          borderColor: 'rgba(255,255,255,0.75)',
+          borderColor: surface.glassRing,
         }}
       />
       {/* The orb's lit top-left, as a radial gradient would give on the web. */}
@@ -248,7 +315,8 @@ function MicOrb({ onCapture, onBrainDump }: { onCapture: () => void; onBrainDump
         style={{ ...FILL, borderRadius: 30 }}
       />
       <View style={{ zIndex: 1 }}>
-        <Icon name="mic" size={22} color={surface.white} strokeWidth={1.9} />
+        {/* The orb is black in both themes, so its mic is always white. */}
+        <Icon name="mic" size={22} color="#FFFFFF" strokeWidth={1.9} />
       </View>
     </Pressable>
   );

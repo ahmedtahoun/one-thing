@@ -4,9 +4,15 @@
  *
  * Shown only on the very first run. Setting it swaps the card for the normal
  * One Thing card and raises the toast; "Later" skips without setting one.
+ *
+ * Kept short on purpose — it sits under the quick actions, which are what
+ * people reach for first: the question on two lines at most, "Later" in the
+ * corner, and the suggestions in one scrolling row. The suggestions are the
+ * person's own open tasks when they have any, and the stock examples only
+ * when they have none.
  */
 import { useState } from 'react';
-import { Pressable, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, TextInput, View } from 'react-native';
 
 import { BalancedText } from '@/ui/BalancedText';
 import { Text } from '@/ui/Text';
@@ -17,9 +23,12 @@ import { useDirection, useLanguage } from '@/i18n/LanguageProvider';
 export function FirstRunCard({
   onSet,
   onLater,
+  suggestions,
 }: {
   onSet: (title: string) => void;
   onLater: () => void;
+  /** Their own open tasks, most useful first; the stock examples when omitted or empty. */
+  suggestions?: readonly string[];
 }) {
   const { inline, lang } = useLanguage();
   const dir = useDirection();
@@ -30,24 +39,40 @@ export function FirstRunCard({
     if (filled) onSet(draft.trim());
   };
 
+  const labels = suggestions && suggestions.length > 0 ? suggestions : ONE_THING_SUGGESTIONS.map((s) => s[lang]);
+
   return (
     <View
       testID="first-run-card"
       style={{
-        backgroundColor: ink.base,
+        backgroundColor: ink.card,
         borderRadius: radius.oneThing,
-        paddingTop: 24,
-        paddingHorizontal: 22,
-        paddingBottom: 22,
-        gap: 16,
+        paddingTop: 16,
+        paddingHorizontal: 18,
+        paddingBottom: 16,
+        gap: 12,
       }}
     >
-      <Text token="eyebrow" color={ink.s6}>
-        {inline.firstRunEyebrow}
-      </Text>
+      <View style={{ flexDirection: dir.row, alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+        <Text token="eyebrow" color={ink.s6}>
+          {inline.firstRunEyebrow}
+        </Text>
+        <Pressable
+          testID="first-run-later"
+          onPress={onLater}
+          accessibilityRole="button"
+          hitSlop={10}
+          style={{ flexShrink: 1 }}
+        >
+          <Text token="caption" color={ink.s6} numberOfLines={1}>
+            {inline.firstRunLater}
+          </Text>
+        </Pressable>
+      </View>
       {/* The question is one of the few places the prototype sets a
-          line-height (1.2), and it balances its wrap. */}
-      <BalancedText token="h2" lh={31.2} color={surface.white}>
+          line-height, and it balances its wrap; smaller here than the
+          prototype's 26 so the card stays short. */}
+      <BalancedText token="h2" size={21} lh={26} color={surface.onCard}>
         {inline.firstRunQuestion}
       </BalancedText>
 
@@ -55,9 +80,9 @@ export function FirstRunCard({
         style={{
           flexDirection: dir.row,
           alignItems: 'center',
-          backgroundColor: '#1F1F1E',
+          backgroundColor: surface.onInkFill,
           borderRadius: radius.cardTight,
-          padding: 6,
+          padding: 4,
           gap: 8,
         }}
       >
@@ -74,9 +99,9 @@ export function FirstRunCard({
             // intrinsic width pushes the Set button off the card.
             flex: 1,
             minWidth: 0,
-            height: 44,
+            height: 40,
             paddingHorizontal: 10,
-            color: surface.white,
+            color: surface.onCard,
             fontSize: 16,
             fontFamily: `${fontFamily}_400Regular`,
             textAlign: dir.textAlign,
@@ -87,7 +112,7 @@ export function FirstRunCard({
           onPress={submit}
           accessibilityRole="button"
           style={{
-            height: 44,
+            height: 40,
             paddingHorizontal: 16,
             borderRadius: radius.small,
             alignItems: 'center',
@@ -102,46 +127,33 @@ export function FirstRunCard({
         </Pressable>
       </View>
 
-      <View style={{ gap: 10 }}>
-        <Text token="micro" color={ink.s6}>
-          {inline.firstRunOrPick}
-        </Text>
-        <View style={{ flexDirection: dir.row, flexWrap: 'wrap', gap: 8 }}>
-          {ONE_THING_SUGGESTIONS.map((suggestion) => {
-            const label = suggestion[lang];
-            return (
-              <Pressable
-                key={label}
-                onPress={() => onSet(label)}
-                accessibilityRole="button"
-                style={{
-                  paddingHorizontal: 14,
-                  paddingVertical: 9,
-                  borderRadius: radius.pill,
-                  borderWidth: 1,
-                  borderColor: '#3A3A38',
-                }}
-              >
-                <Text token="caption" color={surface.white}>
-                  {label}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
-      </View>
-
-      <Pressable
-        testID="first-run-later"
-        onPress={onLater}
-        accessibilityRole="button"
-        hitSlop={8}
-        style={{ alignSelf: 'flex-start', paddingVertical: 4 }}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        style={{ marginHorizontal: -18, flexGrow: 0 }}
+        contentContainerStyle={{ flexDirection: dir.row, gap: 8, paddingHorizontal: 18 }}
       >
-        <Text token="caption" color={ink.s6}>
-          {inline.firstRunLater}
-        </Text>
-      </Pressable>
+        {labels.map((label) => (
+          <Pressable
+            key={label}
+            onPress={() => onSet(label)}
+            accessibilityRole="button"
+            style={{
+              maxWidth: 240,
+              paddingHorizontal: 14,
+              paddingVertical: 8,
+              borderRadius: radius.pill,
+              borderWidth: 1,
+              borderColor: surface.onInkLine,
+            }}
+          >
+            <Text token="caption" color={surface.onCard} numberOfLines={1}>
+              {label}
+            </Text>
+          </Pressable>
+        ))}
+      </ScrollView>
     </View>
   );
 }

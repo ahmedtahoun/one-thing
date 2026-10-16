@@ -9,9 +9,9 @@
  *   Dump:       an empty box sorts nothing; the sample splits into six; a tap
  *               drops one; Edit keeps the text; Save writes only what is kept.
  *   Assistant:  greets by name; a task waits for "Looks right"; the plan and
- *               follow-ups replies; a question outside its scope still comes
- *               back as a task to keep or ignore; the eleventh request on Free
- *               opens the paywall; Pro is not metered.
+ *               follow-ups replies; a note with no "when" is asked about
+ *               rather than guessed at; the eleventh request on Free opens
+ *               the paywall; Pro is not metered.
  *   Paywall:    Yearly by default; the fine print follows the plan; starting
  *               the trial makes nobody Pro; Restore; Terms.
  *
@@ -140,7 +140,8 @@ const D_SAMPLE =
   await page.getByTestId('capture-stop').click();
   await page.waitForTimeout(300);
   const heardCard = await text('capture-card');
-  check('what was heard is parsed', heardCard.includes('Call Sara') && heardCard.includes('Sara Haddad') && heardCard.includes('Tomorrow · 15:00'), heardCard);
+  // Times read as people say them now — "3:00 PM", not "15:00".
+  check('what was heard is parsed', heardCard.includes('Call Sara') && heardCard.includes('Sara Haddad') && heardCard.includes('Tomorrow · 3:00 PM'), heardCard);
   const beforeClose = await taskCount();
   await page.getByTestId('capture-close').click();
   await page.waitForTimeout(400);
@@ -205,22 +206,53 @@ const D_SAMPLE =
   await page.waitForTimeout(300);
   const asked = (await read('ot.tasks')).slice(askStart);
   check('"Looks right" saves it', asked.length === 1 && asked[0].createdVia === 'assistant' && asked[0].type === 'call' && asked[0].contactIds[0] === 'c3');
-  check('…and says when it will remind', (await page.locator('body').innerText()).includes('Saved. I’ll tap you gently at 11:00.') && (await count('assistant-kept')) === 1);
+  // The sentence is the same; the time inside it reads "11:00 AM" now, so
+  // the full stop is no longer part of what to match.
+  check('…and says when it will remind', (await page.locator('body').innerText()).includes('Saved. I’ll tap you gently at 11:00') && (await count('assistant-kept')) === 1);
 
-  await page.getByTestId('assistant-chip-1').click();
-  await page.waitForTimeout(1000);
-  const plan = await text('assistant-plan');
-  check('"Arrange my day" lays out the day, One Thing first', plan.startsWith('09:00') && plan.includes('Finish the investor proposal') && plan.includes('Follow up on price quote'), plan.slice(0, 120));
+  // Everything from here is answered from what is already on the device
+  // (src/lib/parse/ask-data.ts): no request spent, no server asked, and the
+  // meter check at the end of the block is what proves it.
+  const spent = async () => ((await read('ot.assistantUsage')) ?? { used: 0 }).used;
+  const afterTask = await spent();
+
   await page.getByTestId('assistant-chip-2').click();
-  await page.waitForTimeout(1000);
-  check('"Who am I waiting on?" counts the real follow-ups', (await page.locator('body').innerText()).includes('1 need a nudge · 2 waiting on a reply'));
+  await page.waitForTimeout(900);
+  check('"Arrange my day" answers from the list itself', (await count('qa-tasks')) === 1);
+  check('…naming today\'s real tasks', (await text('qa-tasks')).includes('Follow up on price quote'), (await text('qa-tasks')).slice(0, 120));
 
+  await page.getByTestId('assistant-chip-3').click();
+  await page.waitForTimeout(900);
+  check('"Who am I waiting on?" answers from the follow-ups', (await count('qa-waiting')) === 1);
+  check('…and offers Replied on each', (await page.locator('[data-testid^="qa-replied-"]').count()) > 0);
+
+  await page.getByTestId('assistant-input').fill("What's Sara's number?");
+  await page.getByTestId('assistant-send').click();
+  await page.waitForTimeout(900);
+  check('a question about someone answers with their number', (await page.getByTestId('assistant-reply').last().innerText()).includes('50 331 2045'));
+  check('…and the ways to reach them', (await count('qa-call')) === 1 && (await count('qa-whatsapp')) === 1 && (await count('qa-email')) === 1);
+
+  await page.getByTestId('assistant-input').fill("What's late?");
+  await page.getByTestId('assistant-send').click();
+  await page.waitForTimeout(900);
+  check('"What\'s late?" answers from the list', (await page.getByTestId('assistant-reply').last().innerText()).match(/late|Nothing late/i) !== null);
+
+  const beforeFrance = await taskCount();
   await page.getByTestId('assistant-input').fill('What is the capital of France?');
   await page.getByTestId('assistant-send').click();
-  await page.waitForTimeout(1000);
-  check('a question outside its scope comes back as a task to keep or ignore', (await count('assistant-card')) === 2);
-  check('…and saves nothing on its own', (await taskCount()) === askStart + 1);
-  check('each message spends one request', (await read('ot.assistantUsage')).used === 4);
+  await page.waitForTimeout(900);
+  // A question it cannot answer is answered as one: it no longer becomes a
+  // task about the question, and it no longer asks when to do it.
+  check(
+    'a question outside its scope says so and offers examples',
+    (await page.getByTestId('assistant-reply').last().innerText()).includes('best with your people') && (await count('assistant-hint')) === 1,
+    await page.getByTestId('assistant-reply').last().innerText()
+  );
+  check('…and saves nothing', (await taskCount()) === beforeFrance);
+  check('…and asks nothing', (await count('assistant-ask')) === 0);
+
+  check('none of those five questions spent a request', (await spent()) === afterTask, `${await spent()} vs ${afterTask}`);
+  check('…and the one real task did spend one', afterTask === 1, String(afterTask));
 
   await page.evaluate((day) => localStorage.setItem('ot.assistantUsage', JSON.stringify({ date: day, used: 10 })), dateKey(new Date()));
   await open('/assistant');
@@ -236,18 +268,35 @@ const D_SAMPLE =
   await page.getByTestId('assistant-input').fill('Email Sara the deck');
   await page.getByTestId('assistant-send').click();
   await page.waitForTimeout(1000);
-  check('Pro is not metered', page.url().endsWith('/assistant') && (await count('assistant-card')) === 1);
+  // The eleventh request on Free opened the paywall; on Pro the same request
+  // is simply answered. Staying on the screen is the whole assertion — what
+  // it answers with is the clarify layer's business, tested above.
+  check('Pro is not metered', page.url().endsWith('/assistant') && (await count('assistant-ask')) === 1, page.url());
 
   // ---------------------------------------------------------------- Paywall
   await seed();
   await open('/paywall');
   check('the title names the person', (await text('paywall-title')) === 'Never drop a promise again, Khalid.');
-  check('Yearly is selected, tagged "Save 40%"', (await page.getByTestId('paywall-plan-year').getAttribute('aria-checked')) === 'true' && (await page.getByTestId('paywall-plan-month').getAttribute('aria-checked')) === 'false' && (await text('paywall-tag-year')) === 'Save 40%' && (await count('paywall-tag-month')) === 0);
-  check('…with the yearly fine print', (await text('paywall-fine')).startsWith('Free for 7 days, then $35.88/year.'));
+  check('Yearly is selected', (await page.getByTestId('paywall-plan-year').getAttribute('aria-checked')) === 'true' && (await page.getByTestId('paywall-plan-month').getAttribute('aria-checked')) === 'false');
+  check('all three tiers are shown', (await count('paywall-tier-free')) === 1 && (await count('paywall-tier-pro')) === 1 && (await count('paywall-tier-pro_plus')) === 1);
+  // The reason the saving is computed rather than typed: the two tiers do
+  // not discount by the same amount, so no single badge could be true of
+  // both. 6.99x12 against 39.99 is 52.3%; 12.99x12 against 99.99 is 35.8%.
+  // 6.99x12 against 39.99 is 52.3%, floored. Pro+ would be 35.8%, but a
+  // saving is an offer and Pro+ is not one, so it carries a price and no badge.
+  check('Pro states its own saving, computed', (await text('paywall-save-pro')) === 'Save 52%');
+  check('…and the tier that is not for sale advertises none', (await count('paywall-save-pro_plus')) === 0);
+  check('…per month, against the annual total', (await text('paywall-price-pro')) === '$3.33' && (await text('paywall-price-pro_plus')) === '$8.33');
+  check('…with the yearly fine print', (await text('paywall-fine')).startsWith('Free for 7 days, then $39.99/year.'));
+  // Priced in full view and impossible to buy, because none of what it sells
+  // is built yet (src/features/paywall/plans.ts, FOR_SALE).
+  check('Pro+ is shown as coming, not for sale', (await count('paywall-soon-pro_plus')) === 1 && (await page.getByTestId('paywall-tier-pro_plus').getAttribute('aria-checked')) === null);
+  check('…and Pro is the one selected', (await page.getByTestId('paywall-tier-pro').getAttribute('aria-checked')) === 'true');
   await page.getByTestId('paywall-plan-month').click();
   await page.waitForTimeout(150);
   check('Monthly can be picked instead', (await page.getByTestId('paywall-plan-month').getAttribute('aria-checked')) === 'true');
-  check('the fine print follows the plan', (await text('paywall-fine')).startsWith('Free for 7 days, then $4.99/month.'));
+  check('…and the monthly price has no saving to claim', (await text('paywall-price-pro')) === '$6.99' && (await count('paywall-save-pro')) === 0);
+  check('the fine print follows the plan', (await text('paywall-fine')).startsWith('Free for 7 days, then $6.99/month.'));
   await page.getByTestId('paywall-start').click();
   await page.waitForTimeout(400);
   check('starting the trial makes nobody Pro', (await read('ot.session')).plan === 'free' && page.url().endsWith('/paywall'));

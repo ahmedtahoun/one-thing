@@ -1,0 +1,15 @@
+-- The Pro+ tier's plan value.
+--
+-- `plan_kind` is an enum (0001), so a webhook writing a plan the type does
+-- not list throws rather than storing something odd. That is the right
+-- behaviour and the reason this has to land before the tier can be sold:
+-- the failure would otherwise arrive with the first real purchase, after
+-- the money had been taken.
+--
+-- Added now, used later. src/features/paywall/plans.ts does not put Pro+ on
+-- sale until its features exist, so until then nothing writes this value —
+-- but the column can hold it, the admin panel can read it, and turning the
+-- tier on stays a one-line change instead of a migration under pressure.
+--
+-- `if not exists` so re-running the bundle is safe.
+alter type plan_kind add value if not exists 'pro_plus';

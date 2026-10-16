@@ -35,11 +35,6 @@ export type TaskGroup = {
   action?: { label: string; colour: string; kind: GroupAction };
 };
 
-/** The Slipped group's label and its action. */
-const SLIPPED_COLOUR = status.dangerFg;
-/** The Show / Hide text buttons. */
-const TOGGLE_COLOUR = ink.s3;
-
 /** Where the day boundaries fall, from the prototype's own time comparisons. */
 const AFTERNOON_FROM = 12;
 const EVENING_FROM = 17;
@@ -117,11 +112,11 @@ export function buildTaskGroups({
     add({
       key: 'slipped',
       label: t.slipped,
-      colour: SLIPPED_COLOUR,
+      colour: status.dangerFg,
       items: slipped,
       mode: 'normal',
       open: true,
-      action: { label: t.moveTmw, colour: SLIPPED_COLOUR, kind: 'moveTomorrow' },
+      action: { label: t.moveTmw, colour: status.dangerFg, kind: 'moveTomorrow' },
     });
 
     add({ key: 'morning', label: t.pMorning, items: rest.filter((task) => hour(task) < AFTERNOON_FROM), mode: 'normal', open: true });
@@ -148,7 +143,7 @@ export function buildTaskGroups({
       items: dated.filter((task) => dayOf(task) > tomorrow && typeOk(task) && live(task)).sort(byTime),
       mode: 'later',
       open: showLater,
-      action: { label: showLater ? t.hide : t.show, colour: TOGGLE_COLOUR, kind: 'toggleLater' },
+      action: { label: showLater ? t.hide : t.show, colour: ink.s3, kind: 'toggleLater' },
     });
 
     if (filter === 'all') {
@@ -158,7 +153,7 @@ export function buildTaskGroups({
         items: todays.filter((task) => task.status === 'done' && !justDone.has(task.id)).sort(byTime),
         mode: 'normal',
         open: showDone,
-        action: { label: showDone ? t.hide : t.show, colour: TOGGLE_COLOUR, kind: 'toggleDone' },
+        action: { label: showDone ? t.hide : t.show, colour: ink.s3, kind: 'toggleDone' },
       });
     }
   }

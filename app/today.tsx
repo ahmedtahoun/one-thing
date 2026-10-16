@@ -12,9 +12,21 @@ import { router } from 'expo-router';
 
 import { EveningCard } from '@/features/today/EveningCard';
 import { FirstRunCard } from '@/features/today/FirstRunCard';
+import { HabitRow } from '@/features/today/HabitRow';
+import { starterIdeas } from '@/features/today/starter-ideas';
+import { PickSheet } from '@/features/today/PickSheet';
+import { useStartTask } from '@/features/people/start-task';
 import { OneThingCard } from '@/features/today/OneThingCard';
 import { QuickActions } from '@/features/today/QuickActions';
-import { SmallPromises } from '@/features/today/SmallPromises';
+import { quickActionRoute } from '@/features/today/quick-route';
+import { AllTasks } from '@/features/home/AllTasks';
+import { NextList } from '@/features/next/NextList';
+import { AddSheet } from '@/features/tasks/AddSheet';
+import { FilterChips } from '@/features/tasks/FilterChips';
+import { type TaskFilter } from '@/features/tasks/groups';
+import { ViewSwitch, type HomeView } from '@/features/home/ViewSwitch';
+import { TodayEmpty } from '@/features/today/TodayEmpty';
+import { added } from '@/content/additions';
 import { Icon } from '@/ui/Icon';
 import { Screen } from '@/ui/Screen';
 import { TabBar } from '@/ui/TabBar';
@@ -23,8 +35,11 @@ import { Toast, useToast } from '@/ui/Toast';
 import { type IconName } from '@/design/icon-paths';
 import { ink, space, surface, type TaskType } from '@/design/tokens';
 import { useDirection, useLanguage } from '@/i18n/LanguageProvider';
-import { dateKey, isOnDay, type Task } from '@/lib/model-types';
+import { dateKey, isOnDay, type Channel } from '@/lib/model-types';
+import { useNotifications } from '@/lib/notifications/NotificationsProvider';
 import { usePrefs } from '@/lib/prefs';
+import { streakOf } from '@/lib/streak';
+import { useWins } from '@/lib/wins';
 import { useSession } from '@/lib/session';
 import { useTasks } from '@/lib/tasks';
 
@@ -32,14 +47,24 @@ import { useTasks } from '@/lib/tasks';
 const EVENING_HOUR = 18;
 
 export default function Today() {
-  const { t, inline, a11y, lang } = useLanguage();
+  const { t, inline, lang } = useLanguage();
   const dir = useDirection();
   const { session, update } = useSession();
-  const { tasks, oneThing, setOneThing, toggleDone, restore } = useTasks();
+  const { tasks, oneThing, setOneThing } = useTasks();
   const { prefs } = usePrefs();
   const toast = useToast();
+  const { allowed, ask, turnOn } = useNotifications();
+  const wins = useWins();
 
   const [now] = useState(() => new Date());
+  const [addOpen, setAddOpen] = useState(false);
+  // Changing the One Thing reopens the same card that asked for it.
+  const [changing, setChanging] = useState(false);
+  // "Later" on that ask, so it stops asking until the next launch.
+  const [askedLater, setAskedLater] = useState(false);
+  // Two views: Today, and All — the full list, whose own filters are the second row.
+  const [view, setView] = useState<HomeView>('today');
+  const [filter, setFilter] = useState<TaskFilter>('all');
   const isEvening = now.getHours() >= EVENING_HOUR;
   const firstName = session?.firstName ?? '';
   const greeting = (isEvening ? inline.goodEvening : inline.goodMorning) + firstName;
@@ -64,41 +89,67 @@ export default function Today() {
       });
   }, [tasks, now]);
 
+  // The first-run card suggests what they already have to do, before the stock
+  // examples: today's open tasks, then the rest, without repeats.
+  const ownSuggestions = useMemo(() => {
+    const open = [...todaysTasks, ...tasks].filter((task) => task.status === 'open' || task.status === 'snoozed');
+    const own = [...new Set(open.map((task) => task.title.trim()).filter(Boolean))].slice(0, 4);
+    // Nothing yet: a founder gets founder-shaped ideas, everyone else the stock examples.
+    return own.length > 0 ? own : (starterIdeas(session?.jobTitle, lang) ?? []);
+  }, [todaysTasks, tasks, session?.jobTitle, lang]);
+
+  const streak = useMemo(() => streakOf(wins, now), [wins, now]);
+
   const openCount = todaysTasks.filter((task) => task.status !== 'done').length;
 
   const setFirstOneThing = useCallback(
     (title: string) => {
       setOneThing(title, prefs.focusMinutes);
       update({ firstRun: false });
+      // Choosing a first One Thing is the moment a reminder means something.
+      ask().catch(() => {});
       // Not destructive, so no Undo: the toast's job is to say that gentle
       // reminders are now on.
       toast.show(inline.firstRunToast, { undo: false });
     },
-    [setOneThing, prefs.focusMinutes, update, toast, inline.firstRunToast]
+    [setOneThing, prefs.focusMinutes, update, toast, inline.firstRunToast, ask]
   );
 
   const skipFirstRun = useCallback(() => {
     update({ firstRun: false });
   }, [update]);
 
-  const onToggle = useCallback(
-    (task: Task) => {
-      const before = tasks;
-      const next = toggleDone(task.id);
-      // Checking something off is undoable for the length of the toast.
-      if (next === 'done') toast.show(t.toastDone, { undo: () => restore(before) });
-    },
-    [tasks, toggleDone, toast, t.toastDone, restore]
-  );
-
+  const start = useStartTask();
+  const [pickFor, setPickFor] = useState<Channel | null>(null);
   const onQuickAction = useCallback((type: TaskType) => {
-    // Call / Email / WhatsApp pick a contact first; Remind captures; the four
-    // event types open the event form. Those screens land next.
-    router.push(`/new?type=${type}`);
+    // Call / Email / WhatsApp ask who in a sheet and go straight to the draft;
+    // Remind captures; the event types open the event form.
+    if (type === 'call' || type === 'email' || type === 'whatsapp') return setPickFor(type);
+    router.push(quickActionRoute(type));
   }, []);
 
   const showFirstRun = Boolean(session?.firstRun) && !isEvening;
-  const showOneThing = !showFirstRun && !isEvening && oneThing !== null;
+
+  // SCREENS.md § 06: "Returning users on a new day: Today (morning) or
+  // Morning priority if no One Thing set." So the ask is not only the first
+  // run — without this, skipping once left no way back to setting one, and
+  // setOneThing had exactly one caller.
+  const askOneThing = !isEvening && (showFirstRun || changing || (!oneThing && !askedLater));
+
+  const chooseOneThing = useCallback(
+    (title: string) => {
+      if (session?.firstRun) return setFirstOneThing(title);
+      setOneThing(title, prefs.focusMinutes);
+      setChanging(false);
+    },
+    [session?.firstRun, setFirstOneThing, setOneThing, prefs.focusMinutes]
+  );
+
+  const notNow = useCallback(() => {
+    if (session?.firstRun) return skipFirstRun();
+    setChanging(false);
+    setAskedLater(true);
+  }, [session?.firstRun, skipFirstRun]);
 
   return (
     <>
@@ -106,7 +157,7 @@ export default function Today() {
         scroll
         paddingTop={8}
         paddingBottom={space.tabBarInset}
-        style={{ gap: 24 }}
+        style={{ gap: 20 }}
         background={surface.white}
       >
         <View style={{ flexDirection: dir.row, justifyContent: 'space-between', alignItems: 'center' }}>
@@ -121,30 +172,29 @@ export default function Today() {
             </Text>
           </View>
 
-          <View style={{ flexDirection: dir.row, gap: 6 }}>
-            <HeaderCircle icon="spark" label={a11y.assistant} onPress={() => router.push('/assistant')} />
-            <HeaderCircle icon="moon" label={a11y.dailyReview} onPress={() => router.push('/review')} />
-            <Pressable
-              testID="today-avatar"
-              onPress={() => router.push('/settings')}
-              accessibilityRole="button"
-              accessibilityLabel={a11y.settings}
-              style={({ pressed }) => ({
-                width: 44,
-                height: 44,
-                borderRadius: 22,
-                backgroundColor: ink.base,
-                alignItems: 'center',
-                justifyContent: 'center',
-                transform: [{ scale: pressed ? 0.94 : 1 }],
-              })}
-            >
-              <Text token="body" weight="600" color={surface.white}>
-                {firstName.charAt(0).toUpperCase()}
-              </Text>
-            </Pressable>
+          <View style={{ flexDirection: dir.row, gap: 8 }}>
+            {/* One way to add from Today (the four tiles below); the + belongs to the full list. */}
+            {view === 'all' ? (
+              <HeaderCircle testID="home-add" icon="plus" solid label={added(lang).today.add} onPress={() => setAddOpen(true)} />
+            ) : null}
           </View>
         </View>
+
+        <ViewSwitch value={view} onChange={setView} />
+
+        {view === 'all' ? (
+          <>
+            <FilterChips active={filter} onPick={setFilter} />
+            <AllTasks filter={filter} now={now} />
+          </>
+        ) : null}
+
+        {view === 'today' ? (
+          <>
+        {/* First, so a task is one tap from the top of the screen. */}
+        <QuickActions onPress={onQuickAction} />
+
+        <HabitRow streak={streak} nudgesOff={allowed === false && !showFirstRun} onTurnOn={() => void turnOn()} />
 
         {isEvening ? (
           <EveningCard
@@ -154,30 +204,58 @@ export default function Today() {
               .replace('{b}', String(todaysTasks.length - openCount))}
             onReview={() => router.push('/review')}
           />
-        ) : showFirstRun ? (
-          <FirstRunCard onSet={setFirstOneThing} onLater={skipFirstRun} />
-        ) : showOneThing && oneThing ? (
+        ) : askOneThing ? (
+          <FirstRunCard onSet={chooseOneThing} onLater={notNow} suggestions={ownSuggestions} />
+        ) : oneThing ? (
           <OneThingCard
             title={oneThing.title}
             focusMinutes={oneThing.focusMinutes}
             done={oneThing.done}
-            onEdit={() => router.push('/priority')}
+            onEdit={() => setChanging(true)}
             onLockIn={() => router.push('/focus')}
             onShrink={() => router.push('/overwhelm')}
           />
         ) : null}
 
-        <QuickActions onPress={onQuickAction} />
-
-        <SmallPromises
-          tasks={todaysTasks}
-          onToggle={onToggle}
-          onOpen={(task) => router.push(`/compose?id=${task.id}`)}
-          onReschedule={(task) => router.push(`/reschedule?id=${task.id}`)}
-          onSeeAll={() => router.push('/tasks')}
-          onBrainDump={() => router.push('/brain-dump')}
-        />
+        {askOneThing ? null : (
+          <View style={{ gap: 10 }}>
+            <View style={{ flexDirection: dir.row, justifyContent: 'space-between', alignItems: 'baseline' }}>
+              <Text token="title">{added(lang).next.title}</Text>
+            </View>
+            <NextList
+              now={now}
+              onNothing={tasks.length === 0 ? <TodayEmpty
+                  onBrainDump={() => router.push('/brain-dump')}
+                  onTry={(say) => router.push({ pathname: '/assistant', params: { say } })}
+                /> : undefined}
+            />
+          </View>
+        )}
+          </>
+        ) : null}
       </Screen>
+
+      <PickSheet
+        channel={pickFor}
+        onClose={() => setPickFor(null)}
+        onPick={(contact, channel) => {
+          setPickFor(null);
+          start(contact, channel);
+        }}
+      />
+
+      <AddSheet
+        open={addOpen}
+        onClose={() => setAddOpen(false)}
+        onPick={(type) => {
+          setAddOpen(false);
+          router.push(`/new?type=${type}`);
+        }}
+        onVoice={() => {
+          setAddOpen(false);
+          router.push('/capture');
+        }}
+      />
 
       <TabBar
         active="today"
@@ -192,16 +270,22 @@ export default function Today() {
 
 /** One of the 44 pt round buttons in the Today header. */
 function HeaderCircle({
+  testID,
   icon,
   onPress,
   label,
+  solid = false,
 }: {
+  testID?: string;
   icon: IconName;
+  /** The dark filled one: Add. */
+  solid?: boolean;
   onPress: () => void;
   label: string;
 }) {
   return (
     <Pressable
+      testID={testID}
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={label}
@@ -209,12 +293,12 @@ function HeaderCircle({
         width: 44,
         height: 44,
         borderRadius: 22,
-        backgroundColor: surface.fill,
+        backgroundColor: solid ? ink.solid : surface.fill,
         alignItems: 'center',
         justifyContent: 'center',
       }}
     >
-      <Icon name={icon} size={20} strokeWidth={1.8} />
+      <Icon name={icon} size={20} color={solid ? surface.white : ink.base} strokeWidth={solid ? 2.2 : 1.8} />
     </Pressable>
   );
 }

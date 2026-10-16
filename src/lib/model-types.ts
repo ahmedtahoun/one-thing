@@ -109,6 +109,14 @@ export type Contact = {
   dial?: string;
   phone?: string;
   email?: string;
+  /** Where they are: a street address or a place name, opened in Maps from their profile. */
+  address?: string;
+  /** A second way to reach them: the number (with its own code, which may differ) and the email. */
+  dial2?: string;
+  phone2?: string;
+  email2?: string;
+  /** Their labels: Client, Lead, Supplier. A label with people on it is a chip on People. */
+  labels?: string[];
   preferredChannel?: Channel;
   /** "Remember for next time" on the contact profile. */
   rememberNote?: string;

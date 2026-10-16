@@ -35,7 +35,7 @@ shipped before:
 - **Google sign-in does not come from Play Console.** It comes from a **Google
   Cloud** project: OAuth 2.0 client IDs, one Web (this is the one Supabase
   needs) plus iOS and Android. The Android client needs the release signing
-  certificate's SHA-1, which only exists after the first EAS production build.
+  certificate's SHA-1, which only exists once you have made the release keystore (§6.3).
 
 ---
 
@@ -77,7 +77,7 @@ Arabic-locale pricing in SAR is a separate price tier per territory, and the
 app shows prices LTR inside Arabic text, so a SAR tier needs looking at on the
 Arabic paywall once it is live.
 
-### 1.3 Data region — **settled as `eu-west-1`, by default rather than by choice**
+### 1.3 Data region — **settled as `eu-west-1`, and now by choice**
 The project `ujcoouwbrkewckpphrod` was created in West EU (Ireland). That is
 the decision, and it cannot be moved: changing it means a new project and
 migrating whatever data is live by then.
@@ -89,11 +89,28 @@ worth knowing rather than discovering:
   every sync crosses a continent to reach them.
 - **PDPL.** Saudi personal data leaving the Kingdom carries transfer
   obligations, and the Privacy Policy has to say where the data actually
-  lives — which is now a sentence someone has to write (§7).
+  lives — which §7 now does.
+- **Egypt.** The controller is registered in Egypt, so Ireland is a transfer
+  out of Egypt as well. Law 151/2020's Executive Regulations took effect on
+  2 November 2025 with a compliance deadline around 1 November 2026, and
+  commentary on them describes a licence from the Personal Data Protection
+  Centre as required before processing — for a natural person as much as a
+  company. Note what this does to the move below: a Gulf region would answer
+  the Saudi point and not this one, because no region is inside both
+  countries. Whichever way it goes, the licence is a separate errand from the
+  policy text and nothing in this repo can discharge it.
 
 If a Middle East region matters, the only cheap moment to act is before there
 is live data in this one. Check the region list in Supabase rather than
 trusting this file: what they offer changes.
+
+**Decided on 15 October: Ireland stays, and the transfer gets documented
+rather than avoided.** The deciding point is the one directly above — with an
+Egyptian controller there is no region inside both countries, so moving would
+trade one transfer for another rather than removing it. What the decision
+costs is a transfer to justify under both regimes; what it buys is not
+migrating a live project. The Privacy Policy already states where the servers
+are, so nothing in the app depends on revisiting this.
 
 ---
 
@@ -123,12 +140,12 @@ trusting this file: what they offer changes.
 2. **Google Cloud Console** (separate from Play): a project, then OAuth 2.0
    client IDs — a **Web** client (this is the one Supabase needs), plus **iOS**
    and **Android** clients. The Android client needs the release signing
-   certificate's SHA-1, which comes from EAS after the first production build,
+   certificate's SHA-1, which comes from the release keystore you create in §6.3,
    so this step straddles step 4 below.
 3. **Supabase** → Providers → Google: the Web client ID and secret.
 4. **Play Billing**: the subscription with monthly and yearly base plans, the
    7-day free-trial offer, and the three consumable tips. Product IDs from §1.2.
-5. **A service account JSON** for `eas submit` to upload builds without you.
+5. **A service account JSON**, only if you later script uploads to Play. Uploading the first `.aab` by hand in Play Console needs none.
 6. **Data safety form** and the **account-deletion URL** (§7).
 
 ---
@@ -204,50 +221,72 @@ run it after any change to the project, not only once.
   Android build would have failed on the first attempt. It now points at the
   three `android-icon-*.png` files that are actually there. The foreground is
   512×512 where Expo wants 1024×1024 — it will build, slightly soft.
-- `eas.json` did not exist, so no EAS build could be started at all. Added with
-  `development` / `preview` / `production` profiles and remote versioning.
-
-Still needed in `app.json` once you have an Expo account:
-`extra.eas.projectId`, which `eas init` writes for you.
+- The project is **not linked to EAS**. `eas.json`, `extra.eas.projectId` and
+  `owner` were removed: every build is made on this machine with
+  `expo run:ios` / `expo run:android` (§6).
 
 ## 6. Build and test tracks
 
-EAS compiles on Expo's servers, so this needs Node and the CLI and nothing
-else — no Xcode, no Android Studio. It cannot be run from the browser agent's
-container, whose proxy blocks `expo.dev` the same way it blocks
-`supabase.co`. It belongs on the machine that has the phone.
+Builds are local, so this needs the toolchain on the machine that has the
+phone: Xcode and CocoaPods (`brew install cocoapods`) for iOS; the Android SDK,
+Java 17+ and an emulator image or a device for Android. Expect several GB of
+free disk for the first build of each. The first build generates `ios/` and
+`android/` with `expo prebuild`; both are build output, not source.
 
 ### 6.1 The first build, in order
 
-```sh
-npm i -g eas-cli && eas login && eas init     # eas init writes extra.eas.projectId — commit it
-```
+`.env` is gitignored but Expo loads it, and the four `EXPO_PUBLIC_*` values are
+inlined at build time, so a local build picks them up with nothing to do. The
+check that matters: confirm `.env` has all four before building.
 
-**Then, before building, give EAS the environment.** `.env` is gitignored, so
-EAS never sees it. The four `EXPO_PUBLIC_*` values are inlined at build time:
-
-```sh
-eas env:create --name EXPO_PUBLIC_SUPABASE_URL          --value https://ujcoouwbrkewckpphrod.supabase.co
-eas env:create --name EXPO_PUBLIC_SUPABASE_ANON_KEY     --value <from .env>
-eas env:create --name EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID  --value <from .env>
-eas env:create --name EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID  --value <from .env>
-```
-
-Skipping this does not fail the build. It produces an app that runs, falls
-back to the local session, and explains nothing — because `app.config.js`
-adds the Google native module *only* when `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID`
-is set, and `availability.ts` will correctly report `not-configured` for a
-build that was never given the value. That is the worst failure mode in this
-project: everything looks fine and sign-in silently is not real.
+Skipping any of them does not fail the build. It produces an app that runs,
+falls back to the local session, and explains nothing — because
+`app.config.js` adds the Google native module *only* when
+`EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID` is set, and `availability.ts` will correctly
+report `not-configured` for a build that was never given the value. That is the
+worst failure mode in this project: everything looks fine and sign-in silently
+is not real.
 
 ```sh
-eas build --profile preview --platform android   # an APK you can sideload; no provisioning
-eas device:create                                # register the iPhone, once
-eas build --profile development --platform ios
+npx expo run:android                               # emulator or a USB device; no provisioning
+npx expo run:ios --device                          # a plugged-in iPhone; needs signing set up in Xcode, once
+npx expo run:ios --device <simulator name or UDID>  # a Simulator
 ```
 
 Android first, deliberately: it reaches a phone without Apple's provisioning,
 so the first batch of §9.1 surprises arrives hours earlier.
+
+**Metro port.** `run:ios` and the dev client look for Metro on 8081. If another
+project's Metro already holds it, the app loads *that* project's bundle and
+fails with a native-module error for a package this repo does not have (seen
+once, as `ExpoCamera`). Stop the other server, or check
+`lsof -nP -iTCP:8081 -sTCP:LISTEN`.
+
+**For a tester on the iOS Simulator**, a normal device build installs on
+registered hardware only, so hand over a Simulator build:
+
+```sh
+npx expo run:ios --configuration Release --device <simulator>
+```
+
+It runs on a Simulator with no device registration and **no Apple account**,
+which is what makes it the cheapest way to put the app in another developer's
+hands. Day-to-day iteration is the Debug build with Metro running.
+
+What the Simulator is genuinely good for is most of what §9.1 lists: native
+RTL resolved by iOS's own layout engine rather than CSS, IBM Plex Sans Arabic
+loading through `expo-font` instead of silently falling back, `expo-blur`,
+shadows, safe areas on a notched device, every keyboard interaction, the whole
+navigation and task flow, the contact picker, and all five local
+notifications, which do fire there.
+
+**It does not close §9.1.** It cannot run in-app purchases without a StoreKit
+configuration file, so the trial, the tips, Restore and Manage stay untested.
+Its performance and scroll feel are its host Mac's, not a phone's.
+Notification behaviour once the app is killed is not faithful. Sign in with
+Apple works only if the Simulator is signed into an Apple ID, and is flaky
+when it is. Treat it as an accelerator for layout, language and flow bugs —
+the hardware run still has to happen before submission.
 
 ### 6.2 What the first build is for
 
@@ -272,16 +311,30 @@ submission every fix is a full store review (§9.7).
 
 ### 6.3 Submission
 
+**iOS.** `npx expo prebuild --platform ios`, open `ios/TheOneThing.xcworkspace`
+in Xcode, set the Team under Signing & Capabilities, then Product → Archive →
+Distribute App → App Store Connect (or upload the archive with Transporter).
+Bump the build number in Xcode for every upload — nothing does it for you now.
+
+**Android.** Make the release keystore once and **back it up outside the repo**:
+losing it means you can never update the app under the same key (unless you
+enrol in Play App Signing, which is the safer default).
+
 ```sh
-eas build --platform ios --profile production
-eas build --platform android --profile production
-eas submit --platform ios      # needs the ASC app ID + Apple ID
-eas submit --platform android  # needs the service account JSON
+keytool -genkeypair -v -storetype PKCS12 -keystore release.keystore \
+  -alias onething -keyalg RSA -keysize 2048 -validity 10000
+keytool -list -v -keystore release.keystore -alias onething   # the SHA-1 for §3.2
+cd android && ./gradlew bundleRelease                         # app/build/outputs/bundle/release/*.aab
 ```
 
-The Android production build is also what produces the **release signing
-SHA-1** that the Google Cloud Android OAuth client needs (§3.2) — so that
-client cannot exist until this step has run once.
+Point `android/app/build.gradle`'s release `signingConfig` at that keystore
+through `~/.gradle/gradle.properties`, never a committed file. Upload the `.aab`
+in Play Console. Raise `versionCode` for every upload.
+
+The keystore's **SHA-1** is what the Google Cloud Android OAuth client needs
+(§3.2) — so that client cannot exist until the keystore does. With Play App
+Signing, Google re-signs the app, so register the *Play App Signing*
+certificate's SHA-1 (Play Console → App integrity) as well.
 
 Play's closed-testing requirement — roughly 12 testers for 14 continuous days
 before the Production track unlocks — applies to personal accounts opened
@@ -298,8 +351,18 @@ neither has ever run on hardware.
 
 - **Three public pages at a real domain** — Privacy, Terms, and a deletion
   route. Play requires a web-accessible deletion path, not only the in-app
-  one. `app/legal.tsx` is the in-app copy of the text; nobody owns the website
-  (BUILD-REVIEW §3).
+  one. `app/legal.tsx` is the in-app copy of the text (BUILD-REVIEW §3).
+
+  ~~Nobody owns the website.~~ `.github/workflows/site.yml` publishes
+  `website/` to GitHub Pages on every push to `main`, so the pages exist and
+  stay current without anyone remembering to upload them. Their links are
+  relative, so they serve from the Pages sub-path now and from
+  `onlyonething.app` the day it points here, with no rebuild and no change to
+  the workflow.
+
+  **One thing to switch on by hand, once:** Settings → Pages → Source →
+  GitHub Actions. Until it is set the workflow fails at the deploy step
+  rather than publishing somewhere unexpected.
 
   ~~**The domain in the app's copy no longer matches the bundle ID.**~~
   Settled. All six user-facing places now say `onlyonething.app`, in both
@@ -310,18 +373,44 @@ neither has ever run on hardware.
   records the divergence as `{ app, prototype }` rather than failing on it
   (BUILD-REVIEW §2.43).
 
-  **What the strings now promise, and nobody has built.** A reviewer clicks
-  these. `privacy@onlyonething.app` has to receive mail and `/delete` has to
-  resolve — both on a domain with no owner. The copy is no longer the open
-  question; the website is.
-- **Legal review of that text.** What ships in `ACC` is plain-English summary
-  copy. It is good UX writing and it is not a policy that satisfies PDPL or
-  GDPR.
+  **What the strings promise that still does not exist.** A reviewer clicks
+  these. Two gaps are left:
+
+  - `privacy@onlyonething.app` has to receive mail. The policy names it four
+    times as the way to exercise a right, so it is a promise rather than a
+    courtesy, and nothing in this repo can make a mailbox.
+  - ~~The in-app copy says `onlyonething.app/delete`, which points at nothing
+    until the domain is aimed at Pages.~~ Changed on 15 October, because the
+    domain is not pointed yet and a dead link inside a shipped app is worse
+    than an ugly one. Four strings in `src/content/strings.ts` now say
+    `ahmedtahoun.github.io/one-thing/delete`, which resolves today: the
+    rights paragraph and the deletion note, in both languages. The Arabic
+    deletion note never carried the route at all and does now.
+
+    **These four revert the day the domain is live** — search for
+    `ahmedtahoun.github.io`. The policy's four `privacy@onlyonething.app`
+    mentions were left alone: a mailbox is a separate purchase from a
+    website, and guessing at a replacement address would be worse than
+    leaving the real one.
+- ~~**Legal review of that text.**~~ Settled. `ACC` was rewritten from summary
+  copy into a full notice: the controller named (Where To Spot, a sole
+  proprietorship on the Damanhour register, no. 101557, owned by Ahmed Salah
+  Tahoun), a legal basis for each purpose, named recipients including Anthropic
+  for the assistant, retention, the whole list of rights rather than the two
+  with buttons, and the route to a regulator. The owner's lawyer reviewed and
+  approved it; approval reported 15 October 2026. The in-app screen and the
+  public pages both render it from `src/content/strings.ts`, so they cannot
+  drift apart.
+
+  Two things that approval does **not** settle, because they are filings and
+  decisions rather than wording: the Egyptian licence in §1.3, and the
+  registered street address, which the notice still does not carry. Neither is
+  a drafting question, so neither is fixed by approving the draft.
 - **App Privacy answers** (Apple) and the **Data safety form** (Play), both
   consistent with the analytics event list in `DATA_MODEL.md` and with every
   third-party SDK you end up adding. Apple needs a `PrivacyInfo.xcprivacy`
-  manifest; EAS generates one from your plugins, so check it matches what you
-  declared.
+  manifest; Expo generates one from your plugins at prebuild, so check it
+  matches what you declared.
   Both forms must also declare **Contacts**: a contact picked through
   People's "Import" (BUILD-REVIEW §2.46) is stored and synced to the account,
   so it is collected and linked to the user. Only the one contact picked is
@@ -462,6 +551,70 @@ currently gets everything except the assistant's 10-a-day limit. Advertising
 a feature the app does not have is both a metadata problem at review and a
 refund problem after it. Design it or take it off the card.
 
+**This one is not a free choice.** `can()` returns `false` for `weeklyRecap`
+on every plan, Pro included — so somebody pays $35.88 and gets nothing at all
+for one of the six bullets they were shown. That is the shape of a 3.1.2
+rejection, and it is worse than an unfinished feature because the money has
+changed hands. Taking the bullet off the card is a strings change and can
+happen today; building the screen cannot. **Recommendation: remove it now,
+add it back when the screen exists.** Note the copy lives in the generated
+`strings.ts`, so the edit goes through `scripts/port-content.js` or the next
+`content:port` reverts it (BUILD-REVIEW §2.53).
+
+### 9.5.1 The gating matrix, proposed
+
+§2.1 left everything except the assistant open, deliberately, because
+shipping a lock the design never drew would be inventing product. That was
+right then and it is the wrong place to launch from: Free currently gets
+five of the six things Pro is sold on.
+
+**The paywall's own words settle half of it.** Two bullets say *"Unlimited"*
+— the assistant and brain dumps — which only means something if Free has a
+number. The other three name a feature outright, which reads as Pro-only:
+
+| Capability | What the card promises | Free today | Proposed |
+|---|---|---|---|
+| `assistant` | "Unlimited smart assistant · Free plan: 10 requests a day" | 10/day | **unchanged** — the one limit the handoff ever specified |
+| `brainDump` | "**Unlimited** brain dumps" | open | **3 a day on Free**, counted at sorting |
+| `autoFollowUps` | "**Auto** follow-ups" | open | **the chase starts by itself on Pro only** — no cap on how many |
+| `clientHistory` | "Client history — every call, message and meeting, by date" | open | **off the card**, left open |
+| `events` | "Meetings, webinars & courses" | open | **off the card** — two of the three have no way in |
+| `weeklyRecap` | "What you got done, and who still needs you" | off for all | **off the card** until it exists |
+
+Settled and shipped. The card is three bullets now, and each is true.
+
+**Follow-ups are not capped by number**, which was the first idea and the
+wrong shape. Nobody adds a follow-up — they accumulate as a side effect of
+sending things — so a cap means the fourth message quietly goes unchased:
+invisible, and failing exactly where the feature is meant to help. It also
+had no decent answer for Quick capture, Brain dump and the Assistant, which
+each turn one parsed list into several waiting items at once. What the card
+actually sells is the word *Auto*, so that is what Pro buys: a Free account
+can still have anyone waiting and can still set a chase by hand from the
+Sent row's Change, but it has to ask.
+
+**Three bullets came off the card rather than being locked**, which is the
+cheaper mistake to undo: a bullet is one line of copy, a lock is design
+work in a screen, and after launch a lock is a take-away. Weekly recap has
+no screen. Client history is the person's own notes about their own
+contacts. And "Meetings, webinars & courses" sold two things with no door:
+the event form builds all four types, but every route into it passes
+`meeting` since Today went from eight tiles to four. The capabilities all
+remain in `entitlements.ts`, unsold rather than cancelled.
+
+**Prefer a meter to a lock, wherever the choice exists.** The assistant
+already proves the pattern end to end: the count runs out, the paywall
+opens, nothing new had to be designed. Every *lock* instead needs a locked
+state drawn in the screen that holds it — which the handoff never drew for
+any of these — so a lock costs design time before it can ship, and a wrong
+one is a support ticket where a generous meter is only forgone revenue.
+That is why `clientHistory` is proposed as a window rather than a wall, and
+why `events` keeps the common case open.
+
+Every rule lives in `src/policy/entitlements.ts`, which is why §2.1 put
+them in one file: the two that remain are a meter in Brain dump and one
+condition in Compose.
+
 ### 9.6 The assistant has no server, and its limit is on the wrong side — **built by dev 2**
 `supabase/functions/assist` is now that server: the Claude key stays in the
 function's environment, the note and the contact names are fenced as data
@@ -519,8 +672,32 @@ creates two accounts for one person, and there is no merge path.
   each closed evening review now goes up to `focus_session`, `review` and
   `review_item`, which is what the admin panel's focus totals read
   (BUILD-REVIEW §2.48).
-- **No crash or error reporting.** You will ship blind to anything the
-  harness cannot see, which after §9.1 is a lot.
+- ~~**No crash or error reporting.**~~ Added 15 October.
+  `@sentry/react-native` is installed and `src/lib/crash.ts` starts it from
+  `app/_layout.tsx` before anything renders, so a crash during startup is
+  still reported.
+
+  **It is off until `EXPO_PUBLIC_SENTRY_DSN` is set**, and a checkout without
+  one behaves exactly as before — no init, no network, no warning. The DSN
+  being the switch is deliberate: turning reporting off is deleting a
+  variable, not shipping a build. It is a public value, like the Supabase
+  anon key.
+
+  What it may send is narrow on purpose, because this app's content is the
+  part the Privacy Policy is careful about. No PII, no performance tracing
+  (it records screen names and route parameters), and no console or http
+  breadcrumbs — which is where a stray `console.log(task)` would otherwise
+  put a task title in a crash report. Sentry is named in the policy under
+  "Who we share it with", in both languages, because it is a recipient of
+  data and sits outside both the Kingdom and Egypt.
+
+  **One step left, when the Sentry project exists:** add the Expo config
+  plugin (`@sentry/react-native/expo`) with your organization and project
+  slugs. It was deliberately not added blind — the plugin wants an org and
+  project at prebuild, and a plugin referring to neither is a build failure
+  rather than a warning. Without it you still get JavaScript crashes, which
+  is nearly all of them; what you miss is source maps and native
+  symbolication, so a stack trace points at bundled code.
 - **Supabase tier.** A free project pauses after inactivity, which is not a
   thing a live app survives. Budget the Pro tier, and set backups with it.
 - **Store listing assets beyond screenshots** — Play's 512 icon and
@@ -566,8 +743,9 @@ most of it is ours:
    and the only thing that gives the admin panel's subscription screens
    anything to show.
 5. **The website**, three pages plus a Support URL (§7, §9.4).
-6. **Weekly recap and the Pro gating matrix** (§9.5), before the paywall is in
-   front of a paying customer.
+6. **Weekly recap and the Pro gating matrix** — now a proposal to approve
+   rather than a blank page (§9.5, §9.5.1). Weekly recap is the urgent half:
+   a Pro buyer gets nothing for that bullet today. **Yours.**
 
 Items 1, 2 and 6 are decisions only you can make. 3, 4 and 5 are work, and 5
 has no owner yet.

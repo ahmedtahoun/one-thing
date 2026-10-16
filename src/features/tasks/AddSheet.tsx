@@ -1,7 +1,7 @@
 /**
- * The "Add a task" sheet on Tasks. SCREENS.md § 07 — `08-tasks-add-sheet.png`.
+ * The "Add a task" sheet on Home. SCREENS.md § 07 — `08-tasks-add-sheet.png`.
  *
- * Same eight actions as Today's quick-action grid, in the same order, but as
+ * Same actions as the quick-action grid, in the same order, but as
  * 58 pt tiles with the label beneath rather than inside. "Or just say it"
  * goes to Quick capture.
  */
@@ -15,7 +15,7 @@ import { TYPE_ICON } from '@/design/icon-paths';
 import { ink, radius, space, surface, typeColour, type TaskType } from '@/design/tokens';
 import { useDirection, useLanguage } from '@/i18n/LanguageProvider';
 
-const ROWS: TaskType[][] = [QUICK_ACTION_ORDER.slice(0, 4), QUICK_ACTION_ORDER.slice(4)];
+const ROWS: TaskType[][] = [QUICK_ACTION_ORDER.slice(0, 4), QUICK_ACTION_ORDER.slice(4)].filter((row) => row.length > 0);
 
 export function AddSheet({
   open,

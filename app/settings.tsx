@@ -8,6 +8,7 @@
  * account.
  */
 import { useCallback, useState } from 'react';
+import Constants from 'expo-constants';
 import { Linking, Platform, Pressable, View } from 'react-native';
 import { router } from 'expo-router';
 
@@ -21,7 +22,9 @@ import {
   ToggleRow,
   rowRule,
 } from '@/features/settings/parts';
+import { PhotoSheet } from '@/features/people/PhotoSheet';
 import { DeleteSheet, TipSheet } from '@/features/settings/sheets';
+import { Avatar } from '@/ui/Avatar';
 import { ForwardChevron } from '@/ui/ForwardChevron';
 import { Icon } from '@/ui/Icon';
 import { Screen } from '@/ui/Screen';
@@ -31,14 +34,19 @@ import { ink, settingsTile, status, surface, typeColour } from '@/design/tokens'
 import { useDirection, useLanguage } from '@/i18n/LanguageProvider';
 import type { Lang } from '@/content/strings';
 import { useAccount } from '@/lib/account';
-import { TIP_PRODUCTS, buyTip, manageSubscription as openStoreSubscriptions, restorePurchases } from '@/features/paywall/purchases';
+import { TIP_PRODUCTS, buyTip, manageSubscription as openStoreSubscriptions } from '@/features/paywall/purchases';
 import { added } from '@/content/additions';
 import { track } from '@/lib/analytics/track';
+import { ME_PHOTO, usePhotos } from '@/lib/photos';
 import { requestExport } from '@/lib/privacy-request';
+import { requestAppReview } from '@/lib/store-review';
+import { SUPPORT_EMAIL, supportMailUrl } from '@/lib/support';
 import { POLICY_VERSION, recordConsent } from '@/lib/consent';
 import type { Channel, NudgeStyle, Prefs } from '@/lib/model-types';
 import { useNotifications } from '@/lib/notifications/NotificationsProvider';
 import { usePrefs } from '@/lib/prefs';
+import { CHASE_SETTINGS, setChase, useChase } from '@/lib/chase';
+import { barSupported, setBarOn, useBarOn } from '@/lib/today-bar';
 import { useSession } from '@/lib/session';
 import { useTasks } from '@/lib/tasks';
 import { isPro } from '@/policy/entitlements';
@@ -60,7 +68,7 @@ const STORE_SUBSCRIPTIONS = Platform.select({
 });
 
 export default function Settings() {
-  const { t, acc, setx, inline, a11y, lang, setLang } = useLanguage();
+  const { t, acc, setx, inline, a11y, lang, setLang, theme, setTheme } = useLanguage();
   const dir = useDirection();
   const { session } = useSession();
   const { prefs, setPrefs } = usePrefs();
@@ -68,11 +76,15 @@ export default function Settings() {
   const { setFocusMinutes } = useTasks();
   const { signOut, deleteAccount } = useAccount();
   const toast = useToast();
+  const chase = useChase();
+  const barOn = useBarOn();
   const st = setx.st;
 
   const [open, setOpen] = useState<Panel | null>(null);
   const [tipOpen, setTipOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [photoOpen, setPhotoOpen] = useState(false);
+  const hasPhoto = usePhotos().has(ME_PHOTO);
 
   const pro = isPro(session?.plan ?? 'free');
   const firstName = session?.firstName ?? '';
@@ -120,10 +132,18 @@ export default function Settings() {
     if (!(await openStoreSubscriptions()) && STORE_SUBSCRIPTIONS) Linking.openURL(STORE_SUBSCRIPTIONS).catch(() => {});
   };
 
-  const restore = async () => {
-    const result = await restorePurchases();
-    const message = result === 'restored' ? added(lang).restored : result === 'failed' ? added(lang).storeFailed : setx.pw.toastRestore;
-    toast.show(message, { undo: false });
+  const rateApp = async () => {
+    if ((await requestAppReview()) === 'unavailable') toast.show(added(lang).rateUnavailable, { undo: false });
+  };
+
+  const helpAndFeedback = async () => {
+    const copy = added(lang);
+    const body = `${copy.helpBody}\n\n\n—\nThe One Thing ${Constants.expoConfig?.version ?? ''} · ${Platform.OS} ${Platform.Version}`;
+    try {
+      await Linking.openURL(supportMailUrl(copy.helpSubject, body));
+    } catch {
+      toast.show(copy.helpNoMail.replace('{email}', SUPPORT_EMAIL), { undo: false });
+    }
   };
 
   const onSignOut = async () => {
@@ -171,20 +191,31 @@ export default function Settings() {
             padding: 14,
           }}
         >
-          <View
-            style={{
-              width: 48,
-              height: 48,
-              borderRadius: 24,
-              backgroundColor: ink.base,
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
+          <Pressable
+            testID="settings-photo"
+            onPress={() => setPhotoOpen(true)}
+            accessibilityRole="button"
+            accessibilityLabel={added(lang).photo.hint}
           >
-            <Text token="title" size={19} color={surface.white}>
-              {firstName.slice(0, 1).toUpperCase()}
-            </Text>
-          </View>
+            <Avatar name={session?.name ?? firstName} contactId={ME_PHOTO} size={56} />
+            <View
+              style={{
+                position: 'absolute',
+                bottom: -2,
+                ...(dir.isRTL ? { left: -2 } : { right: -2 }),
+                width: 22,
+                height: 22,
+                borderRadius: 11,
+                borderWidth: 2,
+                borderColor: surface.white,
+                backgroundColor: ink.solid,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Icon name="camera" size={11} color={surface.white} strokeWidth={2.2} />
+            </View>
+          </Pressable>
           <View style={{ flex: 1, gap: 2 }}>
             <Text token="title" numberOfLines={1} testID="settings-name">
               {session?.name ?? ''}
@@ -203,7 +234,7 @@ export default function Settings() {
               paddingVertical: 5,
               paddingHorizontal: 10,
               borderRadius: 999,
-              backgroundColor: pro ? ink.base : surface.fill,
+              backgroundColor: pro ? ink.solid : surface.fill,
             }}
           >
             <Text token="micro" weight="600" color={pro ? surface.white : ink.s4}>
@@ -221,7 +252,7 @@ export default function Settings() {
               flexDirection: dir.row,
               alignItems: 'center',
               gap: 14,
-              backgroundColor: ink.base,
+              backgroundColor: ink.solid,
               borderRadius: 18,
               paddingVertical: 14,
               paddingHorizontal: 16,
@@ -233,7 +264,7 @@ export default function Settings() {
                 width: 36,
                 height: 36,
                 borderRadius: 11,
-                backgroundColor: 'rgba(255,255,255,0.12)',
+                backgroundColor: surface.onInkTile,
                 alignItems: 'center',
                 justifyContent: 'center',
               }}
@@ -278,6 +309,33 @@ export default function Settings() {
                   value={prefs.focusMinutes}
                   onPick={pickFocus}
                 />
+              </View>
+              <View style={{ gap: 6, paddingVertical: 14, paddingHorizontal: 16, ...rowRule }}>
+                <Text token="body">{added(lang).sent.chaseTitle}</Text>
+                <Text token="caption" color={ink.s4}>
+                  {added(lang).sent.chaseHint}
+                </Text>
+                <View style={{ flexDirection: dir.row, flexWrap: 'wrap', gap: 8, paddingTop: 4 }}>
+                  {CHASE_SETTINGS.map((option) => {
+                    const on = chase === option;
+                    const o = added(lang).sent.chaseOptions;
+                    const label = option === 'auto' ? o.auto : option === 'off' ? o.off : option === 1 ? o.d1 : option === 2 ? o.d2 : option === 3 ? o.d3 : o.d7;
+                    return (
+                      <Pressable
+                        key={String(option)}
+                        testID={`settings-chase-${option}`}
+                        onPress={() => void setChase(option)}
+                        accessibilityRole="button"
+                        accessibilityState={{ selected: on }}
+                        style={{ paddingVertical: 8, paddingHorizontal: 14, borderRadius: 999, backgroundColor: on ? ink.solid : surface.fill }}
+                      >
+                        <Text token="bodyS" weight="600" color={on ? surface.white : ink.s2}>
+                          {label}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
               </View>
               <View
                 style={{
@@ -419,7 +477,7 @@ export default function Settings() {
                       paddingVertical: 6,
                       paddingHorizontal: 12,
                       borderRadius: 999,
-                      backgroundColor: on ? ink.base : 'transparent',
+                      backgroundColor: on ? ink.solid : 'transparent',
                     }}
                   >
                     <Text token="caption" color={on ? surface.white : ink.base}>
@@ -430,6 +488,36 @@ export default function Settings() {
               })}
             </View>
           </View>
+
+          {/* Dark mode lives with the person's own settings, not on the Home header. */}
+          <ToggleRow
+            testID="settings-dark"
+            label={added(lang).today.darkMode}
+            on={theme === 'dark'}
+            onToggle={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+            lead={<RowTile icon={theme === 'dark' ? 'moon' : 'sun'} bg={surface.fill} fg={ink.s2} />}
+          />
+
+          {barSupported ? (
+            <ToggleRow
+              testID="settings-today-bar"
+              label={added(lang).bar.toggle}
+              sub={added(lang).bar.toggleSub}
+              // `barOn` is null until the stored choice is read. Both lines
+              // treat that window as off, which is now the default, so the
+              // row cannot show on and then snap off a moment later.
+              on={barOn === true}
+              onToggle={() => void setBarOn(barOn !== true)}
+              lead={<RowTile icon="clock" bg={surface.fill} fg={ink.s2} />}
+            />
+          ) : null}
+
+          <LinkRow
+            testID="settings-saved"
+            label={added(lang).saved.title}
+            onPress={() => router.push('/templates')}
+            tile={<RowTile icon="note" bg={surface.fill} fg={ink.s2} />}
+          />
 
           <AccordionRow
             testID="settings-privacy"
@@ -480,7 +568,7 @@ export default function Settings() {
               paddingVertical: 14,
               paddingHorizontal: 16,
               backgroundColor: surface.white,
-              ...rowRule,
+              ...(pro ? rowRule : null),
             }}
           >
             <View
@@ -505,17 +593,27 @@ export default function Settings() {
             </View>
             <ForwardChevron />
           </Pressable>
-          {pro ? (
-            <LinkRow label={st.manage} onPress={manageSubscription} background={surface.white} last />
-          ) : (
-            <LinkRow
-              testID="settings-restore"
-              label={st.restore}
-              onPress={restore}
-              background={surface.white}
-              last
-            />
-          )}
+          {/* Restore purchases lives on the paywall, where a purchase is made; the
+              store requires it be reachable there, and it only clutters here. */}
+          {pro ? <LinkRow label={st.manage} onPress={manageSubscription} background={surface.white} last /> : null}
+        </SettingsCard>
+
+        <SettingsCard>
+          <LinkRow
+            testID="settings-rate"
+            label={added(lang).rateApp}
+            onPress={rateApp}
+            background={surface.white}
+            tile={<RowTile icon="star" filled {...settingsTile.rate} />}
+          />
+          <LinkRow
+            testID="settings-help"
+            label={added(lang).helpFeedback}
+            onPress={helpAndFeedback}
+            background={surface.white}
+            tile={<RowTile icon="msg" {...settingsTile.help} />}
+            last
+          />
         </SettingsCard>
 
         <View
@@ -582,6 +680,7 @@ export default function Settings() {
       />
       <DeleteSheet open={deleteOpen} onCancel={() => setDeleteOpen(false)} onConfirm={onDelete} />
 
+      <PhotoSheet open={photoOpen} contactId={ME_PHOTO} hasPhoto={hasPhoto} onClose={() => setPhotoOpen(false)} />
       <Toast />
     </>
   );

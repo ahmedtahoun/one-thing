@@ -38,8 +38,8 @@ export function Checkbox({
           height: 22,
           borderRadius: radius.checkbox,
           borderWidth: 1.5,
-          borderColor: checked ? ink.base : surface.checkbox,
-          backgroundColor: checked ? ink.base : surface.white,
+          borderColor: checked ? ink.solid : surface.checkbox,
+          backgroundColor: checked ? ink.solid : surface.white,
           alignItems: 'center',
           justifyContent: 'center',
         }}

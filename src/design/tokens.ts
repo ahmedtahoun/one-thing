@@ -20,7 +20,7 @@ export const ink = {
   /** Labels, meta. */
   s4: '#6B6B68',
   /** Hints, placeholders, timestamps. */
-  s5: '#8A8A86',
+  s5: '#767672',
   /** Disabled text, chevrons. Non-essential hints only — fails 4.5:1 on white. */
   s6: '#A8A8A3',
   /** Faintest marks: an empty reminder bell, the sign-in consent checkbox. */
@@ -31,6 +31,16 @@ export const ink = {
   muted: '#9A9A96',
   /** Disabled primary-button background. */
   disabledBtn: '#B5B5B0',
+  /** Softer text on a selected (ink) chip, such as a count. */
+  onInkSoft: 'rgba(255,255,255,0.7)',
+  /**
+   * What a filled thing is filled with: a primary button, a selected chip, a
+   * tick, a progress bar. The app's one accent, a green in WhatsApp's family
+   * in both themes (white text on it is 5.4:1 in light; dark text in dark).
+   */
+  solid: '#008069',
+  /** A big card drawn in ink: Up next, the first-run and evening cards, the toast. Elevated grey-blue in dark. */
+  card: '#0B0B0B',
 } as const;
 
 export const surface = {
@@ -44,6 +54,9 @@ export const surface = {
   fill: '#F3F2EE',
   /** Grouped-screen background (Settings, Profile), task row bg. */
   fill2: '#F6F6F3',
+  /** The wallpaper behind a person's thread, and the faint marks drawn on it. */
+  thread: '#EEE8DC',
+  threadMark: 'rgba(110,90,60,0.11)',
   /** Toggle off, inactive dots. */
   trackOff: '#D6D6D2',
   /** Cards, screen bg. */
@@ -80,6 +93,19 @@ export const surface = {
   brief: '#F4F4F1',
   /** The rule above "Last time" inside the brief card. */
   briefRule: '#E6E5E0',
+  /** Text and icons on an ink card. */
+  onCard: '#FFFFFF',
+  /** A field on an ink card (the first-run One Thing box). */
+  onInkFill: '#1F1F1E',
+  /** An icon tile on an ink card. */
+  onInkTile: 'rgba(255,255,255,0.12)',
+  /** The tab bar's glass: the fade under it, its edge, fill, active pill and the orb's ring. */
+  glassFadeFrom: 'rgba(255,255,255,0)',
+  glassFadeTo: 'rgba(255,255,255,0.85)',
+  glassBorder: 'rgba(255,255,255,0.7)',
+  glassFill: 'rgba(250,250,248,0.55)',
+  glassActive: 'rgba(0,128,105,0.14)',
+  glassRing: 'rgba(255,255,255,0.9)',
 } as const;
 
 export type TaskType =
@@ -180,6 +206,8 @@ export const settingsTile = {
   channels: { bg: '#DCF7E1', fg: '#067132' },
   privacy: { bg: '#DDF1FF', fg: '#00569F' },
   coffee: { bg: '#FFEBD2', fg: '#934F00' },
+  rate: { bg: '#FFF1C2', fg: '#8A6100' },
+  help: { bg: '#D4F6F8', fg: '#00666D' },
 } as const;
 
 /** README § Radius. */

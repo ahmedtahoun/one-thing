@@ -8,7 +8,11 @@
 import { createContext, useCallback, useContext, useMemo, type ReactNode } from 'react';
 
 import { track } from './analytics/track';
+import { clearCadence } from './cadence';
+import { clearFavorites } from './favorites';
 import { newId } from './ids';
+import { clearNextState } from './next-state';
+import { clearPhotos } from './photos';
 import { displayName, type Contact, type FollowUp, type HistoryEntry, type Task } from './model-types';
 import { usePersisted } from './persisted';
 
@@ -47,10 +51,13 @@ type PeopleValue = {
    * top of People. Returns the contact's id.
    */
   saveContact: (input: { id?: string; name: string; role?: string; lastLabel: string }, patch: Partial<Contact>) => string;
-  addFollowUp: (followUp: Omit<FollowUp, 'id' | 'createdAt'>) => void;
+  /** Returns the new follow-up's id, so the screen that made it can change or take it back. */
+  addFollowUp: (followUp: Omit<FollowUp, 'id' | 'createdAt'>) => string;
   updateContact: (id: string, patch: Partial<Contact>) => void;
   /** A new contact from the contact form, at the top of People. Returns it. */
   addContact: (contact: Omit<Contact, 'id' | 'createdAt'>) => Contact;
+  /** Many at once — an import — in the order given, as one change. Returns them. */
+  addContacts: (contacts: Omit<Contact, 'id' | 'createdAt'>[]) => Contact[];
   /**
    * Deletes a contact and their history ("Their history goes too"). Returns
    * a function that puts both back, for the toast's Undo.
@@ -61,6 +68,8 @@ type PeopleValue = {
   updateFollowUp: (id: string, patch: Partial<FollowUp>) => void;
   /** Replaces the whole list — used by Undo, which restores a snapshot. */
   restoreFollowUps: (followUps: FollowUp[]) => void;
+  /** Replaces the whole history — used by Undo, which restores a snapshot. */
+  restoreHistory: (history: HistoryEntry[]) => void;
   reset: () => void;
   /** For the sync engine only — see the task store's own. */
   applySync: (update: {
@@ -116,6 +125,16 @@ export function PeopleProvider({ children }: { children: ReactNode }) {
     [setContacts]
   );
 
+  const addContacts = useCallback<PeopleValue['addContacts']>(
+    (inputs) => {
+      const createdAt = new Date().toISOString();
+      const made: Contact[] = inputs.map((input) => ({ ...input, id: newId(), createdAt }));
+      setContacts((list) => [...made, ...list]);
+      return made;
+    },
+    [setContacts]
+  );
+
   const deleteContact = useCallback<PeopleValue['deleteContact']>(
     (id) => {
       const contactsBefore = contacts;
@@ -138,8 +157,10 @@ export function PeopleProvider({ children }: { children: ReactNode }) {
 
   const addFollowUp = useCallback<PeopleValue['addFollowUp']>(
     (followUp) => {
-      setFollowUps((list) => [{ ...followUp, id: newId(), createdAt: new Date().toISOString() }, ...list]);
+      const id = newId();
+      setFollowUps((list) => [{ ...followUp, id, createdAt: new Date().toISOString() }, ...list]);
       track({ name: 'followup_created' });
+      return id;
     },
     [setFollowUps]
   );
@@ -148,6 +169,10 @@ export function PeopleProvider({ children }: { children: ReactNode }) {
     resetContacts();
     resetFollowUps();
     resetHistory();
+    clearFavorites();
+    clearNextState();
+    clearPhotos();
+    clearCadence();
   }, [resetContacts, resetFollowUps, resetHistory]);
 
   const applySync = useCallback<PeopleValue['applySync']>(
@@ -169,10 +194,12 @@ export function PeopleProvider({ children }: { children: ReactNode }) {
       addFollowUp,
       updateContact,
       addContact,
+      addContacts,
       deleteContact,
       addHistory,
       updateFollowUp,
       restoreFollowUps: setFollowUps,
+      restoreHistory: setHistory,
       reset,
       applySync,
     }),
@@ -187,6 +214,7 @@ export function PeopleProvider({ children }: { children: ReactNode }) {
       addFollowUp,
       updateContact,
       addContact,
+      addContacts,
       deleteContact,
       addHistory,
       updateFollowUp,

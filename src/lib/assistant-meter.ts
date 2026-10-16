@@ -1,5 +1,5 @@
 /**
- * The Free plan's 10 assistant requests a day, kept on the device.
+ * The device-side daily meters: the assistant's requests, and brain dumps.
  *
  * The server will enforce the same limit when the Assistant goes through the
  * backend (src/lib/parse/index.ts); this copy is what lets the Assistant send
@@ -9,12 +9,13 @@
  */
 import { useCallback } from 'react';
 
-import { assistantRequestsLeft, canUseAssistant } from '@/policy/entitlements';
+import { assistantRequestsLeft, brainDumpsLeft, canBrainDump, canUseAssistant } from '@/policy/entitlements';
 import { dateKey } from './model-types';
 import { usePersisted } from './persisted';
 import { useSession } from './session';
 
 const STORAGE_KEY = 'ot.assistantUsage';
+const DUMP_KEY = 'ot.dumpUsage';
 
 export type AssistantUsage = { date: string; used: number };
 
@@ -42,6 +43,32 @@ export function useAssistantMeter() {
     left: assistantRequestsLeft(plan, used),
     /** Whether one more request may go out now. */
     canAsk: canUseAssistant(plan, used),
+    spend,
+  };
+}
+
+/**
+ * Brain dumps spent today. Sorting is the expensive step and the one the
+ * card sells, so that is what counts — typing into the box, changing your
+ * mind and sorting again would otherwise cost two.
+ *
+ * Same shape as the assistant's meter on purpose: run out, and the screen
+ * sends you to the paywall rather than refusing quietly.
+ */
+export function useBrainDumpMeter() {
+  const { session } = useSession();
+  const plan = session?.plan ?? 'free';
+  const [usage, setUsage, ready] = usePersisted<AssistantUsage | null>(DUMP_KEY, null);
+  const used = usedOn(usage, dateKey());
+
+  const spend = useCallback(() => setUsage((current) => spendOne(current, dateKey())), [setUsage]);
+
+  return {
+    ready,
+    used,
+    left: brainDumpsLeft(plan, used),
+    /** Whether one more sort may run now. */
+    canDump: canBrainDump(plan, used),
     spend,
   };
 }

@@ -40,7 +40,7 @@ export function Button({
 }: ButtonProps) {
   const dir = useDirection();
   const isPrimary = variant === 'primary';
-  const bg = disabled ? ink.disabledBtn : isPrimary ? ink.base : surface.white;
+  const bg = disabled ? ink.disabledBtn : isPrimary ? ink.solid : surface.white;
   const fg = isPrimary || disabled ? surface.white : ink.base;
 
   return (

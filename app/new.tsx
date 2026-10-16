@@ -8,9 +8,10 @@
  * everything else — that is the whole point of the screen.
  */
 import { useCallback, useMemo, useState } from 'react';
-import { Linking, Pressable, ScrollView, View } from 'react-native';
+import { KeyboardAvoidingView, Linking, Platform, Pressable, ScrollView, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 
+import { added } from '@/content/additions';
 import {
   ChipRow,
   Labelled,
@@ -43,7 +44,7 @@ import { useTasks } from '@/lib/tasks';
 const PEOPLE_SHOWN = 8;
 
 export default function EventForm() {
-  const { t, evx } = useLanguage();
+  const { t, evx, lang } = useLanguage();
   const dir = useDirection();
   const { contacts } = usePeople();
   const { addTask } = useTasks();
@@ -58,6 +59,8 @@ export default function EventForm() {
     const index = contacts.findIndex((contact) => contact.id === params.contact);
     return index >= 0 ? { ...base, who: [index] } : base;
   });
+
+  const [more, setMore] = useState(false);
 
   const set = useCallback((patch: Partial<EventDraft>) => setDraft((d) => ({ ...d, ...patch })), []);
 
@@ -124,7 +127,8 @@ export default function EventForm() {
 
   return (
     <>
-      <View
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={{
           flex: 1,
           backgroundColor: surface.white,
@@ -197,25 +201,6 @@ export default function EventForm() {
               placeholder={evx.titlePh[type]}
             />
           </Labelled>
-
-          {show.platform ? (
-            <Labelled label={evx.l.plat}>
-              <ChipRow options={platforms} selected={draft.platform} onSelect={(platform) => set({ platform })} testID="event-platform" />
-            </Labelled>
-          ) : null}
-
-          {show.link ? (
-            <Labelled label={evx.l.link}>
-              <Field
-                testID="event-link"
-                value={draft.link}
-                onChangeText={(link) => set({ link })}
-                placeholder={evx.linkPh[type as keyof typeof evx.linkPh] ?? ''}
-                keyboardType="url"
-                forceLTR
-              />
-            </Labelled>
-          ) : null}
 
           {show.host ? (
             <Labelled label={evx.l.host}>
@@ -306,14 +291,13 @@ export default function EventForm() {
           ) : null}
 
           <Labelled label={evx.l.time}>
-            <TimeRow times={EVENT_TIMES} selected={draft.time} onSelect={(time) => set({ time })} />
+            <TimeRow
+              times={EVENT_TIMES}
+              selected={draft.time}
+              onSelect={(time) => set({ time })}
+              custom={{ label: added(lang).customTime, bad: added(lang).customTimeBad }}
+            />
           </Labelled>
-
-          {show.duration ? (
-            <Labelled label={evx.l.dur}>
-              <ChipRow options={evx.durs} selected={draft.duration} onSelect={(duration) => set({ duration })} testID="event-duration" />
-            </Labelled>
-          ) : null}
 
           {show.progress ? (
             <Labelled
@@ -333,6 +317,65 @@ export default function EventForm() {
             </Labelled>
           ) : null}
 
+          <Pressable
+            testID="event-more"
+            onPress={() => setMore((v) => !v)}
+            accessibilityRole="button"
+            accessibilityState={{ expanded: more }}
+            style={{
+              flexDirection: dir.row,
+              alignItems: 'center',
+              gap: 10,
+              paddingVertical: 14,
+              paddingHorizontal: 16,
+              borderRadius: radius.input,
+              backgroundColor: surface.fill,
+            }}
+          >
+            <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
+              <Text token="body" weight="600">
+                {more ? added(lang).lock.fewerOptions : added(lang).lock.moreOptions}
+              </Text>
+              {!more ? (
+                <Text token="micro" color={ink.s4} numberOfLines={1}>
+                  {[show.platform ? platforms[draft.platform] : '', show.duration ? evx.durs[draft.duration] : '', evx.rems[draft.remind]]
+                    .filter(Boolean)
+                    .join(' · ')}
+                </Text>
+              ) : null}
+            </View>
+            <View style={{ transform: [{ rotate: more ? '-90deg' : '90deg' }] }}>
+              <Icon name="chevR" size={18} color={ink.s4} strokeWidth={2} />
+            </View>
+          </Pressable>
+
+          {more ? (
+            <View style={{ gap: 20 }}>
+          {show.platform ? (
+            <Labelled label={evx.l.plat}>
+              <ChipRow options={platforms} selected={draft.platform} onSelect={(platform) => set({ platform })} testID="event-platform" />
+            </Labelled>
+          ) : null}
+
+          {show.link ? (
+            <Labelled label={evx.l.link}>
+              <Field
+                testID="event-link"
+                value={draft.link}
+                onChangeText={(link) => set({ link })}
+                placeholder={evx.linkPh[type as keyof typeof evx.linkPh] ?? ''}
+                keyboardType="url"
+                forceLTR
+              />
+            </Labelled>
+          ) : null}
+
+          {show.duration ? (
+            <Labelled label={evx.l.dur}>
+              <ChipRow options={evx.durs} selected={draft.duration} onSelect={(duration) => set({ duration })} testID="event-duration" />
+            </Labelled>
+          ) : null}
+
           <Labelled label={evx.l.remind}>
             <ChipRow options={evx.rems} selected={draft.remind} onSelect={(remind) => set({ remind })} testID="event-remind" />
           </Labelled>
@@ -348,6 +391,9 @@ export default function EventForm() {
             />
           </Labelled>
 
+            </View>
+          ) : null}
+
           <Pressable
             testID="event-save"
             onPress={save}
@@ -356,7 +402,7 @@ export default function EventForm() {
             style={{
               height: 56,
               borderRadius: radius.button,
-              backgroundColor: valid ? ink.base : ink.disabledBtn,
+              backgroundColor: valid ? ink.solid : ink.disabledBtn,
               alignItems: 'center',
               justifyContent: 'center',
             }}
@@ -366,7 +412,7 @@ export default function EventForm() {
             </Text>
           </Pressable>
         </ScrollView>
-      </View>
+      </KeyboardAvoidingView>
       <Toast />
     </>
   );

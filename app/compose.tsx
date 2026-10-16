@@ -11,45 +11,55 @@
  * "Did you send it?" is the only thing that marks the task done, and the
  * answer decides whether a follow-up is set.
  */
+import { clockOf } from '@/lib/clock-format';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Linking, Pressable, TextInput, View } from 'react-native';
+import { AppState, Linking, Platform, Pressable, Share, TextInput, View } from 'react-native';
 import { Redirect, router, useLocalSearchParams } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
+import * as DocumentPicker from 'expo-document-picker';
 import * as MailComposer from 'expo-mail-composer';
 
 import { track } from '@/lib/analytics/track';
-import { EmailFields, PhoneField } from '@/features/compose/fields';
+import { EmailFields, LockedRecipient, PhoneField, SubjectField } from '@/features/compose/fields';
+import { added } from '@/content/additions';
+import { DRAFT_KINDS, writeDraft, type DraftKind } from '@/features/compose/drafts';
 import {
   emailState,
   emailValid,
   localDigits,
+  mailHtml,
   mailtoUrl,
   phoneState,
   phoneValid,
   telUrl,
   whatsAppUrl,
 } from '@/features/compose/recipient';
+import { Avatar } from '@/ui/Avatar';
 import { ForwardChevron } from '@/ui/ForwardChevron';
 import { Icon } from '@/ui/Icon';
 import { Screen } from '@/ui/Screen';
 import { Text } from '@/ui/Text';
 import { Toast, useToast } from '@/ui/Toast';
+import { Sheet } from '@/ui/Sheet';
+import { fillSaved, toSaved, type Saved } from '@/features/compose/saved';
+import { addSaved, useSaved } from '@/lib/templates';
+import { CHASE_CHOICES, chaseDays, inDays, useChase } from '@/lib/chase';
+import { whenText } from '@/features/capture/labels';
 import { DEFAULT_DIAL } from '@/content/countries';
-import { TYPE_ICON, type IconName } from '@/design/icon-paths';
+import { type IconName } from '@/design/icon-paths';
 import { fontFamily, ink, surface, typeColour } from '@/design/tokens';
 import { useDirection, useLanguage } from '@/i18n/LanguageProvider';
-import { displayName, timeLabel, type Channel, type Contact, type Task } from '@/lib/model-types';
+import { displayName, type Channel, type Contact, type FollowUp, type HistoryEntry, type Task } from '@/lib/model-types';
 import { contactForTask, usePeople } from '@/lib/people';
+import { pickFromPhone } from '@/lib/phone-contacts';
 import { whenLabel } from '@/lib/task-labels';
+import { useSession } from '@/lib/session';
+import { canAutoChase } from '@/policy/entitlements';
 import { useTasks } from '@/lib/tasks';
 
 
-/** How long after handing off before "Did you send it?" appears, as in the prototype. */
-const HANDOFF_DELAY = 700;
-const CALL_DELAY = 900;
-
-/** Tomorrow / In 2 days / Next week, in days; "No need" sets nothing. */
-const FOLLOW_UP_DAYS = [1, 2, 7] as const;
+/** What a send did, kept so it can be changed or taken back. */
+type Sent = { days: number; before: { tasks: Task[]; followUps: FollowUp[]; history: HistoryEntry[] } };
 
 /** 7 rows of 15 pt text at 1.55, plus 14 pt padding and a 1 pt border, each side. */
 const DRAFT_HEIGHT = 7 * 15 * 1.55 + 28 + 2;
@@ -66,10 +76,19 @@ export default function Compose() {
 }
 
 function ComposeTask({ task }: { task: Task }) {
-  const { t, inline, a11y } = useLanguage();
+  const { t, inline, a11y, lang } = useLanguage();
+  const lockCopy = added(lang).lock;
+  const loopCopy = added(lang).loop;
+  const sentCopy = added(lang).sent;
+  const mySaved = useSaved();
+  const draftCopy = added(lang).drafts;
   const dir = useDirection();
+  const { from } = useLocalSearchParams<{ from?: string }>();
   const { tasks, updateTask, restore } = useTasks();
-  const { contacts, history, saveContact, addFollowUp } = usePeople();
+  const { contacts, history, followUps, saveContact, addFollowUp, addHistory, updateFollowUp, restoreFollowUps, restoreHistory } = usePeople();
+  const chase = useChase();
+  const { session } = useSession();
+  const plan = session?.plan ?? 'free';
   const toast = useToast();
 
   // Prefilled from the contact, so a number given once is there next time —
@@ -82,14 +101,15 @@ function ComposeTask({ task }: { task: Task }) {
   const [draft, setDraft] = useState(task.draft?.body ?? '');
   const [tried, setTried] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
-  const [afterSend, setAfterSend] = useState(false);
+  // After a message goes out, the page asks nothing: it marks it sent, sets the chase if there is one, and leaves.
+  const [sent, setSent] = useState<Sent | null>(null);
+  const [changeOpen, setChangeOpen] = useState(false);
+  const [pending, setPending] = useState(false);
+  // A number or address already on file is shown, not asked for again.
+  const [changing, setChanging] = useState(false);
 
-  const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
-  useEffect(() => {
-    const pending = timers.current;
-    return () => pending.forEach(clearTimeout);
-  }, []);
-  const askAfter = (delay: number) => timers.current.push(setTimeout(() => setAfterSend(true), delay));
+  const leaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => void (leaveTimer.current && clearTimeout(leaveTimer.current)), []);
 
   const type = task.type;
 
@@ -107,7 +127,14 @@ function ComposeTask({ task }: { task: Task }) {
   const hasDraft = isWa || isEmail;
   const phoneField = phoneState(phone, tried);
   const emailField = emailState(email, tried);
-  const time = whenLabel(task, t, inline) || timeLabel(task.dueAt);
+  const time = whenLabel(task, t, inline) || clockOf(task.dueAt);
+  const savedPhone = contact?.phone && phoneValid(contact.phone) ? `${contact.dial ?? DEFAULT_DIAL} ${contact.phone}`.trim() : '';
+  const savedEmail = contact?.email && emailValid(contact.email) ? contact.email : '';
+  // What the locked row shows: the way this task reaches them, if it is known.
+  const lockedValue = isEmail ? savedEmail : savedPhone;
+  const locked = Boolean(contact && lockedValue && !changing && (isWa || isEmail || type === 'call'));
+  const showWho = !locked;
+  const hasBrief = Boolean(task.goal) || task.points.length > 0;
 
   // The latest dated moment with this person; failing that, their People line.
   const lastTime = useMemo(() => {
@@ -132,6 +159,54 @@ function ComposeTask({ task }: { task: Task }) {
     setDraft(body);
     updateTask(task.id, { draft: { ...task.draft, body } });
   };
+  /** A ready-made draft (and, for an email, its subject); what was there comes back with Undo. */
+  const startFrom = (kind: DraftKind) => {
+    const before = { body: draft, subject };
+    const next = writeDraft(isEmail ? 'email' : 'whatsapp', kind, {
+      name: contact?.name ?? name,
+      sender: session?.name,
+      lang,
+    });
+    editDraft(next.body);
+    if (isEmail && next.subject) editSubject(next.subject);
+    if (before.body.trim() && before.body !== next.body) {
+      toast.show(draftCopy.replaced, {
+        undo: () => {
+          editDraft(before.body);
+          if (isEmail) editSubject(before.subject);
+        },
+      });
+    }
+  };
+  /** One of the person's own saved messages: their wording, with this person's name in it. */
+  const startFromSaved = (item: Saved) => {
+    const before = { body: draft, subject };
+    const next = fillSaved(item, contact?.name ?? name, lang);
+    editDraft(next.body);
+    if (isEmail) editSubject(next.subject ?? item.title);
+    if (before.body.trim() && before.body !== next.body) {
+      toast.show(draftCopy.replaced, {
+        undo: () => {
+          editDraft(before.body);
+          if (isEmail) editSubject(before.subject);
+        },
+      });
+    }
+  };
+  const [savingOpen, setSavingOpen] = useState(false);
+  const [saveTitle, setSaveTitle] = useState('');
+  const saveAsMessage = async () => {
+    const title = saveTitle.trim();
+    if (!title || !draft.trim()) return;
+    await addSaved({
+      title,
+      body: toSaved(draft, contact?.name ?? name, lang),
+      ...(isEmail ? { subject: toSaved(subject, contact?.name ?? name, lang) } : {}),
+    });
+    setSavingOpen(false);
+    setSaveTitle('');
+    toast.show(added(lang).saved.saved, { undo: false });
+  };
   const editSubject = (next: string) => {
     setSubject(next);
     updateTask(task.id, { draft: { body: draft, ...task.draft, subject: next } });
@@ -152,7 +227,68 @@ function ComposeTask({ task }: { task: Task }) {
     remember({ dial, phone });
     Linking.openURL(whatsAppUrl(dial, phone, draft)).catch(() => {});
     toast.show(t.toastWa.replace('{to}', name), { undo: false });
-    askAfter(HANDOFF_DELAY);
+    armSent();
+  };
+
+  // Files to go with the email. The system composer takes them; a mail link cannot.
+  const [files, setFiles] = useState<{ uri: string; name: string }[]>([]);
+  const attach = async () => {
+    const picked = await DocumentPicker.getDocumentAsync({ type: '*/*', multiple: true, copyToCacheDirectory: true }).catch(() => null);
+    if (!picked || picked.canceled) return;
+    setFiles((current) => [...current, ...picked.assets.map((a) => ({ uri: a.uri, name: a.name }))]);
+  };
+  const [appsOpen, setAppsOpen] = useState(false);
+  const [clients, setClients] = useState<string[]>([]);
+  useEffect(() => {
+    try {
+      setClients(MailComposer.getClients().map((c) => c.label));
+    } catch {
+      setClients([]);
+    }
+  }, []);
+  /** Gmail and Outlook have their own compose links; every other app is reached through the default mail link. */
+  const openInApp = async (app: 'Gmail' | 'Outlook' | 'default') => {
+    setAppsOpen(false);
+    if (!emailValid(email)) return setTried(true);
+    remember({ email });
+    await Clipboard.setStringAsync(draft).catch(() => {});
+    const q = `to=${encodeURIComponent(email)}&subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(draft)}`;
+    if (app === 'Gmail') Linking.openURL(`googlegmail:///co?${q}`).catch(() => {});
+    else if (app === 'Outlook') Linking.openURL(`ms-outlook://compose?${q}`).catch(() => {});
+    else Linking.openURL(mailtoUrl(email, subject, draft)).catch(() => {});
+    if (files.length > 0) toast.show(added(lang).attach.onlyComposer, { undo: false });
+    else toast.show(t.toastHand.replace('{app}', app === 'default' ? inline.mailAppName : app), { undo: false });
+    armSent();
+  };
+
+  /**
+   * Zoho, Spark and others open a `mailto:` link empty when they start cold,
+   * and no link carries files. Their share extensions do take text and a
+   * file, so this hands the draft over through the share sheet, with the
+   * subject as the share's subject. A share cannot name the recipient, so the
+   * address is left on the clipboard to paste into "To".
+   *
+   * Only one file goes, and on Android none does: React Native's `url` is
+   * iOS-only, so an Android share carries the text alone. Saying so is the
+   * point — the row used to promise "the subject, the message and a file" on
+   * both platforms, and an attachment that silently does not arrive is worse
+   * than one the person was told to send another way.
+   */
+  const shareToApp = async () => {
+    setAppsOpen(false);
+    if (!emailValid(email)) return setTried(true);
+    remember({ email });
+    await Clipboard.setStringAsync(draft).catch(() => {});
+    const result = await Share.share(
+      { message: draft, title: subject, ...(files[0] ? { url: files[0].uri } : {}) },
+      { subject, dialogTitle: subject }
+    ).catch(() => null);
+    if (!result || result.action === Share.dismissedAction) return;
+    await Clipboard.setStringAsync(email).catch(() => {});
+    const carried = Platform.OS === 'ios' && files[0] ? 1 : 0;
+    const copy = added(lang).attach;
+    toast.show((files.length > carried ? copy.sharedNoFiles : copy.shared).replace('{to}', email), { undo: false });
+    armSent();
   };
 
   const openMailApp = async () => {
@@ -163,7 +299,7 @@ function ComposeTask({ task }: { task: Task }) {
     await Clipboard.setStringAsync(draft).catch(() => {});
     Linking.openURL(mailtoUrl(email, subject, draft)).catch(() => {});
     toast.show(t.toastHand.replace('{app}', inline.mailAppName), { undo: false });
-    askAfter(HANDOFF_DELAY);
+    armSent();
   };
 
   /**
@@ -176,20 +312,68 @@ function ComposeTask({ task }: { task: Task }) {
     const available = await MailComposer.isAvailableAsync().catch(() => false);
     if (!available) return openMailApp();
     remember({ email });
-    const result = await MailComposer.composeAsync({ recipients: [email], subject, body: draft }).catch(() => null);
+    // A copy on the clipboard, in case a mail sheet ever opens without the body.
+    await Clipboard.setStringAsync(draft).catch(() => {});
+    const result = await MailComposer.composeAsync({
+      recipients: [email],
+      subject,
+      body: mailHtml(draft),
+      isHtml: true,
+      ...(files.length > 0 ? { attachments: files.map((f) => f.uri) } : {}),
+    }).catch(() => null);
     if (!result || result.status === MailComposer.MailComposerStatus.CANCELLED) return;
     if (result.status === MailComposer.MailComposerStatus.SENT) {
       toast.show(t.toastSentTo.replace('{to}', email), { undo: false });
+      return confirmSent();
     }
-    askAfter(HANDOFF_DELAY);
+    // The mail sheet cannot always say; a saved draft is not a send.
+    if (result.status !== MailComposer.MailComposerStatus.SAVED) armSent();
   };
+
+  /**
+   * "Send later". WhatsApp has no way to schedule, and the mail sheet's own is
+   * out of this app's hands, so the app does the part it can: it keeps the
+   * draft, reminds at the chosen time, and the reminder opens this screen, one
+   * tap from send. Nothing is ever sent for the person.
+   */
+  const [laterOpen, setLaterOpen] = useState(false);
+  const sendLater = (at: Date) => {
+    const iso = at.toISOString();
+    updateTask(task.id, {
+      dueAt: iso,
+      remind: 'at',
+      remindAt: iso,
+      status: 'open',
+      snoozedUntil: null,
+      draft: { subject: isEmail ? subject : task.draft?.subject, body: draft },
+    });
+    setLaterOpen(false);
+    toast.show(added(lang).later.toast.replace('{w}', whenText(iso, t)), { undo: false });
+    const reached = contact?.id ?? task.contactIds[0];
+    setTimeout(() => router.dismissTo(from === 'contact' && reached ? `/contact?id=${reached}` : '/today'), 700);
+  };
+  const laterOptions = (() => {
+    const now = new Date();
+    const hour = new Date(now.getTime() + 3600000);
+    const evening = new Date(now);
+    evening.setHours(18, 0, 0, 0);
+    const tomorrow = new Date(now);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(9, 0, 0, 0);
+    const copy = added(lang).later;
+    return [
+      { key: 'hour', label: copy.hour, at: hour },
+      ...(evening.getTime() - now.getTime() > 2 * 3600000 ? [{ key: 'evening', label: copy.evening, at: evening }] : []),
+      { key: 'tomorrow', label: copy.tomorrow, at: tomorrow },
+    ];
+  })();
 
   const callNow = () => {
     toast.show(inline.calling, { undo: false });
     if (contact?.phone && phoneValid(contact.phone)) {
       Linking.openURL(telUrl(contact.dial ?? DEFAULT_DIAL, contact.phone)).catch(() => {});
     }
-    askAfter(CALL_DELAY);
+    armSent();
   };
 
   const markReminderDone = () => {
@@ -198,37 +382,100 @@ function ComposeTask({ task }: { task: Task }) {
     toast.show(t.toastDone, { undo: () => restore(before) });
   };
 
-  /** "Did you send it?" — Tomorrow, In 2 days, Next week, or No need. */
-  const answer = (index: number, label: string) => {
-    const now = new Date();
-    updateTask(task.id, { status: 'done', sentConfirmedAt: now.toISOString() });
-    track({ name: 'send_confirmed' });
-    const days = FOLLOW_UP_DAYS[index];
-    if (days !== undefined) {
-      const nextAt = new Date(now);
-      nextAt.setDate(nextAt.getDate() + days);
-      const channel: Channel = type === 'email' || type === 'whatsapp' ? type : 'call';
-      addFollowUp({
-        contactId: contact?.id ?? task.contactIds[0] ?? null,
-        taskId: task.id,
-        channel,
-        who: who || task.title,
-        what: task.title,
-        status: 'waiting',
-        since: inline.sentFollowUp.replace('{w}', label.toLowerCase()),
-        nextAt: nextAt.toISOString(),
-        lastAction: null,
-      });
-      toast.show(t.toastFu.replace('{w}', label), { undo: false });
-    } else {
-      toast.show(t.toastDone, { undo: false });
-    }
-    router.dismissTo('/today');
+  const channelOfTask: Channel = type === 'email' || type === 'whatsapp' ? type : 'call';
+  const reachedId = contact?.id ?? task.contactIds[0];
+  const leave = () => router.dismissTo(from === 'contact' && reachedId ? `/contact?id=${reachedId}` : '/today');
+  const leaveSoon = (ms: number) => {
+    if (leaveTimer.current) clearTimeout(leaveTimer.current);
+    leaveTimer.current = setTimeout(leave, ms);
+  };
+  const stopLeaving = () => {
+    if (leaveTimer.current) clearTimeout(leaveTimer.current);
+    leaveTimer.current = null;
   };
 
-  const notSent = () => {
-    setAfterSend(false);
-    toast.show(inline.draftSavedToast, { undo: false });
+  /** A waiting item that comes back on its date: "if there is no reply, remind me". */
+  const startChase = (days: number, from: Date): void => {
+    const nextAt = new Date(from);
+    nextAt.setDate(nextAt.getDate() + days);
+    addFollowUp({
+      contactId: reachedId ?? null,
+      taskId: task.id,
+      channel: channelOfTask,
+      who: who || task.title,
+      what: task.title,
+      status: 'waiting',
+      since: inline.sentFollowUp.replace('{w}', inDays(days, lang)),
+      nextAt: nextAt.toISOString(),
+      lastAction: null,
+    });
+  };
+
+  // The newest of these, for the places that run later than the render that made them (the app coming back to the front).
+  const latest = useRef({ tasks, followUps, history });
+  latest.current = { tasks, followUps, history };
+  const sentOnce = useRef(false);
+
+  /** It went. Mark it, log it, set the chase the person's setting asks for, and leave in a moment. */
+  const confirmSent = () => {
+    if (sentOnce.current) return;
+    sentOnce.current = true;
+    setPending(false);
+    const now = new Date();
+    const before = { tasks: latest.current.tasks, followUps: latest.current.followUps, history: latest.current.history };
+    updateTask(task.id, { status: 'done', sentConfirmedAt: now.toISOString() });
+    track({ name: 'send_confirmed' });
+    // What the moment says: the email's subject, the first line of the WhatsApp message, else the task's own title.
+    const gist =
+      channelOfTask === 'email' ? subject.trim() : channelOfTask === 'whatsapp' ? draft.trim().replace(/\s+/g, ' ').slice(0, 90) : '';
+    if (reachedId) addHistory({ contactId: reachedId, kind: channelOfTask, text: gist || task.title, at: now.toISOString() });
+    // "Auto follow-ups" is what the card sells, and the word doing the work
+    // is Auto: a Free account can still chase anyone, through Change below,
+    // but it has to ask. Pro is the chase starting on its own.
+    const days = canAutoChase(plan) ? chaseDays(chase, channelOfTask) : 0;
+    if (days > 0) startChase(days, now);
+    setSent({ days, before });
+    leaveSoon(5500);
+  };
+  const confirmRef = useRef(confirmSent);
+  confirmRef.current = confirmSent;
+
+  /** A WhatsApp chat, the Mail app or the dialler took over: when the person is back, it was sent. */
+  const armSent = () => setPending(true);
+  const pendingRef = useRef(false);
+  pendingRef.current = pending;
+  useEffect(() => {
+    let left = false;
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'background') left = true;
+      if (state === 'active' && left && pendingRef.current) {
+        left = false;
+        confirmRef.current();
+      }
+    });
+    return () => subscription.remove();
+  }, []);
+
+  /** Another time for the chase, or none. The follow-up is rewritten, not stacked. */
+  const changeChase = (days: number) => {
+    if (!sent) return;
+    restoreFollowUps(sent.before.followUps);
+    if (days > 0) startChase(days, new Date());
+    setSent({ ...sent, days });
+    setChangeOpen(false);
+    leaveSoon(2200);
+  };
+
+  /** Not sent after all: everything the send did is put back, and the draft is still here. */
+  const undoSent = () => {
+    if (!sent) return;
+    stopLeaving();
+    restore(sent.before.tasks);
+    restoreFollowUps(sent.before.followUps);
+    restoreHistory(sent.before.history);
+    sentOnce.current = false;
+    setSent(null);
+    setChangeOpen(false);
   };
 
   const back = () => (router.canGoBack() ? router.back() : router.replace('/today'));
@@ -284,26 +531,29 @@ function ComposeTask({ task }: { task: Task }) {
           <Text token="h2" lh={31.2} testID="compose-title">
             {task.title}
           </Text>
-          <View style={{ flexDirection: dir.row, alignItems: 'center', gap: 8 }}>
-            <View
-              style={{
-                width: 32,
-                height: 32,
-                borderRadius: 10,
-                backgroundColor: colour.bg,
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <Icon name={TYPE_ICON[type]} size={18} color={colour.fg} strokeWidth={1.9} />
+          {showWho ? (
+            <View style={{ flexDirection: dir.row, alignItems: 'center', gap: 8 }}>
+              <Avatar name={name || task.title} contactId={contact?.id} size={36} channel={type === 'reminder' ? null : (type as Channel)} />
+              <Text token="body" color={ink.s3} style={{ flexShrink: 1 }}>
+                {who}
+              </Text>
             </View>
-            <Text token="body" color={ink.s3} style={{ flexShrink: 1 }}>
-              {who}
-            </Text>
-          </View>
+          ) : null}
         </View>
 
-        {isWa ? (
+        {locked && contact ? (
+          <LockedRecipient
+            contact={contact}
+            value={lockedValue}
+            channel={isEmail ? 'email' : isWa ? 'whatsapp' : 'call'}
+            changeLabel={lockCopy.change}
+            onChange={isWa || isEmail ? () => setChanging(true) : undefined}
+          />
+        ) : null}
+
+        {isEmail && locked ? <SubjectField subject={subject} onChange={editSubject} /> : null}
+
+        {isWa && !locked ? (
           <PhoneField
             dial={dial}
             phone={phone}
@@ -320,10 +570,17 @@ function ComposeTask({ task }: { task: Task }) {
               setDial(c.dial ?? DEFAULT_DIAL);
               setPhone(c.phone ?? '');
             }}
+            onPickFromPhone={() =>
+              void pickFromPhone().then((draft) => {
+                if (!draft?.phone) return;
+                if (draft.dial) setDial(draft.dial);
+                setPhone(draft.phone);
+              })
+            }
           />
         ) : null}
 
-        {isEmail ? (
+        {isEmail && !locked ? (
           <EmailFields
             email={email}
             subject={subject}
@@ -332,9 +589,15 @@ function ComposeTask({ task }: { task: Task }) {
             onChangeEmail={setEmail}
             onChangeSubject={editSubject}
             onPickContact={(c) => setEmail(c.email ?? '')}
+            onPickFromPhone={() =>
+              void pickFromPhone().then((draft) => {
+                if (draft?.email) setEmail(draft.email);
+              })
+            }
           />
         ) : null}
 
+        {hasBrief ? (
         <View style={{ gap: 12, padding: 16, backgroundColor: surface.brief, borderRadius: 18 }}>
           <View style={{ gap: 4 }}>
             <Text token="micro" color={ink.s4}>
@@ -382,12 +645,71 @@ function ComposeTask({ task }: { task: Task }) {
             </Pressable>
           ) : null}
         </View>
+        ) : lastTime ? (
+          <Pressable
+            testID="compose-last-time"
+            onPress={() => router.push(`/contact?id=${lastTime.contactId}`)}
+            accessibilityRole="button"
+            style={{ flexDirection: dir.row, alignItems: 'center', gap: 8 }}
+          >
+            <Text token="micro" color={ink.s4}>
+              {inline.lastTime}
+            </Text>
+            <Text token="caption" numberOfLines={1} style={{ flex: 1, minWidth: 0 }}>
+              {lastTime.text}
+            </Text>
+            <ForwardChevron />
+          </Pressable>
+        ) : null}
 
         {hasDraft ? (
           <View style={{ gap: 8 }}>
             <Text token="micro" color={ink.s4}>
               {t.c_draft}
             </Text>
+            <View style={{ flexDirection: dir.row, flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
+              <Text token="caption" color={ink.s5}>
+                {draftCopy.label}
+              </Text>
+              {DRAFT_KINDS.map((kind) => (
+                <Pressable
+                  key={kind}
+                  testID={`compose-draft-${kind}`}
+                  onPress={() => startFrom(kind)}
+                  accessibilityRole="button"
+                  style={({ pressed }) => ({
+                    paddingVertical: 7,
+                    paddingHorizontal: 12,
+                    borderRadius: 999,
+                    backgroundColor: pressed ? surface.line : surface.fill,
+                  })}
+                >
+                  <Text token="caption" weight="600" color={ink.s2}>
+                    {draftCopy[kind]}
+                  </Text>
+                </Pressable>
+              ))}
+              {mySaved.map((item) => (
+                <Pressable
+                  key={item.id}
+                  testID={`compose-saved-${item.id}`}
+                  onPress={() => startFromSaved(item)}
+                  accessibilityRole="button"
+                  style={({ pressed }) => ({
+                    paddingVertical: 7,
+                    paddingHorizontal: 12,
+                    borderRadius: 999,
+                    backgroundColor: pressed ? surface.line : surface.fill,
+                    borderWidth: 1,
+                    borderColor: surface.line,
+                  })}
+                >
+                  <Text token="caption" weight="600" color={ink.s2}>
+                    {item.title}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
             <TextInput
               testID="compose-draft"
               value={draft}
@@ -395,7 +717,8 @@ function ComposeTask({ task }: { task: Task }) {
               multiline
               textAlignVertical="top"
               style={{
-                height: DRAFT_HEIGHT,
+                minHeight: isEmail ? 250 : 110,
+                maxHeight: isEmail ? DRAFT_HEIGHT * 2 : DRAFT_HEIGHT,
                 borderWidth: 1,
                 borderColor: surface.line,
                 borderRadius: 14,
@@ -408,63 +731,127 @@ function ComposeTask({ task }: { task: Task }) {
                 textAlign: dir.textAlign,
               }}
             />
+            {isEmail ? (
+              <View style={{ gap: 8 }}>
+                <View style={{ flexDirection: dir.row, flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
+                  {files.map((f) => (
+                    <Pressable
+                      key={f.uri}
+                      testID="compose-file"
+                      onPress={() => setFiles((current) => current.filter((x) => x.uri !== f.uri))}
+                      accessibilityRole="button"
+                      accessibilityHint="Remove"
+                      style={{ flexDirection: dir.row, alignItems: 'center', gap: 6, paddingVertical: 6, paddingHorizontal: 12, borderRadius: 999, backgroundColor: surface.fill, maxWidth: '100%' }}
+                    >
+                      <Icon name="note" size={14} color={ink.s2} strokeWidth={2} />
+                      <Text token="caption" weight="600" color={ink.s2} numberOfLines={1} style={{ flexShrink: 1 }}>
+                        {f.name}
+                      </Text>
+                      <Icon name="x" size={12} color={ink.s4} strokeWidth={2.2} />
+                    </Pressable>
+                  ))}
+                  <Pressable testID="compose-attach" onPress={() => void attach()} accessibilityRole="button" hitSlop={8}>
+                    <Text token="caption" weight="600" color={ink.s3}>
+                      + {added(lang).attach.button}
+                    </Text>
+                  </Pressable>
+                </View>
+              </View>
+            ) : null}
+            {draft.trim().length > 8 ? (
+              <Pressable testID="compose-save-template" onPress={() => setSavingOpen(true)} accessibilityRole="button" hitSlop={8} style={{ alignSelf: 'flex-start' }}>
+                <Text token="caption" weight="600" color={ink.s3}>
+                  + {added(lang).saved.saveAs}
+                </Text>
+              </Pressable>
+            ) : null}
           </View>
         ) : null}
 
         <View style={{ flex: 1 }} />
 
-        {afterSend ? (
-          <View testID="compose-after" style={{ gap: 10, padding: 16, borderWidth: 1.5, borderColor: ink.base, borderRadius: 18 }}>
-            <Text token="body" weight="600">
-              {t.afterQ}
+        {pending && !sent ? (
+          <View testID="compose-pending" style={{ flexDirection: dir.row, alignItems: 'center', gap: 10 }}>
+            <Text token="caption" color={ink.s4} style={{ flex: 1 }}>
+              {sentCopy.pending}
             </Text>
-            <View style={{ flexDirection: dir.row, flexWrap: 'wrap', gap: 8 }}>
-              {t.fuOpts.map((label, i) => (
-                <Pressable
-                  key={label}
-                  testID={`compose-after-${i}`}
-                  onPress={() => answer(i, label)}
-                  accessibilityRole="button"
-                  style={({ pressed }) => ({
-                    paddingVertical: 9,
-                    paddingHorizontal: 14,
-                    borderRadius: 999,
-                    borderWidth: 1,
-                    borderColor: ink.base,
-                    backgroundColor: pressed ? ink.base : surface.white,
-                  })}
-                >
-                  {({ pressed }) => (
-                    <Text token="bodyS" color={pressed ? surface.white : ink.base}>
-                      {label}
-                    </Text>
-                  )}
-                </Pressable>
-              ))}
-            </View>
-            <Pressable
-              testID="compose-not-sent"
-              onPress={notSent}
-              accessibilityRole="button"
-              style={{ alignSelf: 'flex-start', paddingVertical: 4 }}
-            >
-              <Text token="caption" color={ink.s4} style={{ textDecorationLine: 'underline' }}>
-                {inline.notSentYet}
+            <Pressable testID="compose-i-sent" onPress={confirmSent} accessibilityRole="button" hitSlop={8}>
+              <Text token="caption" weight="600" color={ink.solid}>
+                {sentCopy.iSent}
+              </Text>
+            </Pressable>
+            <Pressable testID="compose-not-sent" onPress={() => setPending(false)} accessibilityRole="button" hitSlop={8}>
+              <Text token="caption" color={ink.s4}>
+                {sentCopy.cancel}
               </Text>
             </Pressable>
           </View>
         ) : null}
 
-        {isWa ? (
-          <PrimaryButton
-            testID="compose-send-wa"
-            icon="msg"
-            label={t.sendWa}
-            colour={phoneValid(phone) ? typeColour.whatsapp.fg : ink.s7}
-            onPress={sendWhatsApp}
-          />
+        {sent ? (
+          <View testID="compose-sent" style={{ gap: 10, padding: 14, borderRadius: 16, backgroundColor: surface.fill }}>
+            <View style={{ flexDirection: dir.row, alignItems: 'center', gap: 10 }}>
+              <Icon name="check" size={18} color={typeColour.whatsapp.fg} strokeWidth={2.4} />
+              <Text token="bodyS" weight="500" style={{ flex: 1 }}>
+                {sent.days > 0
+                  ? sentCopy.withChase.replace('{w}', inDays(sent.days, lang))
+                  : canAutoChase(plan)
+                    ? sentCopy.plain
+                    : sentCopy.plainFree}
+              </Text>
+              <Pressable
+                testID="compose-sent-change"
+                onPress={() => {
+                  stopLeaving();
+                  setChangeOpen((v) => !v);
+                }}
+                accessibilityRole="button"
+                hitSlop={8}
+              >
+                <Text token="bodyS" weight="600" color={ink.solid}>
+                  {sentCopy.change}
+                </Text>
+              </Pressable>
+              <Pressable testID="compose-sent-undo" onPress={undoSent} accessibilityRole="button" hitSlop={8}>
+                <Text token="bodyS" color={ink.s3}>
+                  {sentCopy.undo}
+                </Text>
+              </Pressable>
+            </View>
+            {changeOpen ? (
+              <View style={{ flexDirection: dir.row, flexWrap: 'wrap', gap: 8 }}>
+                {CHASE_CHOICES.map((days) => (
+                  <Pressable
+                    key={days}
+                    testID={`compose-sent-days-${days}`}
+                    onPress={() => changeChase(days)}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: sent.days === days }}
+                    style={{ paddingVertical: 8, paddingHorizontal: 14, borderRadius: 999, backgroundColor: sent.days === days ? ink.solid : surface.white }}
+                  >
+                    <Text token="bodyS" weight="600" color={sent.days === days ? surface.white : ink.s2}>
+                      {days === 0 ? sentCopy.none : inDays(days, lang)}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            ) : null}
+          </View>
         ) : null}
-        {isEmail ? (
+
+        {isWa && !sent ? (
+          <View style={{ gap: 8 }}>
+            <PrimaryButton
+              testID="compose-send-wa"
+              icon="msg"
+              label={t.sendWa}
+              colour={phoneValid(phone) ? typeColour.whatsapp.fg : ink.s7}
+              onPress={sendWhatsApp}
+            />
+            <SendLaterButton onPress={() => setLaterOpen(true)} />
+          </View>
+        ) : null}
+        {isEmail && !sent ? (
           <View style={{ gap: 8 }}>
             <PrimaryButton
               testID="compose-send-email"
@@ -475,7 +862,7 @@ function ComposeTask({ task }: { task: Task }) {
             />
             <Pressable
               testID="compose-open-mail"
-              onPress={openMailApp}
+              onPress={() => setAppsOpen(true)}
               accessibilityRole="button"
               style={{
                 height: 46,
@@ -490,19 +877,119 @@ function ComposeTask({ task }: { task: Task }) {
               }}
             >
               <Icon name="mail" size={16} strokeWidth={1.7} />
-              <Text token="bodyS">{t.openMailApp}</Text>
+              <Text token="bodyS">{added(lang).attach.chooseApp}</Text>
             </Pressable>
+            <SendLaterButton onPress={() => setLaterOpen(true)} />
           </View>
         ) : null}
-        {type === 'call' ? (
+        {type === 'call' && !sent ? (
           <PrimaryButton testID="compose-call" icon="phone" label={t.callNow} colour={ink.base} onPress={callNow} />
         ) : null}
         {type === 'reminder' ? (
           <PrimaryButton testID="compose-done" label={t.nDone} colour={ink.base} onPress={markReminderDone} />
         ) : null}
       </Screen>
+      <Sheet open={savingOpen} onClose={() => setSavingOpen(false)} testID="save-template-sheet" padding={{ paddingTop: 10, paddingHorizontal: 20, paddingBottom: 30 }} gap={12}>
+        <Text token="title">{added(lang).saved.nameIt}</Text>
+        <TextInput
+          testID="save-template-title"
+          value={saveTitle}
+          onChangeText={setSaveTitle}
+          onSubmitEditing={() => void saveAsMessage()}
+          placeholder={added(lang).saved.titlePh}
+          placeholderTextColor={ink.s5}
+          autoFocus
+          returnKeyType="done"
+          style={{ height: 48, borderRadius: 14, paddingHorizontal: 14, backgroundColor: surface.fill, fontFamily: `${fontFamily}_400Regular`, fontSize: 15, color: ink.base, textAlign: dir.textAlign, writingDirection: dir.isRTL ? 'rtl' : 'ltr' }}
+        />
+        <Pressable
+          testID="save-template-save"
+          onPress={() => void saveAsMessage()}
+          accessibilityRole="button"
+          style={{ height: 50, borderRadius: 25, alignItems: 'center', justifyContent: 'center', backgroundColor: saveTitle.trim() ? ink.solid : ink.disabledBtn }}
+        >
+          <Text token="body" weight="600" color={surface.white}>
+            {added(lang).saved.save}
+          </Text>
+        </Pressable>
+      </Sheet>
+      <Sheet open={appsOpen} onClose={() => setAppsOpen(false)} testID="mail-apps-sheet" padding={{ paddingTop: 10, paddingHorizontal: 20, paddingBottom: 30 }} gap={10}>
+        <Text token="title">{added(lang).attach.chooseApp}</Text>
+        {(['Gmail', 'Outlook'] as const)
+          .filter((app) => clients.includes(app))
+          .map((app) => (
+            <Pressable key={app} testID={`mail-app-${app}`} onPress={() => void openInApp(app)} accessibilityRole="button" style={({ pressed }) => ({ height: 52, borderRadius: 16, paddingHorizontal: 16, justifyContent: 'center', backgroundColor: pressed ? surface.line : surface.fill })}>
+              <Text token="body" weight="500">
+                {app}
+              </Text>
+            </Pressable>
+          ))}
+        <Pressable testID="mail-app-default" onPress={() => void openInApp('default')} accessibilityRole="button" style={({ pressed }) => ({ height: 52, borderRadius: 16, paddingHorizontal: 16, justifyContent: 'center', backgroundColor: pressed ? surface.line : surface.fill })}>
+          <Text token="body" weight="500">
+            {added(lang).attach.defaultApp}
+          </Text>
+        </Pressable>
+        <Pressable testID="mail-app-share" onPress={() => void shareToApp()} accessibilityRole="button" style={({ pressed }) => ({ minHeight: 52, borderRadius: 16, paddingHorizontal: 16, paddingVertical: 8, justifyContent: 'center', backgroundColor: pressed ? surface.line : surface.fill })}>
+          <Text token="body" weight="500">
+            {added(lang).attach.share}
+          </Text>
+          <Text token="micro" color={ink.s4}>
+            {Platform.OS === 'ios' ? added(lang).attach.shareSub : added(lang).attach.shareSubNoFile}
+          </Text>
+        </Pressable>
+        <Text token="caption" color={ink.s4}>
+          {added(lang).attach.note}
+        </Text>
+      </Sheet>
+      <Sheet open={laterOpen} onClose={() => setLaterOpen(false)} testID="later-sheet" padding={{ paddingTop: 10, paddingHorizontal: 20, paddingBottom: 30 }} gap={10}>
+        <Text token="title">{added(lang).later.title}</Text>
+        {laterOptions.map((o) => (
+          <Pressable
+            key={o.key}
+            testID={`later-${o.key}`}
+            onPress={() => sendLater(o.at)}
+            accessibilityRole="button"
+            style={({ pressed }) => ({ height: 52, borderRadius: 16, paddingHorizontal: 16, justifyContent: 'center', backgroundColor: pressed ? surface.line : surface.fill })}
+          >
+            <Text token="body" weight="500">
+              {o.label}
+            </Text>
+          </Pressable>
+        ))}
+        <Pressable
+          testID="later-pick"
+          onPress={() => {
+            setLaterOpen(false);
+            updateTask(task.id, { draft: { subject: isEmail ? subject : task.draft?.subject, body: draft } });
+            router.push(`/reschedule?id=${task.id}`);
+          }}
+          accessibilityRole="button"
+          style={({ pressed }) => ({ height: 52, borderRadius: 16, paddingHorizontal: 16, justifyContent: 'center', backgroundColor: pressed ? surface.line : surface.fill })}
+        >
+          <Text token="body" weight="500">
+            {added(lang).later.pick}
+          </Text>
+        </Pressable>
+      </Sheet>
       <Toast />
     </>
+  );
+}
+
+/** The quiet button under Send: keep the draft and be reminded at a time. */
+function SendLaterButton({ onPress }: { onPress: () => void }) {
+  const { lang } = useLanguage();
+  const dir = useDirection();
+  return (
+    <Pressable
+      testID="compose-send-later"
+      onPress={onPress}
+      accessibilityRole="button"
+      style={{ height: 46, borderRadius: 23, borderWidth: 1, borderColor: surface.line, backgroundColor: surface.white, flexDirection: dir.row, alignItems: 'center', justifyContent: 'center', gap: 8 }}
+    >
+      <Icon name="clock" size={16} strokeWidth={1.8} />
+      <Text token="bodyS">{added(lang).later.button}</Text>
+    </Pressable>
   );
 }
 

@@ -34,7 +34,7 @@ export function Toggle({ on, offColour = surface.trackOff }: { on: boolean; offC
         paddingHorizontal: 3,
         justifyContent: 'center',
         flexShrink: 0,
-        backgroundColor: anim.interpolate({ inputRange: [0, 1], outputRange: [offColour, ink.base] }),
+        backgroundColor: anim.interpolate({ inputRange: [0, 1], outputRange: [offColour, ink.solid] }),
       }}
     >
       <Animated.View

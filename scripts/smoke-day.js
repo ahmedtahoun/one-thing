@@ -90,33 +90,14 @@ const ONE_THING = { en: 'Finish the investor proposal', ar: 'أخلّص عرض �
   const read = (key) => page.evaluate((k) => JSON.parse(localStorage.getItem(k) || 'null'), key);
   const text = (id) => page.getByTestId(id).innerText();
 
-  // -------------------------------------------------- 05 Morning priority
-  await seed('en', { oneThing: false });
-  await open('/priority');
-  // The tick is what the person sees, so it is what the test reads.
-  const ticked = async (i) => (await page.getByTestId(`priority-tick-${i}`).count()) === 1;
-  check('the first suggestion starts chosen', await ticked(0));
-  await page.getByTestId('priority-suggestion-1').click();
-  await page.waitForTimeout(200);
-  check('picking another moves the tick', (await ticked(1)) && !(await ticked(0)));
-  await page.getByTestId('priority-input').fill('Rewrite the pricing page');
-  await page.waitForTimeout(250);
-  check('typing clears the chosen suggestion', !(await ticked(1)));
-  await page.getByTestId('priority-save').click();
-  await page.waitForTimeout(600);
-  const one = await read('ot.oneThing');
-  check('saving sets the One Thing to what was typed', one?.title === 'Rewrite the pricing page', String(one?.title));
-  check('saving lands on Today', page.url().endsWith('/today'), page.url());
-
-  await seed('en', { oneThing: false });
-  await open('/priority');
-  await page.getByTestId('priority-save').click();
-  await page.waitForTimeout(600);
-  check('saving with nothing typed takes the chosen suggestion', (await read('ot.oneThing'))?.title === 'Finish the investor proposal');
-
   // -------------------------------------------------------- 09 Event form
   await seed('en');
   await open('/new?type=meeting');
+  // The form opens on the few fields most events need; where, how long and
+  // the link are behind "More", so the per-type field table is asserted from
+  // there.
+  await page.getByTestId('event-more').click();
+  await page.waitForTimeout(250);
   check('a meeting asks where', await page.getByTestId('event-platform-0').isVisible());
   check('a meeting offers a length', await page.getByTestId('event-duration-0').isVisible());
   check('a meeting has no study days', (await page.getByTestId('event-day-0').count()) === 0);
@@ -148,6 +129,8 @@ const ONE_THING = { en: 'Finish the investor proposal', ar: 'أخلّص عرض �
   check('it records which contact', (saved?.contactIds || []).length === 1);
 
   await open('/new?type=course');
+  await page.getByTestId('event-more').click();
+  await page.waitForTimeout(250);
   check('a course asks for study days', await page.getByTestId('event-day-0').isVisible());
   check('a course tracks progress', await page.getByTestId('event-progress-up').isVisible());
   check('a course has no Day chips', (await page.getByTestId('event-date-0').count()) === 0);
@@ -227,7 +210,9 @@ const ONE_THING = { en: 'Finish the investor proposal', ar: 'أخلّص عرض �
   check('Close the day completes what was kept', after.find((t) => t.id === target.id).status === 'done');
   check('and moves what was put off', dateKey(new Date(after.find((t) => t.id === openTasks[1].id).dueAt)) !== dateKey(new Date()));
   check('and cancels what was not needed', after.find((t) => t.id === openTasks[2].id).status === 'cancelled');
-  check('the closed state shows', await page.getByTestId('review-plan-tomorrow').isVisible());
+  // Closing the day ends on a quiet confirmation rather than a "plan
+  // tomorrow" button — the planning is tomorrow's job.
+  check('the closed state shows', await page.getByTestId('review-closed').isVisible());
   const reviews = (await read('ot.reviewQueue')) || [];
   const decided = Object.fromEntries((reviews[0]?.items || []).map((i) => [i.taskId, i.decision]));
   check(

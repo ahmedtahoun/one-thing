@@ -33,7 +33,7 @@ export function Chip({
         paddingVertical: 9,
         borderRadius: radius.pill,
         borderWidth: 1.5,
-        borderColor: selected ? ink.base : surface.line,
+        borderColor: selected ? ink.solid : surface.line,
         backgroundColor: selected ? surface.fill : surface.white,
       }}
     >

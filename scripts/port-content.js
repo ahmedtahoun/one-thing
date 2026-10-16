@@ -1,10 +1,15 @@
 /**
- * Ports the handoff's copy, icon paths and seed data into typed TS modules.
+ * Ports the handoff's icon paths, country list and seed data into typed TS
+ * modules.
  *
- * The handoff names source/app-content.js as the single source of truth for
- * strings (EN + AR), icon paths and type colours, so we transcribe it
- * mechanically rather than by hand: the file is evaluated in a sandbox and its
- * data is serialised. Re-run this if the handoff is ever revised.
+ * The handoff names source/app-content.js as the source of truth for these,
+ * so they are transcribed mechanically rather than by hand: the file is
+ * evaluated in a sandbox and its data is serialised. Re-run this if the
+ * handoff is ever revised.
+ *
+ * Copy is no longer among them. src/content/strings.ts was generated here
+ * until the app outgrew the prototype the handoff describes — see the note
+ * where its block used to be, and BUILD-REVIEW § 2.57.
  *
  *   node scripts/port-content.js <path to design_handoff_the_one_thing>
  *
@@ -19,7 +24,8 @@ const path = require('path');
 const vm = require('vm');
 const { handoffDir } = require('./handoff.js');
 
-const HANDOFF = handoffDir(process.argv[2]);
+// The first non-flag argument, so `--force` is not read as a path.
+const HANDOFF = handoffDir(process.argv.slice(2).find((a) => !a.startsWith('--')));
 const SRC = path.join(HANDOFF, 'source', 'app-content.js');
 const OUT = path.join(__dirname, '..', 'src', 'content');
 
@@ -40,101 +46,14 @@ vm.runInContext(body + '\n;__out = { P, TYPE_ICON, C, STEPS, CONTACTS, CCS, SUG_
 });
 const d = sandbox.__out;
 
-/**
- * Deliberate divergences from the handoff.
- *
- * The handoff is the source of truth for copy, and this script transcribes it
- * mechanically — which means anything hand-edited into the generated files is
- * silently reverted the next time anyone re-runs it. Two things have to
- * survive that, so they are declared here instead of being typed into
- * src/content/strings.ts.
- *
- * Each one asserts that it still applies. If the handoff is revised so that a
- * rule no longer matches, this throws rather than quietly producing a file
- * that has lost the change — which is the entire failure this block exists to
- * prevent.
- */
 
-/** Text replaced everywhere it appears, in both languages. */
-const SUBSTITUTIONS = [
-  {
-    from: 'theonething.app',
-    to: 'onlyonething.app',
-    why:
-      'The product shipped as onlyonething.app — the bundle ID is app.onlyonething ' +
-      'and the domain follows it. The handoff predates that decision. These are not ' +
-      'decoration: a reviewer clicks privacy@ and /delete, and Play requires the ' +
-      'deletion route to resolve (RELEASE.md §7). Reverting this ships a dead ' +
-      'mailbox, and nothing would fail to tell you.',
-  },
-];
 
-/**
- * Keys the app needs that the handoff never wrote.
- *
- * Only one so far, and it is here for a reason worth stating: the prototype
- * has no failure state for sign-in, because in a prototype sign-in cannot
- * fail. On a device it can, and specifically it can fail *after* the
- * provider's sheet has already closed — a token Supabase rejects, a paused
- * project, no network. By then there is nothing left on screen to explain
- * itself. app/sign-in.tsx carries the rest of the reasoning.
- */
-const ADDITIONS = [
-  {
-    path: ['ACC', 'en', 'si', 'fail'],
-    value: 'We couldn\u2019t sign you in. Please try again.',
-  },
-  {
-    path: ['ACC', 'ar', 'si', 'fail'],
-    value: '\u0645\u0627 \u0642\u062f\u0631\u0646\u0627 \u0646\u0633\u062c\u0651\u0644 \u062f\u062e\u0648\u0644\u0643. \u062c\u0631\u0651\u0628 \u0645\u0631\u0629 \u062b\u0627\u0646\u064a\u0629.',
-  },
-];
 
-/** Applies a string transform to every string in the ported data, in place. */
-function mapStrings(value, fn) {
-  if (typeof value === 'string') return fn(value);
-  if (Array.isArray(value)) return value.map((v) => mapStrings(v, fn));
-  if (value && typeof value === 'object') {
-    for (const k of Object.keys(value)) value[k] = mapStrings(value[k], fn);
-  }
-  return value;
-}
 
-for (const rule of SUBSTITUTIONS) {
-  let hits = 0;
-  mapStrings(d, (text) => {
-    if (!text.includes(rule.from)) return text;
-    hits += text.split(rule.from).length - 1;
-    return text.split(rule.from).join(rule.to);
-  });
-  if (hits === 0) {
-    throw new Error(
-      `Substitution "${rule.from}" → "${rule.to}" matched nothing.\n` +
-        'Either the handoff was revised and this rule is obsolete, or it was ' +
-        'applied to the wrong text. Do not delete it without reading why:\n  ' +
-        rule.why
-    );
-  }
-  console.log(`  override: ${rule.from} → ${rule.to} (${hits}×)`);
-}
 
-for (const addition of ADDITIONS) {
-  const keys = addition.path.slice();
-  const leaf = keys.pop();
-  let node = d;
-  for (const k of keys) {
-    node = node?.[k];
-    if (!node) throw new Error(`Addition ${addition.path.join('.')}: no ${k} in the handoff's data.`);
-  }
-  if (leaf in node) {
-    throw new Error(
-      `Addition ${addition.path.join('.')} already exists in the handoff.\n` +
-        'The handoff has caught up — drop this addition rather than overwriting it.'
-    );
-  }
-  node[leaf] = addition.value;
-  console.log(`  override: + ${addition.path.join('.')}`);
-}
+
+
+
 
 const banner = (what) => `/**
  * ${what}
@@ -147,57 +66,63 @@ const banner = (what) => `/**
 
 const json = (v) => JSON.stringify(v, null, 2);
 
-/**
- * Emits a bilingual block as `{ en, ar }` where `ar` is declared as
- * `typeof en`. Two effects, both wanted: the member types widen to `string`
- * (so `C[lang]` is one usable type rather than a union of two literal types),
- * and TypeScript then checks that Arabic has exactly the same keys as English
- * — a missing translation becomes a compile error.
- */
-function bilingual(name, value, doc) {
-  return `${doc}
-const ${name}_en = ${json(value.en)};
+// ---- refusing to overwrite a hand edit -------------------------------------
+//
+// The banner has said "do not hand-edit" since the first version, and the file
+// was hand-edited anyway — twice. The second time it was the privacy policy:
+// between 9 and 14 October strings.ts gained a "Pictures and files" section in
+// both languages, an expanded account of what a contact record holds, and the
+// Arabic Children and Health sections, none of it in the handoff. Re-running
+// would have reverted all of it, leaving a policy that understates what the
+// app collects, and nothing would have failed (BUILD-REVIEW § 2.53).
+//
+// An instruction in a comment is not a safeguard. The invariant worth holding
+// is that a generated file on disk is exactly what the generator produces, so
+// the generator now refuses to write over a file that differs from its own
+// output. It cannot tell a hand edit from a revised handoff — but a person
+// reading the diff can, which is the point: `--force` after looking is a
+// decision, and the silent revert is no longer reachable by accident.
 
-const ${name}_ar: typeof ${name}_en = ${json(value.ar)};
+const relative = (file) => path.relative(path.join(__dirname, '..'), file);
+const FORCED = process.argv.includes('--force');
+const refusals = [];
 
-export const ${name} = { en: ${name}_en, ar: ${name}_ar };
-`;
+/** Writes a generated file unless it differs from what is already there. */
+function writeGenerated(file, body) {
+  if (!FORCED && fs.existsSync(file) && fs.readFileSync(file, 'utf8') !== body) {
+    refusals.push(relative(file));
+    return;
+  }
+  fs.writeFileSync(file, body, 'utf8');
 }
+
+/** Called once at the end: one refusal is a warning, and nothing was written. */
+function reportRefusals() {
+  if (refusals.length === 0) return;
+  throw new Error(
+    `Not written, because what is on disk is not what this script produces:\n` +
+      refusals.map((f) => `  ${f}`).join('\n') +
+      '\n\nEither the handoff was revised, or someone edited a generated file by hand.\n' +
+      'The diff says which, and it is worth reading: the last hand edit here was\n' +
+      'the privacy policy, and regenerating would have quietly withdrawn it.\n\n' +
+      '  git diff -- ' + refusals.join(' ') + '\n\n' +
+      'A divergence worth keeping belongs in SUBSTITUTIONS or ADDITIONS above.\n' +
+      'Once the diff holds nothing you need, re-run with --force.'
+  );
+}
+
 
 fs.mkdirSync(OUT, { recursive: true });
 
-// ---- strings.ts: every user-facing string, EN + AR -------------------------
-fs.writeFileSync(
-  path.join(OUT, 'strings.ts'),
-  banner('All user-facing copy, English and Arabic.') +
-    `
-/** The two languages the app ships in. */
-export type Lang = 'en' | 'ar';
-` +
-    bilingual('C', d.C, '\n/** Main screen copy. */') +
-    bilingual('ACC', d.ACC, '\n/** Account, legal and paywall copy. */') +
-    bilingual('SETX', d.SETX, '\n/** Settings, tips and paywall copy. */') +
-    bilingual('EVX', d.EVX, '\n/** Event form copy (visit / meeting / webinar / course). */') +
-    bilingual('FUX', d.FUX, '\n/** Follow-ups copy. */') +
-    bilingual('PFX', d.PFX, '\n/** Contact profile copy. */') +
-    `
-/**
- * Overwhelm-mode step breakdowns, keyed by One Thing title. Not a bilingual
- * block like the others: each entry holds its own en/ar step lists.
- */
-export const STEPS: Record<string, { en: string[]; ar: string[] }> = ${json(d.STEPS)};
-
-/** The four event types that use the event form. */
-export const EV_TYPES = ${json(d.EV_TYPES)} as const;
-
-/** Shape of one language's main copy block. */
-export type Copy = (typeof C)['en'];
-`,
-  'utf8'
-);
+// strings.ts is NOT generated any more. The handoff described a prototype,
+// and the app outgrew it: the privacy policy now has to be true about a card
+// scanner and a spreadsheet importer the prototype never had, and that text
+// cannot sit in a file something else rebuilds from a stale source. It is a
+// hand-maintained source file now (BUILD-REVIEW § 2.57). What stays here is
+// what really is the handoff's and nobody edits: icons, countries, seed data.
 
 // ---- icons.ts: Lucide-style 24-unit path data -----------------------------
-fs.writeFileSync(
+writeGenerated(
   path.join(OUT, '..', 'design', 'icon-paths.ts'),
   banner('Line-icon path data, 24-unit viewBox, round caps and joins.') +
     `
@@ -239,7 +164,7 @@ const unresolved = countries.filter((c) => c.nameEn === c.iso || c.nameAr === c.
 if (unresolved.length) {
   throw new Error('Country names did not resolve: ' + unresolved.map((c) => c.iso).join(', '));
 }
-fs.writeFileSync(
+writeGenerated(
   path.join(OUT, 'countries.ts'),
   banner('Country dial codes with English and Arabic names, for the phone picker.') +
     `
@@ -264,7 +189,7 @@ export const DEFAULT_DIAL = '+966';
 );
 
 // ---- seed.ts: demo content ------------------------------------------------
-fs.writeFileSync(
+writeGenerated(
   path.join(OUT, 'seed.ts'),
   banner(
     'Demo content from the prototype.\n *\n * Used for the App Store / Play review demo account, which the store-readiness\n * audit requires ("seed sample data so the app isn\'t empty"), and for local\n * development. Never seeded into a real user\'s account.'
@@ -283,8 +208,6 @@ export const SUGGESTION_ORDER = ${json(d.SUG_ORDER)};
 console.log(
   JSON.stringify(
     {
-      copyKeysEn: Object.keys(d.C.en).length,
-      copyKeysAr: Object.keys(d.C.ar).length,
       icons: Object.keys(d.P).length,
       countries: countries.length,
       seedContacts: d.CONTACTS.length,
@@ -295,3 +218,7 @@ console.log(
     2
   )
 );
+
+// Last, so the counts above are still printed: they say what the handoff holds
+// now, which is the first thing worth knowing when a refusal is a surprise.
+reportRefusals();
