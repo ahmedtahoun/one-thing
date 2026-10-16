@@ -555,13 +555,16 @@ admin panel's Privacy requests screen is where someone hands over a signed
 link.
 
 
-### 9.4 Support has a back end and no front door
+### 9.4 Support has two front doors and a back end nothing writes to
 `support_ticket` and `support_message` exist, and the admin panel has a
-support inbox. The app has no Help or Contact screen at all (BUILD-REVIEW
-§2.3, still open), so no ticket can ever arrive. Apple also requires a
-**Support URL** in App Store Connect, which makes this a fourth public page
-on the website nobody owns yet — or an in-app screen, which is the better
-answer and is not designed.
+support inbox. There are two front doors now and neither one reaches those
+tables: Settings → Help & feedback opens a `mailto:` (`src/lib/support.ts`),
+and the website publishes a support page for Apple's required **Support
+URL**. So mail arrives in a mailbox rather than as a ticket, and the inbox
+stays empty until something writes to it. That is a deliberate order — a
+mailbox a person reads beats a ticket queue nobody is staffing — but it
+means the admin panel's support screens have no data at launch, and the one
+mailbox both doors point at is item 4 of the list at the end of this file.
 
 ### 9.5 Weekly recap is sold on a paywall that is now live
 The paywall ships and lists Weekly recap as a Pro feature. It does not exist
