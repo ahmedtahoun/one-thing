@@ -16,7 +16,8 @@ import * as Clipboard from 'expo-clipboard';
 import * as MailComposer from 'expo-mail-composer';
 
 import { added } from '@/content/additions';
-import { MAX_RECIPIENTS, personalise, reachable, recipientsOf, usesName, whatsAppLink, type BulkChannel } from '@/features/bulk/plan';
+import { MAX_RECIPIENTS, fileOutcome, personalise, reachable, recipientsOf, usesName, whatsAppLink, type BulkChannel } from '@/features/bulk/plan';
+import { AttachRow, type PickedFile } from '@/features/compose/AttachRow';
 import { mailHtml, mailtoUrl } from '@/features/compose/recipient';
 import { FilterChips } from '@/features/people/FilterChips';
 import { BULK_CHIPS, filterCounts, filterPeople, labelFilter, labelsIn, type PeopleFilter } from '@/features/people/filters';
@@ -27,7 +28,7 @@ import { Icon } from '@/ui/Icon';
 import { Screen } from '@/ui/Screen';
 import { Text } from '@/ui/Text';
 import { Toast, useToast } from '@/ui/Toast';
-import { fontFamily, ink, surface, typeColour } from '@/design/tokens';
+import { fontFamily, ink, status, surface, typeColour } from '@/design/tokens';
 import { useDirection, useLanguage } from '@/i18n/LanguageProvider';
 import { type Contact } from '@/lib/model-types';
 import { useFavorites } from '@/lib/favorites';
@@ -50,6 +51,14 @@ export default function Bulk() {
 
   const [channel, setChannel] = useState<BulkChannel>(params.channel === 'email' ? 'email' : 'whatsapp');
   const [subject, setSubject] = useState('');
+  /**
+   * The same files go to everyone — that is what one message to many means.
+   * Kept across a channel switch rather than cleared: somebody who attaches
+   * a PDF, flips to WhatsApp to look at the list and flips back should not
+   * have to find the file again. `fileOutcome` says whether they will
+   * actually arrive, and the screen says so before the run starts.
+   */
+  const [files, setFiles] = useState<PickedFile[]>([]);
   const starter = (c: BulkChannel) => (c === 'email' ? `${copy.emailStart}\n\n\n\n${copy.emailEnd}` : '');
   const [body, setBody] = useState(() => starter(params.channel === 'email' ? 'email' : 'whatsapp'));
   const [query, setQuery] = useState('');
@@ -74,6 +83,7 @@ export default function Bulk() {
   const counts = useMemo(() => filterCounts(contacts, context), [contacts, context]);
   const list = useMemo(() => filterPeople(filter, contacts, context).filter((c) => matchContact(c, query)), [contacts, context, filter, query]);
   const people = list.filter((c) => reachable(channel, c));
+  const outcome = fileOutcome(channel, files.length, mailAvailable);
   const chosen = recipientsOf(channel, contacts, selected);
   const colour = typeColour[channel];
 
@@ -110,7 +120,13 @@ export default function Bulk() {
         preview: text,
         run: async () => {
           if (mailAvailable) {
-            const result = await MailComposer.composeAsync({ recipients: [c.email ?? ''], subject, body: mailHtml(text), isHtml: true }).catch(() => null);
+            const result = await MailComposer.composeAsync({
+              recipients: [c.email ?? ''],
+              subject,
+              body: mailHtml(text),
+              isHtml: true,
+              ...(files.length > 0 ? { attachments: files.map((f) => f.uri) } : {}),
+            }).catch(() => null);
             return result?.status === 'sent' ? 'sent' : result?.status === 'undetermined' ? 'opened' : 'cancelled';
           }
           await Clipboard.setStringAsync(text).catch(() => {});
@@ -345,6 +361,21 @@ export default function Bulk() {
               </Text>
             </Pressable>
           )}
+          {/* Email only: a wa.me link carries text and nothing else, so the
+              row would be an offer the channel cannot keep. The files stay
+              in state through the switch — see `files` above. */}
+          {channel === 'email' ? <AttachRow files={files} onChange={setFiles} testID="bulk" /> : null}
+
+          {/* Says, before the run rather than after it, when what is
+              attached will not arrive. An attachment that silently vanishes
+              is the one failure worth designing against: the sender thinks
+              it went and the recipient never knew there was one. */}
+          {outcome === 'notOnWhatsApp' || outcome === 'needsComposer' ? (
+            <Text token="caption" weight="600" color={status.overdueFg} testID="bulk-files-warning">
+              {(outcome === 'notOnWhatsApp' ? copy.filesNotOnWhatsApp : copy.filesNeedComposer).replace('{n}', String(files.length))}
+            </Text>
+          ) : null}
+
           <Text token="caption" color={ink.s3} testID="bulk-note">
             {channel === 'whatsapp' ? copy.waNote : copy.personalNote}
           </Text>

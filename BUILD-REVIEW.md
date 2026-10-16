@@ -3176,3 +3176,53 @@ on the device knows when a trial ends: `Session` carries `plan` and no
 date, and no expiry is synced down from the store or the `subscription`
 table. "Trial · 5 days" needs that date first, and inventing one would be
 worse than the plain word.
+
+### 2.81 Send to many can attach a file
+One-to-one email could attach; Send to many could not, and the gap was not
+a platform limit — `app/bulk.tsx` already called the same
+`MailComposer.composeAsync` that takes `attachments` in `app/compose.tsx`.
+It simply had no file state and no row.
+
+**The row is shared now.** `src/features/compose/AttachRow.tsx` owns the
+chips, the picker and the remove tap, and both screens mount it. Written
+twice, what goes wrong is not the look — it is that one screen learns a
+rule about which send path drops a file and the other does not.
+
+**What cannot carry a file is said before the run, not after it.**
+`fileOutcome(channel, fileCount, mailAvailable)` in
+`src/features/bulk/plan.ts` names the reason rather than returning a
+boolean, because the screen has to print which:
+
+| | |
+|---|---|
+| `notOnWhatsApp` | a `wa.me` link carries text and nothing else — there is no deep link that attaches |
+| `needsComposer` | no mail account, so the run falls back to a `mailto:`, and no mail link carries a file |
+| `willGo` | email, with a composer |
+
+So the attach row is offered on Email only, and a warning in
+`status.overdueFg` appears the moment what is attached would not arrive.
+This is the same call §2.59 made for the share sheet: an attachment that
+silently vanishes is the worst of the failures, because the sender thinks
+it went and the recipient never knew there was one. A test holds the line
+directly — no combination may answer `willGo` unless it really will, and
+every other case with files attached must name a reason rather than stay
+silent.
+
+**Files survive a channel switch.** Somebody who attaches a PDF, flips to
+WhatsApp to check the list and flips back should not have to find it
+again, so the state is kept and only the row is hidden.
+
+**The same files go to everyone**, which is what one message to many means.
+The body is still personalised per person; the attachments are not.
+
+Two small things fixed on the way. Compose's file chip carried
+`accessibilityHint="Remove"` — hard-coded English, read aloud in Arabic;
+it is `attach.remove` in both languages now. And `compose-attach` became
+`compose-add`, matching `bulk-add`; nothing referenced the old id.
+
+Still not possible, and not pretended: **attachments on WhatsApp**, in
+either screen. The only route would be the share sheet, which carries a
+file but makes WhatsApp ask who to send it to — losing the addressed chat
+that is the point of both screens. Worth doing only if asked for
+explicitly. **Android email shares** still carry no file (§2.59); that one
+needs `expo-sharing` as a dependency.

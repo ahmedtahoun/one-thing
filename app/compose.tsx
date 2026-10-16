@@ -16,13 +16,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState, Linking, Platform, Pressable, Share, TextInput, View } from 'react-native';
 import { Redirect, router, useLocalSearchParams } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
-import * as DocumentPicker from 'expo-document-picker';
 import * as MailComposer from 'expo-mail-composer';
 
 import { track } from '@/lib/analytics/track';
 import { EmailFields, LockedRecipient, PhoneField, SubjectField } from '@/features/compose/fields';
 import { added } from '@/content/additions';
 import { DRAFT_KINDS, writeDraft, type DraftKind } from '@/features/compose/drafts';
+import { AttachRow, type PickedFile } from '@/features/compose/AttachRow';
 import {
   emailState,
   emailValid,
@@ -231,12 +231,7 @@ function ComposeTask({ task }: { task: Task }) {
   };
 
   // Files to go with the email. The system composer takes them; a mail link cannot.
-  const [files, setFiles] = useState<{ uri: string; name: string }[]>([]);
-  const attach = async () => {
-    const picked = await DocumentPicker.getDocumentAsync({ type: '*/*', multiple: true, copyToCacheDirectory: true }).catch(() => null);
-    if (!picked || picked.canceled) return;
-    setFiles((current) => [...current, ...picked.assets.map((a) => ({ uri: a.uri, name: a.name }))]);
-  };
+  const [files, setFiles] = useState<PickedFile[]>([]);
   const [appsOpen, setAppsOpen] = useState(false);
   const [clients, setClients] = useState<string[]>([]);
   useEffect(() => {
@@ -733,29 +728,7 @@ function ComposeTask({ task }: { task: Task }) {
             />
             {isEmail ? (
               <View style={{ gap: 8 }}>
-                <View style={{ flexDirection: dir.row, flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
-                  {files.map((f) => (
-                    <Pressable
-                      key={f.uri}
-                      testID="compose-file"
-                      onPress={() => setFiles((current) => current.filter((x) => x.uri !== f.uri))}
-                      accessibilityRole="button"
-                      accessibilityHint="Remove"
-                      style={{ flexDirection: dir.row, alignItems: 'center', gap: 6, paddingVertical: 6, paddingHorizontal: 12, borderRadius: 999, backgroundColor: surface.fill, maxWidth: '100%' }}
-                    >
-                      <Icon name="note" size={14} color={ink.s2} strokeWidth={2} />
-                      <Text token="caption" weight="600" color={ink.s2} numberOfLines={1} style={{ flexShrink: 1 }}>
-                        {f.name}
-                      </Text>
-                      <Icon name="x" size={12} color={ink.s4} strokeWidth={2.2} />
-                    </Pressable>
-                  ))}
-                  <Pressable testID="compose-attach" onPress={() => void attach()} accessibilityRole="button" hitSlop={8}>
-                    <Text token="caption" weight="600" color={ink.s3}>
-                      + {added(lang).attach.button}
-                    </Text>
-                  </Pressable>
-                </View>
+                <AttachRow files={files} onChange={setFiles} testID="compose" />
               </View>
             ) : null}
             {draft.trim().length > 8 ? (

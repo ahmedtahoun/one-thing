@@ -120,6 +120,9 @@ export type Added = {
     messagePh: string;
     insertName: string;
     waNote: string;
+    /** Files are attached but the channel or the send path will not carry them. */
+    filesNotOnWhatsApp: string;
+    filesNeedComposer: string;
     bccNote: string;
     personalNote: string;
     recipients: string;
@@ -488,6 +491,8 @@ export type Added = {
   /** Attachments and the choice of mail app. */
   attach: {
     button: string;
+    /** Spoken label on a file chip: compose used a hard-coded English "Remove". */
+    remove: string;
     onlyComposer: string;
     chooseApp: string;
     defaultApp: string;
@@ -719,6 +724,8 @@ const ADDED: Record<Lang, Added> = {
       messagePh: 'Write your message…',
       insertName: 'Insert {name}',
       waNote: 'WhatsApp opens one chat at a time. You press send in each and the next one is ready when you come back.',
+      filesNotOnWhatsApp: '{n} attached — WhatsApp can’t carry files. Switch to Email, or send them another way.',
+      filesNeedComposer: '{n} attached — there’s no mail account on this phone, so they can’t go. Add one in Settings, or send them another way.',
       bccNote: 'Goes as one email. Nobody can see the other recipients.',
       personalNote: 'Each person gets their own email, addressed by name. It moves on by itself once you send.',
       recipients: 'Who gets it',
@@ -762,6 +769,7 @@ const ADDED: Record<Lang, Added> = {
     },
     attach: {
       button: 'Attach a file',
+      remove: 'Remove',
       onlyComposer: 'Attachments only go with “Send email”, in the Mail composer.',
       chooseApp: 'Open in another mail app',
       defaultApp: 'Default mail app',
@@ -1272,6 +1280,8 @@ const ADDED: Record<Lang, Added> = {
       messagePh: 'اكتب رسالتك…',
       insertName: 'أدرج {الاسم}',
       waNote: 'واتساب يفتح محادثة وحدة كل مرة. تضغط إرسال وترجع، والتالي يكون جاهز.',
+      filesNotOnWhatsApp: '{n} ملف مرفق — واتساب ما يقدر يرسل ملفات. حوّل للإيميل، أو أرسلها بطريقة ثانية.',
+      filesNeedComposer: '{n} ملف مرفق — ما في حساب بريد على الجوال، فما راح توصل. ضيف حساب من الإعدادات، أو أرسلها بطريقة ثانية.',
       bccNote: 'تروح إيميل واحد. ما أحد يشوف باقي المستلمين.',
       personalNote: 'كل شخص ياخذ إيميل خاص فيه باسمه. وينتقل للي بعده تلقائيًا بعد ما ترسل.',
       recipients: 'لمين تروح',
@@ -1315,6 +1325,7 @@ const ADDED: Record<Lang, Added> = {
     },
     attach: {
       button: 'أرفق ملف',
+      remove: 'احذف',
       onlyComposer: 'المرفقات تروح فقط مع «أرسل الإيميل»، في نافذة البريد.',
       chooseApp: 'افتحه في تطبيق بريد ثاني',
       defaultApp: 'تطبيق البريد الافتراضي',
