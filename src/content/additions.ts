@@ -34,6 +34,11 @@ export type Added = {
    * `SETX.st.pro` / `.free`, which the handoff did supply.
    */
   plan: { plus: string; trial: string };
+  /**
+   * The welcome (app/onboarding.tsx). Only these two lines are new — every
+   * other word on that screen was ported with the handoff and never used.
+   */
+  onboarding: { channels: string; channelsSub: string };
   pickCancel: string;
   ask: {
     ambiguous: string;
@@ -634,6 +639,10 @@ const ADDED: Record<Lang, Added> = {
     // inside Arabic copy ("جرّب Pro مجاناً ٧ أيام"), so a transliterated
     // "برو" on the badge would be the only place it is spelled out.
     plan: { plus: 'Pro+', trial: 'Trial' },
+    onboarding: {
+      channels: 'Where do you talk to people?',
+      channelsSub: 'I write the draft. You send it from the app you already use.',
+    },
     pickCancel: 'Cancel',
     /** The Assistant and Quick capture asking before they propose a task. */
     ask: {
@@ -1200,6 +1209,10 @@ const ADDED: Record<Lang, Added> = {
       weeks: '{n} أ',
     },
     plan: { plus: 'Pro+', trial: 'تجربة' },
+    onboarding: {
+      channels: 'وين تتواصل مع الناس؟',
+      channelsSub: 'أنا أكتب المسودة، وأنت ترسلها من التطبيق اللي تستخدمه.',
+    },
     pickCancel: 'إلغاء',
     ask: {
       ambiguous: 'أي {n} تقصد؟',

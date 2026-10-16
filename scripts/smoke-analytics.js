@@ -126,7 +126,12 @@ const ONE_THING = { en: 'Finish the investor proposal', ar: 'أخلّص عرض �
   const session = await read('ot.session');
   check('finishing setup creates the session', session?.firstName === 'Khalid', JSON.stringify(session));
   check('with the provider that was tapped', session?.authProvider === 'apple');
-  check('and lands on Today', page.url().endsWith('/today'), page.url());
+  // Setup hands over to the welcome now, not straight to Today — the two
+  // settings it used to apply in silence are asked there instead.
+  check('and lands on the welcome', page.url().endsWith('/onboarding'), page.url());
+  await page.getByTestId('onboarding-skip').click();
+  await page.waitForTimeout(900);
+  check('…which can be skipped straight through to Today', page.url().endsWith('/today'), page.url());
   check('and records setup_done', (await names()).includes('setup_done'));
   const consent = (await read('ot.consentQueue')) || [];
   check('consent is queued for the server, terms granted', consent.some((c) => c.kind === 'terms_privacy' && c.granted === true));

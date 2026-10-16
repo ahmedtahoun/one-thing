@@ -82,10 +82,13 @@ export default function Setup() {
 
     track({ name: 'setup_done' });
 
-    // Defaults applied silently (SCREENS.md § 02): reminder style Gentle,
-    // channels all on, focus 45 min — these are the column defaults in
-    // supabase/migrations/0001_init.sql, so nothing is written here.
-    router.replace('/today');
+    // The defaults are still the column defaults in
+    // supabase/migrations/0001_init.sql — Gentle, all three channels, 45
+    // minutes — and nothing is written here. What changed is that the
+    // welcome now *asks* about two of them instead of applying them in
+    // silence (BUILD-REVIEW §2.84). Skipping it leaves them exactly as they
+    // were, so the old path is still the default path.
+    router.replace('/onboarding');
   };
 
   return (

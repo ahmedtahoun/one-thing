@@ -3310,3 +3310,57 @@ One thing that moved while wiring it: `handle()` used to decide the
 off the photo rather than the fields parsed from them. `review()` now
 decides from the parsed fields, so a photo that yields lines but no usable
 field no longer reports success.
+
+### 2.84 The welcome, which the handoff drew and nobody built
+Asked for a welcoming onboarding in both languages. It turned out to exist
+already — on paper. `04-onboarding.png` is in the handoff, SCREENS.md § 04
+specifies it, the prototype has working markup for it, and **every word of
+it was ported into `strings.ts` in both languages and never rendered**:
+`ob1_k`, `ob1_t`, `ob1_s`, `ob2_t`, `ob2_s`, `nudges`, `chans`, `skip`,
+`cont`, `start`. Two lines were written for this screen; the rest is the
+designer's copy finally on screen.
+
+**This is a departure, and a deliberate one.** SCREENS.md § 04 says the
+prototype "keeps it reachable but **first-run skips it** (defaults
+applied)", and `app/setup.tsx` did exactly that — Gentle, all three
+channels, 45 minutes, applied in silence. The product owner asked for a
+welcome, so setup now hands over to it. Skipping leaves every default
+precisely as it was, so the old path is still the default path and the
+change costs nothing to anyone who taps Skip.
+
+**Two steps, not three.** The prototype's markup holds a third (`ob3_t`,
+channels as toggle rows), but `dots: [0, 1]` and
+`obCta: step < 1 ? cont : start` mean nothing can reach it, and it asks
+what step 2 already asks with tiles. Building it would have been building
+a screen the designer had stopped using.
+
+**It is measured, not eyeballed** — rare for a screen built after the
+handoff, because this one has a prototype shot. A pair in
+`screen-pairs.json` reports **0.88% in English and 0.44% in Arabic**, the
+closest of any screen in the project, and a drift probe puts every label
+within **1.3 pt** of where the prototype puts it.
+
+Two things the first render got wrong, both caught by looking:
+
+- **The CTA was the primary green.** The prototype draws it `#0b0b0b`, so
+  it is `ink.base`, the same call `OneThingCard`'s Lock In makes.
+- **The channel tiles were empty.** `<Icon name="whatsapp">` draws
+  *nothing*: the icons are `msg`, `mail` and `phone`, reached through
+  `TYPE_ICON`, and `whatsapp`/`email`/`call` are task types rather than
+  icon names. `Icon` returns null for a name it does not know — correct at
+  runtime, invisible in review. `src/design/icon-names.test.ts` now reads
+  every `<Icon name="…">` literal out of the source and every `TYPE_ICON`
+  value, and fails on any that resolves to nothing.
+
+One rule worth naming: **the last channel cannot be turned off.** With all
+three off, Today's Call, Email and WhatsApp tiles lead nowhere. The tile
+simply does not respond, the way a radio group will not let you choose
+nothing, and a test holds it.
+
+`?step=1` opens the second step directly, so the capture harness can shoot
+a screen that is otherwise two taps in — and so can anyone reviewing its
+Arabic.
+
+Not built: SCREENS.md's "keep for Revisit setup in a future version".
+`src/lib/onboarded.ts` has the `reset()` that a Settings row would call,
+but no row calls it yet.

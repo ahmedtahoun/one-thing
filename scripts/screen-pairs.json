@@ -188,5 +188,15 @@
     "name": "ar-paywall",
     "app": "ar-24-paywall.png",
     "proto": "ar-04-go-pro-paywall.png"
+  },
+  {
+    "name": "en-onboarding",
+    "app": "en-04-onboarding.png",
+    "proto": "en-07-onboarding.png"
+  },
+  {
+    "name": "ar-onboarding",
+    "app": "ar-04-onboarding.png",
+    "proto": "ar-07-onboarding.png"
   }
 ]

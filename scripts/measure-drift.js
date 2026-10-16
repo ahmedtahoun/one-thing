@@ -137,6 +137,22 @@ const PROBES = {
       firstRow: { en: 'Follow up on price quote', ar: 'متابعة عرض السعر' },
     },
   },
+  // The welcome. Unlike most screens built after the handoff, the prototype
+  // drew this one, so it can be measured rather than eyeballed.
+  onboarding: {
+    app: '/onboarding',
+    proto: '07',
+    state: { signedIn: true, firstRun: true },
+    labels: {
+      eyebrow: { en: 'THE ONE THING', ar: 'ذا ون ثينق' },
+      title: { en: 'Your day, under control.', ar: 'يومك تحت السيطرة.' },
+      sub: {
+        en: 'One thing that matters. Every small promise kept — calls, messages, follow-ups.',
+        ar: 'شي واحد مهم. وكل التزاماتك الصغيرة محفوظة — مكالمات، رسايل، ومتابعات.',
+      },
+      skip: { en: 'Skip', ar: 'تخطّي' },
+    },
+  },
   settings: {
     app: '/settings',
     proto: '13',

@@ -247,6 +247,48 @@ const ONE_THING = { en: 'Finish the investor proposal', ar: 'أخلّص عرض �
   check('remind mode leaves the task where it is', reminded.dueAt === beforeRemind.dueAt);
   check('and sets a custom reminder', reminded.remind === 'custom' && !!reminded.remindAt);
 
+  // ------------------------------------------------- the welcome
+  // Two steps, shown after Account setup. Skip must leave the defaults
+  // exactly as they were, because that is the whole claim made for it.
+  await seed();
+  await open('/onboarding');
+  check('the welcome opens on its intro', await page.getByTestId('onboarding-intro').isVisible());
+  check('…with the first pip lit', (await page.getByTestId('onboarding-pip-0-on').count()) === 1);
+  check('…and the button says Continue', (await page.getByTestId('onboarding-next').innerText()).trim() === 'Continue');
+  await page.getByTestId('onboarding-next').click();
+  await page.waitForTimeout(400);
+  check('Continue reaches the questions', await page.getByTestId('onboarding-choices').isVisible());
+  check('…and the second pip is lit instead', (await page.getByTestId('onboarding-pip-1-on').count()) === 1);
+  check('…and the button changes', (await page.getByTestId('onboarding-next').innerText()).trim() === 'Let’s start');
+
+  // Gentle is the stored default, so it starts chosen rather than empty.
+  await page.getByTestId('onboarding-nudge-firm').click();
+  await page.waitForTimeout(300);
+  check('picking a nudge style writes it', ((await read('ot.prefs')) || {}).nudgeStyle === 'firm', JSON.stringify(await read('ot.prefs')));
+
+  await page.getByTestId('onboarding-channel-email-on').click();
+  await page.waitForTimeout(300);
+  check('turning a channel off writes that too', ((await read('ot.prefs')) || {}).channels?.email === false);
+  await page.getByTestId('onboarding-channel-call-on').click();
+  await page.waitForTimeout(300);
+  // WhatsApp is now the only one left on, and must refuse to go off.
+  await page.getByTestId('onboarding-channel-whatsapp-on').click();
+  await page.waitForTimeout(300);
+  check('the last channel cannot be turned off', ((await read('ot.prefs')) || {}).channels?.whatsapp === true);
+
+  await page.getByTestId('onboarding-next').click();
+  await page.waitForTimeout(700);
+  check('“Let’s start” lands on Today', page.url().endsWith('/today'), page.url());
+  check('…and the welcome is marked seen', (await read('ot.onboarded')) === true);
+
+  // Skip, from a clean slate: nothing written, defaults intact.
+  await seed();
+  await open('/onboarding');
+  await page.getByTestId('onboarding-skip').click();
+  await page.waitForTimeout(700);
+  check('Skip lands on Today as well', page.url().endsWith('/today'), page.url());
+  check('…and leaves the defaults alone', !(await read('ot.prefs')), JSON.stringify(await read('ot.prefs')));
+
   await browser.close();
   srv.close();
   const failed = checks.filter((c) => !c.ok);
