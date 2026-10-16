@@ -10,14 +10,22 @@
  * panel. Its state is wired, but nothing in the final design opens it —
  * contact data is shown in full ("revealed" is always true) — so it is not
  * reachable there either. BUILD-REVIEW.md §2.37.
+ *
+ * The Contacts tab holds more than it shows: a row opens underneath itself
+ * for the second number, the second email and the channel the user prefers,
+ * and the Owner or Support can download the list as a CSV. Both stop where
+ * the Privacy Policy's "Who at our company can see it" stops — no address,
+ * no labels, no notes — and the download is logged as a copy taken rather
+ * than a page read. BUILD-REVIEW.md §2.73, which also says why the download
+ * sits above the table and not below it.
  */
 import { useRouter } from 'next/navigation';
-import { useEffect, useState, type CSSProperties } from 'react';
+import { Fragment, useEffect, useState, type CSSProperties } from 'react';
 
 import * as act from '@/actions';
 import { day, clock, initials, rel } from '@/data/format';
 import { paying, planLabel, type UserDetail } from '@/data/types';
-import { mono, Pill, tabular } from '@/ui/bits';
+import { download, mono, Pill, tabular } from '@/ui/bits';
 import { CHECK, GREEN, PLAN, RED, SUB, TT } from '@/ui/palette';
 import { useToast } from '@/ui/Toast';
 
@@ -55,6 +63,8 @@ export function UserDrawer({
   const now = new Date(nowIso);
   const [u, setU] = useState<UserDetail | null>(null);
   const [tab, setTab] = useState<Tab>('trouble');
+  /** Which contact row is open. Closed by default, so the table matches the prototype. */
+  const [shown, setShown] = useState<number | null>(null);
 
   useEffect(() => {
     let live = true;
@@ -226,7 +236,33 @@ export function UserDrawer({
               </button>
             ))}
           </div>
-          <span style={{ fontSize: 12, color: '#6b6b68' }}>This view is logged</span>
+          {/*
+            Both sit in one wrapper so the row keeps two children and
+            `space-between` goes on putting this group on the right. The
+            download is 12 px text with no padding for the same reason the
+            contact rows open underneath themselves: the table below must
+            not move, or `npm run fidelity` is measuring a different screen
+            from the prototype's.
+          */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 12, color: '#6b6b68' }}>This view is logged</span>
+            {tab === 'contacts' && can.exportUser ? (
+              <button
+                data-probe="contacts-csv"
+                onClick={async () => {
+                  const r = await act.exportUserContactsCsv(u.id);
+                  if (r.error) return say(r.error);
+                  if (r.csv && r.filename) download(r.filename, r.csv);
+                  if (r.toast) say(r.toast);
+                }}
+                // The table shows the first hundred; the file holds them all.
+                title={`Download all ${u.contacts} contacts as CSV`}
+                style={{ font: 'inherit', fontSize: 12, lineHeight: 'normal', padding: 0, border: 0, background: 'none', color: '#0b0b0b', textDecoration: 'underline', cursor: 'pointer' }}
+              >
+                Download CSV
+              </button>
+            ) : null}
+          </div>
         </div>
 
         {tab === 'activity' ? (
@@ -331,19 +367,61 @@ export function UserDrawer({
               </div>
               {u.contactList.map((c, i) => {
                 const ellipsis: CSSProperties = { whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' };
+                const open = shown === i;
+                const more: [string, string][] = [
+                  ['Second number', c.phone2],
+                  ['Second email', c.email2],
+                  ['Prefers', c.channel ? TT[c.channel][0] : ''],
+                ].filter(([, v]) => v) as [string, string][];
                 return (
-                  <div key={i} style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1.4fr) minmax(0,1.2fr) minmax(0,1.4fr) 60px', gap: 10, alignItems: 'center', padding: '10px 16px', borderBottom: '1px solid #f3f2ee', fontSize: 13 }}>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
-                      <span style={{ width: 26, height: 26, borderRadius: '50%', background: '#efeee9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 600, flex: 'none' }}>{initials(c.name)}</span>
-                      <span style={{ fontWeight: 500, ...ellipsis }}>{c.name}</span>
-                    </span>
-                    <span style={{ color: '#3a3a37', ...ellipsis }}>{c.role}</span>
-                    <span style={{ display: 'flex', flexDirection: 'column', fontFamily: mono, fontSize: 11, color: '#55554f', minWidth: 0 }}>
-                      <span style={ellipsis}>{c.phone || '—'}</span>
-                      <span style={ellipsis}>{c.email || '—'}</span>
-                    </span>
-                    <span style={{ textAlign: 'end', ...tabular, color: '#55554f' }}>{c.history}</span>
-                  </div>
+                  <Fragment key={i}>
+                    {/*
+                      A row keeps the prototype's grid exactly: the detail
+                      opens underneath it rather than inside it, so nothing
+                      moves until it is asked for (`npm run fidelity`).
+                    */}
+                    <div
+                      role="button"
+                      tabIndex={0}
+                      aria-expanded={open}
+                      onClick={() => setShown(open ? null : i)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          setShown(open ? null : i);
+                        }
+                      }}
+                      style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1.4fr) minmax(0,1.2fr) minmax(0,1.4fr) 60px', gap: 10, alignItems: 'center', padding: '10px 16px', borderBottom: '1px solid #f3f2ee', fontSize: 13, cursor: 'pointer' }}
+                    >
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+                        <span style={{ width: 26, height: 26, borderRadius: '50%', background: '#efeee9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 600, flex: 'none' }}>{initials(c.name)}</span>
+                        <span style={{ fontWeight: 500, ...ellipsis }}>{c.name}</span>
+                      </span>
+                      <span style={{ color: '#3a3a37', ...ellipsis }}>{c.role}</span>
+                      <span style={{ display: 'flex', flexDirection: 'column', fontFamily: mono, fontSize: 11, color: '#55554f', minWidth: 0 }}>
+                        <span style={ellipsis}>{c.phone || '—'}</span>
+                        <span style={ellipsis}>{c.email || '—'}</span>
+                      </span>
+                      <span style={{ textAlign: 'end', ...tabular, color: '#55554f' }}>{c.history}</span>
+                    </div>
+                    {open ? (
+                      <div style={{ padding: '10px 16px 12px 50px', borderBottom: '1px solid #f3f2ee', background: '#faf9f6', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        {more.length ? (
+                          more.map(([label, value]) => (
+                            <div key={label} style={{ display: 'flex', gap: 10, fontSize: 12 }}>
+                              <span style={{ color: '#6b6b68', width: 110, flex: 'none' }}>{label}</span>
+                              <span style={{ fontFamily: label === 'Prefers' ? undefined : mono, color: '#3a3a37', minWidth: 0, wordBreak: 'break-all' }}>{value}</span>
+                            </div>
+                          ))
+                        ) : (
+                          <div style={{ fontSize: 12, color: '#8a8a86' }}>Nothing else saved for {c.name.split(' ')[0]}.</div>
+                        )}
+                        <div style={{ fontSize: 11, color: '#8a8a86' }}>
+                          Their address, this user’s labels and this user’s notes are not shown here.
+                        </div>
+                      </div>
+                    ) : null}
+                  </Fragment>
                 );
               })}
             </div>

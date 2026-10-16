@@ -2732,3 +2732,58 @@ the eleventh request on Free opens the paywall
 
 The fourth is the user-visible change: running out no longer means losing the
 Assistant, only the part of it that needs a server.
+
+### 2.73 The Contacts tab opens, and exports
+The user drawer's Contacts tab showed four things about each saved person —
+name, position · company, one phone, one email — and had no way to get the
+list out. It now opens a row for the rest, and the Owner or Support can
+download the whole list as a CSV.
+
+**What a row holds now.** `UserDetail['contactList']` gained `phone2`,
+`email2` and `channel` (the user's preferred way of reaching them). Tapping a
+row opens them underneath it; tapping again closes it. Nothing is shown that
+was not shown before until a row is asked for.
+
+**What it still does not hold, on purpose.** The `contact` table also stores
+the person's `address`, the user's `labels` for them and the user's
+`remember_note` about them. None of those is selected, in the tab or in the
+file. The reason is the published Privacy Policy, under "Who at our company
+can see it":
+
+> Our support team can see your account details (name, email, phone, job
+> title), your tasks, the contacts you save (**name, position, company,
+> phone and email**) and your message drafts.
+
+That sentence is the promise, it was reviewed by a lawyer, and it is live on
+the website. Three fields sit outside it, and the note is the user's own
+writing about somebody else rather than a detail of that person. Widening
+what the panel can see means widening the sentence first — the controller's
+call and the lawyer's, not this screen's. `contactSelect` in
+`admin/src/data/db.ts` is the one place to change, and
+`src/data/csv.test.ts` asserts the file offers no `address`, `label` or
+`note` column so the decision cannot be undone by accident.
+
+**The download is logged as a copy, not a view.** It needs `export-user`, the
+same permission as sending a user their own export, because it is the same
+data leaving the panel. It writes its own audit line with the row count —
+`Downloaded contacts (CSV, 10) · Khalid Al-Mansouri` — so the log
+distinguishes a page that was read from a copy that was taken. Viewing the
+tab already wrote `Viewed contacts · …`; that has not changed.
+
+**Where the button had to go.** It is 12 px text beside "This view is
+logged", above the table, and that is a fidelity constraint rather than a
+taste. `06-user-contacts` probes where "Position · company" sits, and the
+harness gets there with `scrollIntoView`. The first attempt put a proper
+pill button in a row *below* the table: the extra 46 px of scrollable height
+let the drawer scroll further than the prototype can, so the probe moved
+`dy -46` and the screen went from 0.02 % to 2.19 % different. Anything added
+below that table moves it. Above it, at the same 12 px as the text it sits
+with, costs no height and nothing moves — `npm run fidelity` reports 56
+probes, 0 failing.
+
+**Checked:** `npm run typecheck` and `npm test` in `admin/` (11 CSV tests
+added), `npm run test:db` (13 against Postgres with every migration — the new
+one seeds an address, labels and a note and asserts none of the three reaches
+the file), `npm run smoke` (38 checks, including that the second number is
+hidden until a row is opened, that the download reports its count, and that
+both audit lines are written) and `npm run fidelity` (0 failing probes).

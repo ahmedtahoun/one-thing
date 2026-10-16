@@ -44,10 +44,10 @@ insert into consent (user_id, kind, version, granted, source) values
   ('${U1}', 'terms_privacy', '2026-10-09', true, 'signin'), ('${U1}', 'marketing', '2026-10-09', true, 'signin'),
   ('${U2}', 'terms_privacy', '2026-10-09', true, 'signin'), ('${U2}', 'marketing', '2026-10-09', false, 'signin');
 
-insert into contact (id, user_id, name, role_company, dial, phone, email) values
-  ('00000000-0000-4000-8000-000000000c01', '${U1}', 'Mohammed Al-Saadi', 'Client · Al-Saadi Trading', '+966', '502214410', 'mohammed@alsaadi.com'),
-  ('00000000-0000-4000-8000-000000000c02', '${U1}', 'Al Noor Packaging', 'Supplier', null, null, 'sales@alnoor.com'),
-  ('00000000-0000-4000-8000-000000000c03', '${U1}', 'Mohammed Al-Saadi', 'Client', '+966', '502214410', null);
+insert into contact (id, user_id, name, role_company, dial, phone, email, dial2, phone2, email2, preferred_channel, address, labels, remember_note) values
+  ('00000000-0000-4000-8000-000000000c01', '${U1}', 'Mohammed Al-Saadi', 'Client · Al-Saadi Trading', '+966', '502214410', 'mohammed@alsaadi.com', '+966', '114773301', 'orders@alsaadi.com', 'whatsapp', 'King Fahd Road, Riyadh', '{Client,VIP}', 'Prefers a call before noon'),
+  ('00000000-0000-4000-8000-000000000c02', '${U1}', 'Al Noor Packaging', 'Supplier', null, null, 'sales@alnoor.com', null, null, null, null, null, null, null),
+  ('00000000-0000-4000-8000-000000000c03', '${U1}', 'Mohammed Al-Saadi', 'Client', '+966', '502214410', null, null, null, null, null, null, null, null);
 insert into history (user_id, contact_id, kind, text) values ('${U1}', '00000000-0000-4000-8000-000000000c01', 'call', 'Talked prices');
 
 insert into task (user_id, type, title, who, due_at, status, draft_body, sent_confirmed_at, created_via, remind) values
@@ -145,6 +145,13 @@ describe('the admin panel against Postgres', () => {
     assert.ok(u.activity.some((a) => a.title === 'Marked follow-up closed'));
     assert.equal(u.tickets.length, 1);
     assert.equal(u.contactList.find((c) => c.name === 'Al Noor Packaging')?.phone, '');
+    const saadi = u.contactList.find((c) => c.email === 'mohammed@alsaadi.com')!;
+    assert.deepEqual(
+      { phone2: saadi.phone2, email2: saadi.email2, channel: saadi.channel },
+      { phone2: '+966 114773301', email2: 'orders@alsaadi.com', channel: 'whatsapp' }
+    );
+    const spare = u.contactList.find((c) => c.name === 'Al Noor Packaging')!;
+    assert.deepEqual({ phone2: spare.phone2, email2: spare.email2, channel: spare.channel }, { phone2: '', email2: '', channel: null });
 
     const omar = (await source.user(U2))!;
     assert.deepEqual(omar.checks.find((c) => c.title === 'Notifications'), { status: 'warn', title: 'Notifications', detail: 'Permission off — reminders won’t ring', fix: 'howto' });
@@ -202,6 +209,25 @@ describe('the admin panel against Postgres', () => {
     assert.equal((await source.user(U2))!.suspended, true);
     await source.setSuspended(U2, false);
     assert.equal(cluster.psql(`select banned_until is null from auth.users where id = '${U2}'`).trim(), 't');
+  });
+
+  /**
+   * The Contacts tab's Download CSV. The Privacy Policy's "Who at our company
+   * can see it" lists "name, position, company, phone and email", so the file
+   * carries those and the app's own two columns, and leaves the contact's
+   * address, the user's labels and the user's note behind — all three of which
+   * this user has, and the seed above gives them deliberately.
+   */
+  it('downloads one user’s contacts without their address, labels or notes', async () => {
+    const csv = await source.contactsCsv(U1);
+    const lines = csv.trimEnd().split('\n');
+    assert.equal(lines[0], 'name,position_company,phone,phone_2,email,email_2,preferred_channel,times_in_touch');
+    assert.equal(lines.length, 4, 'a header and this user’s three contacts');
+    assert.ok(csv.includes('Mohammed Al-Saadi,Client · Al-Saadi Trading,+966 502214410,+966 114773301,mohammed@alsaadi.com,orders@alsaadi.com,whatsapp,1'));
+    for (const held of ['King Fahd Road', 'Client,VIP', 'Prefers a call before noon']) {
+      assert.equal(csv.includes(held), false, held);
+    }
+    assert.equal((await source.contactsCsv(U2)).trimEnd().split('\n').length, 1, 'a user with no contacts gets a header only');
   });
 
   it('exports analytics without a name, an email or a phone number in it', async () => {

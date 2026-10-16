@@ -14,7 +14,7 @@ import 'server-only';
 import { createHash, createHmac } from 'node:crypto';
 import postgres from 'postgres';
 
-import { usersToCsv } from './csv';
+import { contactsToCsv, usersToCsv } from './csv';
 import { dateKey, day as dayLabel, rel, TIME_ZONE } from './format';
 import type { DataSource } from './source';
 import type {
@@ -111,6 +111,36 @@ function subStatus(status: string | null, endsAt: Date | null, now: Date): SubSt
 
 const iso = (d: Date | string | null | undefined) => (d ? new Date(d).toISOString() : null);
 
+/**
+ * A saved contact, as both the drawer's table and its CSV read it. The
+ * columns stop where the Privacy Policy's "Who at our company can see it"
+ * stops: `address`, `labels` and `remember_note` are on the table and are
+ * deliberately not selected (see `UserDetail['contactList']`).
+ */
+function contactSelect(sql: Sql) {
+  return sql`
+    select c.name, c.role_company, c.preferred_channel,
+           coalesce(c.dial || ' ', '') || coalesce(c.phone, '') as phone,
+           coalesce(c.email, '') as email,
+           coalesce(c.dial2 || ' ', '') || coalesce(c.phone2, '') as phone2,
+           coalesce(c.email2, '') as email2,
+           (select count(*)::int from history h where h.contact_id = c.id) as history
+    from contact c`;
+}
+
+function toContact(c: Raw): UserDetail['contactList'][number] {
+  return {
+    name: String(c.name),
+    role: (c.role_company as string | null) ?? '',
+    phone: String(c.phone).trim(),
+    email: String(c.email),
+    history: Number(c.history),
+    phone2: String(c.phone2 ?? '').trim(),
+    email2: String(c.email2 ?? ''),
+    channel: (c.preferred_channel as TaskKind | null) ?? null,
+  };
+}
+
 /** The columns every user row needs, with the counts the list shows. */
 function userSelect(sql: Sql) {
   return sql`
@@ -189,10 +219,7 @@ export function dbSource(url: string): DataSource {
         (select granted_at from consent k where k.user_id = u.id and k.kind = 'terms_privacy' and k.granted order by granted_at desc limit 1) as terms_at,
         (select granted_at from consent k where k.user_id = u.id and k.kind = 'marketing' and k.granted order by granted_at desc limit 1) as marketing_at
       from app_user u where u.id = ${id}::uuid`;
-    const contacts = await sql`
-      select c.name, c.role_company, coalesce(c.dial || ' ', '') || coalesce(c.phone, '') as phone, coalesce(c.email, '') as email,
-             (select count(*)::int from history h where h.contact_id = c.id) as history
-      from contact c where c.user_id = ${id}::uuid order by c.created_at desc limit 100`;
+    const contacts = await sql`${contactSelect(sql)} where c.user_id = ${id}::uuid order by c.created_at desc limit 100`;
     const tasks = await sql`
       select t.type, t.title, t.who, t.due_at, t.status, t.draft_subject, t.draft_body, t.sent_confirmed_at, t.created_at, t.created_via
       from task t where t.user_id = ${id}::uuid order by coalesce(t.due_at, t.created_at) desc limit 200`;
@@ -202,13 +229,7 @@ export function dbSource(url: string): DataSource {
     const oneThings = await sql`select to_char("date", 'YYYY-MM-DD') as date, title, focus_minutes, done from one_thing where user_id = ${id}::uuid order by "date" desc limit 10`;
     const closed = await sql`select what, last_action_at from follow_up where user_id = ${id}::uuid and last_action = 'closed' and last_action_at is not null order by last_action_at desc limit 10`;
 
-    const contactList = contacts.map((c) => ({
-      name: String(c.name),
-      role: (c.role_company as string | null) ?? '',
-      phone: String(c.phone).trim(),
-      email: String(c.email),
-      history: Number(c.history),
-    }));
+    const contactList = contacts.map(toContact);
 
     const notifications = (extra?.notifications_allowed as boolean | null) ?? null;
     const latest = process.env.LATEST_APP_VERSION;
@@ -665,6 +686,11 @@ export function dbSource(url: string): DataSource {
       const now = new Date();
       const rows = await sql`${userSelect(sql)} order by u.created_at desc`;
       return usersToCsv(rows.map((r) => toUserRow(r, now)));
+    },
+
+    async contactsCsv(userId) {
+      const rows = await sql`${contactSelect(sql)} where c.user_id = ${userId}::uuid order by c.created_at desc`;
+      return contactsToCsv(rows.map(toContact));
     },
 
     async dataset() {

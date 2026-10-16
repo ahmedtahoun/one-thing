@@ -197,6 +197,29 @@ export async function exportUsersCsv(): Promise<Outcome & { csv?: string }> {
   }
 }
 
+/**
+ * One user's saved contacts as a CSV the admin downloads.
+ *
+ * Needs `export-user`, the same permission as sending the user their own
+ * export, because this is the same data leaving the panel — and it is logged
+ * under its own line with the number of rows, so the audit log shows a copy
+ * was taken rather than a page was read. The columns stop where the Privacy
+ * Policy's "Who at our company can see it" stops (`data/csv.ts`).
+ */
+export async function exportUserContactsCsv(userId: string): Promise<Outcome & { csv?: string; filename?: string }> {
+  try {
+    const admin = await authorise('export-user');
+    const data = await source();
+    const name = await named(userId);
+    const csv = await data.contactsCsv(userId);
+    const rows = Math.max(0, csv.trimEnd().split('\n').length - 1);
+    await data.log(admin.id, `Downloaded contacts (CSV, ${rows}) · ${name}`, 'Support / troubleshooting', userId);
+    return { csv, filename: `contacts-${userId}.csv`, toast: `Downloaded ${rows} ${rows === 1 ? 'contact' : 'contacts'}.` };
+  } catch (e) {
+    return failed(e);
+  }
+}
+
 export async function exportDataset(): Promise<Outcome & { files?: Record<string, string> }> {
   try {
     const admin = await authorise('dataset');

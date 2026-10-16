@@ -8,7 +8,7 @@
  * database, and `config.ts` only allows it when ADMIN_DEMO=1.
  */
 import { dateKey, day, zoned } from './format';
-import { usersToCsv } from './csv';
+import { contactsToCsv, usersToCsv } from './csv';
 import type { DataSource } from './source';
 import type {
   AuditEntry,
@@ -34,7 +34,24 @@ const PLANS: Plan[] = ['pro', 'free', 'trial', 'pro', 'free', 'free', 'pro', 'la
 const rnd = (i: number, m: number) => ((i * 9301 + 49297) % 233280) % m;
 
 const TDB: [TaskKind, string, number, string][] = [['call', 'Confirm Friday catering order', 6, 'Reem Al-Qahtani'], ['email', 'Send October invoices', 5, 'Omar Khalid'], ['whatsapp', 'Follow up on price quote', 0, 'Mohammed Al-Saadi'], ['meeting', 'Q4 pricing review · Zoom', 8, 'Sara Haddad'], ['reminder', 'Renew commercial registration', 9, 'Ministry portal'], ['visit', 'Tasting at the new branch', 1, 'Bader Al-Fahad'], ['email', 'Deck v3 + book a call', 3, 'Sara Haddad'], ['call', 'Contract terms', 4, 'Faisal Al-Otaibi'], ['whatsapp', 'Share new menu photos', 2, 'Noura Al-Harbi'], ['reminder', 'Pay the packaging supplier', 7, 'Al Noor Packaging']];
-const CDB: [string, string, string, string][] = [['Mohammed Al-Saadi', 'Client · Al-Saadi Trading', '+966 50 221 4410', 'mohammed@alsaadi-trading.com'], ['Sara Haddad', 'Investor · Northwind VC', '+971 50 331 2045', 'sara@northwind.vc'], ['Faisal Al-Otaibi', 'Lawyer · Otaibi Law', '+966 55 123 4567', 'faisal@otaibilaw.sa'], ['Noura Al-Harbi', 'Designer · Studio Noura', '+966 54 880 1123', 'noura@studionoura.com'], ['Al Noor Packaging', 'Supplier', '+966 11 465 2200', 'sales@alnoorpack.com'], ['Omar Khalid', 'Accountant · LedgerCo', '+966 56 702 9910', 'omar@ledgerco.sa'], ['Reem Al-Qahtani', 'Coffee supplier · Qahwa Beans', '+973 3300 4512', 'reem@qahwabeans.com'], ['Yousef Al-Dosari', 'Landlord', '+966 50 900 1188', ''], ['Bader Al-Fahad', 'Head of Ops · Riyadh Roasters', '+966 53 118 7720', 'bader@riyadhroasters.sa'], ['Huda Al-Saleh', 'HR Manager · Tamkeen', '', 'huda.saleh@tamkeen.sa']];
+/**
+ * The prototype's contacts, with the second number, second email and chosen
+ * channel the drawer opens under a row. The first four fields are what the
+ * table shows and are the prototype's own, so `npm run fidelity` still
+ * compares like with like.
+ */
+const CDB: [string, string, string, string, string, string, TaskKind | null][] = [
+  ['Mohammed Al-Saadi', 'Client · Al-Saadi Trading', '+966 50 221 4410', 'mohammed@alsaadi-trading.com', '+966 11 477 3301', 'orders@alsaadi-trading.com', 'whatsapp'],
+  ['Sara Haddad', 'Investor · Northwind VC', '+971 50 331 2045', 'sara@northwind.vc', '', 'sara.haddad@gmail.com', 'email'],
+  ['Faisal Al-Otaibi', 'Lawyer · Otaibi Law', '+966 55 123 4567', 'faisal@otaibilaw.sa', '', '', 'call'],
+  ['Noura Al-Harbi', 'Designer · Studio Noura', '+966 54 880 1123', 'noura@studionoura.com', '', 'hello@studionoura.com', 'whatsapp'],
+  ['Al Noor Packaging', 'Supplier', '+966 11 465 2200', 'sales@alnoorpack.com', '+966 11 465 2201', '', 'call'],
+  ['Omar Khalid', 'Accountant · LedgerCo', '+966 56 702 9910', 'omar@ledgerco.sa', '', '', 'email'],
+  ['Reem Al-Qahtani', 'Coffee supplier · Qahwa Beans', '+973 3300 4512', 'reem@qahwabeans.com', '', '', 'whatsapp'],
+  ['Yousef Al-Dosari', 'Landlord', '+966 50 900 1188', '', '', '', 'call'],
+  ['Bader Al-Fahad', 'Head of Ops · Riyadh Roasters', '+966 53 118 7720', 'bader@riyadhroasters.sa', '+966 11 220 8814', '', null],
+  ['Huda Al-Saleh', 'HR Manager · Tamkeen', '', 'huda.saleh@tamkeen.sa', '', '', 'email'],
+];
 const MDB: [TaskKind, string, string, string, UserDetail['messages'][number]['status']][] = [['whatsapp', 'Mohammed Al-Saadi', '', 'Hi Mohammed, hope you’re well. Just checking the price quote reached you. If you pay upfront I can do 5% off, and delivery is 2 weeks.', 'sent'], ['email', 'Sara Haddad', 'Deck v3 + a quick call', 'Hi Sara,\nAttached is v3 of the deck — the new traction slide is on page 4. Would Tuesday 11:00 or Wednesday 14:00 work for 20 minutes?', 'sent'], ['email', 'Omar Khalid', 'October invoices', 'Hi Omar, sharing the October invoices for the three branches. Let me know if anything is missing.', 'draft'], ['whatsapp', 'Noura Al-Harbi', '', 'Hi Noura! Could you send the final logo files when you get a moment? Thanks!', 'not sent'], ['call', 'Reem Al-Qahtani', '', 'Call script: confirm 40 guests, Friday 1pm, oat milk option.', 'done']];
 
 /** The prototype's "today": Friday 10 October 2026, midday in the panel's zone. */
@@ -137,7 +154,7 @@ function detail(cu: Seed): UserDetail {
   const relN = (n: number) => (n === 0 ? 'Today' : n === 1 ? 'Yesterday' : n < 7 ? n + ' days ago' : n < 30 ? Math.floor(n / 7) + ' wk ago' : Math.floor(n / 30) + ' mo ago');
   const dayN = (n: number) => day(ago(n), NOW());
 
-  const contactList = rot(CDB).map(([name, role, phone, email], i) => ({ name, role, phone, email, history: 2 + ((i * 5 + seed) % 11) }));
+  const contactList = rot(CDB).map(([name, role, phone, email, phone2, email2, channel], i) => ({ name, role, phone, email, phone2, email2, channel, history: 2 + ((i * 5 + seed) % 11) }));
   const checks: Check[] = [
     { status: bad ? 'warn' : 'ok', title: 'Notifications', detail: bad ? 'Permission off since ' + dayN(cu.lastN) + ' — reminders won’t ring' : 'Allowed · last push delivered ' + relN(cu.lastN), fix: bad ? 'howto' : null },
     { status: 'ok', title: 'Sync', detail: 'Last sync ' + relN(cu.lastN) + ' · ' + cu.tasks + ' tasks · ' + cu.contacts + ' contacts', fix: null },
@@ -379,6 +396,11 @@ export const demoSource: DataSource = {
     state.users = state.users.map((u) => (u.id === userId ? { ...u, plan: 'pro', sub: 'active' } : u));
   },
   async exportUser() {},
+
+  async contactsCsv(userId) {
+    const user = state.users.find((u) => u.id === userId);
+    return contactsToCsv(user ? detail(user).contactList : []);
+  },
   async fix() {},
   async usersCsv() {
     return usersToCsv(state.users.map(row));
