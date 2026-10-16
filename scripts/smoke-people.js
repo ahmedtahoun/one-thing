@@ -27,7 +27,7 @@ const { launch: launchChromium } = require('./browser.js');
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
-const { demoContacts, demoFollowUps, demoHistory, demoTasks } = require('./demo-state.js');
+const { demoContacts, demoFollowUps, demoHistory, demoTasks, dateKey } = require('./demo-state.js');
 
 const ROOT = path.join(__dirname, '..');
 const DIST = path.join(ROOT, 'dist');
@@ -259,6 +259,46 @@ const SESSION = { userId: 'smoke', name: 'Khalid Al-Mansouri', firstName: 'Khali
   check('Edit opens the contact form', page.url().endsWith('/contact-edit?id=c4'), page.url());
   await open('/contact?id=nobody');
   check('an unknown contact goes to People', page.url().endsWith('/people'), page.url());
+
+  // ---------------------------------------------------------- Weekly recap
+  // Your week (app/recap.tsx): every line comes off something the app dates,
+  // so the counts here are checked against the demo history itself rather
+  // than against a screenshot.
+  await seed();
+  // Three days with a win, one of them outside the week it covers.
+  const day = (n) => dateKey(new Date(Date.now() - n * 86400000));
+  await page.evaluate(
+    (days) => localStorage.setItem('one-thing.wins.v1', JSON.stringify(days)),
+    [day(0), day(2), day(30)]
+  );
+  await open('/recap');
+  check('the recap counts the days inside the week only', (await text('recap-days')).includes('2 of 7'), await text('recap-days'));
+  check('…and shows the streak when there is one', (await text('recap-days')).includes('streak'), await text('recap-days'));
+  const sent = await text('recap-sent');
+  check('it counts what went out, by what it was', /went out/.test(sent), sent);
+  check('…and a closed follow-up is not counted as something sent', !/^0 /.test(sent), sent);
+  check('it names who was reached', (await text('recap-reached')).match(/reached/i) !== null, await text('recap-reached'));
+  check('…each one tappable through to their profile', (await page.locator('[data-testid^="recap-person-"]').count()) > 0);
+  check('it says what carries into next week', (await text('recap-carrying')).length > 0, await text('recap-carrying'));
+
+  // Nothing recorded at all: a sentence, not a column of noughts.
+  await page.evaluate(() => {
+    localStorage.removeItem('one-thing.wins.v1');
+    localStorage.setItem('ot.tasks', '[]');
+    localStorage.setItem('ot.followups', '[]');
+    localStorage.setItem('ot.history', '[]');
+  });
+  await open('/recap');
+  check('an empty week says so instead of printing noughts', await page.getByTestId('recap-empty').isVisible());
+  check('…and shows no counts at all', (await page.getByTestId('recap-sent').count()) === 0);
+
+  // The way in.
+  await seed();
+  await open('/settings');
+  check('Settings links to it', await page.getByTestId('settings-recap').isVisible());
+  await page.getByTestId('settings-recap').click();
+  await page.waitForTimeout(500);
+  check('…and the link opens it', page.url().endsWith('/recap'), page.url());
 
   // ------------------------------------------------------------- Scan many
   // A stack of cards is its own way in (app/scan-many.tsx), beside the single

@@ -2550,3 +2550,54 @@ Making them agree is a one-line change — the gate is exported — but it is no
 a mechanical fix: it would mean the Free plan's ten go much further and the
 paywall appears less often, which is a pricing decision and not a bug. Left as
 it was, and raised rather than taken.
+
+### 2.70 Weekly recap, without inventing it
+
+Weekly recap was on the paywall before it existed, and came off the card
+rather than being faked (§2.56). SCREENS.md never described it, so writing it
+meant deciding what it *is* — the thing §2.1 refused to do by guessing at a
+lock the design never drew.
+
+One rule kept that honest: **every line comes off something the app genuinely
+dates, and no row is filled with an estimate.** That rules things out, and the
+exclusions are the interesting part:
+
+- **Tasks closed this week cannot be counted.** `Task` has a `status` and no
+  "finished at", so the number does not exist. It is not shown, and not
+  approximated from `createdAt`.
+- What *is* dated: the days a win was recorded (`src/lib/wins.ts`), every
+  history entry (`at`), when a follow-up was last acted on (`lastActionAt`),
+  and when a person was last messaged (`touchedAt`).
+
+So the recap is five things: the days something was finished out of seven,
+with the streak; what went out, by kind; who heard from you, most often
+first; follow-ups closed and still waiting; and what carries into next week.
+`src/features/recap/week.ts` is that reading, pure, with 14 tests —
+including that a closed follow-up is not counted as something *sent*, that
+somebody since deleted is left out rather than drawn as a blank row, and that
+a week with only a future task still reads as empty.
+
+An empty week says so in a sentence. A column of noughts reads like a broken
+screen, and the first week of use is exactly when someone looks.
+
+**It is free.** `can('weeklyRecap')` is true for every plan. It came off the
+paywall because it had no screen; putting it back on the card now that it has
+one is a pricing decision, not a consequence of writing it, so that is left
+to the owner. It reads only what is already on the device, so there is nothing
+to meter either.
+
+#### The drift the entry point cost
+
+A `LinkRow` in Settings shifted the two probes below it — `coffee` and
+`signOut` — by exactly 61pt, the height of one row, identically in both
+languages. Four baseline lines changed, all `+61`:
+
+```
+-  "settings/en/coffee": 751,     +  "settings/en/coffee": 812,
+-  "settings/en/signOut": 967.5,  +  "settings/en/signOut": 1028.5,
+```
+
+Recorded here because §2.66's lesson was that a baseline written without
+looking is how a missing feature survives nine builds. This one was looked at:
+one row's height, only the probes below the insertion, both languages
+agreeing, nothing else moved.

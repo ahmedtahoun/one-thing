@@ -344,6 +344,36 @@ export type Added = {
     fix: string;
     nothing: string;
   };
+  /** Weekly recap: the week read off what the app recorded — §2.70. */
+  recap: {
+    entry: string;
+    entrySub: string;
+    title: string;
+    empty: string;
+    emptyBody: string;
+    daysN: string;
+    dayOne: string;
+    streakN: string;
+    sentN: string;
+    sentOne: string;
+    calls: string;
+    messages: string;
+    emails: string;
+    meetings: string;
+    notes: string;
+    reached: string;
+    reachedOne: string;
+    timesN: string;
+    timesOne: string;
+    closedN: string;
+    closedOne: string;
+    waitingN: string;
+    waitingOne: string;
+    carrying: string;
+    carryingOne: string;
+    nothingSent: string;
+    allClear: string;
+  };
   /** Questions answered from the app's own data — §2.68. */
   qa: {
     call: string;
@@ -924,6 +954,35 @@ const ADDED: Record<Lang, Added> = {
       fix: 'Fix the fields',
       nothing: 'Nothing was read from this one. Type the name in, or remove it.',
     },
+    recap: {
+      entry: 'Your week',
+      entrySub: 'What moved in the last seven days',
+      title: 'Your week',
+      empty: 'Nothing to show yet.',
+      emptyBody: 'Finish a task or send a message and this fills in.',
+      daysN: 'You finished something on {n} of 7 days',
+      dayOne: 'You finished something on 1 of 7 days',
+      streakN: '{n}-day streak',
+      sentN: '{n} things went out',
+      sentOne: '1 thing went out',
+      calls: 'calls',
+      messages: 'messages',
+      emails: 'emails',
+      meetings: 'meetings',
+      notes: 'notes',
+      reached: 'You reached {n} people',
+      reachedOne: 'You reached 1 person',
+      timesN: '{n} times',
+      timesOne: 'once',
+      closedN: '{n} follow-ups closed',
+      closedOne: '1 follow-up closed',
+      waitingN: '{n} still waiting on a reply',
+      waitingOne: '1 still waiting on a reply',
+      carrying: '{n} carrying into next week',
+      carryingOne: '1 carrying into next week',
+      nothingSent: 'Nothing went out this week.',
+      allClear: 'Nothing is carrying over. You start next week clear.',
+    },
     qa: {
       call: 'Call',
       whatsapp: 'WhatsApp',
@@ -1397,6 +1456,35 @@ const ADDED: Record<Lang, Added> = {
       read: 'اللي انقرأ',
       fix: 'عدّل البيانات',
       nothing: 'ما انقرأ شيء من هذي. اكتب الاسم، أو احذفها.',
+    },
+    recap: {
+      entry: 'أسبوعك',
+      entrySub: 'اللي صار في آخر سبعة أيام',
+      title: 'أسبوعك',
+      empty: 'ما فيه شيء نعرضه بعد.',
+      emptyBody: 'خلّص مهمة أو ابعت رسالة ويتعبّى هذا.',
+      daysN: 'خلّصت شيء في {n} من ٧ أيام',
+      dayOne: 'خلّصت شيء في يوم واحد من ٧',
+      streakN: '{n} يوم متواصل',
+      sentN: 'طلع {n} شيء',
+      sentOne: 'طلع شيء واحد',
+      calls: 'اتصالات',
+      messages: 'رسائل',
+      emails: 'إيميلات',
+      meetings: 'اجتماعات',
+      notes: 'ملاحظات',
+      reached: 'وصلت {n} أشخاص',
+      reachedOne: 'وصلت شخص واحد',
+      timesN: '{n} مرات',
+      timesOne: 'مرة واحدة',
+      closedN: 'أقفلت {n} متابعات',
+      closedOne: 'أقفلت متابعة واحدة',
+      waitingN: '{n} لسه مستنيين ردك',
+      waitingOne: 'واحد لسه مستني ردك',
+      carrying: '{n} ينقلون للأسبوع الجاي',
+      carryingOne: 'واحد ينقل للأسبوع الجاي',
+      nothingSent: 'ما طلع شيء هذا الأسبوع.',
+      allClear: 'ما فيه شيء ينقل. تبدأ الأسبوع الجاي صافي.',
     },
     qa: {
       call: 'اتصال',

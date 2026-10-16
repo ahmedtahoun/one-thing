@@ -123,9 +123,11 @@ export function limitsFor(plan: Plan): Limits {
 export function can(_plan: Plan, capability: Capability): boolean {
   switch (capability) {
     case 'weeklyRecap':
-      // No screen exists for it, so nothing should route to one. Off the
-      // paywall as well now (§2.56); this stays until it is built.
-      return false;
+      // Built now (app/recap.tsx, §2.70) and free, because it came off the
+      // paywall when it did not exist (§2.56) and putting it back on the card
+      // is a pricing decision rather than a consequence of writing it. Every
+      // number in it is read off the device, so there is nothing to meter.
+      return true;
     case 'smartLists':
     case 'enrichment':
       // The rest of Pro+'s reason to exist, and neither is written:

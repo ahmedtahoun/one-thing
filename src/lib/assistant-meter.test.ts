@@ -67,11 +67,26 @@ describe('the gates settled in October 2026', () => {
 
   it('leaves what the card no longer sells alone', () => {
     // Client history is the person's own notes; the event types have no way
-    // in since Today went to four tiles; Weekly recap has no screen at all.
-    // All three are off the paywall rather than locked.
+    // in since Today went to four tiles. Both are off the paywall rather
+    // than locked.
     assert.ok(can('free', 'clientHistory'));
     assert.ok(can('free', 'events'));
     assert.ok(can('free', 'autoFollowUps'));
-    assert.equal(can('pro', 'weeklyRecap'), false);
+  });
+
+  it('weekly recap is open to everyone now that it exists', () => {
+    // It came off the card because it had no screen (§2.56). It has one now
+    // (app/recap.tsx, §2.70) and reads only what is already on the device, so
+    // there is nothing to meter and nothing to lock. Putting it back on the
+    // paywall is a pricing decision, not a consequence of writing it.
+    assert.ok(can('free', 'weeklyRecap'));
+    assert.ok(can('pro', 'weeklyRecap'));
+  });
+
+  it('still answers false for what is listed and not written', () => {
+    // Pro+'s other two. Bulk card scanning, the third, is built and metered.
+    assert.equal(can('pro_plus', 'smartLists'), false);
+    assert.equal(can('pro_plus', 'enrichment'), false);
+    assert.ok(can('pro_plus', 'bulkCardScan'));
   });
 });

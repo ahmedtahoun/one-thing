@@ -513,6 +513,13 @@ export default function Settings() {
           ) : null}
 
           <LinkRow
+            testID="settings-recap"
+            label={added(lang).recap.entry}
+            onPress={() => router.push('/recap')}
+            tile={<RowTile icon="spark" bg={surface.fill} fg={ink.s2} />}
+          />
+
+          <LinkRow
             testID="settings-saved"
             label={added(lang).saved.title}
             onPress={() => router.push('/templates')}
