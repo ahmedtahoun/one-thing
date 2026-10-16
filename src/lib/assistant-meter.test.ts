@@ -9,11 +9,14 @@ import { spendOne, usedOn } from './assistant-meter';
 import {
   assistantRequestsLeft,
   can,
+  canAddSmartList,
   canAutoChase,
   canBrainDump,
   canUseAssistant,
   FREE_ASSISTANT_REQUESTS_PER_DAY,
   FREE_BRAIN_DUMPS_PER_DAY,
+  FREE_SMART_LISTS,
+  limitsFor,
 } from '@/policy/entitlements';
 
 describe('the daily assistant meter', () => {
@@ -83,10 +86,21 @@ describe('the gates settled in October 2026', () => {
     assert.ok(can('pro', 'weeklyRecap'));
   });
 
-  it('still answers false for what is listed and not written', () => {
-    // Pro+'s other two. Bulk card scanning, the third, is built and metered.
-    assert.equal(can('pro_plus', 'smartLists'), false);
+  it('still answers false for the one listed and not written', () => {
+    // Enrichment is the last of Pro+'s three, and the only one that cannot be
+    // done from what the device already holds. The other two are built and
+    // metered rather than locked.
     assert.equal(can('pro_plus', 'enrichment'), false);
     assert.ok(can('pro_plus', 'bulkCardScan'));
+    assert.ok(can('free', 'smartLists'));
+  });
+
+  it('meters smart lists instead of locking them', () => {
+    assert.equal(limitsFor('free').smartLists, FREE_SMART_LISTS);
+    assert.equal(limitsFor('pro').smartLists, FREE_SMART_LISTS);
+    assert.equal(limitsFor('pro_plus').smartLists, null);
+    assert.ok(canAddSmartList('free', 0));
+    assert.equal(canAddSmartList('free', FREE_SMART_LISTS), false);
+    assert.ok(canAddSmartList('pro_plus', 50));
   });
 });

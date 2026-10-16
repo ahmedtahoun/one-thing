@@ -2,11 +2,14 @@
  * The row of chips under People's search — All, Waiting, Favorites, Recent —
  * in the manner of a chat list. "Waiting" carries a red count of the people
  * whose follow-up needs a nudge now, the way "Unread" carries its count.
+ *
+ * A label is a chip, and so is a smart list: both carry their own name rather
+ * than a word from `labels`, since neither is one of the four fixed ones.
  */
 import { Pressable, ScrollView } from 'react-native';
 
 import type { Added } from '@/content/additions';
-import { isLabelFilter, type PeopleFilter } from '@/features/people/filters';
+import { isLabelFilter, isSmartFilter, type PeopleFilter } from '@/features/people/filters';
 import { Text } from '@/ui/Text';
 import { ink, surface } from '@/design/tokens';
 import { useDirection } from '@/i18n/LanguageProvider';
@@ -17,6 +20,7 @@ export function FilterChips({
   onChange,
   dueCount,
   labels,
+  smartNames,
   testID = 'people-filters',
 }: {
   /** Which chips, in order. */
@@ -26,6 +30,8 @@ export function FilterChips({
   /** People whose follow-up needs a nudge now. */
   dueCount: number;
   labels: Added['filters'];
+  /** Smart-list id → its name, for a `smart:` chip (./smart-lists.ts). */
+  smartNames?: ReadonlyMap<string, string>;
   testID?: string;
 }) {
   const dir = useDirection();
@@ -58,7 +64,11 @@ export function FilterChips({
             }}
           >
             <Text token="bodyS" weight="600" color={on ? surface.white : ink.s2}>
-              {isLabelFilter(filter) ? filter.slice('label:'.length) : labels[filter]}
+              {isLabelFilter(filter)
+                ? filter.slice('label:'.length)
+                : isSmartFilter(filter)
+                  ? (smartNames?.get(filter.slice('smart:'.length)) ?? '')
+                  : labels[filter]}
             </Text>
             {(filter === 'waiting' || filter === 'followups') && dueCount > 0 ? (
               <Text testID={`${testID}-badge`} token="bodyS" weight="600" color={on ? ink.onInkSoft : ink.s4}>

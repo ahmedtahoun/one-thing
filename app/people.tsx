@@ -25,9 +25,11 @@ import {
   floatFavorites,
   followUpStates,
   isLabelFilter,
+  isSmartFilter,
   labelFilter,
   labelsIn,
   PEOPLE_CHIPS,
+  smartFilter,
   type PeopleFilter,
 } from '@/features/people/filters';
 import { matchContact } from '@/features/people/search';
@@ -47,6 +49,7 @@ import { ltr } from '@/lib/bidi';
 import { toggleFavorite, useFavorites } from '@/lib/favorites';
 import { type Channel, type Contact } from '@/lib/model-types';
 import { usePeople } from '@/lib/people';
+import { useSmartLists } from '@/lib/smart-lists';
 import { canPickFromPhone, importDraft, pickFromPhone } from '@/lib/phone-contacts';
 
 /** Bottom padding under the tab bar, as on Tasks. */
@@ -80,13 +83,19 @@ export default function People() {
   const pick: Channel | null =
     params.pick === 'whatsapp' || params.pick === 'email' || params.pick === 'call' ? params.pick : null;
 
-  const context = useMemo(() => ({ followUps, favorites, now }), [followUps, favorites, now]);
+  const smartLists = useSmartLists();
+  const context = useMemo(() => ({ followUps, favorites, now, smartLists }), [followUps, favorites, now, smartLists]);
   const counts = useMemo(() => filterCounts(contacts, context), [contacts, context]);
-  // The labels people have put on each other are chips beside the built-in ones.
-  const chips = useMemo<PeopleFilter[]>(() => [...PEOPLE_CHIPS, ...labelsIn(contacts).map(labelFilter)], [contacts]);
+  // The labels people have put on each other are chips beside the built-in
+  // ones, and so are their smart lists — a saved rule read fresh each tap.
+  const chips = useMemo<PeopleFilter[]>(
+    () => [...PEOPLE_CHIPS, ...labelsIn(contacts).map(labelFilter), ...smartLists.map((list) => smartFilter(list.id))],
+    [contacts, smartLists],
+  );
+  const smartNames = useMemo(() => new Map(smartLists.map((list) => [list.id, list.name])), [smartLists]);
   // A label nobody has any more is not a place to stay.
   useEffect(() => {
-    if (isLabelFilter(filter) && !chips.includes(filter)) setFilter('all');
+    if ((isLabelFilter(filter) || isSmartFilter(filter)) && !chips.includes(filter)) setFilter('all');
   }, [chips, filter]);
   const states = useMemo(() => followUpStates(contacts, followUps, now), [contacts, followUps, now]);
   // How each person was last reached, for the small icon on their picture.
@@ -234,7 +243,7 @@ export default function People() {
           </View>
         ) : null}
 
-        <FilterChips options={chips} value={filter} onChange={setFilter} dueCount={counts.due} labels={filters} />
+        <FilterChips options={chips} value={filter} onChange={setFilter} dueCount={counts.due} labels={filters} smartNames={smartNames} />
 
         {filter === 'followups' ? (
           <FollowUpsPanel />
@@ -295,6 +304,7 @@ export default function People() {
           [
             { key: 'bulk', icon: 'send', label: added(lang).bulk.entry, sub: added(lang).bulk.waNote.split('.')[0] ?? '', go: () => router.push('/bulk') },
             { key: 'file', icon: 'list', label: added(lang).addPeople.file, sub: added(lang).addPeople.fileSub, go: () => router.push('/import') },
+            { key: 'smart', icon: 'target', label: added(lang).smart.entry, sub: added(lang).smart.entrySub, go: () => router.push('/smart-lists') },
           ] as { key: string; icon: IconName; label: string; sub: string; go: () => void }[]
         ).map((row) => (
           <Pressable

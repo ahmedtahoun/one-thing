@@ -2601,3 +2601,64 @@ Recorded here because §2.66's lesson was that a baseline written without
 looking is how a missing feature survives nine builds. This one was looked at:
 one row's height, only the probes below the insertion, both languages
 agreeing, nothing else moved.
+
+### 2.71 Smart lists: a rule, not a folder
+
+Pro+'s second feature, and the card already said what it had to be: "groups
+that keep themselves up to date as people change". That sentence rules out the
+obvious implementation. A folder people are *put into* goes stale the moment
+someone answers an email, and then needs tending — which is work the app
+exists to remove.
+
+So a smart list stores a **rule** and nothing else, and what it holds is
+computed every time the chip is drawn. Somebody leaves "owes me a reply" by
+replying. Somebody joins "quiet clients" by going quiet. Nobody files
+anything.
+
+Seven conditions, each reading something already on the device: a label, a
+favourite, no word for 7 / 14 / 30 / 90 days, an open follow-up, never written
+to, no number, no email. They join with **and**, deliberately: "clients I have
+not spoken to in a month" is `label:Client` and `quiet:30`, which is the shape
+real questions take, and mixing and with or needs a query builder — a
+different product from an app whose argument is fewer taps.
+
+Three decisions worth recording:
+
+- **An empty rule holds nobody, not everybody.** Deleting a list's last
+  condition and finding it now matches all 400 people would be a nasty
+  surprise, and the builder has nothing to show for it either.
+- **"Never written to" is its own condition, not "quiet for a long time".** A
+  contact added this morning has no `touchedAt`, and a list about relationships
+  going cold should not open with people you have never had one with.
+- **A chip whose list was deleted shows nobody and falls back to All.** The
+  alternative — an unresolved rule matching everything — would look like the
+  filter had broken.
+
+It lives on the device, with favourites and keep-in-touch rhythms
+(`src/lib/cadence.ts`), for the same reason: a smart list is not part of a
+contact, and a table the server has never seen is dropped on the next sync.
+
+**Metered, not locked**, like bulk card scanning and for the same reason —
+`FOR_SALE` still does not include Pro+, so a lock would hide the idea from
+everyone who could buy it. `FREE_SMART_LISTS = 1`: one is enough to see what
+they are for, and wanting a second is the moment the tier is worth paying for.
+The Pro+ card now says "Free keeps one" rather than describing the feature as
+though it were the tier's alone.
+
+#### What the smoke suite asserts
+
+The promise is "keeps itself up to date", so that is the check. It builds a
+list through the real screen, taps its chip on People, counts who is in it,
+then closes every follow-up in storage and taps the same chip again:
+
+```
+answering them empties the list without anyone editing it
+```
+
+Plus the deleted-list fallback, and that Free stops at one. 116 checks in
+smoke-people, 751 unit tests, 16 of them on the rule engine. Drift is
+unchanged: chips scroll sideways and the new way in is a row inside a sheet,
+so nothing on the screen itself moved.
+
+Pro+ is now two of three. Enrichment is the one left, and the only one of the
+three that cannot be answered from what the phone already holds.

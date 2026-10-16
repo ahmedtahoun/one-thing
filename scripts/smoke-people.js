@@ -260,6 +260,60 @@ const SESSION = { userId: 'smoke', name: 'Khalid Al-Mansouri', firstName: 'Khali
   await open('/contact?id=nobody');
   check('an unknown contact goes to People', page.url().endsWith('/people'), page.url());
 
+  // ------------------------------------------------------------ Smart lists
+  // A smart list is a rule, not a folder: the chip is right every time it is
+  // tapped, so the test that matters is that answering a follow-up takes the
+  // person out of the list without anyone editing it.
+  await seed();
+  await open('/people');
+  await page.getByTestId('people-more').click();
+  await page.waitForTimeout(400);
+  check('People offers smart lists', await page.getByTestId('more-smart').isVisible());
+  await page.getByTestId('more-smart').click();
+  await page.waitForTimeout(500);
+  check('…and opens them', page.url().endsWith('/smart-lists'), page.url());
+  check('with nothing in them yet', await page.getByTestId('smart-none').isVisible());
+
+  await page.getByTestId('smart-add').click();
+  await page.waitForTimeout(300);
+  await page.getByTestId('smart-name').fill('Owes me');
+  await page.getByTestId('smart-cond-waiting').click();
+  await page.waitForTimeout(300);
+  const holds = await text('smart-holds');
+  check('the count is live while the rule is built', /\d/.test(holds), holds);
+  await page.getByTestId('smart-save').click();
+  await page.waitForTimeout(500);
+  check('a saved list is listed with its rule', (await text('smart-list')).includes('Owes me'), await text('smart-list'));
+  check('…and Free stops at one', await page.getByTestId('smart-capped').isVisible());
+
+  await open('/people');
+  const smartChip = page.locator('[data-testid^="people-filters-smart:"]');
+  check('it becomes a chip on People', (await smartChip.count()) === 1);
+  check('…carrying its own name', (await smartChip.first().innerText()).includes('Owes me'));
+  await smartChip.first().click();
+  await page.waitForTimeout(500);
+  const inList = await page.locator('[data-testid^="person-c"]:not([data-testid$="-due"])').count();
+  check('the chip shows the people the rule holds', inList > 0, String(inList));
+
+  // Close every follow-up and the same chip empties, with nothing edited.
+  await page.evaluate(() => {
+    const open = JSON.parse(localStorage.getItem('ot.followups') || '[]');
+    localStorage.setItem('ot.followups', JSON.stringify(open.map((f) => ({ ...f, status: 'done' }))));
+  });
+  await open('/people');
+  await page.locator('[data-testid^="people-filters-smart:"]').first().click();
+  await page.waitForTimeout(500);
+  check(
+    'answering them empties the list without anyone editing it',
+    (await page.locator('[data-testid^="person-c"]:not([data-testid$="-due"])').count()) === 0
+  );
+
+  // A deleted list must not leave People showing nothing.
+  await page.evaluate(() => localStorage.removeItem('one-thing.smartLists.v1'));
+  await open('/people');
+  check('a deleted list falls back to All', (await page.locator('[data-testid^="people-filters-smart:"]').count()) === 0);
+  check('…and People still lists everyone', (await people()) > 0);
+
   // ---------------------------------------------------------- Weekly recap
   // Your week (app/recap.tsx): every line comes off something the app dates,
   // so the counts here are checked against the demo history itself rather

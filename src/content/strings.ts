@@ -1443,7 +1443,7 @@ const SETX_en = {
       [
         "list",
         "Smart lists",
-        "Groups that keep themselves up to date as people change."
+        "Groups that keep themselves up to date. Free keeps one."
       ],
       [
         "send",
@@ -1566,7 +1566,7 @@ const SETX_ar: typeof SETX_en = {
       [
         "list",
         "قوائم ذكية",
-        "مجموعات تحدّث نفسها كل ما تتغيّر بيانات الناس."
+        "مجموعات تحدّث نفسها. المجاني يحفظ واحدة."
       ],
       [
         "send",
