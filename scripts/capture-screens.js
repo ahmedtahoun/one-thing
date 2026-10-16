@@ -100,6 +100,11 @@ const ROUTES = [
   // sit beside, so no pair in screen-pairs.json and nothing for `compare` to
   // say — which is exactly why they need capturing: an eye on the Arabic is
   // the only check they get (RELEASE.md § What is actually left, item 10).
+  // The welcome. The handoff drew it (04-onboarding) and the app never had
+  // it, so unlike the three below this one has a prototype shot to sit
+  // beside — and a pair in screen-pairs.json.
+  { path: '/onboarding', name: '04-onboarding', signedIn: true, firstRun: true },
+  { path: '/onboarding?step=1', name: '04-onboarding-choices', signedIn: true, firstRun: true },
   { path: '/scan-many', name: '25-scan-many', signedIn: true, firstRun: false, seedPeople: true },
   { path: '/recap', name: '26-recap', signedIn: true, firstRun: false, seedTasks: true, seedPeople: true, oneThing: true },
   { path: '/smart-lists', name: '27-smart-lists', signedIn: true, firstRun: false, seedPeople: true, seedTasks: true },

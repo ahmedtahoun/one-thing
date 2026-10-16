@@ -247,6 +247,88 @@ const ONE_THING = { en: 'Finish the investor proposal', ar: 'أخلّص عرض �
   check('remind mode leaves the task where it is', reminded.dueAt === beforeRemind.dueAt);
   check('and sets a custom reminder', reminded.remind === 'custom' && !!reminded.remindAt);
 
+  // ------------------------------------------------- the welcome
+  // Two steps, shown after Account setup. Skip must leave the defaults
+  // exactly as they were, because that is the whole claim made for it.
+  await seed();
+  await open('/onboarding');
+  check('the welcome opens on its intro', await page.getByTestId('onboarding-intro').isVisible());
+  check('…with the first pip lit', (await page.getByTestId('onboarding-pip-0-on').count()) === 1);
+  check('…and the button says Continue', (await page.getByTestId('onboarding-next').innerText()).trim() === 'Continue');
+  await page.getByTestId('onboarding-next').click();
+  await page.waitForTimeout(400);
+  check('Continue reaches the questions', await page.getByTestId('onboarding-choices').isVisible());
+  check('…and the second pip is lit instead', (await page.getByTestId('onboarding-pip-1-on').count()) === 1);
+  check('…and the button changes', (await page.getByTestId('onboarding-next').innerText()).trim() === 'Let’s start');
+
+  // Gentle is the stored default, so it starts chosen rather than empty.
+  await page.getByTestId('onboarding-nudge-firm').click();
+  await page.waitForTimeout(300);
+  check('picking a nudge style writes it', ((await read('ot.prefs')) || {}).nudgeStyle === 'firm', JSON.stringify(await read('ot.prefs')));
+
+  await page.getByTestId('onboarding-channel-email-on').click();
+  await page.waitForTimeout(300);
+  check('turning a channel off writes that too', ((await read('ot.prefs')) || {}).channels?.email === false);
+  await page.getByTestId('onboarding-channel-call-on').click();
+  await page.waitForTimeout(300);
+  // WhatsApp is now the only one left on, and must refuse to go off.
+  await page.getByTestId('onboarding-channel-whatsapp-on').click();
+  await page.waitForTimeout(300);
+  check('the last channel cannot be turned off', ((await read('ot.prefs')) || {}).channels?.whatsapp === true);
+
+  await page.getByTestId('onboarding-next').click();
+  await page.waitForTimeout(700);
+  check('“Let’s start” lands on Today', page.url().endsWith('/today'), page.url());
+  check('…and the welcome is marked seen', (await read('ot.onboarded')) === true);
+
+  // Skip, from a clean slate: nothing written, defaults intact.
+  await seed();
+  await open('/onboarding');
+  await page.getByTestId('onboarding-skip').click();
+  await page.waitForTimeout(700);
+  check('Skip lands on Today as well', page.url().endsWith('/today'), page.url());
+  check('…and leaves the defaults alone', !(await read('ot.prefs')), JSON.stringify(await read('ot.prefs')));
+
+  // ------------------------------------------------- the coach marks
+  // They run only for somebody who came through the welcome. Every seeded
+  // session — this suite's included, until now — has not, which is what
+  // keeps the overlay out of all the screenshots and drift probes.
+  await seed();
+  await open('/today');
+  check('a seeded session sees no coach marks', (await page.getByTestId('coach').count()) === 0);
+
+  await page.evaluate(() => localStorage.setItem('ot.onboarded', 'true'));
+  await open('/today');
+  await page.waitForTimeout(600);
+  check('somebody who came through the welcome does', (await page.getByTestId('coach').count()) === 1);
+  check('…starting on the One Thing', (await page.getByTestId('coach-bubble-oneThing').count()) === 1);
+  check('…and saying which of how many', (await page.getByTestId('coach-count').innerText()).trim() === '1/3');
+
+  await page.getByTestId('coach-next').click();
+  await page.waitForTimeout(350);
+  check('Next reaches the quick actions', (await page.getByTestId('coach-bubble-actions').count()) === 1, await page.getByTestId('coach-count').innerText());
+  await page.getByTestId('coach-next').click();
+  await page.waitForTimeout(350);
+  check('…then the mic', (await page.getByTestId('coach-bubble-mic').count()) === 1);
+  check('…and the last one says Got it', (await page.getByTestId('coach-next').innerText()).trim() === 'Got it');
+  await page.getByTestId('coach-next').click();
+  await page.waitForTimeout(500);
+  check('finishing puts the marks away', (await page.getByTestId('coach').count()) === 0);
+  check('…and remembers', (await read('ot.tour')) === true);
+  await open('/today');
+  await page.waitForTimeout(600);
+  check('…so they do not come back', (await page.getByTestId('coach').count()) === 0);
+
+  // Skip, from scratch.
+  await seed();
+  await page.evaluate(() => localStorage.setItem('ot.onboarded', 'true'));
+  await open('/today');
+  await page.waitForTimeout(600);
+  await page.getByTestId('coach-skip').click();
+  await page.waitForTimeout(400);
+  check('Skip puts them away too', (await page.getByTestId('coach').count()) === 0);
+  check('…and counts as seen', (await read('ot.tour')) === true);
+
   await browser.close();
   srv.close();
   const failed = checks.filter((c) => !c.ok);

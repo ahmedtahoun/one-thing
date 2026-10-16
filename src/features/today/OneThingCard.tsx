@@ -15,6 +15,7 @@ import { BalancedText } from '@/ui/BalancedText';
 import { Button } from '@/ui/Button';
 import { Icon } from '@/ui/Icon';
 import { Text } from '@/ui/Text';
+import { useCoachAnchor } from '@/features/coach/CoachProvider';
 import { ink, radius, surface } from '@/design/tokens';
 import { useDirection, useLanguage } from '@/i18n/LanguageProvider';
 
@@ -42,6 +43,7 @@ export function OneThingCard({
   return (
     <View
       testID="one-thing-card"
+      {...useCoachAnchor('oneThing')}
       style={{
         backgroundColor: surface.fill,
         borderRadius: radius.oneThing,

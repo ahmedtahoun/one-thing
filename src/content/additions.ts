@@ -34,6 +34,18 @@ export type Added = {
    * `SETX.st.pro` / `.free`, which the handoff did supply.
    */
   plan: { plus: string; trial: string };
+  /**
+   * The welcome (app/onboarding.tsx). Only these two lines are new — every
+   * other word on that screen was ported with the handoff and never used.
+   */
+  onboarding: { channels: string; channelsSub: string };
+  /** The three coach marks on Today (src/features/coach/). */
+  coach: {
+    next: string;
+    done: string;
+    skip: string;
+    steps: Record<'oneThing' | 'actions' | 'mic', { title: string; body: string }>;
+  };
   pickCancel: string;
   ask: {
     ambiguous: string;
@@ -634,6 +646,29 @@ const ADDED: Record<Lang, Added> = {
     // inside Arabic copy ("جرّب Pro مجاناً ٧ أيام"), so a transliterated
     // "برو" on the badge would be the only place it is spelled out.
     plan: { plus: 'Pro+', trial: 'Trial' },
+    onboarding: {
+      channels: 'Where do you talk to people?',
+      channelsSub: 'I write the draft. You send it from the app you already use.',
+    },
+    coach: {
+      next: 'Next',
+      done: 'Got it',
+      skip: 'Skip',
+      steps: {
+        oneThing: {
+          title: 'One thing, not a list',
+          body: 'The day has one job at the top. Lock In gives it 45 quiet minutes — everything else waits.',
+        },
+        actions: {
+          title: 'Start a message in one tap',
+          body: 'Pick a person, and the draft is written for you. You send it from WhatsApp or your mail app.',
+        },
+        mic: {
+          title: 'Tap to capture, hold to empty your head',
+          body: 'A tap takes one thing. Holding it takes everything at once, and I sort it into tasks after.',
+        },
+      },
+    },
     pickCancel: 'Cancel',
     /** The Assistant and Quick capture asking before they propose a task. */
     ask: {
@@ -1200,6 +1235,29 @@ const ADDED: Record<Lang, Added> = {
       weeks: '{n} أ',
     },
     plan: { plus: 'Pro+', trial: 'تجربة' },
+    onboarding: {
+      channels: 'وين تتواصل مع الناس؟',
+      channelsSub: 'أنا أكتب المسودة، وأنت ترسلها من التطبيق اللي تستخدمه.',
+    },
+    coach: {
+      next: 'التالي',
+      done: 'تمام',
+      skip: 'تخطّي',
+      steps: {
+        oneThing: {
+          title: 'شي واحد، مو قائمة',
+          body: 'اليوم له شغلة وحدة فوق. «ابدأ التركيز» يعطيها ٤٥ دقيقة بهدوء، وكل شي ثاني ينتظر.',
+        },
+        actions: {
+          title: 'ابدأ رسالة بضغطة',
+          body: 'اختر الشخص، والمسودة تنكتب لك. وأنت ترسلها من واتساب أو من بريدك.',
+        },
+        mic: {
+          title: 'ضغطة تسجّل، وضغطة طويلة تفرّغ راسك',
+          body: 'الضغطة تاخذ شي واحد. والضغطة الطويلة تاخذ كل شي مرة وحدة، وأنا أرتّبها مهام بعدين.',
+        },
+      },
+    },
     pickCancel: 'إلغاء',
     ask: {
       ambiguous: 'أي {n} تقصد؟',

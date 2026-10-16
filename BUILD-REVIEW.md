@@ -3310,3 +3310,161 @@ One thing that moved while wiring it: `handle()` used to decide the
 off the photo rather than the fields parsed from them. `review()` now
 decides from the parsed fields, so a photo that yields lines but no usable
 field no longer reports success.
+
+### 2.84 The welcome, which the handoff drew and nobody built
+Asked for a welcoming onboarding in both languages. It turned out to exist
+already — on paper. `04-onboarding.png` is in the handoff, SCREENS.md § 04
+specifies it, the prototype has working markup for it, and **every word of
+it was ported into `strings.ts` in both languages and never rendered**:
+`ob1_k`, `ob1_t`, `ob1_s`, `ob2_t`, `ob2_s`, `nudges`, `chans`, `skip`,
+`cont`, `start`. Two lines were written for this screen; the rest is the
+designer's copy finally on screen.
+
+**This is a departure, and a deliberate one.** SCREENS.md § 04 says the
+prototype "keeps it reachable but **first-run skips it** (defaults
+applied)", and `app/setup.tsx` did exactly that — Gentle, all three
+channels, 45 minutes, applied in silence. The product owner asked for a
+welcome, so setup now hands over to it. Skipping leaves every default
+precisely as it was, so the old path is still the default path and the
+change costs nothing to anyone who taps Skip.
+
+**Two steps, not three.** The prototype's markup holds a third (`ob3_t`,
+channels as toggle rows), but `dots: [0, 1]` and
+`obCta: step < 1 ? cont : start` mean nothing can reach it, and it asks
+what step 2 already asks with tiles. Building it would have been building
+a screen the designer had stopped using.
+
+**It is measured, not eyeballed** — rare for a screen built after the
+handoff, because this one has a prototype shot. A pair in
+`screen-pairs.json` reports **0.88% in English and 0.44% in Arabic**, the
+closest of any screen in the project, and a drift probe puts every label
+within **1.3 pt** of where the prototype puts it.
+
+Two things the first render got wrong, both caught by looking:
+
+- **The CTA was the primary green.** The prototype draws it `#0b0b0b`, so
+  it is `ink.base`, the same call `OneThingCard`'s Lock In makes.
+- **The channel tiles were empty.** `<Icon name="whatsapp">` draws
+  *nothing*: the icons are `msg`, `mail` and `phone`, reached through
+  `TYPE_ICON`, and `whatsapp`/`email`/`call` are task types rather than
+  icon names. `Icon` returns null for a name it does not know — correct at
+  runtime, invisible in review. `src/design/icon-names.test.ts` now reads
+  every `<Icon name="…">` literal out of the source and every `TYPE_ICON`
+  value, and fails on any that resolves to nothing.
+
+One rule worth naming: **the last channel cannot be turned off.** With all
+three off, Today's Call, Email and WhatsApp tiles lead nowhere. The tile
+simply does not respond, the way a radio group will not let you choose
+nothing, and a test holds it.
+
+`?step=1` opens the second step directly, so the capture harness can shoot
+a screen that is otherwise two taps in — and so can anyone reviewing its
+Arabic.
+
+Not built: SCREENS.md's "keep for Revisit setup in a future version".
+`src/lib/onboarded.ts` has the `reset()` that a Settings row would call,
+but no row calls it yet.
+
+### 2.85 Coach marks on Today
+The welcome (§2.84) says what the app is for; it does not say what the
+controls do. This is the other half the product owner asked for: the screen
+dimmed, one control left bright, an arrow and a box of text, three times.
+
+**Three marks, not eight.** A tour is a toll charged on the first run, so
+each one has to earn its tap: that the big card is *the* one thing rather
+than the top of a list, that the tiles start a message rather than opening
+a list of people, and that the mic does two different things depending on
+how long it is held. The tab bar is not on the tour, because a tab bar
+explains itself.
+
+**It stays out of every screenshot, and not by a trick.** `shouldRun`
+wants `onboarded` as well as "not yet seen", so the tour only runs for
+somebody who came through the welcome. Every seeded session — each
+capture, each drift probe, each smoke suite that does not walk the welcome
+— has never been onboarded, so the overlay never appears over a screen
+being measured. That is the same answer a person in that position would
+get: you do not coach somebody who never arrived. A smoke check asserts
+both halves.
+
+**The placement is arithmetic, so it is tested rather than discovered on a
+phone** (`src/features/coach/geometry.ts`): below the control by
+preference, above it when there is no room, clamped inside both edges,
+narrowed on a phone too small for the box — and the arrow tracks the
+*control*, not the bubble, so it still points at the right thing once the
+bubble has been pushed away from an edge.
+
+Two bugs the screenshots found, both now covered by tests:
+
+- **A bubble above a control could cover it.** Pinned by its top from an
+  assumed height, a box whose text ran a line longer reached back down over
+  the mic it was pointing at. Above a control it is pinned by its
+  **bottom** now, so any height is safe; the estimate only chooses the
+  side. The test asserts it for bubbles from 90 to 320 pt.
+- **The hole let taps through.** The dimming started as four panels around
+  a gap, and a gap is not a hole: tapping the spotlit "Lock In" mid-tour
+  would have started a focus session. It is one SVG path now, the screen
+  with the control wound the other way and filled even-odd — a real
+  cut-out, which also rounds the corners and goes circular for a round
+  control like the mic.
+
+The bubble and its arrow carry the same shadow the tab bar uses, because
+white on a dimmed screen is fine and white on the *bright* tab bar is
+invisible — which is what the mark on the mic looked like at first.
+
+A screen marks a control with `useCoachAnchor('mic')` and knows nothing
+else: no state, no conditional rendering, no import of the overlay.
+Positions come from `measureInWindow`, so they are absolute and need no
+correction for scrolling or for the writing direction — only the words
+inside the bubble flip.
+
+Not built: no way to see it again. `src/lib/tour.ts` has the `reset()` a
+Settings row would call, next to `onboarded.ts`'s.
+
+### 2.86 The paywall asks the store what it charges
+Found reading the app as a reviewer (§9.10 of RELEASE.md): the cards
+rendered `PRICES`, a table of US cents typed by hand, through a `money()`
+that prefixed a dollar sign — so a buyer in Riyadh was shown **$6.99** and
+charged a SAR tier. `plans.ts` claimed "the store's own localised figures
+replace" them; **nothing did**. `purchases.ts` exported `startPurchases`,
+`startTrial`, `buyTip`, `restorePurchases` and `manageSubscription`, and
+no product lookup at all.
+
+The amounts were already arriving. `fetchProducts` is called before every
+purchase — StoreKit will not sell a product it has not loaded — and the
+price on the result was being thrown away. `store.prices()` reads it now,
+once, when the paywall opens.
+
+**Live or fallback, never a mixture.** `resolvePrices` takes the store's
+pair or none of it. One live period beside one typed one would put a SAR
+year next to a USD month and compute a saving between the two — a number
+that is simply false, and the kind a regulator reads literally. The same
+rule hides the "Save 52%" badge outright when the two are not in one
+currency, rather than printing a figure it cannot stand behind.
+
+**Everything derived moves with it.** The per-month figure on the yearly
+card, the year's total in the fine print and the savings percentage are
+all computed from whichever pair is in force, in its own currency. The
+percentage still rounds *down*.
+
+Three details that only show up away from a US phone, each with a test:
+
+- **Play's base plans are a list of pricing phases.** A plan with a free
+  trial opens with a zero phase, so reading phase zero would advertise
+  free as the price forever. It takes the last paying phase.
+- **Not every currency has two decimals.** KWD, BHD, OMR and three others
+  have three; JPY and KRW none. `minorUnits` knows, so a Kuwaiti price is
+  not out by a factor of ten.
+- **`Intl` is the only thing that knows the form.** SAR reads `6.99 ر.س.`
+  in Arabic and `SAR 6.99` in English; no `$${n}` can be right in more
+  than one country. Digits are pinned to Latin so the paywall does not
+  become the one screen disagreeing with the rest of the app while that
+  question is open.
+
+Nothing visible changed in English, because with no store the fallback is
+the table that was always there — `compare` reports `en-paywall` unmoved
+at 10.79%. Arabic shifts 0.04 of a point, which is `$39.99` becoming
+`39.99 US$` through `Intl`.
+
+**This is not finished until the products exist.** Until then every device
+falls back, exactly as before. What has changed is that the day the
+products are created, the right prices appear without another build.

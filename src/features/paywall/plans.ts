@@ -17,6 +17,7 @@
  * the only place the real currency is known.
  */
 import type { Period } from './store';
+import type { TierPrices } from './live-prices';
 
 /**
  * A paid tier. `free` is not here because nothing about it is priced.
@@ -63,6 +64,20 @@ export const isForSale = (tier: Tier): boolean => FOR_SALE.includes(tier);
 /** "$6.99" — whole cents to the two-decimal form the cards show. */
 export function money(cents: number): string {
   return `$${(cents / 100).toFixed(2)}`;
+}
+
+/**
+ * The table above as money, for a store that has not answered: on the web,
+ * before the products exist, or with the network down. US dollars, because
+ * that is the currency these figures were typed in — see
+ * `./live-prices.ts` for why a wrong currency is worse than a stale one,
+ * and why the live pair replaces both of these or neither.
+ */
+export function fallbackPrices(tier: Tier): TierPrices {
+  return {
+    month: { minor: PRICES[tier].month, currency: 'USD' },
+    year: { minor: PRICES[tier].year, currency: 'USD' },
+  };
 }
 
 /** What a year costs per month, which is how the cards compare the two. */
