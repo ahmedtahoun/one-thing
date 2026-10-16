@@ -317,6 +317,8 @@ export type Added = {
     reading: string;
     unsupported: string;
     androidNote: string;
+    /** Android, after a scan that worked: the Arabic side was not read. */
+    latinOnly: string;
     nothing: string;
     cameraOff: string;
     name: string;
@@ -999,7 +1001,8 @@ const ADDED: Record<Lang, Added> = {
       choose: 'Choose a photo',
       reading: 'Reading the card…',
       unsupported: 'Reading cards needs the phone app. Fill the details in by hand.',
-      androidNote: 'On Android, cards in Latin letters are read. For Arabic cards, fill the details in by hand.',
+      androidNote: 'On Android the Arabic side of a card isn’t read — the English side, the phone and the email are. Most cards here have both, so it’s still worth a photo.',
+      latinOnly: 'Arabic isn’t read on Android, so anything printed only in Arabic — usually the name — needs checking.',
       nothing: 'I couldn’t read any text. Try a clearer photo, or type it in.',
       cameraOff: 'Camera access is off. Turn it on in Settings, or choose a photo instead.',
       name: 'Name',
@@ -1558,7 +1561,8 @@ const ADDED: Record<Lang, Added> = {
       choose: 'اختر صورة',
       reading: 'أقرأ البطاقة…',
       unsupported: 'قراءة البطاقات تحتاج تطبيق الجوال. عبّي البيانات بنفسك.',
-      androidNote: 'على أندرويد تنقرأ البطاقات بالأحرف اللاتينية. للبطاقات العربية، عبّي البيانات بنفسك.',
+      androidNote: 'على أندرويد ما ينقرأ الوجه العربي من البطاقة — بس الإنجليزي والجوال والإيميل ينقرأون. وأغلب البطاقات عندنا فيها الاثنين، فتستاهل صورة.',
+      latinOnly: 'العربي ما ينقرأ على أندرويد، فاللي مكتوب بالعربي بس — غالبًا الاسم — يحتاج مراجعة.',
       nothing: 'ما قدرت أقرأ أي نص. جرّب صورة أوضح، أو اكتبها.',
       cameraOff: 'الكاميرا مقفلة. شغّلها من الإعدادات، أو اختر صورة بدالها.',
       name: 'الاسم',

@@ -3262,3 +3262,51 @@ undercount.
 The row's sub-label now depends on the file count as well as the platform,
 because "Takes the subject and the message" stopped being true the moment
 Android could send a file.
+
+### 2.83 Arabic cards on Android: the limit is real, the copy about it was not
+Asked to fix Arabic card scanning on Android. **It cannot be fixed from
+here, and the reason is worth writing down so nobody tries again.**
+
+`expo-text-extractor` uses Apple's Vision on iPhone and Google's ML Kit on
+Android. Vision reads Arabic, and `patches/` already asks it for `ar-SA`
+alongside `en-US` (§2.45's patch). **ML Kit has no Arabic recogniser at
+all** — text recognition v2 ships Latin, Chinese, Devanagari, Japanese and
+Korean, each as its own ~38 MB model, and Arabic is not among them. The
+Android source is `TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)`,
+which is the Latin one; there is nothing to switch it to.
+
+The two ways out, and what each costs:
+
+- **Another on-device engine** (Tesseract with `ara.traineddata`). Keeps
+  the privacy promise, needs a native module nobody has written for Expo,
+  adds the language data to the bundle, and reads stylised card type
+  markedly worse than either Vision or ML Kit. Untestable in this
+  repository — there is no Android toolchain here and no device.
+- **A cloud OCR.** Reads Arabic well, and **breaks a published promise**:
+  the Privacy Policy says in both languages that "a photo of a business
+  card is read on your phone and not kept" (§2.59 checked that claim was
+  true). Changing it means new policy text, a new consent, both store
+  privacy forms, a new recipient outside the Kingdom and Egypt, and the
+  lawyer again. That is a product decision, not a fix.
+
+**What was actually wrong was the sentence.** The screen told Android
+users that for an Arabic card they should "fill the details in by hand".
+Gulf business cards are usually bilingual, and the Latin pass returns the
+English name, the job title, the company, the phone, the email and the
+address — a test now proves exactly that, parsing what ML Kit would return
+from a bilingual Saudi card and asserting the whole contact comes out. So
+the old note was talking people out of a scan that works.
+
+It now says what is true before the photo — the Arabic side is not read,
+the English side and the numbers are, and most cards have both — and
+`scanOutcome` in `src/features/card/scan-note.ts` says it again *after*
+the scan, where it matters, because the field the missing Arabic would
+have filled is usually the name and it is on the screen being reviewed.
+Three outcomes: `nothing`, `readInFull` (iPhone), `latinOnly` (Android,
+something found). Pure, so both phones are asked at once.
+
+One thing that moved while wiring it: `handle()` used to decide the
+"nothing was read" message from `read.length === 0`, which is the lines
+off the photo rather than the fields parsed from them. `review()` now
+decides from the parsed fields, so a photo that yields lines but no usable
+field no longer reports success.
