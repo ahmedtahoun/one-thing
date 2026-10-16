@@ -2968,13 +2968,23 @@ comped user sees "Comped Pro until 16 Jan — Ticket #1182" and a "Take the
 comp back" button instead of a second grant. `npm run fidelity`: 56 probes,
 0 failing.
 
+**It goes into the person's own data export, and CI insisted.** Every table
+with a `user_id` must be either exported or excluded with a reason, checked
+against the live schema by `scripts/test-export-db.ts` — a guard that caught
+this table the moment it existed, which is exactly what it is for. A comp is
+exported for the same reason `subscription` is: it is why their plan was
+what it was. `granted_by` is not: it names a member of staff, and staff are
+not part of a user's data, which is why `admin_member` is excluded outright.
+`Exported` gained an optional `hide`, and `exportDocument` drops those
+columns as it builds — pure, and unit-tested.
+
 **Still not built:** "Extend trial 7 days" stays unavailable. A trial is the
 store's own object with the store's own rules, and stretching one is not
 something our `plan` column can honestly do. A comp is the answer to the
 same support problem.
 
 **Checked:** `npm run typecheck`, `npm test` (20), `npm run test:db`
-(21 — six new: that a comp makes somebody Pro with no store, that a second
+in `admin/` (21 — six new: that a comp makes somebody Pro with no store, that a second
 stacks, that it is not counted as a subscription, that the sweep does not
 lapse a comped user but does once it is revoked, that expiry returns `free`
 or `lapsed` correctly, that taking it back is immediate and keeps the row,
@@ -2983,3 +2993,5 @@ is not Pro), `npm run smoke` (58 — the picker is shut until asked for, a
 comp with no reason is refused, the grant shows its end date and reason, a
 comped user is not offered a second one, and both the grant and the
 take-back are logged with the reason) and `npm run fidelity` (0 failing).
+At the root: `npm test` (755, four new on the export document),
+`npm run test:db` (33) and `npm run verify:colours`.
