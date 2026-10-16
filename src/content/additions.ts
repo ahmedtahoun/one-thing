@@ -484,6 +484,24 @@ export type Added = {
     favN: string;
     allN: string;
     nonePeople: string;
+    /** Today's One Thing, what is next, and what the day actually held. */
+    oneThingIs: string;
+    oneThingDone: string;
+    noOneThing: string;
+    nextIs: string;
+    noNext: string;
+    logToday: string;
+    logYesterday: string;
+    logWeek: string;
+    noLogToday: string;
+    noLogYesterday: string;
+    noLogWeek: string;
+    /** Acting on what an answer found, rather than only reading it. */
+    done: string;
+    undone: string;
+    focus: string;
+    choose: string;
+    markedDone: string;
     more: string;
     /** A question the Assistant cannot answer — it offers examples instead of saving a task. */
     outOfScope: string;
@@ -757,7 +775,7 @@ const ADDED: Record<Lang, Added> = {
     },
     small: {
       hello: 'Hi{n}! Tell me what to remember — or say “save a contact” and speak their details.',
-      help: 'I can turn a sentence into a task, save a contact from what you say (name, number, email), lay out your day, and tell you who’s waiting on you. Try “Call Sara tomorrow at 10” or “Save a contact”. Tap the mic and just talk.',
+      help: 'I can turn a sentence into a task, save a contact from what you say, scan a business card or read a file of people, and answer what this app already holds — your One Thing, what’s next, what’s late, someone’s number, who’s waiting on you, what you did today. Try “What’s my One Thing today?”, “What’s next?” or “Call Sara tomorrow at 10”. Ask about someone and you can keep going: “and her email?”. Tap the mic and just talk.',
       thanks: 'Anytime.',
       notFound: 'I couldn’t find that person in People.',
       noPhone: 'I don’t have a number for {n} yet.',
@@ -1195,6 +1213,22 @@ const ADDED: Record<Lang, Added> = {
       favN: '{n} favourites',
       allN: '{n} in People',
       nonePeople: 'Nobody yet.',
+      oneThingIs: 'Your One Thing today',
+      oneThingDone: 'Done today',
+      noOneThing: 'You haven’t named a One Thing for today.',
+      nextIs: 'Next',
+      noNext: 'Nothing scheduled next.',
+      logToday: '{n} today',
+      logYesterday: '{n} yesterday',
+      logWeek: '{n} this week',
+      noLogToday: 'Nothing logged today yet.',
+      noLogYesterday: 'Nothing logged yesterday.',
+      noLogWeek: 'Nothing logged this week yet.',
+      done: 'Done',
+      undone: 'Not done',
+      focus: 'Start focus',
+      choose: 'Choose one',
+      markedDone: 'Marked done.',
       more: '+{n} more',
       outOfScope: 'I’m best with your people and your follow-ups.',
       egTask: 'Remind me to call Sara at 4',
@@ -1348,7 +1382,7 @@ const ADDED: Record<Lang, Added> = {
     },
     small: {
       hello: 'أهلًا{n}! قل لي وش أذكّرك فيه — أو قل «احفظ جهة اتصال» وقل بياناتها.',
-      help: 'أقدر أحوّل جملتك إلى مهمة، وأحفظ جهة اتصال من كلامك (الاسم والرقم والإيميل)، وأرتّب يومك، وأقول لك مين ينتظر ردك. جرّب «كلم سارة بكرة العصر» أو «احفظ جهة اتصال». اضغط على الميكروفون وتكلم.',
+      help: 'أقدر أحوّل جملتك إلى مهمة، وأحفظ جهة اتصال من كلامك، وأمسح بطاقة عمل أو أقرأ ملف أشخاص، وأجاوبك من اللي عندك هنا — شغلك الأساسي، وش الجاي، وش المتأخر، رقم أي شخص، مين ينتظر ردك، وش سويت اليوم. جرّب «وش شغلي الأساسي اليوم؟» أو «وش التالي؟» أو «كلم سارة بكرة العصر». واسأل عن شخص وكمّل عليه: «وش إيميلها؟». اضغط على الميكروفون وتكلم.',
       thanks: 'العفو.',
       notFound: 'ما لقيت هذا الشخص في الأشخاص.',
       noPhone: 'ما عندي رقم لـ{n} بعد.',
@@ -1786,6 +1820,22 @@ const ADDED: Record<Lang, Added> = {
       favN: '{n} في المفضلة',
       allN: '{n} في الأشخاص',
       nonePeople: 'ما فيه أحد بعد.',
+      oneThingIs: 'شغلك الأساسي اليوم',
+      oneThingDone: 'خلص اليوم',
+      noOneThing: 'ما حدّدت شغلك الأساسي لليوم.',
+      nextIs: 'الجاي',
+      noNext: 'ما فيه شيء جاي مجدول.',
+      logToday: '{n} اليوم',
+      logYesterday: '{n} أمس',
+      logWeek: '{n} هذا الأسبوع',
+      noLogToday: 'ما فيه شيء مسجّل اليوم.',
+      noLogYesterday: 'ما فيه شيء مسجّل أمس.',
+      noLogWeek: 'ما فيه شيء مسجّل هذا الأسبوع.',
+      done: 'خلصت',
+      undone: 'ما خلصت',
+      focus: 'ابدأ التركيز',
+      choose: 'حدّد واحد',
+      markedDone: 'علّمناها خلصت.',
       more: '+{n} غيرهم',
       outOfScope: 'أنا أفيدك أكثر في أشخاصك ومتابعاتك.',
       egTask: 'فكرني أكلم سارة الساعة ٤',

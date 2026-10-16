@@ -71,7 +71,7 @@ import { defaultSelection, type Candidate } from '@/features/people-import/colum
 import { readDraft } from '@/features/people-import/read-draft';
 import { candidatesFromFile } from '@/features/people-import/read-file';
 import { canReadCards, readCard } from '@/lib/card-reader';
-import { askData, type DataAnswer, type DataWorld } from '@/lib/parse/ask-data';
+import { askData, type DataAnswer, type DataWorld, type Subject } from '@/lib/parse/ask-data';
 import { attachCommand, type Attach } from '@/lib/parse/attach';
 import { smallTalk } from '@/lib/parse/small';
 import { followUpFromParsed, taskFromParsed } from '@/lib/parse/to-task';
@@ -142,7 +142,7 @@ export default function Assistant() {
   const { t, fux, a11y, lang, inline } = useLanguage();
   const dir = useDirection();
   const { session } = useSession();
-  const { tasks, oneThing, addTask } = useTasks();
+  const { tasks, oneThing, addTask, toggleDone, restore, setOneThingDone } = useTasks();
   const { contacts, followUps, history, addContact, addContacts, updateContact, addFollowUp, updateFollowUp } = usePeople();
   const favorites = useFavorites();
   const cadence = useCadence();
@@ -178,7 +178,15 @@ export default function Assistant() {
   const quick = t.rQuick as unknown as readonly QuickWhen[];
   const world = (): World => ({ contacts, tasks, followUps, now: new Date() });
   /** Everything a question can be answered from, all of it already here. */
-  const dataWorld = (): DataWorld => ({ contacts, tasks, followUps, history, favorites, cadence, now: new Date() });
+  const dataWorld = (): DataWorld => ({ contacts, tasks, followUps, history, favorites, cadence, oneThing, now: new Date() });
+
+  /**
+   * Who the chat is still about, so "and her email?" has somebody to be
+   * about. Set by an answer that was about one person, cleared by nothing:
+   * the next question that names someone replaces it, and a question that
+   * says "my" ignores it (src/lib/parse/ask-data.ts).
+   */
+  const [subject, setSubject] = useState<Subject>(null);
 
   /** The last question still waiting for an answer, if the chat is mid-question. */
   const pending = [...messages].reverse().find((m): m is Ask => 'kind' in m && m.kind === 'ask' && !m.answered) ?? null;
@@ -397,6 +405,8 @@ export default function Assistant() {
    * `unknown`, and says so with examples instead of being saved as a task.
    */
   const showData = (said: string, answer: DataAnswer) => {
+    // An answer about one person is what the next question can lean on.
+    if (answer.kind === 'person' || answer.kind === 'history') setSubject({ contact: answer.contact });
     setMessages((list) => [...list, { id: newId(), from: 'me', text: said }, { id: newId(), from: 'bot', kind: 'data', answer }]);
   };
 
@@ -413,6 +423,25 @@ export default function Assistant() {
       updateFollowUp(followUp.id, { status: 'done', lastAction: 'closed', lastActionAt: new Date().toISOString() });
       toast.show(fux.toastClose, { undo: false });
     },
+    /**
+     * Ticking a task off from the chat. The whole list is snapshotted first,
+     * so Undo puts back exactly what was there — the same restore the task
+     * screens use, rather than a second toggle that would be wrong if
+     * anything else changed in between.
+     */
+    onDone: (task: Task) => {
+      const before = tasks;
+      toggleDone(task.id);
+      toast.show(copy.qa.markedDone, { undo: () => restore(before) });
+    },
+    onLogEntry: (entry: { contactId: string }) => router.push(`/contact?id=${entry.contactId}`),
+    onFocus: () => router.push('/focus'),
+    onOneThingDone: () => {
+      if (!oneThing) return;
+      setOneThingDone(!oneThing.done);
+      if (!oneThing.done) toast.show(copy.qa.markedDone, { undo: () => setOneThingDone(false) });
+    },
+    onChooseOneThing: () => router.push('/today'),
   };
 
   // --- a card or a file ---------------------------------------------------
@@ -577,7 +606,7 @@ export default function Assistant() {
     }
     // Everything the app already knows, answered here: before the meter,
     // before the network, and whether or not either is there.
-    const found = askData(text, dataWorld());
+    const found = askData(text, dataWorld(), subject);
     if (found) {
       clear();
       return showData(text, found);

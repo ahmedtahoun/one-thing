@@ -62,6 +62,17 @@ const EVERY: readonly (readonly [string, DataAnswer])[] = [
   ['favourites', { kind: 'people', of: 'favorites', label: null, contacts: [person()] }],
   ['all people', { kind: 'people', of: 'all', label: null, contacts: [person()] }],
   ['people, empty', { kind: 'people', of: 'all', label: null, contacts: [] }],
+  ['one thing', { kind: 'oneThing', oneThing: { date: '2026-10-15', title: 'Finish the proposal', done: false, focusMinutes: 45 } }],
+  ['one thing, done', { kind: 'oneThing', oneThing: { date: '2026-10-15', title: 'Finish the proposal', done: true, focusMinutes: 45 } }],
+  ['one thing, none', { kind: 'oneThing', oneThing: null }],
+  ['next', { kind: 'next', task }],
+  ['next, none', { kind: 'next', task: null }],
+  ['log today', { kind: 'log', span: 'today', entries: [entry] }],
+  ['log today, empty', { kind: 'log', span: 'today', entries: [] }],
+  ['log yesterday', { kind: 'log', span: 'yesterday', entries: [entry] }],
+  ['log yesterday, empty', { kind: 'log', span: 'yesterday', entries: [] }],
+  ['log week', { kind: 'log', span: 'week', entries: [entry] }],
+  ['log week, empty', { kind: 'log', span: 'week', entries: [] }],
   ['unknown', { kind: 'unknown' }],
 ];
 
@@ -78,7 +89,22 @@ describe('answerLine', () => {
   }
 
   it('gives the number with its code, as the design shows it', () => {
-    assert.equal(answerLine({ kind: 'person', want: 'phone', contact: person() }, added('en').qa), 'Sara Haddad: +966 501234567');
+    const line = answerLine({ kind: 'person', want: 'phone', contact: person() }, added('en').qa);
+    assert.equal(line.replace(/[\u2066-\u2069]/g, ''), 'Sara Haddad: +966 501234567');
+  });
+
+  /**
+   * Found in an Arabic screenshot: "+971 50 331 2045" came out with its
+   * groups reordered, because a run of digits and spaces inside an Arabic
+   * line is laid out right to left. A number read in the wrong order is
+   * worse than an ugly one, so it is isolated — the same mark People and
+   * Import use.
+   */
+  it('keeps a phone number in its own direction, whatever the line around it', () => {
+    for (const lang of LANGS) {
+      const line = answerLine({ kind: 'person', want: 'phone', contact: person() }, added(lang).qa);
+      assert.match(line, /\u2066\+966 501234567\u2069/, `${lang}: ${JSON.stringify(line)}`);
+    }
   });
 
   it('says it has no number rather than showing a blank', () => {
@@ -94,6 +120,27 @@ describe('answerLine', () => {
         { kind: 'waiting', items: [] },
         { kind: 'quiet', items: [] },
         { kind: 'people', of: 'all', label: null, contacts: [] },
+      ] as DataAnswer[]) {
+        assert.ok(!/\b0\b|٠/.test(answerLine(answer, copy)), `${lang}: ${answerLine(answer, copy)}`);
+      }
+    }
+  });
+
+  it('says the One Thing itself, not only that there is one', () => {
+    const one = { date: '2026-10-15', title: 'Finish the investor proposal', done: false, focusMinutes: 45 };
+    assert.equal(answerLine({ kind: 'oneThing', oneThing: one }, added('en').qa), 'Your One Thing today: Finish the investor proposal');
+    assert.ok(answerLine({ kind: 'oneThing', oneThing: { ...one, done: true } }, added('en').qa).startsWith('Done today'));
+    assert.ok(answerLine({ kind: 'oneThing', oneThing: one }, added('ar').qa).includes('شغلك الأساسي اليوم'));
+  });
+
+  it('counts an empty day as a sentence here too', () => {
+    for (const lang of LANGS) {
+      const copy = added(lang).qa;
+      for (const answer of [
+        { kind: 'log', span: 'today', entries: [] },
+        { kind: 'log', span: 'week', entries: [] },
+        { kind: 'next', task: null },
+        { kind: 'oneThing', oneThing: null },
       ] as DataAnswer[]) {
         assert.ok(!/\b0\b|٠/.test(answerLine(answer, copy)), `${lang}: ${answerLine(answer, copy)}`);
       }

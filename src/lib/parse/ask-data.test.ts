@@ -57,6 +57,7 @@ const world = (over: Partial<DataWorld> = {}): DataWorld => ({
   history: [],
   favorites: new Set(),
   cadence: new Map(),
+  oneThing: null,
   now: NOW,
   ...over,
 });
@@ -409,5 +410,194 @@ describe('what it leaves to the parser', () => {
 
   it('…but still answers the question about who is waiting', () => {
     assert.equal(kindOf(askData('What am I waiting for?', world())), 'waiting');
+  });
+});
+
+describe('keeping the thread', () => {
+  const sara = person('c1', 'Sara Haddad');
+
+  it('answers a detail question about the person the chat is already about', () => {
+    const answer = askData('and her email?', world(), { contact: sara });
+    assert.equal(answer?.kind, 'person');
+    if (answer?.kind !== 'person') return;
+    assert.equal(answer.want, 'email');
+    assert.equal(answer.contact.id, 'c1');
+  });
+
+  it('does the same in Arabic, where the pronoun is inside the word', () => {
+    const answer = askData('وش رقمها؟', world(), { contact: sara });
+    assert.equal(answer?.kind, 'person');
+    if (answer?.kind !== 'person') return;
+    assert.equal(answer.want, 'phone');
+    assert.equal(answer.contact.id, 'c1');
+  });
+
+  /**
+   * The failure the whole feature is for. Without a subject the same
+   * sentence names nobody, and saying so is right — it is only a
+   * conversation when something came before it.
+   */
+  it('still says it does not know who, with nothing before it', () => {
+    assert.equal(kindOf(askData('and her email?', world())), 'nobody');
+  });
+
+  /**
+   * The one that matters: a question about the person asking must never be
+   * answered with the last person's details. What it answers *instead*
+   * differs by language and does not matter — "nobody" in English, where
+   * "number" is still a detail word, and "I can't answer that" in Arabic,
+   * where "رقمي" is one word and no detail word matches. Both are honest;
+   * handing over Sara's number would not be.
+   */
+  it('never reads "my" as the person being talked about', () => {
+    for (const said of ["what's my number?", 'وش رقمي؟', 'what is my email?']) {
+      const answer = askData(said, world(), { contact: sara });
+      assert.notEqual(answer?.kind, 'person', said);
+    }
+  });
+
+  it('lets a name in the question win over the one remembered', () => {
+    const answer = askData("what's Omar's email?", world(), { contact: sara });
+    assert.equal(answer?.kind, 'person');
+    if (answer?.kind !== 'person') return;
+    assert.equal(answer.contact.id, 'c2');
+  });
+
+  it('carries the person into a history question', () => {
+    const w = world({ history: [entry('h1', 'c1', '2026-10-14T09:00:00.000Z')] });
+    const answer = askData('when did I last talk to him?', w, { contact: sara });
+    assert.equal(answer?.kind, 'history');
+    if (answer?.kind !== 'history') return;
+    assert.equal(answer.contact.id, 'c1');
+    assert.equal(answer.entries.length, 1);
+  });
+
+  it('answers a bare pronoun with the person themselves', () => {
+    const answer = askData('what about him?', world(), { contact: sara });
+    assert.equal(answer?.kind, 'person');
+    if (answer?.kind !== 'person') return;
+    assert.equal(answer.want, 'all');
+  });
+
+  it('does not turn a list question into one about the person remembered', () => {
+    assert.equal(kindOf(askData("what's late?", world(), { contact: sara })), 'tasks');
+    assert.equal(kindOf(askData('who is waiting on me?', world(), { contact: sara })), 'waiting');
+  });
+});
+
+describe('the day itself', () => {
+  const ONE = { date: '2026-10-15', title: 'Finish the investor proposal', done: false, focusMinutes: 45 };
+
+  it('answers what today’s One Thing is', () => {
+    const answer = askData("what's my one thing today?", world({ oneThing: ONE }));
+    assert.equal(answer?.kind, 'oneThing');
+    if (answer?.kind !== 'oneThing') return;
+    assert.equal(answer.oneThing?.title, ONE.title);
+  });
+
+  it('says so when none has been named, rather than answering with a task', () => {
+    const answer = askData('وش شغلي الأساسي اليوم؟', world());
+    assert.equal(answer?.kind, 'oneThing');
+    if (answer?.kind !== 'oneThing') return;
+    assert.equal(answer.oneThing, null);
+  });
+
+  /** The line between the two questions: one task, or the day's list. */
+  it('keeps "what do I have today?" as the day’s list', () => {
+    assert.equal(kindOf(askData('what do I have today?', world({ oneThing: ONE }))), 'tasks');
+  });
+
+  it('answers "what’s next?" with the most overdue thing', () => {
+    const w = world({
+      tasks: [
+        task('t1', 'Call the lawyer', '2026-10-15T07:00:00.000Z'),
+        task('t2', 'Email Sara', '2026-10-14T07:00:00.000Z'),
+        task('t3', 'Book the dentist', '2026-10-15T14:00:00.000Z'),
+      ],
+    });
+    const answer = askData("what's next?", w);
+    assert.equal(answer?.kind, 'next');
+    if (answer?.kind !== 'next') return;
+    assert.equal(answer.task?.id, 't2', 'the oldest late one comes first');
+  });
+
+  it('…and with the soonest to come when nothing is late', () => {
+    const w = world({ tasks: [task('t3', 'Book the dentist', '2026-10-15T14:00:00.000Z'), task('t4', 'Pay the invoice', '2026-10-18T09:00:00.000Z')] });
+    const answer = askData('what should I do now?', w);
+    assert.equal(answer?.kind, 'next');
+    if (answer?.kind !== 'next') return;
+    assert.equal(answer.task?.id, 't3');
+  });
+
+  it('…and with nothing at all when nothing is open', () => {
+    const answer = askData('وش التالي؟', world());
+    assert.equal(answer?.kind, 'next');
+    if (answer?.kind !== 'next') return;
+    assert.equal(answer.task, null);
+  });
+
+  /**
+   * Read off history, because history is the only thing this app dates. A
+   * `Task` has no finished-at, so "how many did I close today" is a number
+   * nobody can know — `src/features/recap/week.ts` decided that, and this
+   * answers the question it can answer instead.
+   */
+  it('answers what was actually done today', () => {
+    const w = world({
+      history: [
+        entry('h1', 'c1', '2026-10-15T08:30:00.000Z', 'Called about the quote'),
+        entry('h2', 'c2', '2026-10-09T08:30:00.000Z', 'Sent the deck'),
+      ],
+    });
+    const answer = askData('what did I do today?', w);
+    assert.equal(answer?.kind, 'log');
+    if (answer?.kind !== 'log') return;
+    assert.equal(answer.span, 'today');
+    assert.deepEqual(
+      answer.entries.map((e) => e.id),
+      ['h1']
+    );
+  });
+
+  /**
+   * "Who did I call yesterday?" used to be answered with today's log, which
+   * is a wrong answer rather than a missing one. Yesterday has an end as
+   * well as a beginning.
+   */
+  it('keeps yesterday to yesterday', () => {
+    const w = world({
+      history: [
+        entry('h1', 'c1', '2026-10-15T08:30:00.000Z', 'Today'),
+        entry('h2', 'c2', '2026-10-14T19:00:00.000Z', 'Yesterday evening'),
+        entry('h3', 'c2', '2026-10-13T19:00:00.000Z', 'The day before'),
+      ],
+    });
+    const answer = askData('who did I call yesterday?', w);
+    assert.equal(answer?.kind, 'log');
+    if (answer?.kind !== 'log') return;
+    assert.equal(answer.span, 'yesterday');
+    assert.deepEqual(
+      answer.entries.map((e) => e.id),
+      ['h2']
+    );
+  });
+
+  it('widens to the week when the week is what was asked', () => {
+    const w = world({
+      history: [
+        entry('h1', 'c1', '2026-10-15T08:30:00.000Z'),
+        entry('h2', 'c2', '2026-10-11T08:30:00.000Z'),
+        entry('h3', 'c2', '2026-09-20T08:30:00.000Z'),
+      ],
+    });
+    const answer = askData('who did I talk to this week?', w);
+    assert.equal(answer?.kind, 'log');
+    if (answer?.kind !== 'log') return;
+    assert.equal(answer.span, 'week');
+    assert.deepEqual(
+      answer.entries.map((e) => e.id),
+      ['h1', 'h2'],
+      'newest first, and nothing from last month'
+    );
   });
 });

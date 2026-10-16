@@ -251,6 +251,49 @@ const D_SAMPLE =
   check('a question about someone answers with their number', (await page.getByTestId('assistant-reply').last().innerText()).includes('50 331 2045'));
   check('…and the ways to reach them', (await count('qa-call')) === 1 && (await count('qa-whatsapp')) === 1 && (await count('qa-email')) === 1);
 
+  // The thread. The next question names nobody, and is about the same
+  // person — which is what makes it a conversation (src/lib/parse/ask-data.ts).
+  await page.getByTestId('assistant-input').fill('and her email?');
+  await page.getByTestId('assistant-send').click();
+  await page.waitForTimeout(900);
+  check('a follow-up question stays on the person just asked about', (await page.getByTestId('assistant-reply').last().innerText()).includes('sara@northwind.vc'), await page.getByTestId('assistant-reply').last().innerText());
+
+  await page.getByTestId('assistant-input').fill("What's my One Thing today?");
+  await page.getByTestId('assistant-send').click();
+  await page.waitForTimeout(900);
+  check('it knows today’s One Thing', (await page.getByTestId('assistant-reply').last().innerText()).includes('Finish the investor proposal'));
+  check('…and offers to start the focus session', (await count('qa-focus')) === 1 && (await count('qa-one-done')) === 1);
+
+  await page.getByTestId('assistant-input').fill("What's next?");
+  await page.getByTestId('assistant-send').click();
+  await page.waitForTimeout(900);
+  check('it answers what to do next with one task', (await count('qa-next')) === 1);
+
+  await page.getByTestId('assistant-input').fill('What did I do today?');
+  await page.getByTestId('assistant-send').click();
+  await page.waitForTimeout(900);
+  // Nothing is logged today in the demo day, and an empty log says so rather
+  // than counting nought — a Task has no finished-at, so this reads history.
+  check('it answers the day from what is actually dated', (await page.getByTestId('assistant-reply').last().innerText()).includes('Nothing logged today'), await page.getByTestId('assistant-reply').last().innerText());
+
+  await page.getByTestId('assistant-input').fill('Who did I talk to this week?');
+  await page.getByTestId('assistant-send').click();
+  await page.waitForTimeout(900);
+  check('…and the week has the history in it', (await count('qa-log')) === 1);
+
+  // Acting on an answer, not only reading it.
+  await page.getByTestId('assistant-chip-2').click();
+  await page.waitForTimeout(900);
+  const openBefore = (await read('ot.tasks')).filter((t) => t.status === 'open').length;
+  await page.locator('[data-testid^="qa-done-"]').first().click();
+  await page.waitForTimeout(500);
+  const openAfter = (await read('ot.tasks')).filter((t) => t.status === 'open').length;
+  check('a task can be ticked off from the chat', openAfter === openBefore - 1, `${openBefore} → ${openAfter}`);
+  check('…and says so, with Undo', (await text('toast')).includes('Marked done'));
+  await page.getByTestId('toast-undo').click();
+  await page.waitForTimeout(400);
+  check('…which puts it back', (await read('ot.tasks')).filter((t) => t.status === 'open').length === openBefore);
+
   await page.getByTestId('assistant-input').fill("What's late?");
   await page.getByTestId('assistant-send').click();
   await page.waitForTimeout(900);
@@ -270,7 +313,7 @@ const D_SAMPLE =
   check('…and saves nothing', (await taskCount()) === beforeFrance);
   check('…and asks nothing', (await count('assistant-ask')) === 0);
 
-  check('none of those five questions spent a request', (await spent()) === afterTask, `${await spent()} vs ${afterTask}`);
+  check('none of those questions spent a request', (await spent()) === afterTask, `${await spent()} vs ${afterTask}`);
   // "Call Faisal tomorrow at 11" names a channel, a person and a time, so the
   // rules read it on the device and the server is never asked (§2.69). The
   // meter counts requests, so it counts none of this (§2.72).

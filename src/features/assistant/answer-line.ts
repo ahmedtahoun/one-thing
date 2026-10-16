@@ -2,12 +2,13 @@
  * The sentence the Assistant says over an answer it found in the app's data.
  *
  * Separate from the card that draws it (./DataCard.tsx) so it can be tested:
- * it is only copy composition, and the thing worth checking is that all nine
+ * it is only copy composition, and the thing worth checking is that all twelve
  * shapes read as sentences in both languages with no placeholder left in
  * them, which needs no renderer and must not need React Native.
  */
 import type { Added } from '@/content/additions';
 import type { Candidate } from '@/features/people-import/columns';
+import { ltr } from '@/lib/bidi';
 import { displayName } from '@/lib/model-types';
 import type { DataAnswer } from '@/lib/parse/ask-data';
 
@@ -26,7 +27,11 @@ export function answerLine(answer: DataAnswer, copy: Added['qa']): string {
     case 'person': {
       const c = answer.contact;
       const first = displayName(c.name);
-      if (answer.want === 'phone') return c.phone ? `${c.name}: ${`${c.dial ?? ''} ${c.phone}`.trim()}` : copy.noPhone.replace('{n}', first);
+      // The number is kept in its own left-to-right run: in an Arabic line
+      // "+971 50 331 2045" otherwise comes out with its groups reordered,
+      // and a phone number read in the wrong order is worse than an ugly
+      // one. Same isolate People and Import use (src/lib/bidi.ts).
+      if (answer.want === 'phone') return c.phone ? `${c.name}: ${ltr(`${c.dial ?? ''} ${c.phone}`.trim())}` : copy.noPhone.replace('{n}', first);
       if (answer.want === 'email') return c.email ? `${c.name}: ${c.email}` : copy.noEmail.replace('{n}', first);
       if (answer.want === 'work') return c.role ? copy.works.replace('{n}', c.name).replace('{w}', c.role) : copy.noWork.replace('{n}', first);
       return c.role ? copy.works.replace('{n}', c.name).replace('{w}', c.role) : c.name;
@@ -56,6 +61,19 @@ export function answerLine(answer: DataAnswer, copy: Added['qa']): string {
       if (answer.of === 'favorites') return copy.favN.replace('{n}', n(count));
       if (answer.of === 'label') return copy.labelN.replace('{n}', n(count)).replace('{w}', answer.label ?? '');
       return copy.allN.replace('{n}', n(count));
+    }
+    case 'oneThing': {
+      const one = answer.oneThing;
+      if (!one) return copy.noOneThing;
+      return `${one.done ? copy.oneThingDone : copy.oneThingIs}: ${one.title}`;
+    }
+    case 'next':
+      return answer.task ? copy.nextIs : copy.noNext;
+    case 'log': {
+      const count = answer.entries.length;
+      const empty = { today: copy.noLogToday, yesterday: copy.noLogYesterday, week: copy.noLogWeek };
+      const some = { today: copy.logToday, yesterday: copy.logYesterday, week: copy.logWeek };
+      return count === 0 ? empty[answer.span] : some[answer.span].replace('{n}', n(count));
     }
     case 'unknown':
       return copy.outOfScope;
