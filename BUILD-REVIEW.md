@@ -3224,5 +3224,41 @@ Still not possible, and not pretended: **attachments on WhatsApp**, in
 either screen. The only route would be the share sheet, which carries a
 file but makes WhatsApp ask who to send it to — losing the addressed chat
 that is the point of both screens. Worth doing only if asked for
-explicitly. **Android email shares** still carry no file (§2.59); that one
-needs `expo-sharing` as a dependency.
+explicitly.
+
+### 2.82 An Android share can carry the file now
+§2.59 found that "Zoho, Spark or another app" promised a file on both
+platforms and delivered one on neither — React Native's `Share` takes
+`url` on iOS only, so an Android share carried the text alone. That was
+told the truth about rather than fixed, for want of a dependency.
+
+`expo-sharing` is that dependency, and it has a catch worth stating
+plainly: **`shareAsync(uri)` carries one file and no text.** So on Android
+with something attached there is no "both" to choose — it is the message
+or the file.
+
+**It picks the file.** A message is one paste from the clipboard; a file
+is a trip back through the picker. So the draft stays on the clipboard,
+the file goes to the mail app, and the address is *read out in the toast*
+rather than copied, because the clipboard holds one thing and the draft is
+the longer one to retype. With nothing attached, Android is unchanged:
+message shared, address copied.
+
+`sharePlan(platform, fileCount, sharingAvailable)` in
+`src/features/compose/share-plan.ts` makes the choice, pure, so both
+platforms can be asked at once — which is the only way this class of bug
+is catchable, since the broken one was always the platform you were not
+holding. Its `left` is every attached file that will not arrive, and a
+test holds it to exactly that so a toast built from it can never
+undercount.
+
+| | carries |
+|---|---|
+| iOS | the message and one file (`Share`) |
+| Android, something attached | one file, no message (`Sharing.shareAsync`) |
+| Android, nothing attached | the message |
+| Android without the module, and the web build | the message |
+
+The row's sub-label now depends on the file count as well as the platform,
+because "Takes the subject and the message" stopped being true the moment
+Android could send a file.

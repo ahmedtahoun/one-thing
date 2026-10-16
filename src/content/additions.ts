@@ -499,9 +499,17 @@ export type Added = {
     share: string;
     shareSub: string;
     shared: string;
-    /** Android, where a share carries no file, and wherever one was dropped. */
+    /** Android with nothing attached, and wherever a file was dropped. */
     shareSubNoFile: string;
     sharedNoFiles: string;
+    /**
+     * Android with something attached: `expo-sharing` carries one file and
+     * no text, so the message goes on the clipboard and the address is read
+     * out instead of copied — `src/features/compose/share-plan.ts`.
+     */
+    shareSubFile: string;
+    sharedFile: string;
+    sharedFileMore: string;
     note: string;
   };
   /** Today's tasks on the Lock Screen (iPhone). */
@@ -778,6 +786,9 @@ const ADDED: Record<Lang, Added> = {
       shared: '{to} is copied. Paste it into “To”.',
       shareSubNoFile: 'Takes the subject and the message. Pick the app, then paste the address.',
       sharedNoFiles: '{to} is copied. Paste it into “To” — attachments need “Send email”.',
+      shareSubFile: 'Takes the subject and the file. Your message is copied to paste.',
+      sharedFile: 'The file went. Your message is copied — paste it, and send to {to}.',
+      sharedFileMore: 'One file went. Your message is copied — paste it, and send to {to}. The other {n} need “Send email”.',
       note: 'Zoho opens a mail link empty, so use “Zoho, Spark or another app”. Or add your Zoho account to iPhone Mail and use “Send email”, which keeps everything.',
     },
     bar: {
@@ -1334,6 +1345,9 @@ const ADDED: Record<Lang, Added> = {
       shared: 'نسخنا {to}. الصقه في خانة «إلى».',
       shareSubNoFile: 'يأخذ العنوان والرسالة. اختر التطبيق، بعدين الصق الإيميل.',
       sharedNoFiles: '{to} اننسخ. الصقه في «إلى» — المرفقات تحتاج «إرسال إيميل».',
+      shareSubFile: 'ينقل العنوان والملف. ورسالتك منسوخة عشان تلصقها.',
+      sharedFile: 'الملف راح. رسالتك منسوخة — الصقها، وأرسلها لـ {to}.',
+      sharedFileMore: 'ملف واحد راح. رسالتك منسوخة — الصقها، وأرسلها لـ {to}. و{n} الباقية تحتاج «أرسل الإيميل».',
       note: 'Zoho يفتح رابط البريد فاضي، فاستخدم «Zoho أو Spark أو تطبيق ثاني». أو أضف حساب Zoho لتطبيق البريد في الآيفون واستخدم «أرسل الإيميل»، وكل شي يوصل.',
     },
     bar: {
