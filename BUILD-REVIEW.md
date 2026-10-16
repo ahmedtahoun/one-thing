@@ -3364,3 +3364,58 @@ Arabic.
 Not built: SCREENS.md's "keep for Revisit setup in a future version".
 `src/lib/onboarded.ts` has the `reset()` that a Settings row would call,
 but no row calls it yet.
+
+### 2.85 Coach marks on Today
+The welcome (§2.84) says what the app is for; it does not say what the
+controls do. This is the other half the product owner asked for: the screen
+dimmed, one control left bright, an arrow and a box of text, three times.
+
+**Three marks, not eight.** A tour is a toll charged on the first run, so
+each one has to earn its tap: that the big card is *the* one thing rather
+than the top of a list, that the tiles start a message rather than opening
+a list of people, and that the mic does two different things depending on
+how long it is held. The tab bar is not on the tour, because a tab bar
+explains itself.
+
+**It stays out of every screenshot, and not by a trick.** `shouldRun`
+wants `onboarded` as well as "not yet seen", so the tour only runs for
+somebody who came through the welcome. Every seeded session — each
+capture, each drift probe, each smoke suite that does not walk the welcome
+— has never been onboarded, so the overlay never appears over a screen
+being measured. That is the same answer a person in that position would
+get: you do not coach somebody who never arrived. A smoke check asserts
+both halves.
+
+**The placement is arithmetic, so it is tested rather than discovered on a
+phone** (`src/features/coach/geometry.ts`): below the control by
+preference, above it when there is no room, clamped inside both edges,
+narrowed on a phone too small for the box — and the arrow tracks the
+*control*, not the bubble, so it still points at the right thing once the
+bubble has been pushed away from an edge.
+
+Two bugs the screenshots found, both now covered by tests:
+
+- **A bubble above a control could cover it.** Pinned by its top from an
+  assumed height, a box whose text ran a line longer reached back down over
+  the mic it was pointing at. Above a control it is pinned by its
+  **bottom** now, so any height is safe; the estimate only chooses the
+  side. The test asserts it for bubbles from 90 to 320 pt.
+- **The hole let taps through.** The dimming started as four panels around
+  a gap, and a gap is not a hole: tapping the spotlit "Lock In" mid-tour
+  would have started a focus session. It is one SVG path now, the screen
+  with the control wound the other way and filled even-odd — a real
+  cut-out, which also rounds the corners and goes circular for a round
+  control like the mic.
+
+The bubble and its arrow carry the same shadow the tab bar uses, because
+white on a dimmed screen is fine and white on the *bright* tab bar is
+invisible — which is what the mark on the mic looked like at first.
+
+A screen marks a control with `useCoachAnchor('mic')` and knows nothing
+else: no state, no conditional rendering, no import of the overlay.
+Positions come from `measureInWindow`, so they are absolute and need no
+correction for scrolling or for the writing direction — only the words
+inside the bubble flip.
+
+Not built: no way to see it again. `src/lib/tour.ts` has the `reset()` a
+Settings row would call, next to `onboarded.ts`'s.

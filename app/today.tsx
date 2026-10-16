@@ -28,6 +28,9 @@ import { ViewSwitch, type HomeView } from '@/features/home/ViewSwitch';
 import { TodayEmpty } from '@/features/today/TodayEmpty';
 import { added } from '@/content/additions';
 import { Icon } from '@/ui/Icon';
+import { CoachMarks } from '@/features/coach/CoachMarks';
+import { useOnboarded } from '@/lib/onboarded';
+import { useTour } from '@/lib/tour';
 import { Screen } from '@/ui/Screen';
 import { TabBar } from '@/ui/TabBar';
 import { Text } from '@/ui/Text';
@@ -50,6 +53,8 @@ export default function Today() {
   const { t, inline, lang } = useLanguage();
   const dir = useDirection();
   const { session, update } = useSession();
+  const { onboarded } = useOnboarded();
+  const { seen: tourSeen, markSeen: markTourSeen } = useTour();
   const { tasks, oneThing, setOneThing } = useTasks();
   const { prefs } = usePrefs();
   const toast = useToast();
@@ -234,6 +239,11 @@ export default function Today() {
           </>
         ) : null}
       </Screen>
+
+      {/* Last, so it sits over everything. It draws nothing until somebody
+          has been through the welcome and not yet seen it — `shouldRun` in
+          src/features/coach/steps.ts. */}
+      <CoachMarks onboarded={onboarded} seen={tourSeen} onDone={markTourSeen} />
 
       <PickSheet
         channel={pickFor}

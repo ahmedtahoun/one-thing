@@ -12,6 +12,8 @@ import { Platform, Pressable, View } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 
+import { useCoachAnchor } from '@/features/coach/CoachProvider';
+
 import { Avatar } from './Avatar';
 import { Icon } from './Icon';
 import { Text } from './Text';
@@ -268,6 +270,7 @@ function MicOrb({ onCapture, onBrainDump }: { onCapture: () => void; onBrainDump
   return (
     <Pressable
       testID="mic-orb"
+      {...useCoachAnchor('mic')}
       onPressIn={start}
       onPressOut={end}
       onTouchCancel={cancel}

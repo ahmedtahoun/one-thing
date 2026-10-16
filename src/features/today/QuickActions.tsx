@@ -10,6 +10,7 @@ import { Text } from '@/ui/Text';
 import { TYPE_ICON } from '@/design/icon-paths';
 import { ink, typeColour, type TaskType } from '@/design/tokens';
 import { useLanguage } from '@/i18n/LanguageProvider';
+import { useCoachAnchor } from '@/features/coach/CoachProvider';
 
 /**
  * The four things people do every day, in one row. The handoff has eight —
@@ -23,7 +24,7 @@ export function QuickActions({ onPress }: { onPress: (type: TaskType) => void })
   const { t } = useLanguage();
 
   return (
-    <View testID="quick-actions" style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+    <View testID="quick-actions" {...useCoachAnchor('actions')} style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
       {QUICK_ACTION_ORDER.map((type) => {
         const colour = typeColour[type];
         const label = type === 'reminder' ? t.q_rem : t.types[type];

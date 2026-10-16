@@ -289,6 +289,46 @@ const ONE_THING = { en: 'Finish the investor proposal', ar: 'أخلّص عرض �
   check('Skip lands on Today as well', page.url().endsWith('/today'), page.url());
   check('…and leaves the defaults alone', !(await read('ot.prefs')), JSON.stringify(await read('ot.prefs')));
 
+  // ------------------------------------------------- the coach marks
+  // They run only for somebody who came through the welcome. Every seeded
+  // session — this suite's included, until now — has not, which is what
+  // keeps the overlay out of all the screenshots and drift probes.
+  await seed();
+  await open('/today');
+  check('a seeded session sees no coach marks', (await page.getByTestId('coach').count()) === 0);
+
+  await page.evaluate(() => localStorage.setItem('ot.onboarded', 'true'));
+  await open('/today');
+  await page.waitForTimeout(600);
+  check('somebody who came through the welcome does', (await page.getByTestId('coach').count()) === 1);
+  check('…starting on the One Thing', (await page.getByTestId('coach-bubble-oneThing').count()) === 1);
+  check('…and saying which of how many', (await page.getByTestId('coach-count').innerText()).trim() === '1/3');
+
+  await page.getByTestId('coach-next').click();
+  await page.waitForTimeout(350);
+  check('Next reaches the quick actions', (await page.getByTestId('coach-bubble-actions').count()) === 1, await page.getByTestId('coach-count').innerText());
+  await page.getByTestId('coach-next').click();
+  await page.waitForTimeout(350);
+  check('…then the mic', (await page.getByTestId('coach-bubble-mic').count()) === 1);
+  check('…and the last one says Got it', (await page.getByTestId('coach-next').innerText()).trim() === 'Got it');
+  await page.getByTestId('coach-next').click();
+  await page.waitForTimeout(500);
+  check('finishing puts the marks away', (await page.getByTestId('coach').count()) === 0);
+  check('…and remembers', (await read('ot.tour')) === true);
+  await open('/today');
+  await page.waitForTimeout(600);
+  check('…so they do not come back', (await page.getByTestId('coach').count()) === 0);
+
+  // Skip, from scratch.
+  await seed();
+  await page.evaluate(() => localStorage.setItem('ot.onboarded', 'true'));
+  await open('/today');
+  await page.waitForTimeout(600);
+  await page.getByTestId('coach-skip').click();
+  await page.waitForTimeout(400);
+  check('Skip puts them away too', (await page.getByTestId('coach').count()) === 0);
+  check('…and counts as seen', (await read('ot.tour')) === true);
+
   await browser.close();
   srv.close();
   const failed = checks.filter((c) => !c.ok);

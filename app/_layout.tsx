@@ -18,6 +18,7 @@ import { NotificationsProvider } from '@/lib/notifications/NotificationsProvider
 import { PeopleProvider } from '@/lib/people';
 import { PrefsProvider } from '@/lib/prefs';
 import { SessionProvider } from '@/lib/session';
+import { CoachProvider } from '@/features/coach/CoachProvider';
 import { SyncProvider } from '@/lib/sync/SyncProvider';
 import { TasksProvider } from '@/lib/tasks';
 import { TodayBarSync } from '@/features/today-bar/TodayBarSync';
@@ -82,8 +83,13 @@ export default function RootLayout() {
                   {/* Below the stores it reads, so it can keep the OS's
                       pending reminders in step with them. */}
                   <NotificationsProvider>
-                    <ThemedStack />
-                    <TodayBarSync />
+                    {/* Holds where the coach marks' targets are. Outside
+                        the stack so a screen can register an anchor without
+                        knowing the tour exists. */}
+                    <CoachProvider>
+                      <ThemedStack />
+                      <TodayBarSync />
+                    </CoachProvider>
                   </NotificationsProvider>
                 </SyncProvider>
               </PeopleProvider>
