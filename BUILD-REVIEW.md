@@ -3592,3 +3592,40 @@ an Assistant request or sends anything anywhere: 37 new unit tests, 9 new
 checks in `smoke-capture.js` driving the conversation in a browser, and
 the suite's existing "none of those questions spent a request" still
 passes with the new ones in it.
+
+### 2.90 The "Who?" sheet can be searched, and Recent is a chip
+
+A TestFlight screenshot of a one-contact account showed the sheet with a
+single name and nothing else: no way to search, no way to see who was
+recent. Both were missing for the same reason — the search field was
+gated behind `people.length > 6`.
+
+**That gate was backwards.** On a phone with a handful of contacts the
+field costs one row, and on a new account its absence does not read as
+"you don't need this yet", it reads as **"this sheet cannot search"** —
+which is exactly how it was read. It is always there now, whenever
+anybody is listed at all.
+
+**Recent is a chip, not the order.** §2.77's ordering stands: overdue
+replies, then waiting, then lately-reached, then cold, then never. That
+answers "who needs me?", and somebody tapping Call often already knows
+who they want — so the sheet now carries the same chips People does
+(`PICK_CHIPS`: All · Recent · Favorites · Waiting), with Waiting carrying
+its red count. Recent sits second here where it is last on People,
+because it is the one people reach for in this sheet.
+
+Only the Recent chip brings an order of its own — newest first, which is
+the whole point of asking for it. Every other chip keeps the sheet's own
+order inside the filter, so "Waiting" still puts the overdue reply above
+the one that is merely waiting.
+
+Nothing new was written for any of it: `filterPeople`, `filterCounts`,
+`FilterChips` and the four chip words are People's, and the empty lines
+are the ones People already uses ("Nobody in the last 7 days.", "Nobody
+owes you a reply.", the favourites hint, and "No one matching {q}"). The
+list's maximum height came down from 360 to 320 to pay for the chip row.
+
+Seven new checks in `smoke-people.js`: the field and the chips are
+present, a search narrows to the person named, a search that finds
+nobody says so, Waiting shows the two who owe a reply, Favorites shows
+the starred one, and All puts the owed-first order back.

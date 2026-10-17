@@ -33,6 +33,14 @@ export function labelsIn(contacts: readonly Contact[]): string[] {
 export const PEOPLE_CHIPS: readonly BaseFilter[] = ['all', 'favorites', 'recent', 'followups'];
 /** Send to many's chips: "Waiting" there picks the people who owe you a reply. */
 export const BULK_CHIPS: readonly BaseFilter[] = ['all', 'waiting', 'favorites', 'recent'];
+/**
+ * The "Who?" sheet's chips. Recent sits second here, where it is last on
+ * People: somebody who taps Call usually wants the person they were just
+ * dealing with, and the sheet's own order is deliberately *not* recency
+ * (src/features/today/pick-order.ts), so the chip is how that person is
+ * reached in one tap instead of a scroll.
+ */
+export const PICK_CHIPS: readonly BaseFilter[] = ['all', 'recent', 'favorites', 'waiting'];
 
 /** "Recent" is the last week: long enough to include last Sunday's call, short enough to mean something. */
 export const RECENT_DAYS = 7;
