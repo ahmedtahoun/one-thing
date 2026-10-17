@@ -4,8 +4,9 @@
  * person confirms it.
  *
  *   Capture:    typing and speaking both reach the parsed card; the card
- *               follows edits; Save writes one task; Close writes none; with
- *               no recogniser the mic falls back to typing.
+ *               follows edits; Save writes one task; Close writes none; the
+ *               mic explains itself before it opens and is not explained
+ *               twice; with no recogniser the mic falls back to typing.
  *   Dump:       an empty box sorts nothing; the sample splits into six; a tap
  *               drops one; Edit keeps the text; Save writes only what is kept.
  *   Assistant:  greets by name; a task waits for "Looks right"; the plan and
@@ -134,9 +135,21 @@ const D_SAMPLE =
   await page.evaluate(() => {
     window.__heard = 'Call Sara tomorrow at 3pm';
   });
+  // Google wants the microphone explained in the app before it is asked
+  // for, in the policy's own words — src/features/mic/notice.ts.
   await page.getByTestId('capture-mic').click();
-  await page.waitForTimeout(200);
-  check('the mic listens', (await count('capture-stop')) === 1);
+  await page.waitForTimeout(250);
+  check('the mic explains itself before it opens', (await count('mic-notice')) === 1 && (await count('capture-stop')) === 0);
+  check('…in the words the published policy uses', (await text('mic-notice')).includes('speech recogniser'), await text('mic-notice'));
+  await page.getByTestId('mic-notice-deny').click();
+  await page.waitForTimeout(250);
+  check('“Not now” records nothing and opens nothing', (await count('capture-stop')) === 0 && (await read('ot.mic.notice')) === null);
+  await page.getByTestId('capture-mic').click();
+  await page.waitForTimeout(250);
+  check('…so it is asked again next time', (await count('mic-notice')) === 1);
+  await page.getByTestId('mic-notice-allow').click();
+  await page.waitForTimeout(250);
+  check('the mic listens once it is agreed to', (await count('capture-stop')) === 1 && (await read('ot.mic.notice')) === true);
   await page.getByTestId('capture-stop').click();
   await page.waitForTimeout(300);
   const heardCard = await text('capture-card');
@@ -153,7 +166,8 @@ const D_SAMPLE =
     delete window.webkitSpeechRecognition;
   });
   await page.getByTestId('capture-mic').click();
-  await page.waitForTimeout(200);
+  await page.waitForTimeout(250);
+  check('the notice is not shown twice on one device', (await count('mic-notice')) === 0);
   check('with no recogniser, the mic falls back to typing', (await count('capture-stop')) === 0 && (await page.evaluate(() => document.activeElement?.getAttribute('data-testid'))) === 'capture-type-input');
 
   // ------------------------------------------------------------------- Dump
@@ -178,7 +192,12 @@ const D_SAMPLE =
   await page.evaluate(() => {
     window.__heard = 'call Hamad';
   });
+  // A fresh seed, so the notice is owed again on this device.
   await page.getByTestId('dump-talk').click();
+  await page.waitForTimeout(250);
+  check('Brain dump explains the mic as well', (await count('mic-notice')) === 1);
+  await page.getByTestId('mic-notice-allow').click();
+  await page.waitForTimeout(250);
   await page.getByTestId('dump-talk').click();
   await page.waitForTimeout(200);
   check('talking adds to what is written', (await page.getByTestId('dump-text').inputValue()) === `${D_SAMPLE}\ncall Hamad`);
@@ -232,6 +251,49 @@ const D_SAMPLE =
   check('a question about someone answers with their number', (await page.getByTestId('assistant-reply').last().innerText()).includes('50 331 2045'));
   check('…and the ways to reach them', (await count('qa-call')) === 1 && (await count('qa-whatsapp')) === 1 && (await count('qa-email')) === 1);
 
+  // The thread. The next question names nobody, and is about the same
+  // person — which is what makes it a conversation (src/lib/parse/ask-data.ts).
+  await page.getByTestId('assistant-input').fill('and her email?');
+  await page.getByTestId('assistant-send').click();
+  await page.waitForTimeout(900);
+  check('a follow-up question stays on the person just asked about', (await page.getByTestId('assistant-reply').last().innerText()).includes('sara@northwind.vc'), await page.getByTestId('assistant-reply').last().innerText());
+
+  await page.getByTestId('assistant-input').fill("What's my One Thing today?");
+  await page.getByTestId('assistant-send').click();
+  await page.waitForTimeout(900);
+  check('it knows today’s One Thing', (await page.getByTestId('assistant-reply').last().innerText()).includes('Finish the investor proposal'));
+  check('…and offers to start the focus session', (await count('qa-focus')) === 1 && (await count('qa-one-done')) === 1);
+
+  await page.getByTestId('assistant-input').fill("What's next?");
+  await page.getByTestId('assistant-send').click();
+  await page.waitForTimeout(900);
+  check('it answers what to do next with one task', (await count('qa-next')) === 1);
+
+  await page.getByTestId('assistant-input').fill('What did I do today?');
+  await page.getByTestId('assistant-send').click();
+  await page.waitForTimeout(900);
+  // Nothing is logged today in the demo day, and an empty log says so rather
+  // than counting nought — a Task has no finished-at, so this reads history.
+  check('it answers the day from what is actually dated', (await page.getByTestId('assistant-reply').last().innerText()).includes('Nothing logged today'), await page.getByTestId('assistant-reply').last().innerText());
+
+  await page.getByTestId('assistant-input').fill('Who did I talk to this week?');
+  await page.getByTestId('assistant-send').click();
+  await page.waitForTimeout(900);
+  check('…and the week has the history in it', (await count('qa-log')) === 1);
+
+  // Acting on an answer, not only reading it.
+  await page.getByTestId('assistant-chip-2').click();
+  await page.waitForTimeout(900);
+  const openBefore = (await read('ot.tasks')).filter((t) => t.status === 'open').length;
+  await page.locator('[data-testid^="qa-done-"]').first().click();
+  await page.waitForTimeout(500);
+  const openAfter = (await read('ot.tasks')).filter((t) => t.status === 'open').length;
+  check('a task can be ticked off from the chat', openAfter === openBefore - 1, `${openBefore} → ${openAfter}`);
+  check('…and says so, with Undo', (await text('toast')).includes('Marked done'));
+  await page.getByTestId('toast-undo').click();
+  await page.waitForTimeout(400);
+  check('…which puts it back', (await read('ot.tasks')).filter((t) => t.status === 'open').length === openBefore);
+
   await page.getByTestId('assistant-input').fill("What's late?");
   await page.getByTestId('assistant-send').click();
   await page.waitForTimeout(900);
@@ -251,7 +313,7 @@ const D_SAMPLE =
   check('…and saves nothing', (await taskCount()) === beforeFrance);
   check('…and asks nothing', (await count('assistant-ask')) === 0);
 
-  check('none of those five questions spent a request', (await spent()) === afterTask, `${await spent()} vs ${afterTask}`);
+  check('none of those questions spent a request', (await spent()) === afterTask, `${await spent()} vs ${afterTask}`);
   // "Call Faisal tomorrow at 11" names a channel, a person and a time, so the
   // rules read it on the device and the server is never asked (§2.69). The
   // meter counts requests, so it counts none of this (§2.72).

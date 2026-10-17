@@ -24,8 +24,21 @@ const DIST = path.join(ROOT, 'dist');
 require('./dist-fresh.js').requireFreshDist();
 const OUT = process.argv[2] || path.join(ROOT, '.screens');
 
-/** The iPhone 16 Pro logical size the design is specified at. */
-const FRAME = { width: 402, height: 874 };
+/**
+ * The iPhone 16 Pro logical size the design is specified at.
+ *
+ * `OT_FRAME=360x640` shoots the same set at the size Play's small-phone
+ * baseline uses, which is how the narrow-screen faults were found
+ * (RELEASE.md §9.9). Every measured comparison still runs at 402 — a
+ * screenshot taken at another size must not be mistaken for one.
+ */
+const FRAME = (() => {
+  const asked = process.env.OT_FRAME;
+  if (!asked) return { width: 402, height: 874 };
+  const [width, height] = asked.split('x').map(Number);
+  if (!Number.isFinite(width) || !Number.isFinite(height)) throw new Error(`OT_FRAME must read like 360x640, not ${asked}`);
+  return { width, height };
+})();
 
 /**
  * Screens that need someone signed in get this session seeded first, so Today

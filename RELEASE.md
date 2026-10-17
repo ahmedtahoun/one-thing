@@ -730,16 +730,32 @@ creates two accounts for one person, and there is no merge path.
   symbolication, so a stack trace points at bundled code.
 - **Supabase tier.** A free project pauses after inactivity, which is not a
   thing a live app survives. Budget the Pro tier, and set backups with it.
-- **Store listing assets beyond screenshots** — Play's 512 icon and
-  1024×500 feature graphic, both stores' descriptions and keywords, all in
-  Arabic as well as English. Nobody has written the Arabic listing copy.
 - ~~**The Android adaptive icon foreground is 512×512**~~ — moot. Every icon
   in the project was Expo's scaffold placeholder, including that one; they are
   now rendered from the design's own logo mark at 1024 (BUILD-REVIEW §2.45).
-- **The app has never been rendered narrower than 402 points.** Shooting the
-  Play set at 360 showed the greeting truncating and the tab bar covering the
-  task list. Nothing is broken, but a narrow Android phone is a real device
-  class and §9.1's hardware build is where it will show.
+- ~~**The app has never been rendered narrower than 402 points.**~~ It is
+  now, and the note this bullet carried turns out to be out of date.
+  `npm run narrow` renders eight screens in both languages at 360 × 640,
+  Play's small-phone baseline, and asserts that nothing scrolls sideways,
+  that the greeting and the tab labels are not cut off, and that the end of
+  a list clears the floating tab bar. **36 checks, all passing** — with a
+  longer first name than the demo user's — and in CI from now on
+  (BUILD-REVIEW §2.88). They were shown to bite at `OT_FRAME=280x560`,
+  where three strings do truncate. What remains true is that at rest the
+  floating bar sits over the bottom of Today's content, which is why the
+  Play screenshots are still shot at 432 × 864.
+- ~~**Store listing assets beyond screenshots**~~ — the 512 icon and the
+  1024×500 feature graphic are produced by `npm run capture:store` and
+  committed, and the words exist in both languages in `STORE-LISTING.md`,
+  which this bullet was wrong to say nobody had written. What was true is
+  that it had gone stale: it carried build 7 against the build 9 in
+  `app.json`, four `onlyonething.app` URLs that resolve to nothing, a
+  screenshot folder two generations old, and a sentence promising that data
+  stays on the phone unless you sign in — which the app, whose first screen
+  is a sign-in wall, and its own privacy policy both contradict. Corrected
+  16 October, every limited field measured rather than estimated, and the
+  screenshots regenerated from this build. Left open deliberately: the
+  reviewer demo account and the content rating, which are yours.
 - **The repo's default branch is still my working branch.** `main` is the
   trunk now — Settings → Branches, and I have no tool for it.
 - **The browser suites read a bundle nothing rebuilds for them.** Fixed:
@@ -794,8 +810,13 @@ the one stub among six careful strings. It now says what is true.
 - **The account-deletion URL is required**, and it exists:
   `website/delete/index.html`, live on `gh-pages`. Enter that URL in the
   Play Console — the same one the policy names.
-- **The microphone needs a prominent disclosure** before first use, over
-  and above the Data safety entry.
+- ~~**The microphone needs a prominent disclosure** before first use, over
+  and above the Data safety entry.~~ **Built**, BUILD-REVIEW §2.87. A sheet
+  stands between the tap and the recorder on all three screens with a mic,
+  once per device, carrying the published policy's Voice notes paragraph
+  word for word — a test fails if the two ever differ. "Not now" records
+  nothing, so declining brings it back rather than storing a refusal. Shown
+  on both phones, not only Android.
 
 **A blocker that may not be one.** The plan lists "a reviewer demo account"
 as required because the app is behind sign-in. It offers **Sign in with
@@ -836,11 +857,14 @@ Play's tester gate behind us, there is no multi-week wait left in this plan.
    BUILD-REVIEW § 2.76 the panel can **give** Pro for a month to a year,
    which is how the paid experience can be walked before any product
    exists.
-3. **The forms and the account a reviewer needs** (§7): Apple's App Privacy
-   answers and Play's Data safety form — both already written out with their
-   evidence in `STORE-PRIVACY.md`, so this is transcription rather than
-   decision — a reviewer demo account, since the app is behind a sign-in wall,
-   and the age-rating questionnaire on both stores. **Yours.**
+3. **The forms, the listing and the account a reviewer needs** (§7): Apple's
+   App Privacy answers and Play's Data safety form — both already written out
+   with their evidence in `STORE-PRIVACY.md`, so this is transcription rather
+   than decision — the listing text, field by field in both languages in
+   `STORE-LISTING.md` and re-checked against this build on 16 October, a
+   reviewer demo account, since the app is behind a sign-in wall, and the
+   age-rating questionnaire on both stores. **Yours**, but all of it is now
+   copying rather than composing.
 
 **Promises the published text makes that nothing answers yet:**
 

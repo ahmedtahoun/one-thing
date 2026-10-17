@@ -19,7 +19,7 @@ import { Text } from '@/ui/Text';
 import { TYPE_ICON } from '@/design/icon-paths';
 import { ink, surface, typeColour } from '@/design/tokens';
 import { useDirection } from '@/i18n/LanguageProvider';
-import { displayName, type Contact, type FollowUp, type Task } from '@/lib/model-types';
+import { displayName, type Contact, type FollowUp, type HistoryEntry, type Task } from '@/lib/model-types';
 import type { DataAnswer } from '@/lib/parse/ask-data';
 import { MAX_ROWS } from './answer-line';
 
@@ -35,6 +35,14 @@ export type DataCardProps = {
   onTask: (task: Task) => void;
   onFollowUps: () => void;
   onReplied: (followUp: FollowUp) => void;
+  /** Tick a task off from the chat. Undo is the screen's business. */
+  onDone: (task: Task) => void;
+  /** A line of the day's log opens the person it was with. */
+  onLogEntry: (entry: HistoryEntry) => void;
+  /** Today's One Thing: start its focus session, tick it off, or name one. */
+  onFocus: () => void;
+  onOneThingDone: () => void;
+  onChooseOneThing: () => void;
 };
 
 export function DataCard(props: DataCardProps) {
@@ -151,25 +159,61 @@ export function DataCard(props: DataCardProps) {
     );
   }
 
+  /** One task's row, with the tick that closes it without leaving the chat. */
+  const taskRow = (task: Task, i: number) =>
+    row(
+      task.id,
+      `qa-task-${task.id}`,
+      () => props.onTask(task),
+      <Icon name={TYPE_ICON[task.type]} size={16} color={typeColour[task.type].fg} strokeWidth={1.9} />,
+      task.title,
+      [task.who, props.whenLabel(task.dueAt)].filter(Boolean).join(' · '),
+      pill(`qa-done-${task.id}`, copy.done, () => props.onDone(task)),
+      i === 0
+    );
+
   if (answer.kind === 'tasks') {
     if (answer.tasks.length === 0) return null;
     return frame(
       <>
-        {answer.tasks.slice(0, MAX_ROWS).map((task, i) =>
-          row(
-            task.id,
-            `qa-task-${task.id}`,
-            () => props.onTask(task),
-            <Icon name={TYPE_ICON[task.type]} size={16} color={typeColour[task.type].fg} strokeWidth={1.9} />,
-            task.title,
-            [task.who, props.whenLabel(task.dueAt)].filter(Boolean).join(' · '),
-            undefined,
-            i === 0
-          )
-        )}
+        {answer.tasks.slice(0, MAX_ROWS).map((task, i) => taskRow(task, i))}
         {more(answer.tasks.length)}
       </>,
       'qa-tasks'
+    );
+  }
+
+  if (answer.kind === 'next') {
+    if (!answer.task) return null;
+    return frame(taskRow(answer.task, 0), 'qa-next');
+  }
+
+  /**
+   * The One Thing is the one answer that is a decision rather than a list,
+   * so its card is buttons: start the focus session it already carries, tick
+   * it off, or — with none named — go and name one.
+   */
+  if (answer.kind === 'oneThing') {
+    const one = answer.oneThing;
+    return (
+      <View testID="qa-one-thing" style={{ flexDirection: dir.row, gap: 8, flexWrap: 'wrap' }}>
+        {!one ? pill('qa-choose', copy.choose, props.onChooseOneThing) : null}
+        {one && !one.done ? pill('qa-focus', copy.focus, props.onFocus) : null}
+        {one ? pill('qa-one-done', one.done ? copy.undone : copy.done, props.onOneThingDone) : null}
+      </View>
+    );
+  }
+
+  if (answer.kind === 'log') {
+    if (answer.entries.length === 0) return null;
+    return frame(
+      <>
+        {answer.entries
+          .slice(0, MAX_ROWS)
+          .map((e, i) => row(e.id, `qa-log-${e.id}`, () => props.onLogEntry(e), null, e.text, props.whenLabel(e.at), undefined, i === 0))}
+        {more(answer.entries.length)}
+      </>,
+      'qa-log'
     );
   }
 

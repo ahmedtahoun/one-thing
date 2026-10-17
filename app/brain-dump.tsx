@@ -12,6 +12,7 @@ import { useBrainDumpMeter } from '@/lib/assistant-meter';
 
 import { whenText } from '@/features/capture/labels';
 import { promiseDraft } from '@/features/compose/drafts';
+import { MicNotice, useMicGate } from '@/features/mic/MicNotice';
 import { Icon } from '@/ui/Icon';
 import { added } from '@/content/additions';
 import { Screen } from '@/ui/Screen';
@@ -39,6 +40,7 @@ export default function BrainDump() {
   const { session } = useSession();
   const { addTask } = useTasks();
   const toast = useToast();
+  const mic = useMicGate();
   const meter = useBrainDumpMeter();
 
   const [text, setText] = useState('');
@@ -57,6 +59,11 @@ export default function BrainDump() {
    */
   const talk = () => {
     if (listening) return stopRef.current?.();
+    // The microphone is explained before it is opened — src/features/mic/.
+    mic.ask(listen);
+  };
+
+  const listen = () => {
     const stop = startListening(
       lang,
       (heard) => {
@@ -226,6 +233,14 @@ export default function BrainDump() {
           </>
         )}
       </Screen>
+      <MicNotice
+        open={mic.asking}
+        onAllow={mic.allow}
+        onClose={() => {
+          mic.dismiss();
+          inputRef.current?.focus();
+        }}
+      />
       <Toast />
     </>
   );

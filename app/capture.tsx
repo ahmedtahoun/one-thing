@@ -17,6 +17,7 @@ import { NOBODY, whenText } from '@/features/capture/labels';
 import { Bars, Pulse } from '@/features/capture/Listening';
 import { LoopTag } from '@/features/capture/LoopTag';
 import { promiseDraft } from '@/features/compose/drafts';
+import { MicNotice, useMicGate } from '@/features/mic/MicNotice';
 import { SendRow } from '@/features/capture/SendRow';
 import { Icon } from '@/ui/Icon';
 import { added } from '@/content/additions';
@@ -44,6 +45,7 @@ export default function Capture() {
   const { tasks, addTask } = useTasks();
   const { session } = useSession();
   const toast = useToast();
+  const mic = useMicGate();
 
   const [stage, setStage] = useState<Stage>('idle');
   const [text, setText] = useState('');
@@ -119,11 +121,20 @@ export default function Capture() {
     return true;
   };
 
+  /**
+   * Tapping the mic explains the microphone the first time
+   * (`src/features/mic/`), and records only after that is agreed to. "Not
+   * now" puts the cursor in the box, which is the other way in.
+   */
   const micTap = () => {
     if (stage === 'listening') {
       stopRef.current?.();
       return;
     }
+    mic.ask(listen);
+  };
+
+  const listen = () => {
     const stop = startListening(
       lang,
       (heard) => {
@@ -365,6 +376,14 @@ export default function Capture() {
           </View>
         ) : null}
       </Screen>
+      <MicNotice
+        open={mic.asking}
+        onAllow={mic.allow}
+        onClose={() => {
+          mic.dismiss();
+          typeRef.current?.focus();
+        }}
+      />
       <PersonSearchSheet
         open={searching}
         title={gap ? questionFor(gap, parsed ?? ({ type: 'call' } as never), copy) : ''}
