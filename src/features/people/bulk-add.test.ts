@@ -1,27 +1,14 @@
 /**
- * Adding a crowd. Run with `npm test`.
+ * Adding several people at once. Run with `npm test`.
  */
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { addable, isMany, MANY, toggle } from './bulk-add';
+import { addable, toggle } from './bulk-add';
 import type { Contact } from '@/lib/model-types';
 import type { ContactDraft } from '@/lib/phone-contacts/draft';
 
 const draft = (name: string, phone = ''): ContactDraft => ({ name, role: '', dial: '+966', phone, email: '' });
-
-describe('when it is a crowd', () => {
-  it('says nothing about a handful', () => {
-    assert.equal(isMany(1), false);
-    assert.equal(isMany(12), false);
-    assert.equal(isMany(99), false);
-  });
-
-  it('says something from a hundred', () => {
-    assert.equal(isMany(MANY), true);
-    assert.equal(isMany(847), true);
-  });
-});
 
 describe('who would actually be added', () => {
   const contacts: Contact[] = [{ id: 'c1', name: 'Sara Haddad', phone: '501234567', dial: '+966', createdAt: '2026-10-01T09:00:00.000Z' }];

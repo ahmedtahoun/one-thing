@@ -3805,18 +3805,21 @@ to People, where they now are. People already in People cannot be
 ticked — they say "Added" and open instead, which is the same rule the
 file importer has always used for duplicates.
 
-**And one sentence above the button, in both screens.** From a hundred
-people in one go: *"You're adding 847 people. You should have a reason
-to hold their details."* No extra tap, nothing blocked — it is on the
-screen while the decision is being made.
+**A sentence above the button was written and then taken out.** From a
+hundred people in one go it read *"You're adding 847 people. You should
+have a reason to hold their details."* — no extra tap, nothing blocked.
+The owner asked for it to come out before this shipped, and it is gone
+from both screens along with its threshold and its copy.
 
-That sentence is not decoration. Everybody added is a real person who
-installed nothing; their name, number and email sync to the account and
-are visible to support and in the panel. The policy's words for it are
-"you are telling us you are allowed to hold them", and a hundred at a
-time is exactly when that stops being obvious. A hundred is a judgement:
-past any plausible hand-picked list — a team, a client list, a
-conference — and well under a whole address book.
+The argument for it is recorded here because the question it answered
+has not changed: everybody added is a real person who installed nothing,
+their name, number and email sync to the account and are visible to
+support and in the panel, and the policy's words for it are "you are
+telling us you are allowed to hold them". What settles it the other way
+is that the file importer has taken a whole address book in four taps
+since long before this week, without a word, and nobody has minded: the
+person is choosing from a list they can see, which is the consent the
+sentence was restating.
 
 **Why this and not the upload.** The owner asked for the whole address
 book to be pulled into the dashboard, and it was started and then taken

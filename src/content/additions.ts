@@ -210,7 +210,6 @@ export type Added = {
     clear: string;
     add: string;
     addedN: string;
-    many: string;
   };
   /** The People screen itself: the search, its empty states, the ⋯ menu. */
   peopleScreen: {
@@ -992,7 +991,6 @@ const ADDED: Record<Lang, Added> = {
       clear: 'Clear',
       add: 'Add {n}',
       addedN: '{n} people added.',
-      many: 'You’re adding {n} people. You should have a reason to hold their details.',
     },
     peopleScreen: {
       searchAll: 'Search people',
@@ -1628,7 +1626,6 @@ const ADDED: Record<Lang, Added> = {
       clear: 'إلغاء التحديد',
       add: 'أضف {n}',
       addedN: 'ضفنا {n} أشخاص.',
-      many: 'بتضيف {n} شخص. لازم يكون عندك سبب للاحتفاظ ببياناتهم.',
     },
     peopleScreen: {
       searchAll: 'ابحث في الأشخاص',

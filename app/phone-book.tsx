@@ -21,7 +21,7 @@ import { FlatList, Pressable, TextInput, View } from 'react-native';
 import { router } from 'expo-router';
 
 import { added } from '@/content/additions';
-import { addable, isMany, toggle } from '@/features/people/bulk-add';
+import { addable, toggle } from '@/features/people/bulk-add';
 import { alreadySaved, byName, dedupe, matchesQuery } from '@/features/people/phone-book';
 import { Avatar } from '@/ui/Avatar';
 import { BackButton } from '@/ui/BackButton';
@@ -239,16 +239,7 @@ export default function PhoneBookScreen() {
               }
             />
             {chosen.size > 0 ? (
-              <View style={{ gap: 8, paddingTop: 2 }}>
-                {/* Said while the decision is being made, not after it:
-                    everybody added is a real person who installed nothing,
-                    and their details sync to the account
-                    (src/features/people/bulk-add.ts). */}
-                {isMany(addable(picked, contacts).length) ? (
-                  <Text testID="phone-book-many" token="micro" lh={17} color={ink.s3}>
-                    {copy.many.replace('{n}', String(addable(picked, contacts).length))}
-                  </Text>
-                ) : null}
+              <View style={{ paddingTop: 2 }}>
                 <Button
                   testID="phone-book-add"
                   label={copy.add.replace('{n}', String(addable(picked, contacts).length))}
