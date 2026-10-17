@@ -3721,3 +3721,69 @@ match the data, none fills the row on its own, every tap is counted, the
 most-tapped comes back first, turning the question down says what it
 needs, and a new question asked mid-question is answered rather than
 read as a time.
+
+### 2.93 "Which Sara?" — and the question survives the answer
+
+Asked for after a phone session: *"it should ask me which Sara, or
+search on Sara here"*. Two halves, and the second is the one with teeth.
+
+**The question is carried with the choice.** `askData`'s `who` and
+`nobody` answers now hold the `want` that was asked — phone, email,
+where they work, or everything — so tapping a Sara answers *that*. It
+used to open her profile, which drops the person on a screen with the
+question they asked left behind them.
+
+**And nobody is a dead end no more.** A question about somebody who is
+not in People offers **Search People** in the chat, and picking somebody
+answers the original question about them.
+
+**One bug the browser run found on the way.** With Sara remembered from
+the question before, *"what's Jane's number?"* came back with **Sara's**
+number: `readWho` finds nobody called Jane, and the thread-subject rule
+(§2.89) filled the gap. A name the app does not know is still a name, so
+`namedInQuestion` now reads the two shapes a *question* carries one in —
+the English possessive ("Jane's", minus the contractions that look like
+one) and an Arabic name standing after what is being asked for ("رقم
+جين") — and the subject is used only when the question names nobody at
+all. `candidateName` could not do this: it reads task sentences, where a
+name follows a verb, and "what's Jane's number?" has no verb in it.
+
+### 2.94 The phone's address book, inside the app
+
+Asked for with WhatsApp's "+" as the reference: tap it, see everyone you
+know, search, pick one. What existed was the system picker — one person
+at a time, no search of your own, and no way to see who you already had.
+
+`app/phone-book.tsx` reads the address book and shows it: searchable by
+name, by email or by digits, de-duplicated, alphabetical in the language
+being read, with anybody already in People marked so a tap opens them
+instead of doubling them.
+
+**What it does not do is the point, and it is the same point the owner
+made:** *"make the contact list alone until he message any one"*. The
+book is read into one screen's memory and nothing else. Only the person
+tapped is written into People, nobody is uploaded, and closing the
+screen forgets the rest. That is what keeps the app's own list worth
+reading — the people being dealt with, not nine hundred numbers off a
+phone.
+
+**It changes a promise, and the strings move with it.** The old purpose
+string said "only when you tap Import to pick one person from your
+phone's contacts. The One Thing never reads your contact list on its
+own." A browsable list cannot be read that way: to show the names the
+app has to be allowed to read them. Both purpose strings (iOS's
+`NSContactsUsageDescription` and the `expo-contacts` plugin's Android
+one) now say what is true — it shows the phone's contacts so one can be
+picked, only the picked are saved, none are uploaded — and
+`STORE-PRIVACY.md` records the change against the Data safety answers.
+A purpose string that no longer describes the code is a documented 5.1.1
+rejection, which is why this moved in the same commit as the feature.
+
+**Tested where it can be.** The list logic is pure and has 15 tests on
+what a real phone has and a seeded demo does not: the same person twice,
+one number written three ways, a name with diacritics in one entry and
+without in another, and three ways of recognising somebody already
+saved. The screen itself cannot run in the web harness — there is no
+address book in a browser — so it is the one new screen with no
+behavioural check, and the first thing to look at on the next hardware
+build.

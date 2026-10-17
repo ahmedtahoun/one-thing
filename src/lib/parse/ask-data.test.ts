@@ -510,9 +510,58 @@ describe('keeping the thread', () => {
     assert.equal(answer.want, 'all');
   });
 
+  /**
+   * Caught by a browser run: with Sara remembered, "what's Jane's number?"
+   * came back with *Sara's* number. A name the app does not know is still
+   * a name, and the honest answer is that she is not in People.
+   */
+  it('does not answer a question about somebody else with the person remembered', () => {
+    const answer = askData("what's Jane's number?", world(), { contact: sara });
+    assert.equal(answer?.kind, 'nobody');
+    if (answer?.kind !== 'nobody') return;
+    assert.equal(answer.name, 'Jane');
+  });
+
   it('does not turn a list question into one about the person remembered', () => {
     assert.equal(kindOf(askData("what's late?", world(), { contact: sara })), 'tasks');
     assert.equal(kindOf(askData('who is waiting on me?', world(), { contact: sara })), 'waiting');
+  });
+});
+
+describe('two people with one name', () => {
+  const two = () => world({ contacts: [person('c1', 'Sara Haddad'), person('c9', 'Sara Mansour'), person('c2', 'Omar Khalid')] });
+
+  it('asks which, rather than picking one', () => {
+    const answer = askData("what's Sara's number?", two());
+    assert.equal(answer?.kind, 'who');
+    if (answer?.kind !== 'who') return;
+    assert.equal(answer.options.length, 2);
+  });
+
+  /**
+   * The part that makes choosing worth anything: the question comes with
+   * the choice, so picking a Sara answers *the number*, instead of opening
+   * her profile and leaving the question behind.
+   */
+  it('carries what was asked about them', () => {
+    for (const [said, want] of [
+      ["what's Sara's number?", 'phone'],
+      ["what's Sara's email?", 'email'],
+      ['where does Sara work?', 'work'],
+      ['who is Sara?', 'all'],
+    ] as const) {
+      const answer = askData(said, two());
+      assert.equal(answer?.kind, 'who', said);
+      if (answer?.kind !== 'who') continue;
+      assert.equal(answer.want, want, said);
+    }
+  });
+
+  it('carries it for somebody who is not in People either', () => {
+    const answer = askData("what's Jane's number?", two());
+    assert.equal(answer?.kind, 'nobody');
+    if (answer?.kind !== 'nobody') return;
+    assert.equal(answer.want, 'phone');
   });
 });
 

@@ -251,6 +251,37 @@ const D_SAMPLE =
   check('a question about someone answers with their number', (await page.getByTestId('assistant-reply').last().innerText()).includes('50 331 2045'));
   check('…and the ways to reach them', (await count('qa-call')) === 1 && (await count('qa-whatsapp')) === 1 && (await count('qa-email')) === 1);
 
+  // Two people with one name: it asks which, and choosing answers the
+  // question that was asked rather than opening a profile.
+  await page.evaluate(() => {
+    const people = JSON.parse(localStorage.getItem('ot.contacts') || '[]');
+    people.push({ id: 'c99', name: 'Sara Mansour', dial: '+966', phone: '55 777 1234', email: 'sara.m@example.com', createdAt: new Date().toISOString() });
+    localStorage.setItem('ot.contacts', JSON.stringify(people));
+  });
+  await open('/assistant');
+  await page.getByTestId('assistant-input').fill("What's Sara's number?");
+  await page.getByTestId('assistant-send').click();
+  await page.waitForTimeout(900);
+  check('two people with one name are offered as a choice', (await count('qa-who')) === 1 && (await page.locator('[data-testid^="qa-who-"]').count()) === 2);
+  await page.getByTestId('qa-who-c99').click();
+  await page.waitForTimeout(700);
+  check('…and choosing one answers the question that was asked', (await page.getByTestId('assistant-reply').last().innerText()).includes('55 777 1234'), await page.getByTestId('assistant-reply').last().innerText());
+
+  await page.getByTestId('assistant-input').fill("What's Jane's number?");
+  await page.getByTestId('assistant-send').click();
+  await page.waitForTimeout(900);
+  check('somebody the app does not know offers a search, not a dead end', (await count('qa-find')) === 1);
+  await page.getByTestId('qa-find').click();
+  await page.waitForTimeout(500);
+  check('…which opens People to pick from', (await count('person-search')) === 1);
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(300);
+
+  await open('/assistant');
+  await page.getByTestId('assistant-input').fill("What's Sara Haddad's number?");
+  await page.getByTestId('assistant-send').click();
+  await page.waitForTimeout(900);
+
   // The thread. The next question names nobody, and is about the same
   // person — which is what makes it a conversation (src/lib/parse/ask-data.ts).
   await page.getByTestId('assistant-input').fill('and her email?');

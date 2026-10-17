@@ -33,7 +33,7 @@ import { dateKey, type Contact, type FollowUp, type HistoryEntry, type OneThing,
 import { readWho } from './clarify';
 import { intentOf } from './local';
 import { loopOf } from './promise';
-import { ar, AR_LETTER, normalizeArabic } from './names';
+import { ar, AR_LETTER, candidateName, normalizeArabic } from './names';
 
 /** Everything an answer can be read from. All of it is already on the device. */
 export type DataWorld = {
@@ -74,10 +74,15 @@ export type QuietPerson = { contact: Contact; days: number };
 export type DataAnswer =
   /** Their details, with the buttons to reach them. */
   | { kind: 'person'; want: Want; contact: Contact }
-  /** The name fits several people: the screen offers the choice, as the who-question does. */
-  | { kind: 'who'; name: string; options: Contact[] }
-  /** A question about a person who is not in People. */
-  | { kind: 'nobody'; name: string | null }
+  /**
+   * The name fits several people: the screen offers the choice, as the
+   * who-question does. `want` is what was asked about them, so choosing one
+   * answers *that* rather than dropping the person on their profile and
+   * leaving the question behind.
+   */
+  | { kind: 'who'; name: string; options: Contact[]; want: Want }
+  /** A question about a person who is not in People — `want` for the same reason. */
+  | { kind: 'nobody'; name: string | null; want: Want }
   | { kind: 'history'; contact: Contact; entries: HistoryEntry[] }
   | { kind: 'tasks'; span: Span; tasks: Task[] }
   | { kind: 'waiting'; items: FollowUp[] }
@@ -307,6 +312,39 @@ const MINE_WORD = new RegExp(
   'i'
 );
 
+/**
+ * A name a *question* is about, which `candidateName` does not find: it
+ * reads task sentences, where a name follows a verb, and "what's Jane's
+ * number?" has no verb in it.
+ *
+ * Only two shapes, both unambiguous: the English possessive ("Jane's"),
+ * minus the contractions that look like one, and an Arabic name standing
+ * after the thing being asked for ("رقم جين"), minus anything with the
+ * article on it, which makes it a thing rather than a person.
+ *
+ * It exists for one decision: whether a question names somebody. Found in
+ * a browser run — with Sara remembered from the question before,
+ * "what's Jane's number?" came back with Sara's number, because nothing
+ * noticed that a different person had been named.
+ */
+const CONTRACTION = new Set([
+  'what', 'that', 'it', 'there', 'here', 'who', 'let', 'he', 'she', 'how', 'where', 'when', 'why', 'this', 'one', 'today', 'tomorrow', 'everyone', 'someone', 'anyone', 'nobody',
+]);
+const POSSESSIVE = /(?:^|\s)(\p{L}[\p{L}'’-]*)(?:'|’)s\b/giu;
+const AR_AFTER = new RegExp(ar('(?:رقم|ايميل|إيميل|بريد|جوال|تليفون|موبايل)').source + `\\s+([${AR_LETTER}]{2,})`, 'u');
+const AR_NOT_A_NAME = new Set(['الجوال', 'الهاتف', 'التليفون', 'الموبايل', 'العمل', 'البيت', 'الشركة', 'المكتب']);
+
+export function namedInQuestion(text: string): string | null {
+  for (const [, word] of text.matchAll(POSSESSIVE)) {
+    if (!word || CONTRACTION.has(word.toLowerCase())) continue;
+    return word.charAt(0).toUpperCase() + word.slice(1);
+  }
+  const arabic = AR_AFTER.exec(text);
+  const after = arabic?.[1];
+  if (after && !/^ال/.test(normalizeArabic(after)) && !AR_NOT_A_NAME.has(after)) return after;
+  return null;
+}
+
 const fold = (s: string): string => normalizeArabic(s.trim().toLowerCase());
 
 /**
@@ -453,12 +491,16 @@ function personAnswer(text: string, want: Want, world: DataWorld, about: Subject
   const found = readWho(text, world.contacts as Contact[]);
   if (!found) {
     // Nobody named, and a person already being talked about: "and her
-    // email?" is about them. Never when the question says "my".
-    if (about && !MINE_WORD.test(text)) return { kind: 'person', want, contact: about.contact };
-    return { kind: 'nobody', name: null };
+    // email?" is about them. Never when the question says "my", and never
+    // when it names somebody — "what's Jane's number?" is about Jane, who
+    // is not in People, and answering it with the last person's number
+    // would be worse than saying so.
+    const named = candidateName(text) ?? (namedInQuestion(text) ? { word: namedInQuestion(text) as string } : null);
+    if (about && !named && !MINE_WORD.test(text)) return { kind: 'person', want, contact: about.contact };
+    return { kind: 'nobody', name: named?.word ?? null, want };
   }
   if (found.kind === 'one') return { kind: 'person', want, contact: found.contact };
-  return { kind: 'who', name: found.name, options: found.options };
+  return { kind: 'who', name: found.name, options: found.options, want };
 }
 
 /**
@@ -500,7 +542,7 @@ export function askData(text: string, world: DataWorld, about: Subject = null): 
   // Only with somebody named: "who haven't I talked to?" is the list above,
   // not a history nobody is in.
   if (HISTORY_WORD.test(t) && named) {
-    if (named.kind === 'several') return { kind: 'who', name: named.name, options: named.options };
+    if (named.kind === 'several') return { kind: 'who', name: named.name, options: named.options, want: 'all' };
     return { kind: 'history', contact: named.contact, entries: historyWith(named.contact, world) };
   }
 
@@ -517,7 +559,7 @@ export function askData(text: string, world: DataWorld, about: Subject = null): 
   // — unless the question is about a stretch of time rather than a person.
   // "Who did I call yesterday?" reads as both, and it is the day being
   // asked about, so the log answers it below.
-  if (HISTORY_WORD.test(t) && !LOG_WORD.test(t)) return { kind: 'nobody', name: null };
+  if (HISTORY_WORD.test(t) && !LOG_WORD.test(t)) return { kind: 'nobody', name: null, want: 'all' };
 
   // --- the day itself -------------------------------------------------
   // Before the stretches of the list, because each of these is asked with

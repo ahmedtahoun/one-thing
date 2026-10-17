@@ -20,7 +20,7 @@ import { TYPE_ICON } from '@/design/icon-paths';
 import { ink, surface, typeColour } from '@/design/tokens';
 import { useDirection } from '@/i18n/LanguageProvider';
 import { displayName, type Contact, type FollowUp, type HistoryEntry, type Task } from '@/lib/model-types';
-import type { DataAnswer } from '@/lib/parse/ask-data';
+import type { DataAnswer, Want } from '@/lib/parse/ask-data';
 import { MAX_ROWS } from './answer-line';
 
 export type DataCardProps = {
@@ -39,6 +39,14 @@ export type DataCardProps = {
   onDone: (task: Task) => void;
   /** A line of the day's log opens the person it was with. */
   onLogEntry: (entry: HistoryEntry) => void;
+  /**
+   * One of several people with that name, chosen. The question that was
+   * asked comes back with it, so choosing answers it instead of walking
+   * away from it onto a profile.
+   */
+  onWhich: (contact: Contact, want: Want) => void;
+  /** "Search People" on a question about somebody the app does not know. */
+  onFindPerson: (want: Want) => void;
   /** Today's One Thing: start its focus session, tick it off, or name one. */
   onFocus: () => void;
   onOneThingDone: () => void;
@@ -138,11 +146,25 @@ export function DataCard(props: DataCardProps) {
   }
 
   if (answer.kind === 'who') {
+    const want = answer.want;
     return frame(
       answer.options
         .slice(0, MAX_ROWS)
-        .map((c, i) => row(c.id, `qa-who-${c.id}`, () => props.onContact(c), null, c.name, c.role ?? '', undefined, i === 0)),
+        .map((c, i) => row(c.id, `qa-who-${c.id}`, () => props.onWhich(c, want), null, c.name, c.role ?? '', undefined, i === 0)),
       'qa-who'
+    );
+  }
+
+  /**
+   * Nobody of that name. The question stays answerable: People is searched
+   * from here rather than from another screen, and picking somebody answers
+   * what was asked about them.
+   */
+  if (answer.kind === 'nobody') {
+    return (
+      <View testID="qa-nobody" style={{ flexDirection: dir.row, gap: 8, flexWrap: 'wrap' }}>
+        {pill('qa-find', copy.find, () => props.onFindPerson(answer.want))}
+      </View>
     );
   }
 

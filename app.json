@@ -18,7 +18,7 @@
         "CFBundleAllowMixedLocalizations": true,
         "ITSAppUsesNonExemptEncryption": false,
         "NSCameraUsageDescription": "Used when you take a photo of a business card to read, or a picture for a person or for yourself. The camera is never used in the background.",
-        "NSContactsUsageDescription": "Used only when you tap Import to pick one person from your phone's contacts. The One Thing never reads your contact list on its own.",
+        "NSContactsUsageDescription": "Used to show your phone’s contacts so you can pick who to add to People. Only the people you pick are saved, and your contacts are never uploaded.",
         "NSSupportsLiveActivities": true
       },
       "appleTeamId": "55BRQ92599"
@@ -68,7 +68,7 @@
       [
         "expo-contacts",
         {
-          "contactsPermission": "Used only when you choose a contact to add to People. The One Thing never reads your address book on its own."
+          "contactsPermission": "Used to show your phone’s contacts so you can pick who to add to People. Only the people you pick are saved, and your contacts are never uploaded."
         }
       ],
       "expo-iap",

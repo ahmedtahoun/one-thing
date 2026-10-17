@@ -189,6 +189,23 @@ export type Added = {
     favorite: string;
     followups: string;
   };
+  /**
+   * The phone's own address book, browsed inside the app
+   * (`app/phone-book.tsx`). Nothing here is stored: the list is read while
+   * the screen is open, and only who gets tapped is saved into People.
+   */
+  phoneBook: {
+    title: string;
+    sub: string;
+    search: string;
+    added: string;
+    none: string;
+    noMatch: string;
+    denied: string;
+    deniedHow: string;
+    failed: string;
+    saved: string;
+  };
   /** The People screen itself: the search, its empty states, the ⋯ menu. */
   peopleScreen: {
     searchAll: string;
@@ -468,6 +485,8 @@ export type Added = {
     noWork: string;
     which: string;
     nobody: string;
+    /** On a question about somebody not in People: search for them from the chat. */
+    find: string;
     lastWith: string;
     noHistory: string;
     todayN: string;
@@ -952,6 +971,18 @@ const ADDED: Record<Lang, Added> = {
       favRemove: 'Remove from Favorites',
       close: 'Close',
     },
+    phoneBook: {
+      title: 'From your phone',
+      sub: 'Tap anyone to add them to People. Nobody else is saved, and nothing leaves your phone.',
+      search: 'Search your contacts',
+      added: 'Added',
+      none: 'No contacts on this phone.',
+      noMatch: 'Nobody matching “{q}”.',
+      denied: 'The One Thing can’t read your contacts.',
+      deniedHow: 'Turn Contacts on for The One Thing in your phone’s Settings, or add somebody by hand.',
+      failed: 'Couldn’t read your contacts on this phone.',
+      saved: '{n} added to People.',
+    },
     peopleScreen: {
       searchAll: 'Search people',
       searchFavorites: 'Search favorites',
@@ -1214,6 +1245,7 @@ const ADDED: Record<Lang, Added> = {
       noWork: 'I don’t have a company for {n}.',
       which: 'Which {n}?',
       nobody: 'They’re not in People yet.',
+      find: 'Search People',
       lastWith: 'Last with {n}',
       noHistory: 'Nothing logged with {n} yet.',
       todayN: '{n} today',
@@ -1570,6 +1602,18 @@ const ADDED: Record<Lang, Added> = {
       favRemove: 'شلها من المفضلة',
       close: 'إغلاق',
     },
+    phoneBook: {
+      title: 'من جوالك',
+      sub: 'اضغط أي أحد عشان يضاف للأشخاص. ما ينحفظ غيره، وما يطلع شي من جوالك.',
+      search: 'دوّر في جهات اتصالك',
+      added: 'مضاف',
+      none: 'ما فيه جهات اتصال على هذا الجوال.',
+      noMatch: 'ما فيه أحد باسم «{q}».',
+      denied: '«الشيء الواحد» ما يقدر يقرأ جهات اتصالك.',
+      deniedHow: 'شغّل «جهات الاتصال» للتطبيق من إعدادات جوالك، أو أضف الشخص بيدك.',
+      failed: 'ما قدرنا نقرأ جهات الاتصال على هذا الجوال.',
+      saved: 'ضفنا {n} للأشخاص.',
+    },
     peopleScreen: {
       searchAll: 'ابحث في الأشخاص',
       searchFavorites: 'ابحث في المفضلة',
@@ -1832,6 +1876,7 @@ const ADDED: Record<Lang, Added> = {
       noWork: 'ما عندي شركة لـ{n}.',
       which: 'أي {n}؟',
       nobody: 'ما هو في الأشخاص بعد.',
+      find: 'دوّر في الأشخاص',
       lastWith: 'آخر شيء مع {n}',
       noHistory: 'ما فيه شيء مسجّل مع {n} بعد.',
       todayN: '{n} اليوم',

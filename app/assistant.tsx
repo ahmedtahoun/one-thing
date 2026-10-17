@@ -40,7 +40,7 @@ import { TYPE_ICON } from '@/design/icon-paths';
 import { ink, surface, typeColour } from '@/design/tokens';
 import { useDirection, useLanguage } from '@/i18n/LanguageProvider';
 import { useAssistantMeter } from '@/lib/assistant-meter';
-import { dateKey, followUpStatus, isOnDay, type Task } from '@/lib/model-types';
+import { dateKey, followUpStatus, isOnDay, type Contact, type Task } from '@/lib/model-types';
 import { AssistLimitError, localIsEnough, textParser, type AssistantIntent, type ParsedTask } from '@/lib/parse';
 import {
   answerFromText,
@@ -71,7 +71,7 @@ import { defaultSelection, type Candidate } from '@/features/people-import/colum
 import { readDraft } from '@/features/people-import/read-draft';
 import { candidatesFromFile } from '@/features/people-import/read-file';
 import { canReadCards, readCard } from '@/lib/card-reader';
-import { askData, isQuestion, type DataAnswer, type DataWorld, type Subject } from '@/lib/parse/ask-data';
+import { askData, isQuestion, type DataAnswer, type DataWorld, type Subject, type Want } from '@/lib/parse/ask-data';
 import { attachCommand, type Attach } from '@/lib/parse/attach';
 import { smallTalk } from '@/lib/parse/small';
 import { followUpFromParsed, taskFromParsed } from '@/lib/parse/to-task';
@@ -226,6 +226,8 @@ export default function Assistant() {
 
   const [clipOpen, setClipOpen] = useState(false);
   const [searchFor, setSearchFor] = useState<Ask | null>(null);
+  /** Searching People to answer a question, rather than to fill in a task. */
+  const [findFor, setFindFor] = useState<Want | null>(null);
   const choose = (ask: Ask, option: AskOption) => {
     const action: AskAction = option.action;
     if (action.kind === 'who') {
@@ -447,6 +449,13 @@ export default function Assistant() {
       if (!oneThing.done) toast.show(copy.qa.markedDone, { undo: () => setOneThingDone(false) });
     },
     onChooseOneThing: () => router.push('/today'),
+    /**
+     * "Which Sara?" answered: the question that was asked comes back with
+     * the person chosen, so the chat answers it instead of dropping them
+     * on a profile with the question left behind.
+     */
+    onWhich: (contact: Contact, want: Want) => showData(contact.name, { kind: 'person', want, contact }),
+    onFindPerson: (want: Want) => setFindFor(want),
   };
 
   // --- a card or a file ---------------------------------------------------
@@ -1015,6 +1024,16 @@ export default function Assistant() {
       </Screen>
       <MicNotice open={mic.asking} onAllow={mic.allow} onClose={mic.dismiss} />
       <ClipSheet open={clipOpen} copy={copy.clip} onClose={() => setClipOpen(false)} onChoose={chooseClip} />
+      <PersonSearchSheet
+        open={findFor !== null}
+        title={copy.qa.find}
+        onClose={() => setFindFor(null)}
+        onPick={(contact) => {
+          const want = findFor;
+          setFindFor(null);
+          if (want) showData(contact.name, { kind: 'person', want, contact });
+        }}
+      />
       <PersonSearchSheet
         open={searchFor !== null}
         title={searchFor ? questionFor(searchFor.gap, searchFor.draft, copy) : ''}
