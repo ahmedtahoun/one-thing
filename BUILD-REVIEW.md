@@ -3833,3 +3833,46 @@ threshold, who is actually addable, and the toggling. Neither screen can
 be driven in the browser harness: the phone book needs an address book
 and the importer needs a file picker. They are the two screens to walk
 by hand on the next hardware build.
+
+### 2.96 The flag follows the number
+
+A screenshot from the owner's phone: an Egyptian number typed into the New
+person form, and the picker still showing **+966**. Two faults in one
+field, and the first is the one that would have shipped silently.
+
+**A number that names its own country did not move the picker.** The form
+had no detection at all — `onChangeText={setPhone}` — so the digits went
+in and the code stayed wherever it was. Worse, the primary number was
+never split on save either: pasting `+201117515284` stored that whole
+string *and* `+966` beside it, which is a number nobody can dial.
+
+`dialFromTyped` reads the four shapes that do name a country — written
+with a plus, with 00, as a bare international number, and the Egyptian
+mobile (`01[0125]` and eight more), which is the one local shape that
+names its own country whatever phone it is typed on. It moves the picker
+and takes the trunk zero with it, so the screenshot's `01117515284`
+becomes **+20** and `1117515284`.
+
+**And it says nothing about a local number**, which is what keeps the rule
+from being a nuisance: `0501234567` is local to wherever its owner is
+standing, so the picker keeps whatever it has and the digits are left
+exactly as typed — nothing moves under the cursor halfway through a word.
+`'0'`, `'01'`, `'+2'` and every other half-typed thing answer null too.
+
+**The second fault: a new number started on +966 wherever you were.**
+`DEFAULT_DIAL` is the code this app was written for, not the code of the
+country holding the phone. `dialOfRegion` reads the device's region, so a
+new number in Cairo starts on +20 and one in Riyadh on +966; the constant
+is now only the fallback for a device that will not say. The same applies
+on Compose, where a contact saved without a code was handed +966 as well.
+
+Four new checks in `smoke-people.js` drive it in a browser — the Egyptian
+number moves the flag and loses its zero, a written `+971` moves it
+again, and a local number leaves it alone — and seven unit tests cover
+the shapes, including the ones that must answer null.
+
+**What is not verified here:** the *default* from the device's region. The
+browser harness has no region to report, so `dialOfRegion` falls back to
++966 there and the screenshots do not move (`en-contact-new` 8.17%,
+unchanged). The typed detection is tested; the device default is one line
+and it is the next hardware build's to confirm.

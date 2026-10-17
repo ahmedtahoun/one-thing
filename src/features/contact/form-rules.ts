@@ -9,6 +9,7 @@
  *     or the same email (ignoring case).
  */
 import type { Contact } from '@/lib/model-types';
+import { splitDialled } from '@/lib/parse/contact';
 import { normalizeArabic } from '@/lib/parse/names';
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -66,4 +67,34 @@ export function findDuplicate(
   selfId?: string
 ): Contact | undefined {
   return contacts.find((c) => c.id !== selfId && sameContact(form, c) !== null);
+}
+
+/**
+ * The country a typed number names itself, and the number without it.
+ *
+ * Found on a phone: an Egyptian owner typed an Egyptian number into a form
+ * sitting on +966, and nothing noticed. The picker is only a *default*, and
+ * a number that carries its own country should move it — a flag that
+ * contradicts the number in front of it is worse than no flag at all,
+ * because it is saved and dialled later.
+ *
+ * Null when the number does not say, which is most of the time: "0501234567"
+ * is local to wherever its owner is, and guessing a country from a local
+ * number would be the same mistake in the other direction. The picker keeps
+ * whatever it has and the digits are left exactly as typed, so nothing moves
+ * under the cursor mid-word.
+ *
+ * Four shapes do say, and `splitDialled` knows all four — written with a
+ * plus, with 00, as a bare international number, and the Egyptian mobile
+ * (01[0125] and eight more), which is the one local shape that names its own
+ * country whatever phone it is typed on.
+ */
+export function dialFromTyped(typed: string, region?: string): { dial: string; phone: string } | null {
+  const digits = typed.replace(/[^\d+]/g, '');
+  const international = /^(\+|00)/.test(digits);
+  const egyptianMobile = /^01[0125]\d{8}$/.test(digits);
+  const bareInternational = !digits.startsWith('0') && !digits.startsWith('+') && digits.length >= 11;
+  if (!international && !egyptianMobile && !bareInternational) return null;
+  const found = splitDialled(digits, region);
+  return found.dial ? { dial: found.dial, phone: found.phone } : null;
 }

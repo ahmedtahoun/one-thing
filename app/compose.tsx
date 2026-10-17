@@ -47,7 +47,8 @@ import { fillSaved, toSaved, type Saved } from '@/features/compose/saved';
 import { addSaved, useSaved } from '@/lib/templates';
 import { CHASE_CHOICES, chaseDays, inDays, useChase } from '@/lib/chase';
 import { whenText } from '@/features/capture/labels';
-import { DEFAULT_DIAL } from '@/content/countries';
+import { DEFAULT_DIAL, dialOfRegion } from '@/content/countries';
+import { deviceRegion } from '@/lib/speech';
 import { type IconName } from '@/design/icon-paths';
 import { fontFamily, ink, surface, typeColour } from '@/design/tokens';
 import { useDirection, useLanguage } from '@/i18n/LanguageProvider';
@@ -96,7 +97,9 @@ function ComposeTask({ task }: { task: Task }) {
   // Prefilled from the contact, so a number given once is there next time —
   // "Add their number once — I'll remember it."
   const contact = useMemo(() => contactForTask(task, contacts), [task, contacts]);
-  const [dial, setDial] = useState(contact?.dial ?? DEFAULT_DIAL);
+  // A contact saved without a code gets the one the phone is in, not the
+  // one this app was written for — BUILD-REVIEW §2.96.
+  const [dial, setDial] = useState(contact?.dial ?? dialOfRegion(deviceRegion()));
   const [phone, setPhone] = useState(contact?.phone ?? '');
   const [email, setEmail] = useState(contact?.email ?? '');
   const [subject, setSubject] = useState(task.draft?.subject ?? task.title);

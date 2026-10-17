@@ -428,6 +428,20 @@ const SESSION = { userId: 'smoke', name: 'Khalid Al-Mansouri', firstName: 'Khali
   await page.waitForTimeout(150);
   check('…which goes when it no longer matches', (await page.getByTestId('contact-form-duplicate').count()) === 0);
 
+  // A number that names its own country moves the picker with it. Found on
+  // a phone: an Egyptian number typed into a form showing +966, and nothing
+  // noticed (src/features/contact/form-rules.ts).
+  await page.getByTestId('contact-form-phone').fill('01117515284');
+  await page.waitForTimeout(250);
+  check('an Egyptian number moves the flag to +20', (await text('contact-form-country')).includes('+20'), await text('contact-form-country'));
+  check('…and the trunk zero goes with it', (await page.getByTestId('contact-form-phone').inputValue()) === '1117515284', await page.getByTestId('contact-form-phone').inputValue());
+  await page.getByTestId('contact-form-phone').fill('+971 50 331 2045');
+  await page.waitForTimeout(250);
+  check('…and a written code moves it again', (await text('contact-form-country')).includes('+971'), await text('contact-form-country'));
+  await page.getByTestId('contact-form-phone').fill('55 999 0000');
+  await page.waitForTimeout(250);
+  check('a local number leaves the picker where it was', (await text('contact-form-country')).includes('+971') && (await page.getByTestId('contact-form-phone').inputValue()) === '55 999 0000');
+
   await page.getByTestId('contact-form-country').click();
   await page.waitForTimeout(200);
   await page.getByTestId('contact-form-countries-search').fill('emir');

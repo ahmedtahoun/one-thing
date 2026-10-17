@@ -10,7 +10,7 @@
  * only "Save contact" writes anything.
  */
 import { splitNumber } from '@/lib/phone-contacts/draft';
-import { COUNTRIES, DEFAULT_DIAL } from '@/content/countries';
+import { COUNTRIES, DEFAULT_DIAL, dialOfRegion } from '@/content/countries';
 import { AR_LETTER, arx, normalizeArabic } from './names';
 import { extractEmail, extractPhone, spokenDigits, westernDigits } from './spoken';
 
@@ -283,5 +283,5 @@ export function numberLine(fields: ContactFields): string {
 
 /** The code for a number with none: the person's own country, else the app's default. */
 export function dialFor(fields: ContactFields, region?: string): string {
-  return fields.dial ?? COUNTRIES.find((c) => c.iso === region?.toUpperCase())?.dial ?? DEFAULT_DIAL;
+  return fields.dial ?? dialOfRegion(region);
 }

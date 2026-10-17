@@ -12,7 +12,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Alert, Platform, Pressable, ScrollView, TextInput, View } from 'react-native';
 import { Redirect, router, useLocalSearchParams } from 'expo-router';
 
-import { emailInvalid, findDuplicate, nameValid, phoneInvalid } from '@/features/contact/form-rules';
+import { dialFromTyped, emailInvalid, findDuplicate, nameValid, phoneInvalid } from '@/features/contact/form-rules';
 import { useStartTask } from '@/features/people/start-task';
 import { CountryButton, CountryList } from '@/ui/CountryPicker';
 import { Icon } from '@/ui/Icon';
@@ -26,12 +26,13 @@ import { PhotoSheet } from '@/features/people/PhotoSheet';
 import { Avatar } from '@/ui/Avatar';
 import { usePhotos } from '@/lib/photos';
 import { splitDialled } from '@/lib/parse/contact';
-import { DEFAULT_DIAL } from '@/content/countries';
+import { dialOfRegion } from '@/content/countries';
 import { TYPE_ICON } from '@/design/icon-paths';
 import { fontFamily, ink, status, surface, typeColour } from '@/design/tokens';
 import { useDirection, useLanguage } from '@/i18n/LanguageProvider';
 import { initials, type Channel, type Contact } from '@/lib/model-types';
 import { usePeople } from '@/lib/people';
+import { deviceRegion } from '@/lib/speech';
 import { canPickFromPhone, importDraft, pickFromPhone, type ContactDraft } from '@/lib/phone-contacts';
 
 const CHANNELS: Channel[] = ['whatsapp', 'email', 'call'];
@@ -65,7 +66,12 @@ function ContactForm({ contact }: { contact?: Contact }) {
   const initialRole = splitRole(contact?.role ?? imported?.role);
   const [position, setPosition] = useState(initialRole.position);
   const [company, setCompany] = useState(initialRole.company);
-  const [dial, setDial] = useState(contact?.dial ?? imported?.dial ?? DEFAULT_DIAL);
+  /**
+   * A new number starts on the code of the country the phone is in, not on
+   * the one this app was written for: an Egyptian owner adding an Egyptian
+   * number was handed +966 and had to notice (BUILD-REVIEW §2.96).
+   */
+  const [dial, setDial] = useState(contact?.dial ?? imported?.dial ?? dialOfRegion(deviceRegion()));
   const [phone, setPhone] = useState(contact?.phone ?? imported?.phone ?? '');
   const [email, setEmail] = useState(contact?.email ?? imported?.email ?? '');
   const [pref, setPref] = useState<Channel>(
@@ -389,7 +395,14 @@ function ContactForm({ contact }: { contact?: Contact }) {
                   <TextInput
                     testID="contact-form-phone"
                     value={phone}
-                    onChangeText={setPhone}
+                    onChangeText={(typed) => {
+                      // A number that carries its own country moves the
+                      // picker; one that does not is left exactly as typed.
+                      const said = dialFromTyped(typed, deviceRegion());
+                      if (!said) return setPhone(typed);
+                      setDial(said.dial);
+                      setPhone(said.phone);
+                    }}
                     placeholder={PHONE_PLACEHOLDER}
                     placeholderTextColor={ink.s5}
                     keyboardType="phone-pad"
@@ -426,7 +439,14 @@ function ContactForm({ contact }: { contact?: Contact }) {
                 <TextInput
                   testID="contact-form-phone2"
                   value={phone2}
-                  onChangeText={setPhone2}
+                  onChangeText={(typed) => {
+                    // The second number carries its own code or shares the
+                    // first one's — the same rule, its own picker.
+                    const said = dialFromTyped(typed, deviceRegion());
+                    if (!said) return setPhone2(typed);
+                    setDial2(said.dial);
+                    setPhone2(said.phone);
+                  }}
                   placeholder={added(lang).contact.phone2Ph}
                   placeholderTextColor={ink.s5}
                   keyboardType="phone-pad"

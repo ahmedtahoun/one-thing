@@ -1407,5 +1407,15 @@ export const COUNTRIES: Country[] = [
   }
 ];
 
-/** The dial code a new phone field starts on. */
+/** The dial code a new phone field starts on when the phone will not say. */
 export const DEFAULT_DIAL = '+966';
+
+/**
+ * The code for the country the phone itself is in — "EG" → "+20".
+ *
+ * A new number should start on the code of the country the person is
+ * standing in, not on the one this app was first written for. An Egyptian
+ * owner adding an Egyptian number was being handed +966 and had to notice.
+ */
+export const dialOfRegion = (region?: string): string =>
+  COUNTRIES.find((c) => c.iso === region?.toUpperCase())?.dial ?? DEFAULT_DIAL;
