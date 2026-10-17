@@ -132,7 +132,12 @@ export function isQuestion(text: string): boolean {
   if (/[?؟]\s*$/.test(t)) return true;
   if (TASK_VERB.test(t)) return false;
   const folded = normalizeArabic(t);
-  return ASK_WORD.test(t) || ASK_WORD.test(folded) || SHOW_WORD.test(t) || SHOW_WORD.test(folded);
+  // "my tasks" on its own is a request to see them, not a task called "my
+  // tasks" — it has no verb in it. A task verb is checked first, so
+  // "remind me to do my tasks tomorrow" is still a task.
+  return (
+    ASK_WORD.test(t) || ASK_WORD.test(folded) || SHOW_WORD.test(t) || SHOW_WORD.test(folded) || TASKS_WORD.test(t) || TASKS_WORD.test(folded)
+  );
 }
 
 // --- what is being asked about ------------------------------------------
@@ -178,7 +183,24 @@ const WAITING_WORD = new RegExp(
 );
 
 const LATE_WORD = new RegExp(
-  '\\b(?:late|overdue|behind|missed|slipped)\\b|' + ar('(?:متأخر|متاخر|فايت|فاتت|متأخرة|متاخره)').source,
+  '\\b(?:late|overdue|behind|missed|slipped)\\b|' +
+    // Asked as a reproach rather than a status: "what should I have done?",
+    // "did I miss anything?" — both are the late list.
+    "\\bshould i have (?:done|finished|sent|called)\\b|\\bwas i supposed to\\b|\\bdid i miss\\b|\\bwhat(?:'|’)?s slipping\\b|" +
+    ar('(?:متأخر|متاخر|فايت|فاتت|متأخرة|متاخره|فاتني|وش فاتني|كان لازم)').source,
+  'i'
+);
+
+/**
+ * The day's list asked for without the word "today" in it: "what tasks do I
+ * have", "my tasks", "what's on". A phone showed "What tasks should I have
+ * done" answered with "I'm best with your people and your follow-ups",
+ * which is this app saying it cannot read its own list.
+ */
+const TASKS_WORD = new RegExp(
+  "\\b(?:what|which) tasks?\\b|\\bmy tasks?\\b|\\bthe tasks?\\b|\\bwhat(?:'|’)?s on\\b|" +
+    '\\bwhat do i have\\b|\\bwhat have i got\\b|\\banything (?:on|due|left|to do)\\b|\\bto-?do list\\b|' +
+    ar(`(?<![${AR_LETTER}])(?:مهامي|مهماتي|وش مهامي|ايش مهامي|وش عندي|ايش عندي|شنو عندي|وش علي|ايش علي|قائمة مهامي)(?![${AR_LETTER}])`).source,
   'i'
 );
 const TODAY_WORD = new RegExp(
@@ -511,6 +533,9 @@ export function askData(text: string, world: DataWorld, about: Subject = null): 
   if (TOMORROW_WORD.test(t)) return { kind: 'tasks', span: 'tomorrow', tasks: tasksIn('tomorrow', world) };
   if (WEEK_WORD.test(t)) return { kind: 'tasks', span: 'week', tasks: tasksIn('week', world) };
   if (TODAY_WORD.test(t) || intentOf(t) === 'plan') return { kind: 'tasks', span: 'today', tasks: tasksIn('today', world) };
+  // "What tasks do I have?" with no day in it is today's list: the day is
+  // what this app is about, and a list of everything open is not an answer.
+  if (TASKS_WORD.test(t)) return { kind: 'tasks', span: 'today', tasks: tasksIn('today', world) };
 
   // --- people, labels and counts --------------------------------------
   if (FAVOURITE_WORD.test(t)) {

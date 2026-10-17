@@ -89,6 +89,13 @@ export function optionsFor(
           action: { kind: 'when', iso: next.toISOString() },
         });
       }
+      // "Now" before the half-hour chips, because it is the answer somebody
+      // gives when they did not want a time at all: a phone showed "No I
+      // want it here" answered with "I couldn't read that", and the way out
+      // has to be on the screen rather than guessable. After
+      // "tomorrow at the same time" though, which is the likelier thing
+      // meant when a time has simply gone past.
+      options.push({ key: 'now', label: copy.ask.now, action: { kind: 'when', iso: new Date(now.getTime() + 60_000).toISOString() } });
       for (const option of whenOptions(quick, now)) {
         options.push({ key: `when-${option.iso}`, label: option.label, action: { kind: 'when', iso: option.iso } });
       }

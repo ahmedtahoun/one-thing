@@ -62,6 +62,9 @@ export type Added = {
     noOne: string;
     tomorrowAt: string;
     keepTime: string;
+    /** The when-question's first chip, and what to say when somebody turns it down. */
+    now: string;
+    needTime: string;
   };
   shrinkShort: string;
   rateApp: string;
@@ -509,6 +512,21 @@ export type Added = {
     egLate: string;
     egImport: string;
   };
+  /**
+   * The Assistant's suggestion chips. Each is a short label and the
+   * sentence it sends, so the chat shows what could have been typed and
+   * the person learns the phrase — `src/features/assistant/suggestions.ts`
+   * decides which are worth showing and in what order.
+   */
+  chips: {
+    late: { label: string; say: string };
+    waiting: { label: string; say: string };
+    oneThing: { label: string; say: string };
+    next: { label: string; say: string };
+    day: { label: string; say: string };
+    scan: { label: string; say: string };
+    contact: { label: string; say: string };
+  };
   /** The paperclip: a card or a file, from the Assistant — §2.68. */
   clip: {
     open: string;
@@ -713,6 +731,8 @@ const ADDED: Record<Lang, Added> = {
       noOne: 'No one',
       tomorrowAt: 'Tomorrow {t}',
       keepTime: 'Keep {t}',
+      now: 'Now',
+      needTime: 'It needs a time — tap Now, or one of the times above.',
     },
     /** Today's One Thing card, beside Lock In. */
     shrinkShort: 'Shrink it',
@@ -1235,6 +1255,15 @@ const ADDED: Record<Lang, Added> = {
       egLate: 'What’s late?',
       egImport: 'Import a file',
     },
+    chips: {
+      late: { label: 'What’s late?', say: 'What’s late?' },
+      waiting: { label: 'Who’s waiting?', say: 'Who am I waiting on?' },
+      oneThing: { label: 'My One Thing', say: 'What’s my One Thing today?' },
+      next: { label: 'What’s next?', say: 'What’s next?' },
+      day: { label: 'My day', say: 'Arrange my day' },
+      scan: { label: 'Scan a card', say: 'Scan a card' },
+      contact: { label: 'Save a contact', say: 'Save a contact' },
+    },
     clip: {
       open: 'Add a card or a file',
       title: 'Add people',
@@ -1325,6 +1354,8 @@ const ADDED: Record<Lang, Added> = {
       noOne: 'ولا أحد',
       tomorrowAt: 'بكرة {t}',
       keepTime: 'خلّها {t}',
+      now: 'الحين',
+      needTime: 'لازم لها وقت — اضغط «الحين» أو اختر من الأوقات فوق.',
     },
     shrinkShort: 'صغّرها',
     rateApp: 'قيّم The One Thing',
@@ -1841,6 +1872,15 @@ const ADDED: Record<Lang, Added> = {
       egTask: 'فكرني أكلم سارة الساعة ٤',
       egLate: 'وش المتأخر؟',
       egImport: 'استورد ملف',
+    },
+    chips: {
+      late: { label: 'وش المتأخر؟', say: 'وش المتأخر؟' },
+      waiting: { label: 'مين ينتظرني؟', say: 'مين أنتظر منه رد؟' },
+      oneThing: { label: 'شغلي الأساسي', say: 'وش شغلي الأساسي اليوم؟' },
+      next: { label: 'وش التالي؟', say: 'وش التالي؟' },
+      day: { label: 'يومي', say: 'رتّب لي يومي' },
+      scan: { label: 'صوّر كرت', say: 'صوّر كرت' },
+      contact: { label: 'احفظ جهة اتصال', say: 'احفظ جهة اتصال' },
     },
     clip: {
       open: 'أضف كرت أو ملف',

@@ -3629,3 +3629,95 @@ Seven new checks in `smoke-people.js`: the field and the chips are
 present, a search narrows to the person named, a search that finds
 nobody says so, Waiting shows the two who owe a reply, Favorites shows
 the starred one, and All puts the owed-first order back.
+
+### 2.91 The Assistant on a phone: four faults four screenshots found
+
+The first run on real hardware. Each of these is a screenshot, not a
+hunch.
+
+**A question asked while a question was open was swallowed.** "Email
+Faisal the invoice" → "When should I set this for?" → the person typed
+"What tasks I have today", and *that sentence became the time*: it has
+"today" in it, `answerFromText` read a time out of it, and the chat
+answered neither question. It now gets a second reading — if the text is
+asked **as a question** and `askData` has a real answer for it, the open
+question is let go and the new one is answered. A question the app
+cannot answer (`unknown`) is not worth abandoning a half-written task
+for, so that still falls through to "I couldn't read that" with the
+chips up.
+
+**"No I want it here" was "I couldn't read that".** Turning the
+when-question down is an answer, not a failure to read one.
+`answerFromText` now returns `refused` for the short, whole-sentence
+forms in both languages — "no", "not now", "no time", "skip", "later",
+"لا", "بدون وقت", "بعدين" — and the chat says *what it needs* instead:
+"It needs a time — tap Now, or one of the times above." A time inside a
+sentence that opens with "no" is still a time, because the time is read
+first.
+
+**And there was no "Now".** The one time nobody can type as a time — it
+has no day in it and no clock — so the when-question now opens with a
+**Now** chip, and reads "now" / "الحين" typed. It is a minute ahead, so
+the card does not reopen the question it just closed. It sits after
+"tomorrow at the same time" when a time has merely gone past, which is
+the likelier thing meant there.
+
+**"What tasks should I have done" got "I'm best with your people and
+your follow-ups"** — the app saying it cannot read its own list.
+`LATE_WORD` now covers the reproach forms ("should I have done", "was I
+supposed to", "did I miss", "وش فاتني") and a new `TASKS_WORD` covers
+the day's list asked without the word today in it ("what tasks do I
+have", "my tasks", "what's on", "وش مهامي"). A bare "my tasks" counts as
+a question now, since it has no verb in it; "remind me to do my tasks
+tomorrow" is still a task, because a task verb is read first.
+
+**The keyboard had no way down**, on any screen: the bar has no Done and
+tapping a message does nothing. `keyboardDismissMode="interactive"` on
+the Assistant's conversation and on `Screen`'s scroller, so dragging
+puts it away as it does in every chat app.
+
+**The input box was two lines tall before a word was typed.** Its
+placeholder — "Tell me anything — I'll sort it" — needs about 215 pt and
+the box is 158 pt wide once the paperclip, the mic and Send have taken
+their 50s. The copy is the handoff's, and it was written for a wider box
+than the one it ended up in; it is "Tell me anything" / «قول لي أي شي»
+now, and the pill is one line at rest. The geometry was left alone on
+purpose: it is measured against the prototype.
+
+### 2.92 The Assistant's chips are the person's own, and they learn
+
+The row above the message bar held the handoff's three example sentences
+plus two more, the longest being "Remind me tomorrow at 10 to send
+Mohammed the price quote". On a phone one and a half of them were
+legible and the rest was off the edge — and they were the same five
+whether somebody had nothing in the app or ninety people in it.
+
+They are **short labels now, chosen from this person's data**
+(`src/features/assistant/suggestions.ts`): what's late, who's waiting,
+their One Thing, what's next, their day, scan a card, save a contact.
+Nothing is offered that would answer "nobody" — a chip that wastes a tap
+is worse than one chip fewer — so an empty app shows the two that work
+on an empty app.
+
+**And they learn, in the only way this app can honestly claim to.**
+Every tap is counted on the device (`src/lib/assistant-habits.ts`, one
+key, a count per chip, capped) and `rankChips` brings the most-tapped
+forward with a stable sort, so the rest keep their data order. No
+profile, no server, nothing inferred about the person: the thing they
+reach for most ends up nearest their thumb, and a corrupt or missing
+tally just means the data order.
+
+Each chip carries a short label **and** the sentence it sends, which is
+not the same string: the sentence goes into the chat as the person's own
+words, so a tap also teaches what can be typed. The row doubles as the
+phrasebook the Assistant never had.
+
+Chips are addressed by what they are (`assistant-chip-day`), not by
+where they sit, because the row reorders itself.
+
+**Checked:** 10 new unit tests on the chips, 5 on reading "now" and a
+refusal, 12 on the new phrasings, and 9 new browser checks — the chips
+match the data, none fills the row on its own, every tap is counted, the
+most-tapped comes back first, turning the question down says what it
+needs, and a new question asked mid-question is answered rather than
+read as a time.

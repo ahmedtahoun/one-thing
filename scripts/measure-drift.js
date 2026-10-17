@@ -335,7 +335,13 @@ const PROBES = {
         en: 'Morning Khalid. Your One Thing is set. Anything rattling around your head? Dump it here — I’ll sort it.',
         ar: 'صباح الخير يا خالد. شغلك الأساسي جاهز. في شي شاغل بالك؟ قوله هنا وأنا أرتّبه.',
       },
-      chip: { en: 'Arrange my day', ar: 'رتّب لي يومي' },
+      /**
+       * The chip row holds this person's own short labels now (§2.92), so
+       * the prototype's "Arrange my day" is the *sentence* a chip sends
+       * rather than the words on it. What is measured here is the top of
+       * the row, which has not moved.
+       */
+      chip: { en: 'Arrange my day', ar: 'رتّب لي يومي', app: { en: 'My day', ar: 'يومي' } },
     },
   },
   paywall: {

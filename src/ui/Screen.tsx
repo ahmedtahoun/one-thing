@@ -60,6 +60,10 @@ export function Screen({
           contentContainerStyle={{ ...inner, flexGrow: 1 }}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
+          /* Dragging a screen puts the keyboard away. Every screen with a
+             field in it needed this and none had it: on a phone there was
+             no way down from Brain dump's box at all. */
+          keyboardDismissMode="interactive"
         >
           {children}
         </ScrollView>

@@ -413,6 +413,37 @@ describe('what it leaves to the parser', () => {
   });
 });
 
+describe('the ways people actually ask', () => {
+  /**
+   * Every line here was typed into a real build and came back "I'm best
+   * with your people and your follow-ups" — the app saying it cannot read
+   * its own list.
+   */
+  const withTasks = () => world({ tasks: [task('t1', 'Call the lawyer', '2026-10-15T14:00:00.000Z')] });
+
+  for (const said of ['What tasks I have today', 'What tasks do I have?', 'my tasks', "what's on?", 'what do I have', 'وش مهامي؟', 'وش عندي اليوم؟']) {
+    it(`answers "${said}" with the day's list`, () => {
+      const answer = askData(said, withTasks());
+      assert.equal(answer?.kind, 'tasks', said);
+      if (answer?.kind !== 'tasks') return;
+      assert.equal(answer.span, 'today');
+    });
+  }
+
+  for (const said of ['What tasks should I have done', 'did I miss anything?', 'what was I supposed to do?', 'وش فاتني؟']) {
+    it(`answers "${said}" with what is late`, () => {
+      const answer = askData(said, withTasks());
+      assert.equal(answer?.kind, 'tasks', said);
+      if (answer?.kind !== 'tasks') return;
+      assert.equal(answer.span, 'late');
+    });
+  }
+
+  it('still leaves a task alone, however much it sounds like a list', () => {
+    assert.equal(askData('Remind me to do my tasks tomorrow', world()), null);
+  });
+});
+
 describe('keeping the thread', () => {
   const sara = person('c1', 'Sara Haddad');
 

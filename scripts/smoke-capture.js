@@ -235,14 +235,14 @@ const D_SAMPLE =
   const spent = async () => ((await read('ot.assistantUsage')) ?? { used: 0 }).used;
   const afterTask = await spent();
 
-  await page.getByTestId('assistant-chip-2').click();
+  await page.getByTestId('assistant-chip-day').click();
   await page.waitForTimeout(900);
-  check('"Arrange my day" answers from the list itself', (await count('qa-tasks')) === 1);
+  check('the "My day" chip answers from the list itself', (await count('qa-tasks')) === 1);
   check('…naming today\'s real tasks', (await text('qa-tasks')).includes('Follow up on price quote'), (await text('qa-tasks')).slice(0, 120));
 
-  await page.getByTestId('assistant-chip-3').click();
+  await page.getByTestId('assistant-chip-waiting').click();
   await page.waitForTimeout(900);
-  check('"Who am I waiting on?" answers from the follow-ups', (await count('qa-waiting')) === 1);
+  check('the "Who’s waiting?" chip answers from the follow-ups', (await count('qa-waiting')) === 1);
   check('…and offers Replied on each', (await page.locator('[data-testid^="qa-replied-"]').count()) > 0);
 
   await page.getByTestId('assistant-input').fill("What's Sara's number?");
@@ -282,7 +282,7 @@ const D_SAMPLE =
   check('…and the week has the history in it', (await count('qa-log')) === 1);
 
   // Acting on an answer, not only reading it.
-  await page.getByTestId('assistant-chip-2').click();
+  await page.getByTestId('assistant-chip-day').click();
   await page.waitForTimeout(900);
   const openBefore = (await read('ot.tasks')).filter((t) => t.status === 'open').length;
   await page.locator('[data-testid^="qa-done-"]').first().click();
@@ -312,6 +312,48 @@ const D_SAMPLE =
   );
   check('…and saves nothing', (await taskCount()) === beforeFrance);
   check('…and asks nothing', (await count('assistant-ask')) === 0);
+
+  // The chips: short, drawn from this person's own data, and they learn.
+  const chipKeys = async () => page.evaluate(() => [...document.querySelectorAll('[data-testid^="assistant-chip-"]')].map((el) => el.getAttribute('data-testid')));
+  const onScreen = await chipKeys();
+  check('the chips are the ones this person’s data calls for', onScreen.includes('assistant-chip-waiting') && onScreen.includes('assistant-chip-scan'), JSON.stringify(onScreen));
+  check('…and short enough to read', (await page.evaluate(() => [...document.querySelectorAll('[data-testid^="assistant-chip-"]')].every((el) => (el.textContent || '').length <= 18))));
+  // The fault it replaced: one chip held a whole sentence and filled the
+  // row on its own. Any chip wider than about a third of the screen is
+  // that fault coming back.
+  const widest = await page.evaluate(() => Math.max(...[...document.querySelectorAll('[data-testid^="assistant-chip-"]')].map((el) => el.getBoundingClientRect().width)));
+  check('…and no chip fills the row on its own', widest < 402 * 0.45, `widest chip ${Math.round(widest)}pt`);
+
+  // And they learn: the chip this person keeps tapping comes back first.
+  // "My day" was tapped once above; twice more makes it the one they use.
+  await page.getByTestId('assistant-chip-day').click();
+  await page.waitForTimeout(500);
+  await page.getByTestId('assistant-chip-day').click();
+  await page.waitForTimeout(500);
+  check('every tap is counted on the device', ((await read('ot.assistant.habits')) ?? {}).day >= 2, JSON.stringify(await read('ot.assistant.habits')));
+  await open('/assistant');
+  check('…and the one used most comes back first', (await chipKeys())[0] === 'assistant-chip-day', JSON.stringify(await chipKeys()));
+
+  // A question asked while a question is open is answered, not swallowed.
+  // Found on a phone: "What tasks I have today" became the *time* for the
+  // task being asked about, which answered neither.
+  const beforeAsk = await taskCount();
+  // The "My day" chip above already left one list card in the chat, so it
+  // is the new one that matters.
+  const listsBefore = await count('qa-tasks');
+  await page.getByTestId('assistant-input').fill('Email Faisal the invoice');
+  await page.getByTestId('assistant-send').click();
+  await page.waitForTimeout(900);
+  check('a note with no time asks when', (await count('assistant-ask')) === 1);
+  await page.getByTestId('assistant-input').fill('No I want it here');
+  await page.getByTestId('assistant-send').click();
+  await page.waitForTimeout(700);
+  check('turning the question down says what it needs, not “I couldn’t read that”', (await page.getByTestId('assistant-reply').last().innerText()).includes('needs a time'), await page.getByTestId('assistant-reply').last().innerText());
+  await page.getByTestId('assistant-input').fill('What tasks I have today');
+  await page.getByTestId('assistant-send').click();
+  await page.waitForTimeout(900);
+  check('a new question is answered rather than read as the time', (await count('qa-tasks')) === listsBefore + 1, `${listsBefore} → ${await count('qa-tasks')}`);
+  check('…and nothing was saved on the way', (await taskCount()) === beforeAsk);
 
   check('none of those questions spent a request', (await spent()) === afterTask, `${await spent()} vs ${afterTask}`);
   // "Call Faisal tomorrow at 11" names a channel, a person and a time, so the
