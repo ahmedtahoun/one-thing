@@ -3787,3 +3787,49 @@ saved. The screen itself cannot run in the web harness — there is no
 address book in a browser — so it is the one new screen with no
 behavioural check, and the first thing to look at on the next hardware
 build.
+
+### 2.95 Adding a crowd, and saying so
+
+Two questions from the owner, one after the other: *can someone select
+all and insert them?* and *can we have select-all when he decides to add
+them himself?* The answers turned out to be "yes, through the file
+importer, since long before this week" and "not in the phone book — now
+yes".
+
+**Select all in the phone book.** A tap still opens somebody when
+nothing is ticked, which is what a tap means everywhere else in the app;
+tick anything, by its circle or by holding a row, and the list becomes a
+selection with **Select all**, **Clear** and **Add {n}**. Adding one
+lands on their page as a single tap always did; adding a crowd goes back
+to People, where they now are. People already in People cannot be
+ticked — they say "Added" and open instead, which is the same rule the
+file importer has always used for duplicates.
+
+**And one sentence above the button, in both screens.** From a hundred
+people in one go: *"You're adding 847 people. You should have a reason
+to hold their details."* No extra tap, nothing blocked — it is on the
+screen while the decision is being made.
+
+That sentence is not decoration. Everybody added is a real person who
+installed nothing; their name, number and email sync to the account and
+are visible to support and in the panel. The policy's words for it are
+"you are telling us you are allowed to hold them", and a hundred at a
+time is exactly when that stops being obvious. A hundred is a judgement:
+past any plausible hand-picked list — a team, a client list, a
+conference — and well under a whole address book.
+
+**Why this and not the upload.** The owner asked for the whole address
+book to be pulled into the dashboard, and it was started and then taken
+back out (nothing of it remains in the tree). The difference that
+settled it is not the bytes — a determined person can import their whole
+book either way — it is that here the person acts, every time, sees the
+list, and the app never reads what it was not handed. That is the
+difference between a user importing their own contacts and an app
+harvesting an address book, and it is the difference a regulator and an
+app reviewer both look for.
+
+**Where the checks stop.** `bulk-add.ts` is pure and tested — the
+threshold, who is actually addable, and the toggling. Neither screen can
+be driven in the browser harness: the phone book needs an address book
+and the importer needs a file picker. They are the two screens to walk
+by hand on the next hardware build.

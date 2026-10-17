@@ -205,6 +205,12 @@ export type Added = {
     deniedHow: string;
     failed: string;
     saved: string;
+    /** Choosing several at once, and the sentence that comes with a crowd. */
+    selectAll: string;
+    clear: string;
+    add: string;
+    addedN: string;
+    many: string;
   };
   /** The People screen itself: the search, its empty states, the ⋯ menu. */
   peopleScreen: {
@@ -982,6 +988,11 @@ const ADDED: Record<Lang, Added> = {
       deniedHow: 'Turn Contacts on for The One Thing in your phone’s Settings, or add somebody by hand.',
       failed: 'Couldn’t read your contacts on this phone.',
       saved: '{n} added to People.',
+      selectAll: 'Select all',
+      clear: 'Clear',
+      add: 'Add {n}',
+      addedN: '{n} people added.',
+      many: 'You’re adding {n} people. You should have a reason to hold their details.',
     },
     peopleScreen: {
       searchAll: 'Search people',
@@ -1613,6 +1624,11 @@ const ADDED: Record<Lang, Added> = {
       deniedHow: 'شغّل «جهات الاتصال» للتطبيق من إعدادات جوالك، أو أضف الشخص بيدك.',
       failed: 'ما قدرنا نقرأ جهات الاتصال على هذا الجوال.',
       saved: 'ضفنا {n} للأشخاص.',
+      selectAll: 'اختر الكل',
+      clear: 'إلغاء التحديد',
+      add: 'أضف {n}',
+      addedN: 'ضفنا {n} أشخاص.',
+      many: 'بتضيف {n} شخص. لازم يكون عندك سبب للاحتفاظ ببياناتهم.',
     },
     peopleScreen: {
       searchAll: 'ابحث في الأشخاص',

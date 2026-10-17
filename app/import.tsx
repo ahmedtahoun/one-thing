@@ -12,6 +12,7 @@ import { router } from 'expo-router';
 import * as DocumentPicker from 'expo-document-picker';
 
 import { added } from '@/content/additions';
+import { isMany } from '@/features/people/bulk-add';
 import { defaultSelection, type Candidate } from '@/features/people-import/columns';
 import { candidatesFromFile } from '@/features/people-import/read-file';
 import { readDraft } from '@/features/people-import/read-draft';
@@ -247,6 +248,15 @@ export default function ImportContacts() {
               }}
             />
             <View style={{ paddingTop: 10, paddingBottom: 28, gap: 8 }}>
+              {/* A file can carry a whole address book, and everybody in it
+                  is a real person who installed nothing. Above a crowd's
+                  worth the screen says so, while the decision is being
+                  made — src/features/people/bulk-add.ts. */}
+              {isMany(stage.selected.size) ? (
+                <Text testID="import-many" token="micro" lh={17} color={ink.s3}>
+                  {added(lang).phoneBook.many.replace('{n}', String(stage.selected.size))}
+                </Text>
+              ) : null}
               <Button
                 testID="import-run"
                 label={copy.importN.replace('{n}', String(stage.selected.size))}

@@ -21,9 +21,12 @@ import { FlatList, Pressable, TextInput, View } from 'react-native';
 import { router } from 'expo-router';
 
 import { added } from '@/content/additions';
+import { addable, isMany, toggle } from '@/features/people/bulk-add';
 import { alreadySaved, byName, dedupe, matchesQuery } from '@/features/people/phone-book';
 import { Avatar } from '@/ui/Avatar';
 import { BackButton } from '@/ui/BackButton';
+import { Button } from '@/ui/Button';
+import { Icon } from '@/ui/Icon';
 import { Screen } from '@/ui/Screen';
 import { Text } from '@/ui/Text';
 import { Toast, useToast } from '@/ui/Toast';
@@ -40,10 +43,12 @@ export default function PhoneBookScreen() {
   const { lang } = useLanguage();
   const dir = useDirection();
   const copy = added(lang).phoneBook;
-  const { contacts, addContact } = usePeople();
+  const { contacts, addContact, addContacts } = usePeople();
   const toast = useToast();
   const [stage, setStage] = useState<Stage>({ kind: 'reading' });
   const [query, setQuery] = useState('');
+  /** Who is ticked, by their row's key. Empty means "tap one to open it". */
+  const [chosen, setChosen] = useState<ReadonlySet<string>>(new Set());
 
   useEffect(() => {
     let gone = false;
@@ -59,6 +64,37 @@ export default function PhoneBookScreen() {
 
   const people = stage.kind === 'ready' ? stage.people : [];
   const shown = useMemo(() => people.filter((person) => matchesQuery(person, query)), [people, query]);
+  /** The key of a row: its number where it has one, else its name. */
+  const keyOf = (person: ContactDraft) => `${person.phone || person.email || ''}|${person.name}`;
+  /** Only people who are not here yet can be ticked; the rest say "Added". */
+  const choosable = useMemo(() => addable(shown, contacts), [shown, contacts]);
+  const picked = useMemo(() => people.filter((person) => chosen.has(keyOf(person))), [people, chosen]);
+
+  /**
+   * Adding everybody ticked, in one write. One person lands on their own
+   * page, as a single tap always has; a crowd goes back to People, where
+   * they now are.
+   */
+  const addChosen = () => {
+    const rows = addable(picked, contacts);
+    if (rows.length === 0) return;
+    const saved = addContacts(
+      rows.map((person) => ({
+        name: person.name.trim(),
+        role: person.role.trim() || undefined,
+        dial: person.dial ?? undefined,
+        phone: person.phone.trim() || undefined,
+        email: person.email.trim() || undefined,
+      }))
+    );
+    setChosen(new Set());
+    if (saved.length === 1 && saved[0]) {
+      toast.show(copy.saved.replace('{n}', saved[0].name), { undo: false });
+      return router.replace(`/contact?id=${saved[0].id}`);
+    }
+    toast.show(copy.addedN.replace('{n}', String(saved.length)), { undo: false });
+    router.replace('/people');
+  };
 
   /** Tapping somebody: into People if they are new, then straight to them. */
   const pick = (person: ContactDraft) => {
@@ -77,10 +113,16 @@ export default function PhoneBookScreen() {
 
   const row = (person: ContactDraft, at: number) => {
     const had = alreadySaved(person, contacts);
+    const key = keyOf(person);
+    const ticked = chosen.has(key);
     return (
       <Pressable
         testID={`phone-book-${at}`}
-        onPress={() => pick(person)}
+        // With nothing ticked a tap opens somebody, which is what a tap
+        // means everywhere else. Once anything is ticked the list is a
+        // selection, and a tap belongs to it.
+        onPress={() => (had ? pick(person) : chosen.size > 0 ? setChosen(toggle(chosen, key)) : pick(person))}
+        onLongPress={() => (had ? undefined : setChosen(toggle(chosen, key)))}
         accessibilityRole="button"
         accessibilityLabel={person.name}
         style={({ pressed }) => ({
@@ -106,7 +148,27 @@ export default function PhoneBookScreen() {
           <Text token="micro" color={ink.s5}>
             {copy.added}
           </Text>
-        ) : null}
+        ) : (
+          <Pressable
+            testID={`phone-book-tick-${at}`}
+            onPress={() => setChosen(toggle(chosen, key))}
+            accessibilityRole="checkbox"
+            accessibilityState={{ checked: ticked }}
+            hitSlop={10}
+            style={{
+              width: 24,
+              height: 24,
+              borderRadius: 12,
+              borderWidth: 1.5,
+              borderColor: ticked ? ink.solid : surface.line,
+              backgroundColor: ticked ? ink.solid : 'transparent',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            {ticked ? <Icon name="check" size={14} color={surface.white} strokeWidth={2.4} /> : null}
+          </Pressable>
+        )}
       </Pressable>
     );
   };
@@ -142,6 +204,26 @@ export default function PhoneBookScreen() {
                 writingDirection: dir.isRTL ? 'rtl' : 'ltr',
               }}
             />
+            <View style={{ flexDirection: dir.row, alignItems: 'center', justifyContent: 'space-between' }}>
+              <Pressable
+                testID="phone-book-select-all"
+                onPress={() => setChosen(new Set(choosable.map(keyOf)))}
+                accessibilityRole="button"
+                hitSlop={8}
+                disabled={choosable.length === 0}
+              >
+                <Text token="caption" weight="600" color={choosable.length === 0 ? ink.s5 : ink.base}>
+                  {copy.selectAll}
+                </Text>
+              </Pressable>
+              {chosen.size > 0 ? (
+                <Pressable testID="phone-book-clear" onPress={() => setChosen(new Set())} accessibilityRole="button" hitSlop={8}>
+                  <Text token="caption" color={ink.s4}>
+                    {copy.clear}
+                  </Text>
+                </Pressable>
+              ) : null}
+            </View>
             <FlatList
               testID="phone-book-list"
               data={shown}
@@ -156,6 +238,24 @@ export default function PhoneBookScreen() {
                 </Text>
               }
             />
+            {chosen.size > 0 ? (
+              <View style={{ gap: 8, paddingTop: 2 }}>
+                {/* Said while the decision is being made, not after it:
+                    everybody added is a real person who installed nothing,
+                    and their details sync to the account
+                    (src/features/people/bulk-add.ts). */}
+                {isMany(addable(picked, contacts).length) ? (
+                  <Text testID="phone-book-many" token="micro" lh={17} color={ink.s3}>
+                    {copy.many.replace('{n}', String(addable(picked, contacts).length))}
+                  </Text>
+                ) : null}
+                <Button
+                  testID="phone-book-add"
+                  label={copy.add.replace('{n}', String(addable(picked, contacts).length))}
+                  onPress={addChosen}
+                />
+              </View>
+            ) : null}
           </>
         ) : null}
 
