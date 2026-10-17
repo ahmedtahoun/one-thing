@@ -428,6 +428,20 @@ const SESSION = { userId: 'smoke', name: 'Khalid Al-Mansouri', firstName: 'Khali
   await page.waitForTimeout(150);
   check('…which goes when it no longer matches', (await page.getByTestId('contact-form-duplicate').count()) === 0);
 
+  // A number that names its own country moves the picker with it. Found on
+  // a phone: an Egyptian number typed into a form showing +966, and nothing
+  // noticed (src/features/contact/form-rules.ts).
+  await page.getByTestId('contact-form-phone').fill('01117515284');
+  await page.waitForTimeout(250);
+  check('an Egyptian number moves the flag to +20', (await text('contact-form-country')).includes('+20'), await text('contact-form-country'));
+  check('…and the trunk zero goes with it', (await page.getByTestId('contact-form-phone').inputValue()) === '1117515284', await page.getByTestId('contact-form-phone').inputValue());
+  await page.getByTestId('contact-form-phone').fill('+971 50 331 2045');
+  await page.waitForTimeout(250);
+  check('…and a written code moves it again', (await text('contact-form-country')).includes('+971'), await text('contact-form-country'));
+  await page.getByTestId('contact-form-phone').fill('55 999 0000');
+  await page.waitForTimeout(250);
+  check('a local number leaves the picker where it was', (await text('contact-form-country')).includes('+971') && (await page.getByTestId('contact-form-phone').inputValue()) === '55 999 0000');
+
   await page.getByTestId('contact-form-country').click();
   await page.waitForTimeout(200);
   await page.getByTestId('contact-form-countries-search').fill('emir');
@@ -574,6 +588,34 @@ const SESSION = { userId: 'smoke', name: 'Khalid Al-Mansouri', firstName: 'Khali
   check('the overdue one is marked', await page.getByTestId('pick-pill-c4').innerText() === 'Overdue');
   check('the waiting one is marked', await page.getByTestId('pick-pill-c5').innerText() === 'Waiting');
   check('somebody with nothing owed has no pill', (await page.getByTestId('pick-pill-c2').count()) === 0);
+
+  // Over that order, the two things People has. The search used to appear
+  // only past six people, which on a new account reads as "this sheet
+  // cannot search" — so it is always there now.
+  check('the sheet can be searched', (await page.getByTestId('pick-search').count()) === 1);
+  check('…and carries the same chips People does', (await page.getByTestId('pick-filters-recent').count()) === 1 && (await page.getByTestId('pick-filters-waiting').count()) === 1);
+  await page.getByTestId('pick-search').fill('noura');
+  await page.waitForTimeout(300);
+  const found = await page.evaluate(() => [...document.querySelectorAll('[data-testid^="pick-c"]')].filter((el) => !el.getAttribute('data-testid').startsWith('pick-pill')).map((el) => el.getAttribute('data-testid')));
+  check('searching narrows it to the person named', found.length === 1 && found[0] === 'pick-c4', JSON.stringify(found));
+  await page.getByTestId('pick-search').fill('zzzz');
+  await page.waitForTimeout(300);
+  check('a search that finds nobody says so', (await page.getByTestId('pick-none').count()) === 1);
+  await page.getByTestId('pick-search').fill('');
+  await page.waitForTimeout(300);
+
+  await page.getByTestId('pick-filters-waiting').click();
+  await page.waitForTimeout(300);
+  const waiting = await page.evaluate(() => [...document.querySelectorAll('[data-testid^="pick-c"]')].filter((el) => !el.getAttribute('data-testid').startsWith('pick-pill')).map((el) => el.getAttribute('data-testid')));
+  check('the Waiting chip shows only who owes a reply', waiting.length === 2 && waiting.includes('pick-c4') && waiting.includes('pick-c5'), JSON.stringify(waiting));
+  await page.getByTestId('pick-filters-favorites').click();
+  await page.waitForTimeout(300);
+  const starred = await page.evaluate(() => [...document.querySelectorAll('[data-testid^="pick-c"]')].filter((el) => !el.getAttribute('data-testid').startsWith('pick-pill')).map((el) => el.getAttribute('data-testid')));
+  check('the Favorites chip shows the starred person', starred.length === 1 && starred[0] === 'pick-c2', JSON.stringify(starred));
+  await page.getByTestId('pick-filters-all').click();
+  await page.waitForTimeout(300);
+  check('All puts the owed-first order back', (await page.evaluate(() => document.querySelector('[data-testid^="pick-c"]')?.getAttribute('data-testid'))) === 'pick-c4');
+
   await page.getByTestId('pick-c2').click();
   await page.waitForTimeout(600);
   check('picking somebody starts the message', page.url().includes('/compose'), page.url());

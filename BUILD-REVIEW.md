@@ -3592,3 +3592,290 @@ an Assistant request or sends anything anywhere: 37 new unit tests, 9 new
 checks in `smoke-capture.js` driving the conversation in a browser, and
 the suite's existing "none of those questions spent a request" still
 passes with the new ones in it.
+
+### 2.90 The "Who?" sheet can be searched, and Recent is a chip
+
+A TestFlight screenshot of a one-contact account showed the sheet with a
+single name and nothing else: no way to search, no way to see who was
+recent. Both were missing for the same reason — the search field was
+gated behind `people.length > 6`.
+
+**That gate was backwards.** On a phone with a handful of contacts the
+field costs one row, and on a new account its absence does not read as
+"you don't need this yet", it reads as **"this sheet cannot search"** —
+which is exactly how it was read. It is always there now, whenever
+anybody is listed at all.
+
+**Recent is a chip, not the order.** §2.77's ordering stands: overdue
+replies, then waiting, then lately-reached, then cold, then never. That
+answers "who needs me?", and somebody tapping Call often already knows
+who they want — so the sheet now carries the same chips People does
+(`PICK_CHIPS`: All · Recent · Favorites · Waiting), with Waiting carrying
+its red count. Recent sits second here where it is last on People,
+because it is the one people reach for in this sheet.
+
+Only the Recent chip brings an order of its own — newest first, which is
+the whole point of asking for it. Every other chip keeps the sheet's own
+order inside the filter, so "Waiting" still puts the overdue reply above
+the one that is merely waiting.
+
+Nothing new was written for any of it: `filterPeople`, `filterCounts`,
+`FilterChips` and the four chip words are People's, and the empty lines
+are the ones People already uses ("Nobody in the last 7 days.", "Nobody
+owes you a reply.", the favourites hint, and "No one matching {q}"). The
+list's maximum height came down from 360 to 320 to pay for the chip row.
+
+Seven new checks in `smoke-people.js`: the field and the chips are
+present, a search narrows to the person named, a search that finds
+nobody says so, Waiting shows the two who owe a reply, Favorites shows
+the starred one, and All puts the owed-first order back.
+
+### 2.91 The Assistant on a phone: four faults four screenshots found
+
+The first run on real hardware. Each of these is a screenshot, not a
+hunch.
+
+**A question asked while a question was open was swallowed.** "Email
+Faisal the invoice" → "When should I set this for?" → the person typed
+"What tasks I have today", and *that sentence became the time*: it has
+"today" in it, `answerFromText` read a time out of it, and the chat
+answered neither question. It now gets a second reading — if the text is
+asked **as a question** and `askData` has a real answer for it, the open
+question is let go and the new one is answered. A question the app
+cannot answer (`unknown`) is not worth abandoning a half-written task
+for, so that still falls through to "I couldn't read that" with the
+chips up.
+
+**"No I want it here" was "I couldn't read that".** Turning the
+when-question down is an answer, not a failure to read one.
+`answerFromText` now returns `refused` for the short, whole-sentence
+forms in both languages — "no", "not now", "no time", "skip", "later",
+"لا", "بدون وقت", "بعدين" — and the chat says *what it needs* instead:
+"It needs a time — tap Now, or one of the times above." A time inside a
+sentence that opens with "no" is still a time, because the time is read
+first.
+
+**And there was no "Now".** The one time nobody can type as a time — it
+has no day in it and no clock — so the when-question now opens with a
+**Now** chip, and reads "now" / "الحين" typed. It is a minute ahead, so
+the card does not reopen the question it just closed. It sits after
+"tomorrow at the same time" when a time has merely gone past, which is
+the likelier thing meant there.
+
+**"What tasks should I have done" got "I'm best with your people and
+your follow-ups"** — the app saying it cannot read its own list.
+`LATE_WORD` now covers the reproach forms ("should I have done", "was I
+supposed to", "did I miss", "وش فاتني") and a new `TASKS_WORD` covers
+the day's list asked without the word today in it ("what tasks do I
+have", "my tasks", "what's on", "وش مهامي"). A bare "my tasks" counts as
+a question now, since it has no verb in it; "remind me to do my tasks
+tomorrow" is still a task, because a task verb is read first.
+
+**The keyboard had no way down**, on any screen: the bar has no Done and
+tapping a message does nothing. `keyboardDismissMode="interactive"` on
+the Assistant's conversation and on `Screen`'s scroller, so dragging
+puts it away as it does in every chat app.
+
+**The input box was two lines tall before a word was typed.** Its
+placeholder — "Tell me anything — I'll sort it" — needs about 215 pt and
+the box is 158 pt wide once the paperclip, the mic and Send have taken
+their 50s. The copy is the handoff's, and it was written for a wider box
+than the one it ended up in; it is "Tell me anything" / «قول لي أي شي»
+now, and the pill is one line at rest. The geometry was left alone on
+purpose: it is measured against the prototype.
+
+### 2.92 The Assistant's chips are the person's own, and they learn
+
+The row above the message bar held the handoff's three example sentences
+plus two more, the longest being "Remind me tomorrow at 10 to send
+Mohammed the price quote". On a phone one and a half of them were
+legible and the rest was off the edge — and they were the same five
+whether somebody had nothing in the app or ninety people in it.
+
+They are **short labels now, chosen from this person's data**
+(`src/features/assistant/suggestions.ts`): what's late, who's waiting,
+their One Thing, what's next, their day, scan a card, save a contact.
+Nothing is offered that would answer "nobody" — a chip that wastes a tap
+is worse than one chip fewer — so an empty app shows the two that work
+on an empty app.
+
+**And they learn, in the only way this app can honestly claim to.**
+Every tap is counted on the device (`src/lib/assistant-habits.ts`, one
+key, a count per chip, capped) and `rankChips` brings the most-tapped
+forward with a stable sort, so the rest keep their data order. No
+profile, no server, nothing inferred about the person: the thing they
+reach for most ends up nearest their thumb, and a corrupt or missing
+tally just means the data order.
+
+Each chip carries a short label **and** the sentence it sends, which is
+not the same string: the sentence goes into the chat as the person's own
+words, so a tap also teaches what can be typed. The row doubles as the
+phrasebook the Assistant never had.
+
+Chips are addressed by what they are (`assistant-chip-day`), not by
+where they sit, because the row reorders itself.
+
+**Checked:** 10 new unit tests on the chips, 5 on reading "now" and a
+refusal, 12 on the new phrasings, and 9 new browser checks — the chips
+match the data, none fills the row on its own, every tap is counted, the
+most-tapped comes back first, turning the question down says what it
+needs, and a new question asked mid-question is answered rather than
+read as a time.
+
+### 2.93 "Which Sara?" — and the question survives the answer
+
+Asked for after a phone session: *"it should ask me which Sara, or
+search on Sara here"*. Two halves, and the second is the one with teeth.
+
+**The question is carried with the choice.** `askData`'s `who` and
+`nobody` answers now hold the `want` that was asked — phone, email,
+where they work, or everything — so tapping a Sara answers *that*. It
+used to open her profile, which drops the person on a screen with the
+question they asked left behind them.
+
+**And nobody is a dead end no more.** A question about somebody who is
+not in People offers **Search People** in the chat, and picking somebody
+answers the original question about them.
+
+**One bug the browser run found on the way.** With Sara remembered from
+the question before, *"what's Jane's number?"* came back with **Sara's**
+number: `readWho` finds nobody called Jane, and the thread-subject rule
+(§2.89) filled the gap. A name the app does not know is still a name, so
+`namedInQuestion` now reads the two shapes a *question* carries one in —
+the English possessive ("Jane's", minus the contractions that look like
+one) and an Arabic name standing after what is being asked for ("رقم
+جين") — and the subject is used only when the question names nobody at
+all. `candidateName` could not do this: it reads task sentences, where a
+name follows a verb, and "what's Jane's number?" has no verb in it.
+
+### 2.94 The phone's address book, inside the app
+
+Asked for with WhatsApp's "+" as the reference: tap it, see everyone you
+know, search, pick one. What existed was the system picker — one person
+at a time, no search of your own, and no way to see who you already had.
+
+`app/phone-book.tsx` reads the address book and shows it: searchable by
+name, by email or by digits, de-duplicated, alphabetical in the language
+being read, with anybody already in People marked so a tap opens them
+instead of doubling them.
+
+**What it does not do is the point, and it is the same point the owner
+made:** *"make the contact list alone until he message any one"*. The
+book is read into one screen's memory and nothing else. Only the person
+tapped is written into People, nobody is uploaded, and closing the
+screen forgets the rest. That is what keeps the app's own list worth
+reading — the people being dealt with, not nine hundred numbers off a
+phone.
+
+**It changes a promise, and the strings move with it.** The old purpose
+string said "only when you tap Import to pick one person from your
+phone's contacts. The One Thing never reads your contact list on its
+own." A browsable list cannot be read that way: to show the names the
+app has to be allowed to read them. Both purpose strings (iOS's
+`NSContactsUsageDescription` and the `expo-contacts` plugin's Android
+one) now say what is true — it shows the phone's contacts so one can be
+picked, only the picked are saved, none are uploaded — and
+`STORE-PRIVACY.md` records the change against the Data safety answers.
+A purpose string that no longer describes the code is a documented 5.1.1
+rejection, which is why this moved in the same commit as the feature.
+
+**Tested where it can be.** The list logic is pure and has 15 tests on
+what a real phone has and a seeded demo does not: the same person twice,
+one number written three ways, a name with diacritics in one entry and
+without in another, and three ways of recognising somebody already
+saved. The screen itself cannot run in the web harness — there is no
+address book in a browser — so it is the one new screen with no
+behavioural check, and the first thing to look at on the next hardware
+build.
+
+### 2.95 Adding a crowd, and saying so
+
+Two questions from the owner, one after the other: *can someone select
+all and insert them?* and *can we have select-all when he decides to add
+them himself?* The answers turned out to be "yes, through the file
+importer, since long before this week" and "not in the phone book — now
+yes".
+
+**Select all in the phone book.** A tap still opens somebody when
+nothing is ticked, which is what a tap means everywhere else in the app;
+tick anything, by its circle or by holding a row, and the list becomes a
+selection with **Select all**, **Clear** and **Add {n}**. Adding one
+lands on their page as a single tap always did; adding a crowd goes back
+to People, where they now are. People already in People cannot be
+ticked — they say "Added" and open instead, which is the same rule the
+file importer has always used for duplicates.
+
+**A sentence above the button was written and then taken out.** From a
+hundred people in one go it read *"You're adding 847 people. You should
+have a reason to hold their details."* — no extra tap, nothing blocked.
+The owner asked for it to come out before this shipped, and it is gone
+from both screens along with its threshold and its copy.
+
+The argument for it is recorded here because the question it answered
+has not changed: everybody added is a real person who installed nothing,
+their name, number and email sync to the account and are visible to
+support and in the panel, and the policy's words for it are "you are
+telling us you are allowed to hold them". What settles it the other way
+is that the file importer has taken a whole address book in four taps
+since long before this week, without a word, and nobody has minded: the
+person is choosing from a list they can see, which is the consent the
+sentence was restating.
+
+**Why this and not the upload.** The owner asked for the whole address
+book to be pulled into the dashboard, and it was started and then taken
+back out (nothing of it remains in the tree). The difference that
+settled it is not the bytes — a determined person can import their whole
+book either way — it is that here the person acts, every time, sees the
+list, and the app never reads what it was not handed. That is the
+difference between a user importing their own contacts and an app
+harvesting an address book, and it is the difference a regulator and an
+app reviewer both look for.
+
+**Where the checks stop.** `bulk-add.ts` is pure and tested — the
+threshold, who is actually addable, and the toggling. Neither screen can
+be driven in the browser harness: the phone book needs an address book
+and the importer needs a file picker. They are the two screens to walk
+by hand on the next hardware build.
+
+### 2.96 The flag follows the number
+
+A screenshot from the owner's phone: an Egyptian number typed into the New
+person form, and the picker still showing **+966**. Two faults in one
+field, and the first is the one that would have shipped silently.
+
+**A number that names its own country did not move the picker.** The form
+had no detection at all — `onChangeText={setPhone}` — so the digits went
+in and the code stayed wherever it was. Worse, the primary number was
+never split on save either: pasting `+201117515284` stored that whole
+string *and* `+966` beside it, which is a number nobody can dial.
+
+`dialFromTyped` reads the four shapes that do name a country — written
+with a plus, with 00, as a bare international number, and the Egyptian
+mobile (`01[0125]` and eight more), which is the one local shape that
+names its own country whatever phone it is typed on. It moves the picker
+and takes the trunk zero with it, so the screenshot's `01117515284`
+becomes **+20** and `1117515284`.
+
+**And it says nothing about a local number**, which is what keeps the rule
+from being a nuisance: `0501234567` is local to wherever its owner is
+standing, so the picker keeps whatever it has and the digits are left
+exactly as typed — nothing moves under the cursor halfway through a word.
+`'0'`, `'01'`, `'+2'` and every other half-typed thing answer null too.
+
+**The second fault: a new number started on +966 wherever you were.**
+`DEFAULT_DIAL` is the code this app was written for, not the code of the
+country holding the phone. `dialOfRegion` reads the device's region, so a
+new number in Cairo starts on +20 and one in Riyadh on +966; the constant
+is now only the fallback for a device that will not say. The same applies
+on Compose, where a contact saved without a code was handed +966 as well.
+
+Four new checks in `smoke-people.js` drive it in a browser — the Egyptian
+number moves the flag and loses its zero, a written `+971` moves it
+again, and a local number leaves it alone — and seven unit tests cover
+the shapes, including the ones that must answer null.
+
+**What is not verified here:** the *default* from the device's region. The
+browser harness has no region to report, so `dialOfRegion` falls back to
++966 there and the screenshots do not move (`en-contact-new` 8.17%,
+unchanged). The typed detection is tested; the device default is one line
+and it is the next hardware build's to confirm.

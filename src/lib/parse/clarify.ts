@@ -227,7 +227,32 @@ export type TextAnswer =
   | { kind: 'who-several'; name: string; options: Contact[] }
   | { kind: 'who-new'; name: string }
   | { kind: 'when'; iso: string }
+  /**
+   * "No", "not now", "I don't want a time" — an answer, not a failure to
+   * read one. Found on a phone: somebody answered "When should I set this
+   * for?" with "No I want it here" and got "I couldn't read that", which is
+   * both wrong and a dead end. The screen says what it needs instead, and
+   * leaves the question open with its chips.
+   */
+  | { kind: 'refused' }
   | { kind: 'unreadable' };
+
+/** "Now", "right now", "الحين" — a time, and the one nobody can type as one. */
+const NOW_WORD = /^\s*(?:now|right now|asap|straight ?away|immediately|الحين|الحن|الان|الآن|حالا|حالاً|توا|توني)\s*[!.؟?]*\s*$/i;
+
+/**
+ * Turning the question down. Deliberately only the short, whole-sentence
+ * forms: "no" inside a longer sentence ("no, make it Tuesday") is a time
+ * being given, not a refusal, and the time wins because it is read first.
+ */
+const NO_TIME = new RegExp(
+  // `\b` is no help in Arabic — it is defined on [A-Za-z0-9_], so a word
+  // made only of Arabic letters never has one. The two scripts are
+  // alternated separately for that reason.
+  "^\\s*(?:(?:no|nope|no time|not now|don'?t|dont|never ?mind|skip(?: it)?|later|whenever|any ?time|no thanks)\\b|" +
+    '(?:لا|لأ|مو الحين|بدون وقت|بلا وقت|ما ابغى|ما أبغى|ما ابي|ما أبي|بعدين|لاحقا|لاحقاً|اي وقت|أي وقت))[\\s\\S]{0,24}$',
+  'i'
+);
 
 /**
  * Reads a typed reply to the question that is open. "Sara", "sara haddad", a
@@ -239,7 +264,11 @@ export function answerFromText(gap: Gap, text: string, world: World): TextAnswer
   if (!reply) return { kind: 'unreadable' };
 
   if (gap.kind === 'when') {
-    if (!saysWhen(reply, world.now)) return { kind: 'unreadable' };
+    // "Now" is a time the time parser cannot read: it has no day and no
+    // clock in it. A minute ahead, so it is still in the future by the time
+    // the card is drawn.
+    if (NOW_WORD.test(reply)) return { kind: 'when', iso: new Date(world.now.getTime() + 60_000).toISOString() };
+    if (!saysWhen(reply, world.now)) return NO_TIME.test(reply) ? { kind: 'refused' } : { kind: 'unreadable' };
     const iso = whenOf(reply, world.now);
     return new Date(iso).getTime() > world.now.getTime() ? { kind: 'when', iso } : { kind: 'unreadable' };
   }

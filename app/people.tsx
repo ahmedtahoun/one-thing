@@ -51,6 +51,7 @@ import { type Channel, type Contact } from '@/lib/model-types';
 import { usePeople } from '@/lib/people';
 import { useSmartLists } from '@/lib/smart-lists';
 import { canPickFromPhone, importDraft, pickFromPhone } from '@/lib/phone-contacts';
+import { canListPhoneContacts } from '@/lib/phone-contacts/all';
 
 /** Bottom padding under the tab bar, as on Tasks. */
 const BOTTOM_INSET = 120;
@@ -345,6 +346,9 @@ export default function People() {
           else if (choice === 'scan') router.push('/scan-card');
           else if (choice === 'many') router.push('/scan-many');
           else if (choice === 'file') router.push('/import');
+          // The phone's whole address book, searchable, rather than the
+          // system picker's one at a time — app/phone-book.tsx.
+          else if (canListPhoneContacts) router.push('/phone-book');
           else void importFromPhone();
         }}
       />

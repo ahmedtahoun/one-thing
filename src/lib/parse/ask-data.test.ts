@@ -413,6 +413,37 @@ describe('what it leaves to the parser', () => {
   });
 });
 
+describe('the ways people actually ask', () => {
+  /**
+   * Every line here was typed into a real build and came back "I'm best
+   * with your people and your follow-ups" — the app saying it cannot read
+   * its own list.
+   */
+  const withTasks = () => world({ tasks: [task('t1', 'Call the lawyer', '2026-10-15T14:00:00.000Z')] });
+
+  for (const said of ['What tasks I have today', 'What tasks do I have?', 'my tasks', "what's on?", 'what do I have', 'وش مهامي؟', 'وش عندي اليوم؟']) {
+    it(`answers "${said}" with the day's list`, () => {
+      const answer = askData(said, withTasks());
+      assert.equal(answer?.kind, 'tasks', said);
+      if (answer?.kind !== 'tasks') return;
+      assert.equal(answer.span, 'today');
+    });
+  }
+
+  for (const said of ['What tasks should I have done', 'did I miss anything?', 'what was I supposed to do?', 'وش فاتني؟']) {
+    it(`answers "${said}" with what is late`, () => {
+      const answer = askData(said, withTasks());
+      assert.equal(answer?.kind, 'tasks', said);
+      if (answer?.kind !== 'tasks') return;
+      assert.equal(answer.span, 'late');
+    });
+  }
+
+  it('still leaves a task alone, however much it sounds like a list', () => {
+    assert.equal(askData('Remind me to do my tasks tomorrow', world()), null);
+  });
+});
+
 describe('keeping the thread', () => {
   const sara = person('c1', 'Sara Haddad');
 
@@ -479,9 +510,58 @@ describe('keeping the thread', () => {
     assert.equal(answer.want, 'all');
   });
 
+  /**
+   * Caught by a browser run: with Sara remembered, "what's Jane's number?"
+   * came back with *Sara's* number. A name the app does not know is still
+   * a name, and the honest answer is that she is not in People.
+   */
+  it('does not answer a question about somebody else with the person remembered', () => {
+    const answer = askData("what's Jane's number?", world(), { contact: sara });
+    assert.equal(answer?.kind, 'nobody');
+    if (answer?.kind !== 'nobody') return;
+    assert.equal(answer.name, 'Jane');
+  });
+
   it('does not turn a list question into one about the person remembered', () => {
     assert.equal(kindOf(askData("what's late?", world(), { contact: sara })), 'tasks');
     assert.equal(kindOf(askData('who is waiting on me?', world(), { contact: sara })), 'waiting');
+  });
+});
+
+describe('two people with one name', () => {
+  const two = () => world({ contacts: [person('c1', 'Sara Haddad'), person('c9', 'Sara Mansour'), person('c2', 'Omar Khalid')] });
+
+  it('asks which, rather than picking one', () => {
+    const answer = askData("what's Sara's number?", two());
+    assert.equal(answer?.kind, 'who');
+    if (answer?.kind !== 'who') return;
+    assert.equal(answer.options.length, 2);
+  });
+
+  /**
+   * The part that makes choosing worth anything: the question comes with
+   * the choice, so picking a Sara answers *the number*, instead of opening
+   * her profile and leaving the question behind.
+   */
+  it('carries what was asked about them', () => {
+    for (const [said, want] of [
+      ["what's Sara's number?", 'phone'],
+      ["what's Sara's email?", 'email'],
+      ['where does Sara work?', 'work'],
+      ['who is Sara?', 'all'],
+    ] as const) {
+      const answer = askData(said, two());
+      assert.equal(answer?.kind, 'who', said);
+      if (answer?.kind !== 'who') continue;
+      assert.equal(answer.want, want, said);
+    }
+  });
+
+  it('carries it for somebody who is not in People either', () => {
+    const answer = askData("what's Jane's number?", two());
+    assert.equal(answer?.kind, 'nobody');
+    if (answer?.kind !== 'nobody') return;
+    assert.equal(answer.want, 'phone');
   });
 });
 

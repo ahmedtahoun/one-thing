@@ -62,6 +62,9 @@ export type Added = {
     noOne: string;
     tomorrowAt: string;
     keepTime: string;
+    /** The when-question's first chip, and what to say when somebody turns it down. */
+    now: string;
+    needTime: string;
   };
   shrinkShort: string;
   rateApp: string;
@@ -185,6 +188,28 @@ export type Added = {
     recentNone: string;
     favorite: string;
     followups: string;
+  };
+  /**
+   * The phone's own address book, browsed inside the app
+   * (`app/phone-book.tsx`). Nothing here is stored: the list is read while
+   * the screen is open, and only who gets tapped is saved into People.
+   */
+  phoneBook: {
+    title: string;
+    sub: string;
+    search: string;
+    added: string;
+    none: string;
+    noMatch: string;
+    denied: string;
+    deniedHow: string;
+    failed: string;
+    saved: string;
+    /** Choosing several at once, and the sentence that comes with a crowd. */
+    selectAll: string;
+    clear: string;
+    add: string;
+    addedN: string;
   };
   /** The People screen itself: the search, its empty states, the ⋯ menu. */
   peopleScreen: {
@@ -465,6 +490,8 @@ export type Added = {
     noWork: string;
     which: string;
     nobody: string;
+    /** On a question about somebody not in People: search for them from the chat. */
+    find: string;
     lastWith: string;
     noHistory: string;
     todayN: string;
@@ -508,6 +535,21 @@ export type Added = {
     egTask: string;
     egLate: string;
     egImport: string;
+  };
+  /**
+   * The Assistant's suggestion chips. Each is a short label and the
+   * sentence it sends, so the chat shows what could have been typed and
+   * the person learns the phrase — `src/features/assistant/suggestions.ts`
+   * decides which are worth showing and in what order.
+   */
+  chips: {
+    late: { label: string; say: string };
+    waiting: { label: string; say: string };
+    oneThing: { label: string; say: string };
+    next: { label: string; say: string };
+    day: { label: string; say: string };
+    scan: { label: string; say: string };
+    contact: { label: string; say: string };
   };
   /** The paperclip: a card or a file, from the Assistant — §2.68. */
   clip: {
@@ -713,6 +755,8 @@ const ADDED: Record<Lang, Added> = {
       noOne: 'No one',
       tomorrowAt: 'Tomorrow {t}',
       keepTime: 'Keep {t}',
+      now: 'Now',
+      needTime: 'It needs a time — tap Now, or one of the times above.',
     },
     /** Today's One Thing card, beside Lock In. */
     shrinkShort: 'Shrink it',
@@ -931,6 +975,22 @@ const ADDED: Record<Lang, Added> = {
       favAdd: 'Add to Favorites',
       favRemove: 'Remove from Favorites',
       close: 'Close',
+    },
+    phoneBook: {
+      title: 'From your phone',
+      sub: 'Tap anyone to add them to People. Nobody else is saved, and nothing leaves your phone.',
+      search: 'Search your contacts',
+      added: 'Added',
+      none: 'No contacts on this phone.',
+      noMatch: 'Nobody matching “{q}”.',
+      denied: 'The One Thing can’t read your contacts.',
+      deniedHow: 'Turn Contacts on for The One Thing in your phone’s Settings, or add somebody by hand.',
+      failed: 'Couldn’t read your contacts on this phone.',
+      saved: '{n} added to People.',
+      selectAll: 'Select all',
+      clear: 'Clear',
+      add: 'Add {n}',
+      addedN: '{n} people added.',
     },
     peopleScreen: {
       searchAll: 'Search people',
@@ -1194,6 +1254,7 @@ const ADDED: Record<Lang, Added> = {
       noWork: 'I don’t have a company for {n}.',
       which: 'Which {n}?',
       nobody: 'They’re not in People yet.',
+      find: 'Search People',
       lastWith: 'Last with {n}',
       noHistory: 'Nothing logged with {n} yet.',
       todayN: '{n} today',
@@ -1234,6 +1295,15 @@ const ADDED: Record<Lang, Added> = {
       egTask: 'Remind me to call Sara at 4',
       egLate: 'What’s late?',
       egImport: 'Import a file',
+    },
+    chips: {
+      late: { label: 'What’s late?', say: 'What’s late?' },
+      waiting: { label: 'Who’s waiting?', say: 'Who am I waiting on?' },
+      oneThing: { label: 'My One Thing', say: 'What’s my One Thing today?' },
+      next: { label: 'What’s next?', say: 'What’s next?' },
+      day: { label: 'My day', say: 'Arrange my day' },
+      scan: { label: 'Scan a card', say: 'Scan a card' },
+      contact: { label: 'Save a contact', say: 'Save a contact' },
     },
     clip: {
       open: 'Add a card or a file',
@@ -1325,6 +1395,8 @@ const ADDED: Record<Lang, Added> = {
       noOne: 'ولا أحد',
       tomorrowAt: 'بكرة {t}',
       keepTime: 'خلّها {t}',
+      now: 'الحين',
+      needTime: 'لازم لها وقت — اضغط «الحين» أو اختر من الأوقات فوق.',
     },
     shrinkShort: 'صغّرها',
     rateApp: 'قيّم The One Thing',
@@ -1538,6 +1610,22 @@ const ADDED: Record<Lang, Added> = {
       favAdd: 'أضف للمفضلة',
       favRemove: 'شلها من المفضلة',
       close: 'إغلاق',
+    },
+    phoneBook: {
+      title: 'من جوالك',
+      sub: 'اضغط أي أحد عشان يضاف للأشخاص. ما ينحفظ غيره، وما يطلع شي من جوالك.',
+      search: 'دوّر في جهات اتصالك',
+      added: 'مضاف',
+      none: 'ما فيه جهات اتصال على هذا الجوال.',
+      noMatch: 'ما فيه أحد باسم «{q}».',
+      denied: '«الشيء الواحد» ما يقدر يقرأ جهات اتصالك.',
+      deniedHow: 'شغّل «جهات الاتصال» للتطبيق من إعدادات جوالك، أو أضف الشخص بيدك.',
+      failed: 'ما قدرنا نقرأ جهات الاتصال على هذا الجوال.',
+      saved: 'ضفنا {n} للأشخاص.',
+      selectAll: 'اختر الكل',
+      clear: 'إلغاء التحديد',
+      add: 'أضف {n}',
+      addedN: 'ضفنا {n} أشخاص.',
     },
     peopleScreen: {
       searchAll: 'ابحث في الأشخاص',
@@ -1801,6 +1889,7 @@ const ADDED: Record<Lang, Added> = {
       noWork: 'ما عندي شركة لـ{n}.',
       which: 'أي {n}؟',
       nobody: 'ما هو في الأشخاص بعد.',
+      find: 'دوّر في الأشخاص',
       lastWith: 'آخر شيء مع {n}',
       noHistory: 'ما فيه شيء مسجّل مع {n} بعد.',
       todayN: '{n} اليوم',
@@ -1841,6 +1930,15 @@ const ADDED: Record<Lang, Added> = {
       egTask: 'فكرني أكلم سارة الساعة ٤',
       egLate: 'وش المتأخر؟',
       egImport: 'استورد ملف',
+    },
+    chips: {
+      late: { label: 'وش المتأخر؟', say: 'وش المتأخر؟' },
+      waiting: { label: 'مين ينتظرني؟', say: 'مين أنتظر منه رد؟' },
+      oneThing: { label: 'شغلي الأساسي', say: 'وش شغلي الأساسي اليوم؟' },
+      next: { label: 'وش التالي؟', say: 'وش التالي؟' },
+      day: { label: 'يومي', say: 'رتّب لي يومي' },
+      scan: { label: 'صوّر كرت', say: 'صوّر كرت' },
+      contact: { label: 'احفظ جهة اتصال', say: 'احفظ جهة اتصال' },
     },
     clip: {
       open: 'أضف كرت أو ملف',

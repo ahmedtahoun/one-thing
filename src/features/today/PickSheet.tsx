@@ -7,6 +7,18 @@
  * and each row says what last happened instead of repeating a phone number
  * nobody opened the sheet to read. Why that order, and not a chat app's:
  * `./pick-order.ts`.
+ *
+ * Over that order sit the same two things People has — a search field and a
+ * row of chips — because the order answers "who needs me?" and somebody
+ * tapping Call often knows exactly who they want. Recent is a chip rather
+ * than the order, so wanting the person you spoke to yesterday costs one
+ * tap and does not push the person who has been waiting since Tuesday down
+ * the list for everybody else.
+ *
+ * The search used to appear only once there were more than six people,
+ * which is backwards: on a phone with a handful of contacts the field is
+ * cheap, and on a new account its absence reads as "this sheet cannot
+ * search" — which is what it was taken for.
  */
 import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, TextInput, View } from 'react-native';
@@ -14,6 +26,8 @@ import { router } from 'expo-router';
 
 import { added } from '@/content/additions';
 import { canReach } from '@/features/people/channel';
+import { FilterChips } from '@/features/people/FilterChips';
+import { filterCounts, filterPeople, PICK_CHIPS, type PeopleFilter } from '@/features/people/filters';
 import { matchContact } from '@/features/people/search';
 import { orderForPicking, type PickStatus } from '@/features/today/pick-order';
 import { Avatar } from '@/ui/Avatar';
@@ -58,22 +72,54 @@ export function PickSheet({ channel, onClose, onPick }: { channel: Channel | nul
   const { contacts, followUps, history } = usePeople();
   const favorites = useFavorites();
   const [query, setQuery] = useState('');
+  const [filter, setFilter] = useState<PeopleFilter>('all');
 
-  const rows = useMemo(() => {
-    if (!channel) return [];
-    const reachable = contacts.filter((c) => canReach(c, channel));
-    return orderForPicking(reachable, { followUps, history, favorites, now: new Date() });
-  }, [contacts, followUps, history, favorites, channel]);
+  /** Only people this channel can actually reach: a Call sheet needs a number. */
+  const reachable = useMemo(() => (channel ? contacts.filter((c) => canReach(c, channel)) : []), [contacts, channel]);
+  const rows = useMemo(
+    () => orderForPicking(reachable, { followUps, history, favorites, now: new Date() }),
+    [reachable, followUps, history, favorites]
+  );
   const people = rows.map((r) => r.contact);
-  const shown = rows.filter((r) => matchContact(r.contact, query));
+  const due = useMemo(() => filterCounts(reachable, { followUps, favorites, now: new Date() }).due, [reachable, followUps, favorites]);
+
+  const shown = useMemo(() => {
+    const chosen = filterPeople(filter, reachable, { followUps, favorites, now: new Date() });
+    const ids = new Set(chosen.map((c) => c.id));
+    // Recent is the one chip with an order of its own — newest first is the
+    // whole point of asking for it. Every other chip keeps the sheet's.
+    const inFilter =
+      filter === 'recent'
+        ? chosen.map((c) => rows.find((r) => r.contact.id === c.id)).filter((r): r is (typeof rows)[number] => r !== undefined)
+        : rows.filter((r) => ids.has(r.contact.id));
+    return inFilter.filter((r) => matchContact(r.contact, query));
+  }, [filter, reachable, rows, followUps, favorites, query]);
+
+  /** Why the list is empty, in the words People uses for the same emptiness. */
+  const nothingHere =
+    query.trim() !== ''
+      ? t.pp_none.replace('{q}', query.trim())
+      : filter === 'recent'
+        ? copy.filters.recentNone
+        : filter === 'waiting'
+          ? copy.filters.waitingNone
+          : filter === 'favorites'
+            ? copy.filters.favHint
+            : '';
+
+  const close = () => {
+    setQuery('');
+    setFilter('all');
+    onClose();
+  };
   const colour = channel ? typeColour[channel] : null;
 
   return (
-    <Sheet open={channel !== null} onClose={() => { setQuery(''); onClose(); }} testID="pick-sheet" padding={{ paddingTop: 10, paddingHorizontal: 18, paddingBottom: 26 }} gap={10}>
+    <Sheet open={channel !== null} onClose={close} testID="pick-sheet" padding={{ paddingTop: 10, paddingHorizontal: 18, paddingBottom: 26 }} gap={10}>
       {channel && colour ? (
         <>
           <Text token="title">{copy.pickWho[channel]}</Text>
-          {people.length > 6 ? (
+          {people.length > 0 ? (
             <TextInput
               testID="pick-search"
               value={query}
@@ -92,6 +138,9 @@ export function PickSheet({ channel, onClose, onPick }: { channel: Channel | nul
                 writingDirection: dir.isRTL ? 'rtl' : 'ltr',
               }}
             />
+          ) : null}
+          {people.length > 0 ? (
+            <FilterChips testID="pick-filters" options={PICK_CHIPS} value={filter} onChange={setFilter} dueCount={due} labels={copy.filters} />
           ) : null}
           {people.length === 0 ? (
             <View style={{ gap: 10, paddingVertical: 8 }}>
@@ -113,7 +162,14 @@ export function PickSheet({ channel, onClose, onPick }: { channel: Channel | nul
               </Pressable>
             </View>
           ) : (
-            <ScrollView style={{ maxHeight: 360 }} keyboardShouldPersistTaps="handled">
+            <ScrollView style={{ maxHeight: 320 }} keyboardShouldPersistTaps="handled">
+              {shown.length === 0 ? (
+                <View testID="pick-none" style={{ paddingVertical: 24, paddingHorizontal: 8 }}>
+                  <Text token="bodyS" color={ink.s4} align="center">
+                    {nothingHere}
+                  </Text>
+                </View>
+              ) : null}
               {shown.map(({ contact: c, status }) => {
                 const said = line(status, copy);
                 const owed = status.kind === 'owed';
@@ -124,6 +180,7 @@ export function PickSheet({ channel, onClose, onPick }: { channel: Channel | nul
                     testID={`pick-${c.id}`}
                     onPress={() => {
                       setQuery('');
+                      setFilter('all');
                       onPick(c, channel);
                     }}
                     accessibilityRole="button"

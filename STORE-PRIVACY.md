@@ -149,7 +149,7 @@ written to match the code and must be re-read whenever the code changes.
 
 | Permission | What the app actually does with it |
 | --- | --- |
-| Contacts | Reads one contact at a time, only when the user picks it. Never the whole address book on its own. |
+| Contacts | **Changed 17 October.** Reads the address book to show it inside the app, so the user can search it and pick who to add (`app/phone-book.tsx`, BUILD-REVIEW §2.94). Only the people they tap are saved, nothing is uploaded, and the list is held for as long as that one screen is open. The purpose string in `app.json` says exactly this; the old one — "only when you tap Import to pick one person" — no longer describes the code, which is the kind of mismatch Apple rejects under 5.1.1. |
 | Camera | Photographs a business card (read on the device; only the confirmed text is kept) **or** takes a picture for a person or the user. Both screens call `launchCameraAsync`. |
 | Photo library | Chooses a card image **or** a picture for a person or the user. Both screens call `launchImageLibraryAsync`. |
 | Microphone / Speech | Turns a spoken note into text. No recording is kept. The app also explains this in a sheet of its own before the first recording — Play requires it and Apple does not (BUILD-REVIEW §2.87). |
@@ -178,6 +178,11 @@ The forms go stale silently. Each of these would change an answer above:
 - A new third party — another API, another SDK, an email provider for the
   data export (`RELEASE.md` § 9.9 lists that one as still open).
 - Anything uploading a photo, a card image, audio or an imported file.
+- **The address book being stored rather than browsed.** Today it is read
+  into one screen's memory and only the people picked are saved. Keeping
+  the whole book — to match numbers, to show "who else is on The One
+  Thing", anything — would make Contacts *collected* on both forms, and
+  would need the policy to say so.
 - Any analytics event carrying free text. `src/lib/analytics/events.ts` is a
   closed union and `events.test.ts` enforces it, so this one cannot happen
   quietly — but widening the union would do it.

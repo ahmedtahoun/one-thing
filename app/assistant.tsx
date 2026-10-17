@@ -40,7 +40,7 @@ import { TYPE_ICON } from '@/design/icon-paths';
 import { ink, surface, typeColour } from '@/design/tokens';
 import { useDirection, useLanguage } from '@/i18n/LanguageProvider';
 import { useAssistantMeter } from '@/lib/assistant-meter';
-import { dateKey, followUpStatus, isOnDay, type Task } from '@/lib/model-types';
+import { dateKey, followUpStatus, isOnDay, type Contact, type Task } from '@/lib/model-types';
 import { AssistLimitError, localIsEnough, textParser, type AssistantIntent, type ParsedTask } from '@/lib/parse';
 import {
   answerFromText,
@@ -71,13 +71,15 @@ import { defaultSelection, type Candidate } from '@/features/people-import/colum
 import { readDraft } from '@/features/people-import/read-draft';
 import { candidatesFromFile } from '@/features/people-import/read-file';
 import { canReadCards, readCard } from '@/lib/card-reader';
-import { askData, type DataAnswer, type DataWorld, type Subject } from '@/lib/parse/ask-data';
+import { askData, isQuestion, type DataAnswer, type DataWorld, type Subject, type Want } from '@/lib/parse/ask-data';
 import { attachCommand, type Attach } from '@/lib/parse/attach';
 import { smallTalk } from '@/lib/parse/small';
 import { followUpFromParsed, taskFromParsed } from '@/lib/parse/to-task';
 import { LoopTag } from '@/features/capture/LoopTag';
 import { promiseDraft } from '@/features/compose/drafts';
 import { MicNotice, useMicGate } from '@/features/mic/MicNotice';
+import { chipsFor, rankChips } from '@/features/assistant/suggestions';
+import { useAssistantHabits } from '@/lib/assistant-habits';
 import { telUrl, whatsAppUrl } from '@/features/compose/recipient';
 import { useCadence } from '@/lib/cadence';
 import { useFavorites } from '@/lib/favorites';
@@ -149,6 +151,7 @@ export default function Assistant() {
   const meter = useAssistantMeter();
   const toast = useToast();
   const mic = useMicGate();
+  const habits = useAssistantHabits();
   // Quick capture hands over a sentence that is really "save this person".
   const { say } = useLocalSearchParams<{ say?: string }>();
 
@@ -223,6 +226,8 @@ export default function Assistant() {
 
   const [clipOpen, setClipOpen] = useState(false);
   const [searchFor, setSearchFor] = useState<Ask | null>(null);
+  /** Searching People to answer a question, rather than to fill in a task. */
+  const [findFor, setFindFor] = useState<Want | null>(null);
   const choose = (ask: Ask, option: AskOption) => {
     const action: AskAction = option.action;
     if (action.kind === 'who') {
@@ -252,10 +257,12 @@ export default function Assistant() {
     } else if (found.kind === 'who-new') {
       reask(ask, text, { kind: 'who-unknown', name: found.name });
     } else {
+      // A refusal gets the reason, not "I couldn't read that": the question
+      // stays open with its chips, and "Now" is the first of them.
       setMessages((list) => [
         ...list,
         { id: newId(), from: 'me', text },
-        { id: newId(), from: 'bot', kind: 'note', text: copy.ask.unreadable },
+        { id: newId(), from: 'bot', kind: 'note', text: found.kind === 'refused' ? copy.ask.needTime : copy.ask.unreadable },
       ]);
     }
   };
@@ -442,6 +449,13 @@ export default function Assistant() {
       if (!oneThing.done) toast.show(copy.qa.markedDone, { undo: () => setOneThingDone(false) });
     },
     onChooseOneThing: () => router.push('/today'),
+    /**
+     * "Which Sara?" answered: the question that was asked comes back with
+     * the person chosen, so the chat answers it instead of dropping them
+     * on a profile with the question left behind.
+     */
+    onWhich: (contact: Contact, want: Want) => showData(contact.name, { kind: 'person', want, contact }),
+    onFindPerson: (want: Want) => setFindFor(want),
   };
 
   // --- a card or a file ---------------------------------------------------
@@ -598,11 +612,35 @@ export default function Assistant() {
       clear();
       return answerSmall(text, small);
     }
-    // Mid-question, typing answers it. The suggestion chips are always a new message.
+    /**
+     * Mid-question, typing usually answers it — the suggestion chips are
+     * always a new message. But not everything typed while a question is
+     * open is an answer to it: a phone showed "What tasks I have today"
+     * swallowed as the *time* for the task being asked about, which filed
+     * the question and answered neither.
+     *
+     * So an unreadable answer gets one more reading: if it is a question
+     * this app can genuinely answer, the open question is let go and the
+     * new one is answered. A question it cannot answer ('unknown') is not
+     * worth abandoning a half-written task for, so that still falls
+     * through to "I couldn't read that" and the chips stay up.
+     */
     if (pending && typed) {
-      setInput('');
-      reply(pending, text);
-      return;
+      const asAnswer = answerFromText(pending.gap, text, world());
+      // A time can be read out of almost anything with a day in it, so an
+      // answer that parses is not proof: "What tasks I have today" read as
+      // a *time* is exactly the fault this is here for. Asked as a
+      // question, it is a question.
+      const mayBeAsking = asAnswer.kind === 'unreadable' || isQuestion(text);
+      const asQuestion = mayBeAsking ? askData(text, dataWorld(), subject) : null;
+      if (!asQuestion || asQuestion.kind === 'unknown') {
+        setInput('');
+        reply(pending, text);
+        return;
+      }
+      clear();
+      setMessages((list) => list.map((m) => (m.id === pending.id ? { ...m, answered: true } : m)));
+      return showData(text, asQuestion);
     }
     // Everything the app already knows, answered here: before the meter,
     // before the network, and whether or not either is there.
@@ -692,6 +730,22 @@ export default function Assistant() {
   const now = new Date();
   const nudge = followUps.filter((f) => followUpStatus(f, now) === 'due').length;
   const waiting = followUps.filter((f) => followUpStatus(f, now) === 'waiting').length;
+
+  /**
+   * The suggestion row, from this person's own data and their own taps.
+   * Nothing is suggested that would answer "nobody" — a chip that wastes a
+   * tap is worse than one fewer chip.
+   */
+  const chips = rankChips(
+    chipsFor(copy.chips, {
+      late: tasks.filter((task) => task.status === 'open' && task.dueAt !== null && Date.parse(task.dueAt) < now.getTime()).length,
+      waiting: nudge + waiting,
+      openTasks: tasks.filter((task) => task.status === 'open').length,
+      hasOneThing: oneThing !== null,
+      people: contacts.length,
+    }),
+    habits.tapped
+  );
   // botFu is the prototype's demo sentence ("Three threads are open. Noura
   // is the oldest — 3 days."); the Follow-ups summary says the same thing
   // from real counts — BUILD-REVIEW.md §2.34.
@@ -744,6 +798,10 @@ export default function Assistant() {
           contentContainerStyle={{ padding: 16, gap: 12 }}
           onContentSizeChange={() => scroll.current?.scrollToEnd({ animated: true })}
           keyboardShouldPersistTaps="handled"
+          /* Dragging the conversation puts the keyboard away, as every chat
+             app does. Without it there was no way down at all: the bar has
+             no Done, and tapping a message does nothing — found on a phone. */
+          keyboardDismissMode="interactive"
         >
           {messages.map((m) =>
             'kind' in m && m.kind === 'contact' && (m.status === 'saved' || m.status === 'dropped') ? null : m.from === 'me' ? (
@@ -907,17 +965,28 @@ export default function Assistant() {
           )}
         </ScrollView>
 
+        {/* What is worth suggesting to this person now, and in the order
+            they keep choosing — src/features/assistant/suggestions.ts. The
+            label is short so the row is readable on a phone; the sentence
+            it sends is the longer one, which teaches what can be typed. */}
         <ScrollView
+          testID="assistant-chips"
           horizontal
           showsHorizontalScrollIndicator={false}
           style={{ flexGrow: 0 }}
           contentContainerStyle={{ gap: 8, paddingHorizontal: 16, paddingBottom: 10 }}
+          keyboardShouldPersistTaps="handled"
         >
-          {[copy.contact.chip, ...t.chips, copy.loop.chipPromise, copy.loop.chipWait].map((chip, i) => (
+          {chips.map((chip) => (
             <Pressable
-              key={chip}
-              testID={`assistant-chip-${i}`}
-              onPress={() => send(chip)}
+              key={chip.key}
+              /* By what it is, not where it sits: the row reorders itself
+                 as somebody uses it, so an index is not a name. */
+              testID={`assistant-chip-${chip.key}`}
+              onPress={() => {
+                habits.note(chip.key);
+                void send(chip.say);
+              }}
               accessibilityRole="button"
               style={{
                 paddingVertical: 9,
@@ -929,7 +998,7 @@ export default function Assistant() {
               }}
             >
               <Text token="caption" numberOfLines={1}>
-                {chip}
+                {chip.label}
               </Text>
             </Pressable>
           ))}
@@ -955,6 +1024,16 @@ export default function Assistant() {
       </Screen>
       <MicNotice open={mic.asking} onAllow={mic.allow} onClose={mic.dismiss} />
       <ClipSheet open={clipOpen} copy={copy.clip} onClose={() => setClipOpen(false)} onChoose={chooseClip} />
+      <PersonSearchSheet
+        open={findFor !== null}
+        title={copy.qa.find}
+        onClose={() => setFindFor(null)}
+        onPick={(contact) => {
+          const want = findFor;
+          setFindFor(null);
+          if (want) showData(contact.name, { kind: 'person', want, contact });
+        }}
+      />
       <PersonSearchSheet
         open={searchFor !== null}
         title={searchFor ? questionFor(searchFor.gap, searchFor.draft, copy) : ''}

@@ -270,3 +270,39 @@ describe('the People search', () => {
     assert.equal(matchContact({ ...sara, name: 'Noura' }, 'family1'), false);
   });
 });
+
+describe('answering the when-question the way people do', () => {
+  const WHEN: Gap = { kind: 'when', why: 'missing' };
+  const NOW = new Date('2026-10-17T08:00:00.000Z');
+  const world = { contacts: [], tasks: [], followUps: [], now: NOW };
+
+  it('reads "now" as a time, which no clock parser can', () => {
+    const found = answerFromText(WHEN, 'now', world);
+    assert.equal(found.kind, 'when');
+    if (found.kind !== 'when') return;
+    assert.ok(Date.parse(found.iso) > NOW.getTime(), 'and still ahead, so the card does not reopen the question');
+    assert.ok(Date.parse(found.iso) - NOW.getTime() < 5 * 60_000);
+  });
+
+  it('reads it in Arabic too', () => {
+    assert.equal(answerFromText(WHEN, 'الحين', world).kind, 'when');
+  });
+
+  /**
+   * The one a phone found: "No I want it here" came back "I couldn't read
+   * that", which is both wrong and a dead end.
+   */
+  for (const said of ['no', 'No I want it here', 'not now', 'no time', 'skip it', 'لا', 'بدون وقت', 'بعدين']) {
+    it(`treats "${said}" as turning the question down, not as unreadable`, () => {
+      assert.equal(answerFromText(WHEN, said, world).kind, 'refused', said);
+    });
+  }
+
+  it('still takes a time inside a sentence that opens with "no"', () => {
+    assert.equal(answerFromText(WHEN, 'no, make it tomorrow at 10', world).kind, 'when');
+  });
+
+  it('still calls nonsense nonsense', () => {
+    assert.equal(answerFromText(WHEN, 'asdfgh', world).kind, 'unreadable');
+  });
+});

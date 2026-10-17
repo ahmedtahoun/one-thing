@@ -80,7 +80,7 @@ const C_en = {
   "waitingSub": "{n} people owe you a reply",
   "review": "Close the day",
   "reviewSub": "Takes a minute",
-  "chatPh": "Tell me anything — I’ll sort it",
+  "chatPh": "Tell me anything",
   "types": {
     "call": "Call",
     "email": "Email",
@@ -557,7 +557,7 @@ const C_ar: typeof C_en = {
   "waitingSub": "{n} أشخاص عليهم رد لك",
   "review": "سكّر يومك",
   "reviewSub": "ياخذ دقيقة",
-  "chatPh": "قول لي أي شي، وأنا أرتّبه",
+  "chatPh": "قول لي أي شي",
   "types": {
     "call": "اتصال",
     "email": "إيميل",

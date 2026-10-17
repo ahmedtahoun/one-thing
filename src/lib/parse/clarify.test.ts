@@ -193,8 +193,11 @@ describe('answers', () => {
     const gap: Gap = { kind: 'when', why: 'missing' };
     const ok = answerFromText(gap, 'tomorrow at 10', world());
     assert.equal(ok.kind, 'when');
-    assert.equal(answerFromText(gap, 'whenever', world()).kind, 'unreadable');
-    assert.equal(answerFromText(gap, 'today at 8', world()).kind, 'unreadable');
+    // "Whenever" used to read as unreadable. It is not: it is the question
+    // being turned down, and the screen now says what it needs instead of
+    // claiming it could not read the word (§2.91).
+    assert.equal(answerFromText(gap, 'whenever', world()).kind, 'refused');
+    assert.equal(answerFromText(gap, 'today at 8', world()).kind, 'unreadable', 'a time that has gone is still not an answer');
   });
 
   it('offers only quick times still ahead', () => {
