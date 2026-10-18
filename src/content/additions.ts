@@ -228,6 +228,21 @@ export type Added = {
     chooseMore: string;
     noneLimited: string;
   };
+  /**
+   * What Settings says about syncing. Before this the provider knew a sync
+   * had failed and told nobody (BUILD-REVIEW §2.98).
+   */
+  sync: {
+    title: string;
+    syncing: string;
+    synced: string;
+    pending: string;
+    failed: string;
+    failedSince: string;
+    failedNever: string;
+    now: string;
+    started: string;
+  };
   /** The People screen itself: the search, its empty states, the ⋯ menu. */
   peopleScreen: {
     searchAll: string;
@@ -1015,6 +1030,17 @@ const ADDED: Record<Lang, Added> = {
       chooseMore: 'Choose more contacts',
       noneLimited: 'You haven’t shared any contacts yet.',
     },
+    sync: {
+      title: 'Your other devices',
+      syncing: 'Syncing…',
+      synced: 'Last synced {t}',
+      pending: 'Nothing synced yet.',
+      failed: 'Couldn’t sync',
+      failedSince: 'Last worked {t}. Your writing is safe on this phone and will go up when it can.',
+      failedNever: 'Nothing has gone up yet. Your writing is safe on this phone.',
+      now: 'Sync now',
+      started: 'Syncing…',
+    },
     peopleScreen: {
       searchAll: 'Search people',
       searchFavorites: 'Search favorites',
@@ -1655,6 +1681,17 @@ const ADDED: Record<Lang, Added> = {
       limitedHow: 'عشان كذا القائمة قصيرة. اختر أكثر من تحت، أو شغّل كل جهات الاتصال من إعدادات جوالك.',
       chooseMore: 'اختر جهات اتصال أكثر',
       noneLimited: 'ما شاركت أي جهة اتصال لين الحين.',
+    },
+    sync: {
+      title: 'أجهزتك الثانية',
+      syncing: 'جاري المزامنة…',
+      synced: 'آخر مزامنة {t}',
+      pending: 'ما تزامن شي لين الحين.',
+      failed: 'ما قدرنا نزامن',
+      failedSince: 'آخر مرة نجحت {t}. اللي كتبته محفوظ على جوالك وبيطلع أول ما يقدر.',
+      failedNever: 'ما طلع شي لين الحين. اللي كتبته محفوظ على جوالك.',
+      now: 'زامن الحين',
+      started: 'جاري المزامنة…',
     },
     peopleScreen: {
       searchAll: 'ابحث في الأشخاص',

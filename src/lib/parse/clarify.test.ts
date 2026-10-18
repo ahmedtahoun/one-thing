@@ -209,3 +209,24 @@ describe('answers', () => {
     assert.deepEqual(whenOptions(quick, NOW).map((o) => o.label), ['In a bit', 'Tomorrow 9am']);
   });
 });
+
+describe('Arabic written with and without its marks', () => {
+  /**
+   * حالاً and حالًا differ only in which side of the alif the tanween sits,
+   * and a keyboard gives you whichever it gives you. Found by reading
+   * ASSISTANT-PHRASES.md back against the parser (BUILD-REVIEW §2.98).
+   */
+  const when: Gap = { kind: 'when', why: 'missing' };
+
+  for (const word of ['الحين', 'حالا', 'حالاً', 'حالًا', 'الان', 'الآن']) {
+    it(`reads "${word}" as now`, () => {
+      assert.equal(answerFromText(when, word, world()).kind, 'when');
+    });
+  }
+
+  for (const word of ['لا', 'مو الحين', 'بعدين', 'لاحقا', 'لاحقاً', 'لاحقًا', 'ما ابغى', 'ما أبغى']) {
+    it(`reads "${word}" as turning the question down`, () => {
+      assert.equal(answerFromText(when, word, world()).kind, 'refused');
+    });
+  }
+});

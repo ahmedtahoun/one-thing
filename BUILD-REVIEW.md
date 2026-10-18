@@ -3943,3 +3943,73 @@ no address book and no permission sheet, so neither the banner nor
 that already covers this screen. Both want a walk on the next hardware
 build: grant limited access to two people, confirm the banner explains
 it, tap Choose more, and confirm the list grows without leaving.
+
+### 2.98 Three gaps an audit found, and one the audit itself found
+
+Asked for a full audit of what is missing, these three came out on top. The
+fourth was found while fixing the third, which is the argument for the
+exercise.
+
+**A sync that failed told nobody.** `SyncProvider` has always set
+`status: 'error'` and written a line to the console, and `useSync()` has
+always exported it. Nothing read it. The one caller, `src/lib/account.ts`,
+takes `syncNow` alone, to flush before the device is wiped at sign-out. So
+a phone whose token had expired, or whose rows the server rejected, looked
+exactly like one that was up to date: the writing stayed where it was and
+the person was never told. For an app whose paid tier implies more than one
+device, that is the worst kind of silence.
+
+Settings now carries a row: **Your other devices**, the state under it, and
+**Sync now** to force a pass. A failure is red and says when it last worked
+— *"Last worked Tuesday. Your writing is safe on this phone and will go up
+when it can"* — because the honest worry is data loss and the honest answer
+is that nothing is lost. The decision of which line to show is
+`src/features/settings/sync-state.ts`, pure and tested; the screen does the
+words and `chatTime` does the clock.
+
+`lastSyncedAt` is now kept on the device, per account, and cleared with it.
+It was `useState(null)`, which would have made the row say "nothing synced
+yet" after every launch — false rather than merely unhelpful.
+
+**The one screen nobody was watching.** `app/templates.tsx` — Saved
+messages, reached from Settings — had no screenshot, no smoke check and no
+drift probe. Not set aside like the phone book and the file importer, which
+cannot be driven in a browser; simply missed. It is 159 lines with a sheet,
+a validity rule and a delete, and it is now captured as `28-templates` and
+driven by thirteen checks: that an empty one will not save, that saving
+writes the title, subject, body and the follow-up mark, that editing changes
+it in place rather than adding a second, and that deleting brings the empty
+line back.
+
+**The phrase list had stopped being true.** `ASSISTANT-PHRASES.md` was last
+read against the parser on 15 October; three commits had changed it since
+(§2.91, §2.92, §2.93). None of the reproach forms, none of `TASKS_WORD`,
+not **Now**, not the refusals, not "which Sara", not **Search People**. The
+file says at the top that every line in it is covered by a test, so a stale
+list is not merely out of date — it is a promise that has quietly lapsed.
+It is current as of 18 October, and says so.
+
+**And the one the refresh found.** Reading the list back against the code
+rather than against memory, **"حالًا" was unreadable**. `NOW_WORD` lists
+`حالا` and `حالاً`, and the only difference in the third spelling is which
+side of the alif the tanween sits on — U+064B before the alif rather than
+after it. A keyboard gives you whichever it gives you. The same hole sat
+under `لاحقًا` against `NO_TIME`'s `لاحقاً`.
+
+The marks now come off before those two patterns are tested. **Only the
+marks**: the first attempt used the existing `fold`, which also folds ى to
+ي, and the patterns are written with ى — `ما ابغى` folded to `ما ابغي` and
+stopped being a refusal. The test written for the tanween caught it on the
+same run, which is the only reason it is not in this build. Fourteen new
+cases hold both halves down.
+
+**Checks:** 990 unit tests (24 new — fourteen of them the Arabic spellings
+above), and the smoke suites gain the thirteen on Saved messages.
+
+**What is not verified here:** the sync row. With no backend configured the
+harness leaves `status` at `'off'` and the row does not render, by design —
+there is nothing to sync with. Every branch of the decision is unit-tested
+and the row is a thin render of it, the same shape as
+`src/lib/notifications/scheduler.ts`. On the next hardware build: sign in,
+confirm the row reads a real time, turn the network off, write something,
+and confirm it goes red and recovers on **Sync now**.

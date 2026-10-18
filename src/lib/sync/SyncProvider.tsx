@@ -39,10 +39,18 @@ const SETTLE_MS = 2000;
 const POLL_MS = 5 * 60 * 1000;
 
 const baseKey = (userId: string) => `ot.sync.base.${userId}`;
+/**
+ * When this account last synced. Kept on the device because Settings shows
+ * it, and a line that read "not synced yet" after every launch would be
+ * false rather than merely unhelpful (BUILD-REVIEW §2.98).
+ */
+const lastAtKey = (userId: string) => `ot.sync.lastAt.${userId}`;
 /** Set when "Delete my account" could not reach the server; retried until it does. */
 export const PENDING_DELETE_KEY = 'ot.sync.pendingDelete';
 
-export type SyncStatus = 'off' | 'idle' | 'syncing' | 'error';
+import type { SyncStatus } from '@/features/settings/sync-state';
+
+export type { SyncStatus };
 
 type SyncValue = {
   status: SyncStatus;
@@ -261,7 +269,9 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       };
       if (Object.keys(sessionPatch).length > 0) await updateSession(sessionPatch);
 
-      setLastSyncedAt(new Date().toISOString());
+      const at = new Date().toISOString();
+      setLastSyncedAt(at);
+      await AsyncStorage.setItem(lastAtKey(userId), at).catch(() => {});
       setStatus('idle');
     } catch (error) {
       // The base is untouched, so the next attempt starts from the same
@@ -270,6 +280,21 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       setStatus('error');
     }
   };
+
+  // What the last launch managed, so Settings does not say "not synced yet"
+  // about an account that synced yesterday. Cleared with the account.
+  useEffect(() => {
+    if (!userId) return setLastSyncedAt(null);
+    let gone = false;
+    AsyncStorage.getItem(lastAtKey(userId))
+      .then((at) => {
+        if (!gone && at) setLastSyncedAt((current) => current ?? at);
+      })
+      .catch(() => {});
+    return () => {
+      gone = true;
+    };
+  }, [userId]);
 
   // A deletion left pending finishes as soon as the backend session is back,
   // signed into the app or not — "Delete my account" ended the app session.
@@ -367,7 +392,7 @@ async function deleteOnServer(): Promise<boolean> {
 
 async function finishPendingDelete(userId: string) {
   if (await deleteOnServer()) {
-    await AsyncStorage.multiRemove([PENDING_DELETE_KEY, baseKey(userId)]);
+    await AsyncStorage.multiRemove([PENDING_DELETE_KEY, baseKey(userId), lastAtKey(userId)]);
   }
 }
 
@@ -384,7 +409,7 @@ export async function deleteAccountOnServer(): Promise<void> {
   const { data } = await db.auth.getSession();
   const userId = data.session?.user.id;
   if (!userId) return;
-  if (await deleteOnServer()) await AsyncStorage.removeItem(baseKey(userId));
+  if (await deleteOnServer()) await AsyncStorage.multiRemove([baseKey(userId), lastAtKey(userId)]);
   else await AsyncStorage.setItem(PENDING_DELETE_KEY, userId);
 }
 
@@ -400,6 +425,6 @@ export async function signOutOfServer(): Promise<boolean> {
   const userId = data.session?.user.id;
   if (!userId) return false;
   await db.auth.signOut().catch(() => {});
-  await AsyncStorage.removeItem(baseKey(userId));
+  await AsyncStorage.multiRemove([baseKey(userId), lastAtKey(userId)]);
   return true;
 }

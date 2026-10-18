@@ -59,6 +59,12 @@ export type WhoReading =
 const fold = (s: string): string => normalizeArabic(s.trim().toLowerCase());
 
 /**
+ * The vowel marks off and nothing else — no letter folded into another.
+ * Enough to make حالًا and حالاً the same word without touching ى or ة.
+ */
+const stripMarks = (s: string): string => s.replace(/[\u064B-\u0652\u0670\u0640]/g, '');
+
+/**
  * The people a sentence names. A full name in the text settles it; otherwise
  * the first name written does, and if several contacts share it — or sound
  * like it in the other script — the reading is "several" rather than a silent
@@ -264,11 +270,21 @@ export function answerFromText(gap: Gap, text: string, world: World): TextAnswer
   if (!reply) return { kind: 'unreadable' };
 
   if (gap.kind === 'when') {
+    // The marks come off for these two, because the only difference between
+    // حالاً and حالًا is which side of the alif the tanween sits on, and a
+    // keyboard gives you whichever it gives you. Both then reach the
+    // unvocalised spelling the patterns already list, as do لاحقًا and
+    // لاحقاً (BUILD-REVIEW §2.98).
+    //
+    // Only the marks: `fold` would also fold ى to ي and ة to ه, and the
+    // patterns below are written with ى — "ما ابغى" would stop matching
+    // the moment it was folded. A test holds that down.
+    const bare = stripMarks(reply);
     // "Now" is a time the time parser cannot read: it has no day and no
     // clock in it. A minute ahead, so it is still in the future by the time
     // the card is drawn.
-    if (NOW_WORD.test(reply)) return { kind: 'when', iso: new Date(world.now.getTime() + 60_000).toISOString() };
-    if (!saysWhen(reply, world.now)) return NO_TIME.test(reply) ? { kind: 'refused' } : { kind: 'unreadable' };
+    if (NOW_WORD.test(bare)) return { kind: 'when', iso: new Date(world.now.getTime() + 60_000).toISOString() };
+    if (!saysWhen(reply, world.now)) return NO_TIME.test(bare) ? { kind: 'refused' } : { kind: 'unreadable' };
     const iso = whenOf(reply, world.now);
     return new Date(iso).getTime() > world.now.getTime() ? { kind: 'when', iso } : { kind: 'unreadable' };
   }
