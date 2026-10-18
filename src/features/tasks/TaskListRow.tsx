@@ -152,6 +152,10 @@ export function TaskListRow({
         testID={`task-check-${task.id}`}
         onPress={onToggle}
         accessibilityRole="checkbox"
+        // The role says "checkbox" and the state says whether it is ticked;
+        // without the title a screen reader never says which task it is,
+        // because the title lives in the sibling Pressable (§2.99).
+        accessibilityLabel={task.title}
         accessibilityState={{ checked: done }}
         style={{ width: 54, alignItems: 'center', justifyContent: 'center' }}
       >

@@ -4013,3 +4013,77 @@ and the row is a thin render of it, the same shape as
 `src/lib/notifications/scheduler.ts`. On the next hardware build: sign in,
 confirm the row reads a real time, turn the network off, write something,
 and confirm it goes red and recovers on **Sync now**.
+
+### 2.99 The rest of the audit, including the one it could not close
+
+Four of the five remaining findings are closed. The fifth is written up
+here as open, with what was tried, because a gate nobody can trust is
+worse than a gap everybody knows about.
+
+**The two pure modules nothing imported from a test.** `groups.ts` is 162
+lines deciding what a person sees when they open Tasks, and its own header
+said it was "kept pure so it can be read (and later tested) on its own".
+Twenty-two tests now cover the seven groups in the prototype's order, the
+noon and five o'clock boundaries, slipped (including a task left from an
+earlier day), the Up next card taking the soonest thing ahead *out* of its
+group, a just-ticked task holding its place rather than vanishing under
+the finger, the chips, and the header's counts.
+
+Two fixtures in the first draft were wrong in a way worth recording: with
+the clock at 13:00 the morning group is unreachable, and without a decoy
+the earliest task in any fixture becomes the Up next card and leaves the
+group being asserted on. Both make a test that passes for the wrong
+reason as easily as one that fails.
+
+`timeline.ts` has fourteen: the day grouping, Today and Yesterday against
+the clock on the wall rather than the hour, and the part worth holding
+down — a closed follow-up with no `contactId` is matched to a person by
+the first word of its `who`, which can take somebody else's or miss their
+own, so both directions are tested, as is the link winning over the name.
+
+**Four icon-only buttons with no name.** Three were real: the back chevron
+on the policy screen, and the tick on both task rows — where the role says
+"checkbox" and the state says whether it is ticked, but nothing says
+*which task*, because the title lives in the sibling Pressable. They are
+named now. The fourth, `src/ui/Checkbox.tsx`, was a false positive: its
+`{children}` sit inside the Pressable and are the label.
+
+**The dependency advisory.** `decode-uri-component@0.2.2` is reachable
+through `expo-router`'s URL parsing, and it **is** in the shipped bundle —
+confirmed by searching the export for the literal `%FE%FF`, which survives
+minification where the identifiers do not. It is not fixable here. The
+patched `0.5.0` is ESM-only (`"type": "module"`, no `main`) and
+`query-string@7.1.3` loads it with `require()`, so an override would break
+routing; npm's only other path is `expo-router@58`, which means SDK 58.
+The exposure is narrow — a crafted `onlyonething://` link the person taps,
+with no universal links or app links registered, ending in the app hanging
+until it is force-quit. Nothing is read and nothing persists. Revisit at
+the SDK 58 migration, not before.
+
+**The two stale deviations are gone.** `people/en/recent` and
+`people/ar/recent` explained a probe that `a90103e` deleted with the
+People redesign; every drift run since has printed them as stale.
+
+**And the one left open: the six screens compared but unprobed.** Two of
+them, `priority` and `tasks`, are the furthest of all forty pairs from the
+design (31.6% and 26.5%), which is exactly why a gate on where their
+elements sit would be worth having.
+
+The attempt failed honestly. Probes were written from the ported strings
+in `C`, on the reasoning that those came from the handoff and so should
+appear on both sides. One label in eight resolved. `pr_k` is
+`GOOD MORNING, KHALID` where the app renders `Good morning, Khalid`; the
+placeholders are `placeholder` attributes rather than text nodes; and in
+Arabic `pr_k` is byte-identical to the Today greeting an existing probe
+already measures, so the single label that did resolve reported a 9 pt
+drift that cannot be trusted to be the element meant. The probes were
+taken back out rather than left failing, and the 9 pt is **not** recorded
+as a finding, because it probably is not one.
+
+What it needs is the labels chosen against both rendered DOMs — open the
+app screen and the prototype screen side by side, take text that is
+present and unique in both, and only then write the probe. That is a
+focused piece of work, not a line of config, and it is the next thing to
+do on this list.
+
+**Checks:** 1026 unit tests (36 new).

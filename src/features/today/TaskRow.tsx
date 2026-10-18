@@ -134,6 +134,8 @@ export function TaskRow({
           testID={`task-check-${task.id}`}
           onPress={onToggle}
           accessibilityRole="checkbox"
+          // Named after the task, for the same reason as the Tasks row (§2.99).
+          accessibilityLabel={task.title}
           accessibilityState={{ checked: done }}
           hitSlop={8}
           style={{

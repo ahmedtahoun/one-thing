@@ -14,7 +14,7 @@ import { ink } from '@/design/tokens';
 import { useDirection, useLanguage } from '@/i18n/LanguageProvider';
 
 export default function Legal() {
-  const { acc } = useLanguage();
+  const { acc, a11y } = useLanguage();
   const dir = useDirection();
   const { tab } = useLocalSearchParams<{ tab?: string }>();
 
@@ -25,7 +25,7 @@ export default function Legal() {
   return (
     <Screen scroll>
       <View style={{ flexDirection: dir.row, alignItems: 'center', gap: 12, paddingVertical: 6 }}>
-        <Pressable onPress={() => router.back()} accessibilityRole="button" hitSlop={12}>
+        <Pressable onPress={() => router.back()} accessibilityRole="button" accessibilityLabel={a11y.back} hitSlop={12}>
           <View style={{ transform: [{ scaleX: dir.isRTL ? -1 : 1 }] }}>
             <Icon name="back" size={24} strokeWidth={2} />
           </View>
