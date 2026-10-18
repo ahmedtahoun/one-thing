@@ -19,6 +19,7 @@ export function FilterChips({
   value,
   onChange,
   dueCount,
+  untouchedCount = 0,
   labels,
   smartNames,
   testID = 'people-filters',
@@ -29,6 +30,12 @@ export function FilterChips({
   onChange: (next: PeopleFilter) => void;
   /** People whose follow-up needs a nudge now. */
   dueCount: number;
+  /**
+   * How many are hidden from All for having nothing happen with them yet.
+   * Carried on the chip because once they are out of All this is the only
+   * sign they exist (BUILD-REVIEW §2.102).
+   */
+  untouchedCount?: number;
   labels: Added['filters'];
   /** Smart-list id → its name, for a `smart:` chip (./smart-lists.ts). */
   smartNames?: ReadonlyMap<string, string>;
@@ -73,6 +80,11 @@ export function FilterChips({
             {(filter === 'waiting' || filter === 'followups') && dueCount > 0 ? (
               <Text testID={`${testID}-badge`} token="bodyS" weight="600" color={on ? ink.onInkSoft : ink.s4}>
                 {dueCount}
+              </Text>
+            ) : null}
+            {filter === 'untouched' && untouchedCount > 0 ? (
+              <Text testID={`${testID}-untouched-badge`} token="bodyS" weight="600" color={on ? ink.onInkSoft : ink.s4}>
+                {untouchedCount}
               </Text>
             ) : null}
           </Pressable>

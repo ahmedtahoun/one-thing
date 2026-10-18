@@ -196,6 +196,14 @@ export type Added = {
      */
     untouched: string;
     untouchedNone: string;
+    /**
+     * All is empty because everybody added is still waiting under "Not
+     * contacted". Without this the screen reads as broken right after an
+     * import, which is the moment it is most likely to happen
+     * (BUILD-REVIEW §2.102).
+     */
+    allHiddenT: string;
+    allHidden: string;
   };
   /**
    * The phone's own address book, browsed inside the app
@@ -937,6 +945,8 @@ const ADDED: Record<Lang, Added> = {
       followups: 'Follow-ups',
       untouched: 'Not contacted',
       untouchedNone: 'Everybody here has been dealt with.',
+      allHiddenT: 'Nobody here yet',
+      allHidden: 'The {n} people you’ve added are waiting under “Not contacted”. They move here the moment you message one.',
     },
     attach: {
       button: 'Attach a file',
@@ -1598,6 +1608,8 @@ const ADDED: Record<Lang, Added> = {
       followups: 'المتابعات',
       untouched: 'بدون تواصل',
       untouchedNone: 'كل اللي هنا تعاملت معهم.',
+      allHiddenT: 'ما فيه أحد هنا لين الحين',
+      allHidden: 'الـ {n} اللي ضفتهم مستنّين تحت «بدون تواصل». أول ما تراسل أحد ينتقل هنا.',
     },
     attach: {
       button: 'أرفق ملف',

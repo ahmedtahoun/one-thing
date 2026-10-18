@@ -87,9 +87,20 @@ export default function People() {
   const smartLists = useSmartLists();
   // History rides along because "Not contacted" asks what has been logged
   // against each person, not only what was sent to them.
+  const searching = query.trim().length > 0;
   const context = useMemo(
-    () => ({ followUps, favorites, now, smartLists, history }),
-    [followUps, favorites, now, smartLists, history],
+    () => ({
+      followUps,
+      favorites,
+      now,
+      smartLists,
+      history,
+      // Not while picking somebody to message, and not while searching: a
+      // name typed into the box must find whoever has it, imported or not,
+      // or two hundred contacts would be unreachable (BUILD-REVIEW §2.102).
+      hideUntouched: !pick && !searching,
+    }),
+    [followUps, favorites, now, smartLists, history, pick, searching],
   );
   const counts = useMemo(() => filterCounts(contacts, context), [contacts, context]);
   // The labels people have put on each other are chips beside the built-in
@@ -113,7 +124,6 @@ export default function People() {
     }
     return map;
   }, [contacts, history, followUps]);
-  const searching = query.trim().length > 0;
   const list = useMemo(() => {
     // Picking someone to message: the people you reach for most come first.
     const base = pick && filter === 'all' ? floatFavorites(contacts, favorites) : filterPeople(filter, contacts, context);
@@ -249,7 +259,7 @@ export default function People() {
           </View>
         ) : null}
 
-        <FilterChips options={chips} value={filter} onChange={setFilter} dueCount={counts.due} labels={filters} smartNames={smartNames} />
+        <FilterChips options={chips} value={filter} onChange={setFilter} dueCount={counts.due} untouchedCount={counts.untouched} labels={filters} smartNames={smartNames} />
 
         {filter === 'followups' ? (
           <FollowUpsPanel />
@@ -284,6 +294,18 @@ export default function People() {
                 body={copy.noneBody}
                 link={copy.noneLink}
                 onLink={() => setAdding(true)}
+              />
+            ) : list.length === 0 && !searching && filter === 'all' && contacts.length > 0 ? (
+              // Everybody added is still under "Not contacted". Saying so,
+              // with the way through, beats an empty list that reads as a
+              // bug right after an import (BUILD-REVIEW §2.102).
+              <Empty
+                testID="people-all-hidden"
+                icon="users"
+                title={filters.allHiddenT}
+                body={filters.allHidden.replace('{n}', String(counts.untouched))}
+                link={filters.untouched}
+                onLink={() => setFilter('untouched')}
               />
             ) : list.length === 0 && !searching && filter === 'favorites' ? (
               <Empty testID="people-none" icon="star" title={copy.favTitle} body={copy.favBody} link={copy.favLink} onLink={() => setFilter('all')} />

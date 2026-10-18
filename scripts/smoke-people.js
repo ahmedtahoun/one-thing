@@ -99,8 +99,12 @@ const SESSION = { userId: 'smoke', name: 'Khalid Al-Mansouri', firstName: 'Khali
   // ---------------------------------------------------------------- People
   await seed();
   await open('/people');
+  // All holds the people something has happened with. Of the eight seeded,
+  // four have history or a follow-up; the other four wait under "Not
+  // contacted" until they are messaged (BUILD-REVIEW §2.102).
   const everyone = await people();
-  check('people lists every contact', everyone === 8, `${everyone} rows`);
+  check('All lists the people dealt with, not the whole book', everyone === 4, `${everyone} rows`);
+  check('…and the untouched are not among them', (await page.getByTestId('person-c3').count()) === 0);
   // The RECENT / "n RESULTS" label is gone; People is filter chips and a list
   // in the manner of a chat app. What is worth asserting is that the chips
   // are there and that Waiting carries the count of who needs a nudge.
@@ -110,6 +114,12 @@ const SESSION = { userId: 'smoke', name: 'Khalid Al-Mansouri', firstName: 'Khali
   await page.getByTestId('people-search').fill('sara');
   await page.waitForTimeout(200);
   check('search by name', (await people()) === 1 && (await page.getByTestId('person-c2').isVisible()));
+
+  // The guarantee that makes hiding safe: a name typed in finds whoever has
+  // it, hidden or not. Without this an imported book is unreachable.
+  await page.getByTestId('people-search').fill('faisal');
+  await page.waitForTimeout(250);
+  check('search still finds somebody hidden from All', await page.getByTestId('person-c3').isVisible());
 
   await page.getByTestId('people-search').fill('ledgerco');
   await page.waitForTimeout(200);

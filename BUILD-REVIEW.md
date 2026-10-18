@@ -4229,3 +4229,42 @@ Reminders row — it should name a number rather than say nothing. If the
 prompt still does not appear, that row is now the instrument: *off* means
 the OS refused, *"you have 3 with a time, but nothing is waiting"* means
 scheduling itself is failing, and those were indistinguishable before.
+
+### 2.102 Out of All until you have spoken to them
+
+§2.97 gave People a **Not contacted** chip, and the owner, asked at the
+time whether the imported should be a chip, a section or a screen, chose
+the chip. Seeing it on the phone they asked for the rest of what they had
+originally meant: *hide them from All until I message them.* A phone book
+of two hundred should not bury the six people actually being dealt with.
+
+`filterPeople`'s `all` case now takes `hideUntouched` from its context and
+leaves out everybody `actedOn` does not know. They rejoin the moment
+anything happens — a message out, something logged, a follow-up — which is
+the same rule the chip already used, so the two can never disagree.
+
+**Where it is deliberately not applied is the point.** Three screens call
+`filterPeople`. Only People passes the flag. The **"Who?" sheet** and
+**Send to many** must never hide anybody, because they are how a person
+gets messaged: hiding somebody there would leave them hidden for ever,
+with no way out of the state. That is the trap this change had to avoid,
+and it is held down by tests rather than by remembering.
+
+**And not while searching.** A name typed into People's box finds whoever
+has it, hidden or not. Without that an imported book is not merely tidied
+away, it is unreachable — a browser check now types a hidden person's name
+and expects to find them.
+
+Two things keep the hidden visible as a *number* rather than a rumour. The
+chip carries a count, which is the only sign they exist once they are out
+of All. And when All is empty **because** everybody added is still waiting
+— the state right after an import, which is exactly when it would read as
+a bug — the screen says so and offers the chip, rather than showing the
+blank it would otherwise.
+
+**Checks:** 1050 unit tests, six of them new and covering the two screens
+that must not hide. The browser suite's "people lists every contact"
+changed meaning and had to change with it: of the eight seeded, four have
+history or a follow-up, so All holds four and the chip holds four.
+A check that keeps counting eight would have been a check that had
+stopped reading the screen.
