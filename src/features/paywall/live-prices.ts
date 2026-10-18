@@ -93,6 +93,30 @@ export function applePrices(products: unknown, ids: Record<Period, string>): Par
   return out;
 }
 
+/**
+ * The same reading for a one-off product, keyed by its id.
+ *
+ * Subscriptions need two readers because Play wraps them in base plans and
+ * pricing phases; a consumable has none of that. Both stores hand back
+ * `{ id, price, currency }` with the price in major units, so the tips
+ * — which exist on both — are read once here (BUILD-REVIEW §2.100).
+ */
+export function inAppPrices<Id extends string>(products: unknown, ids: readonly Id[]): Partial<Record<Id, Money>> {
+  const list = Array.isArray(products) ? (products as AppleProduct[]) : [];
+  const out: Partial<Record<Id, Money>> = {};
+  for (const id of ids) {
+    const found = list.find((p) => typeof p?.id === 'string' && p.id === id);
+    const amount = typeof found?.price === 'number' ? found.price : Number(found?.price);
+    const currency = typeof found?.currency === 'string' ? found.currency : '';
+    if (!found || !currency || !Number.isFinite(amount) || amount <= 0) continue;
+    out[id] = { minor: Math.round(amount * minorUnits(currency)), currency };
+  }
+  return out;
+}
+
+/** n of them: what the counter on the tip sheet charges. */
+export const times = (money: Money, n: number): Money => ({ minor: money.minor * n, currency: money.currency });
+
 type Phase = { priceAmountMicros?: unknown; priceCurrencyCode?: unknown };
 type PlayOffer = {
   basePlanIdAndroid?: unknown;

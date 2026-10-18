@@ -93,6 +93,7 @@ Deno.serve(async (request: Request) => {
         p_product_id: event.productId,
         p_transaction_id: event.transactionId,
         p_at: event.at,
+        p_quantity: event.quantity,
       }),
     notice: (externalId, type, outcome, detail) =>
       rpc('record_store_notice', {

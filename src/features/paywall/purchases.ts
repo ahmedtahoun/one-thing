@@ -31,8 +31,10 @@ export const PRODUCT: Record<Period, string> = { year: 'pro_yearly', month: 'pro
 /**
  * The tip jar's three consumables, in the order the sheet shows them
  * (DATA_MODEL § Integrations: tip_small 0.99, tip_regular 2.99, tip_large 4.99).
+ * Re-exported from ./store rather than written twice: the store asks the
+ * stores for these same ids when it reads their prices.
  */
-export const TIP_PRODUCTS = ['tip_small', 'tip_regular', 'tip_large'] as const;
+export { TIP_PRODUCTS } from './store';
 
 const store = createStore({
   platform: Platform.OS === 'ios' || Platform.OS === 'android' ? Platform.OS : null,
@@ -51,6 +53,7 @@ const store = createStore({
 
 export const startPurchases = store.start;
 export const storePrices = store.prices;
+export const tipPrices = store.tipPrices;
 export const startTrial = store.startTrial;
 export const buyTip = store.buyTip;
 export const restorePurchases = store.restore;

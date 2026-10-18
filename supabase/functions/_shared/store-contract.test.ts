@@ -14,6 +14,7 @@ import { NotificationTypeV2 } from '@apple/app-store-server-library/dist/models/
 import { Subtype } from '@apple/app-store-server-library/dist/models/Subtype.js';
 
 import {
+  cupsOf,
   periodOf,
   planFor,
   readAppleNotification,
@@ -159,6 +160,22 @@ describe('the App Store', () => {
     assert.equal(event.transactionId, 'tx-1');
   });
 
+  it('carries how many cups the one transaction paid for', () => {
+    const event = apple('ONE_TIME_CHARGE', undefined, { productId: 'tip_small', quantity: 3 });
+    assert.equal(event.kind, 'tip');
+    if (event.kind !== 'tip') return;
+    // Three small coffees are one transaction with quantity 3, not three
+    // transactions — counted as one tip before §2.100.
+    assert.equal(event.quantity, 3);
+  });
+
+  it('reads a tip with no quantity as one cup', () => {
+    const event = apple('ONE_TIME_CHARGE', undefined, { productId: 'tip_small' });
+    assert.equal(event.kind, 'tip');
+    if (event.kind !== 'tip') return;
+    assert.equal(event.quantity, 1);
+  });
+
   it('refuses to guess whose purchase it is', () => {
     const event = readAppleNotification({ notificationType: 'SUBSCRIBED' }, tx({ appAccountToken: undefined }), {}, NOW);
     assert.equal(event.kind, 'ignored');
@@ -296,5 +313,23 @@ describe('Google Play', () => {
     assert.equal(row.status, 'refunded');
     assert.equal(row.renewsAt, null);
     assert.equal(planFor(row.status, row.endsAt, NOW), 'lapsed');
+  });
+});
+
+describe('how many cups a transaction paid for', () => {
+  it('takes a whole count', () => {
+    assert.equal(cupsOf(3), 3);
+    assert.equal(cupsOf('4'), 4);
+  });
+
+  it('reads anything missing or unreadable as one, never zero', () => {
+    for (const bad of [undefined, null, '', 'lots', Number.NaN, 0, -2, 0.4]) {
+      assert.equal(cupsOf(bad), 1, String(bad));
+    }
+  });
+
+  it('stops at ninety-nine, which is what the column accepts', () => {
+    assert.equal(cupsOf(100), 99);
+    assert.equal(cupsOf(Number.POSITIVE_INFINITY), 1);
   });
 });

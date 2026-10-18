@@ -1355,6 +1355,10 @@ const SETX_en = {
     "tipT": "Buy us a coffee",
     "tipS": "Tips are optional, one-time and don’t unlock anything — they just keep us building. Thank you!",
     "tipNote": "Paid through your App Store or Google Play account.",
+    "tipBuy": "Send {p}",
+    "tipCups": "How many?",
+    "tipFewer": "One fewer",
+    "tipMore": "One more",
     "tipSizes": [
       "Small",
       "Regular",
@@ -1478,6 +1482,10 @@ const SETX_ar: typeof SETX_en = {
     "tipT": "اعزمنا على قهوة",
     "tipS": "الدعم اختياري ولمرة وحدة وما يفتح أي ميزة — بس يساعدنا نكمّل. شكراً لك!",
     "tipNote": "الدفع عن طريق حسابك في App Store أو Google Play.",
+    "tipBuy": "ارسل {p}",
+    "tipCups": "كم كوب؟",
+    "tipFewer": "واحد أقل",
+    "tipMore": "واحد أكثر",
     "tipSizes": [
       "صغير",
       "وسط",

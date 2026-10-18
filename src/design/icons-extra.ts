@@ -6,6 +6,9 @@
 import type { IconPart } from './icon-paths';
 
 export const EXTRA_ICONS: Record<string, IconPart[]> = {
+  // The other half of the handoff's `plus`, for the tip jar's counter. Its
+  // second path is this line, so the two match stroke for stroke.
+  minus: [['path', 'M5 12h14']],
   // Three dots in a row: "more".
   menu: [
     ['circle', { cx: 5.5, cy: 12, r: 1.1 }],

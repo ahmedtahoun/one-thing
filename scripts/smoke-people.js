@@ -686,6 +686,27 @@ const SESSION = { userId: 'smoke', name: 'Khalid Al-Mansouri', firstName: 'Khali
   await page.waitForTimeout(500);
   check('back returns to Settings', page.url().includes('/settings'), page.url());
 
+  // -------------------------------------------------------- the tip jar
+  // The sheet had no browser check of any kind. What a browser can reach is
+  // the tier choosing and the total on the button; the counter is iOS-only
+  // by design and the prices here are the documented fallback, because a
+  // web build has no store to ask (BUILD-REVIEW §2.100).
+  await seed();
+  await open('/settings');
+  await page.getByTestId('settings-coffee').click();
+  await page.waitForTimeout(500);
+  check('Settings opens the tip sheet', await page.getByTestId('tip-sheet').isVisible());
+  check('…on Small, with the documented price', (await text('tip-buy')).includes('0.99'), await text('tip-buy'));
+
+  await page.getByTestId('tip-2').click();
+  await page.waitForTimeout(300);
+  check('choosing Large moves the total', (await text('tip-buy')).includes('4.99'), await text('tip-buy'));
+
+  await page.getByTestId('tip-1').click();
+  await page.waitForTimeout(300);
+  check('…and Regular moves it again', (await text('tip-buy')).includes('2.99'), await text('tip-buy'));
+  check('no counter where a store cannot honour one', (await page.getByTestId('tip-cups').count()) === 0);
+
   await seed();
   await open('/settings');
   await page.getByTestId('settings-sign-out').click();
