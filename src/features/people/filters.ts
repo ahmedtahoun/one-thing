@@ -5,11 +5,11 @@
  * open follow-ups, when a message last went out, and a short list of starred
  * people.
  */
-import { followUpStatus, type Contact, type FollowUp } from '@/lib/model-types';
+import { followUpStatus, type Contact, type FollowUp, type HistoryEntry } from '@/lib/model-types';
 import { normalizeArabic } from '@/lib/parse/names';
 import { peopleIn, type SmartList } from './smart-lists';
 
-export type BaseFilter = 'all' | 'waiting' | 'favorites' | 'recent' | 'followups';
+export type BaseFilter = 'all' | 'waiting' | 'favorites' | 'recent' | 'followups' | 'untouched';
 /**
  * A label is a chip too: `label:Client` shows everyone labelled Client. So is
  * a smart list — `smart:<id>` — which is a saved rule rather than a field, and
@@ -30,7 +30,7 @@ export function labelsIn(contacts: readonly Contact[]): string[] {
 }
 
 /** People's chips. "Follow-ups" is the whole follow-ups panel, not a filtered list. */
-export const PEOPLE_CHIPS: readonly BaseFilter[] = ['all', 'favorites', 'recent', 'followups'];
+export const PEOPLE_CHIPS: readonly BaseFilter[] = ['all', 'favorites', 'recent', 'untouched', 'followups'];
 /** Send to many's chips: "Waiting" there picks the people who owe you a reply. */
 export const BULK_CHIPS: readonly BaseFilter[] = ['all', 'waiting', 'favorites', 'recent'];
 /**
@@ -51,6 +51,12 @@ export type FilterContext = {
   now: Date;
   /** The person's smart lists, so a `smart:` chip can resolve its rule. */
   smartLists?: readonly SmartList[];
+  /**
+   * What has been logged against each person, which "Not contacted" needs
+   * and nothing else does. The sheets that never show that chip leave it
+   * out, and an absent history is read as nothing logged.
+   */
+  history?: readonly HistoryEntry[];
 };
 
 /**
@@ -88,6 +94,41 @@ export function followUpStates(
   return states;
 }
 
+/**
+ * Everyone something has actually happened with, by id.
+ *
+ * Three things count, because all three are the person doing something
+ * rather than the app: a message that went out (`touchedAt`, which
+ * `saveContact` stamps), anything written into their history — a call, a
+ * note, a visit — and a follow-up, open or closed, since promising to come
+ * back to somebody is dealing with them.
+ *
+ * What is deliberately *not* here is `createdAt`. Being added is not an
+ * action: it is the thing the chip exists to separate out. A follow-up
+ * saved before contacts carried ids is matched by name, the way
+ * `followUpStates` does it.
+ */
+export function actedOn(
+  contacts: readonly Contact[],
+  history: readonly HistoryEntry[],
+  followUps: readonly FollowUp[]
+): Set<string> {
+  const ids = new Set<string>();
+  for (const contact of contacts) if (contact.touchedAt) ids.add(contact.id);
+  for (const entry of history) if (entry.contactId) ids.add(entry.contactId);
+  for (const followUp of followUps) {
+    const byId = followUp.contactId ? contacts.find((c) => c.id === followUp.contactId) : undefined;
+    const person = byId ?? contacts.find((c) => nameKey(c.name) === nameKey(followUp.who));
+    if (person) ids.add(person.id);
+  }
+  return ids;
+}
+
+/** Added and then left alone: nothing sent, nothing logged, nothing promised. */
+export function isUntouched(contact: Contact, acted: ReadonlySet<string>): boolean {
+  return !acted.has(contact.id);
+}
+
 export function isRecent(contact: Contact, now: Date): boolean {
   const at = Date.parse(contact.touchedAt ?? contact.createdAt);
   return Number.isFinite(at) && now.getTime() - at <= RECENT_DAYS * 86400000 && at <= now.getTime() + 60000;
@@ -113,6 +154,12 @@ export function filterPeople(filter: PeopleFilter, contacts: readonly Contact[],
       return contacts
         .filter((c) => isRecent(c, context.now))
         .sort((a, b) => (b.touchedAt ?? b.createdAt).localeCompare(a.touchedAt ?? a.createdAt));
+    case 'untouched': {
+      // Newest first: these are the people just brought in from a phone,
+      // and the ones added a minute ago are the ones being worked through.
+      const acted = actedOn(contacts, context.history ?? [], context.followUps);
+      return contacts.filter((c) => isUntouched(c, acted)).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    }
     case 'followups':
     case 'waiting': {
       const states = followUpStates(contacts, context.followUps, context.now);
@@ -124,15 +171,17 @@ export function filterPeople(filter: PeopleFilter, contacts: readonly Contact[],
   }
 }
 
-export type FilterCounts = { waiting: number; due: number; favorites: number; recent: number };
+export type FilterCounts = { waiting: number; due: number; favorites: number; recent: number; untouched: number };
 
 export function filterCounts(contacts: readonly Contact[], context: FilterContext): FilterCounts {
   const states = followUpStates(contacts, context.followUps, context.now);
+  const acted = actedOn(contacts, context.history ?? [], context.followUps);
   return {
     waiting: states.size,
     due: [...states.values()].filter((s) => s === 'due').length,
     favorites: contacts.filter((c) => context.favorites.has(c.id)).length,
     recent: contacts.filter((c) => isRecent(c, context.now)).length,
+    untouched: contacts.filter((c) => isUntouched(c, acted)).length,
   };
 }
 

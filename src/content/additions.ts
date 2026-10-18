@@ -188,6 +188,14 @@ export type Added = {
     recentNone: string;
     favorite: string;
     followups: string;
+    /**
+     * Added and then left alone — nothing sent, nothing logged, nothing
+     * promised. The chip that keeps a phone book just imported from going
+     * about unmarked among the people actually being dealt with
+     * (BUILD-REVIEW §2.97).
+     */
+    untouched: string;
+    untouchedNone: string;
   };
   /**
    * The phone's own address book, browsed inside the app
@@ -210,6 +218,15 @@ export type Added = {
     clear: string;
     add: string;
     addedN: string;
+    /**
+     * iOS 18's "Allow Limited Access": a yes to a few named people rather
+     * than to the book. Without a word about it the screen looks broken —
+     * two names, both Added, nothing else (BUILD-REVIEW §2.97).
+     */
+    limited: string;
+    limitedHow: string;
+    chooseMore: string;
+    noneLimited: string;
   };
   /** The People screen itself: the search, its empty states, the ⋯ menu. */
   peopleScreen: {
@@ -890,6 +907,8 @@ const ADDED: Record<Lang, Added> = {
       recentNone: 'Nobody in the last 7 days.',
       favorite: 'Favorite',
       followups: 'Follow-ups',
+      untouched: 'Not contacted',
+      untouchedNone: 'Everybody here has been dealt with.',
     },
     attach: {
       button: 'Attach a file',
@@ -991,6 +1010,10 @@ const ADDED: Record<Lang, Added> = {
       clear: 'Clear',
       add: 'Add {n}',
       addedN: '{n} people added.',
+      limited: 'You’ve shared only some of your contacts.',
+      limitedHow: 'That’s why this list is short. Choose more below, or turn on all contacts in your phone’s Settings.',
+      chooseMore: 'Choose more contacts',
+      noneLimited: 'You haven’t shared any contacts yet.',
     },
     peopleScreen: {
       searchAll: 'Search people',
@@ -1525,6 +1548,8 @@ const ADDED: Record<Lang, Added> = {
       recentNone: 'ما فيه أحد آخر ٧ أيام.',
       favorite: 'مفضّل',
       followups: 'المتابعات',
+      untouched: 'بدون تواصل',
+      untouchedNone: 'كل اللي هنا تعاملت معهم.',
     },
     attach: {
       button: 'أرفق ملف',
@@ -1626,6 +1651,10 @@ const ADDED: Record<Lang, Added> = {
       clear: 'إلغاء التحديد',
       add: 'أضف {n}',
       addedN: 'ضفنا {n} أشخاص.',
+      limited: 'شاركت جزء من جهات اتصالك بس.',
+      limitedHow: 'عشان كذا القائمة قصيرة. اختر أكثر من تحت، أو شغّل كل جهات الاتصال من إعدادات جوالك.',
+      chooseMore: 'اختر جهات اتصال أكثر',
+      noneLimited: 'ما شاركت أي جهة اتصال لين الحين.',
     },
     peopleScreen: {
       searchAll: 'ابحث في الأشخاص',

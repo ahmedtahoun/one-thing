@@ -128,6 +128,20 @@ const SESSION = { userId: 'smoke', name: 'Khalid Al-Mansouri', firstName: 'Khali
   await page.waitForTimeout(200);
   check('clearing brings everyone back', (await people()) === everyone);
 
+  // "Not contacted" (BUILD-REVIEW §2.97): a phone book just imported should
+  // not go about unmarked among the people actually being dealt with. Of
+  // the eight seeded, four have something logged or promised against them.
+  await page.getByTestId('people-filters-untouched').click();
+  await page.waitForTimeout(300);
+  const untouched = await people();
+  check('Not contacted shows only those nothing has happened with', untouched === 4, `${untouched} rows`);
+  check('…and leaves out somebody with history against them', (await page.getByTestId('person-c1').count()) === 0);
+  check('…while keeping one merely added', await page.getByTestId('person-c3').isVisible());
+
+  await page.getByTestId('people-filters-all').click();
+  await page.waitForTimeout(300);
+  check('All brings everyone back after it', (await people()) === everyone);
+
   // The three per-row buttons are gone: press and hold opens the quick
   // options instead, which is what the row now promises.
   const tasksBefore = (await read('ot.tasks')).length;

@@ -3879,3 +3879,67 @@ browser harness has no region to report, so `dialOfRegion` falls back to
 +966 there and the screenshots do not move (`en-contact-new` 8.17%,
 unchanged). The typed detection is tested; the device default is one line
 and it is the next hardware build's to confirm.
+
+### 2.97 Two names, both Added — and the people nobody has spoken to
+
+A screenshot from a real iPhone, build 11: **From your phone** listing
+exactly two contacts, both marked "Added", Select all greyed out, and no
+way forward. The owner's words were "I can't add more". Two faults, one
+a bug and one a gap, and they are related only in that the same screen
+showed both.
+
+**iOS 18's third answer.** The permission sheet has offered *Allow
+Limited Access* since iOS 18, and it answers `granted: true` with
+`accessPrivileges: 'limited'` — after which `getContactsAsync` returns
+only the people ticked in Apple's sheet. `listPhoneContacts` read
+`granted` and nothing else, so a grant over two contacts and a grant over
+nine hundred were the same thing to this app: it drew what it was given
+and called it the address book. Both happened to be in People already, so
+every row said "Added", nothing could be ticked, and the screen became a
+dead end that looked like a phone with two contacts in it.
+
+The privilege is now carried out of the reader (`PhoneBook.access`) and
+the screen says so, with Apple's own picker behind **Choose more
+contacts** (`presentAccessPickerAsync`, iOS only — Android has no such
+grant). Picking more re-reads the book in place rather than making anyone
+leave and come back. `widenPhoneContacts` catches rather than throws on
+an iOS older than 18, where the call does not exist and limited access
+cannot happen anyway. The empty state is no longer the flat lie "No
+contacts on this phone" when the truth is that none have been shared.
+
+**And the gap the same screenshot named.** Somebody who imports their
+phone book has the people they deal with and the people they merely know
+sitting in one list, indistinguishable. The owner asked for the two to be
+kept apart; of a chip, sections inside All, and a separate screen, they
+chose the chip — the pattern People already uses.
+
+**Not contacted** is `actedOn` inverted, and what counts as an action is
+the part worth stating: a message that went out (`touchedAt`), anything
+written into their history — a call, a note, a visit — or a follow-up,
+open *or* closed, since promising to come back to somebody is dealing
+with them. `createdAt` is deliberately not on that list: being added is
+not an action, it is the thing the chip exists to separate out. Newest
+first, because the people added a minute ago are the ones being worked
+through.
+
+`touchedAt` alone would not have done. `saveContact` stamps it on every
+save, so a contact typed into the form has one before anything has
+happened, while `addContacts` — the phone book's own path — does not.
+Reading the three signals together is what makes the chip mean what its
+name says.
+
+`history` joins `FilterContext` as optional: People passes it, and the
+two sheets that never show the chip ("Who?" and Send to many) leave it
+out, where an absent history reads as nothing logged.
+
+**Checks:** ten new unit tests — each of the three signals on its own, a
+closed follow-up, an older follow-up matched by name, being added
+counting for nothing, and the absent-history default. Four new browser
+checks drive the chip on the seeded eight, of whom four are untouched.
+
+**What is not verified here:** the limited-access path. The browser has
+no address book and no permission sheet, so neither the banner nor
+**Choose more contacts** can be driven in the harness — the same hole
+that already covers this screen. Both want a walk on the next hardware
+build: grant limited access to two people, confirm the banner explains
+it, tap Choose more, and confirm the list grows without leaving.

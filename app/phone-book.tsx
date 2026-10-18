@@ -15,8 +15,13 @@
  * Somebody already in People is marked and opens rather than doubling.
  * `src/features/people/phone-book.ts` decides all of that and is tested;
  * `src/lib/phone-contacts/all.ts` does the reading.
+ *
+ * **When iOS has handed over only part of the book** the screen says so and
+ * offers Apple's picker, because otherwise it is indistinguishable from a
+ * phone with two contacts on it — which is exactly how it was read on a real
+ * device (BUILD-REVIEW §2.97).
  */
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { FlatList, Pressable, TextInput, View } from 'react-native';
 import { router } from 'expo-router';
 
@@ -34,10 +39,14 @@ import { fontFamily, ink, surface } from '@/design/tokens';
 import { useDirection, useLanguage } from '@/i18n/LanguageProvider';
 import { ltr } from '@/lib/bidi';
 import { usePeople } from '@/lib/people';
-import { listPhoneContacts, type PhoneBook } from '@/lib/phone-contacts/all';
+import { canWidenPhoneContacts, listPhoneContacts, widenPhoneContacts, type Access, type PhoneBook } from '@/lib/phone-contacts/all';
 import type { ContactDraft } from '@/lib/phone-contacts/draft';
 
-type Stage = { kind: 'reading' } | { kind: 'ready'; people: ContactDraft[] } | { kind: 'denied' } | { kind: 'failed' };
+type Stage =
+  | { kind: 'reading' }
+  | { kind: 'ready'; people: ContactDraft[]; access: Access }
+  | { kind: 'denied' }
+  | { kind: 'failed' };
 
 export default function PhoneBookScreen() {
   const { lang } = useLanguage();
@@ -50,19 +59,35 @@ export default function PhoneBookScreen() {
   /** Who is ticked, by their row's key. Empty means "tap one to open it". */
   const [chosen, setChosen] = useState<ReadonlySet<string>>(new Set());
 
+  /** Reading the book. Run again after the system picker widens the grant. */
+  const read = useCallback(
+    async (alive: () => boolean = () => true) => {
+      const result: PhoneBook = await listPhoneContacts();
+      if (!alive()) return;
+      if (!result.ok) return setStage({ kind: result.why === 'denied' ? 'denied' : 'failed' });
+      setStage({ kind: 'ready', people: byName(dedupe(result.people), lang), access: result.access });
+    },
+    [lang],
+  );
+
   useEffect(() => {
     let gone = false;
-    void listPhoneContacts().then((result: PhoneBook) => {
-      if (gone) return;
-      if (!result.ok) return setStage({ kind: result.why === 'denied' ? 'denied' : 'failed' });
-      setStage({ kind: 'ready', people: byName(dedupe(result.people), lang) });
-    });
+    void read(() => !gone);
     return () => {
       gone = true;
     };
-  }, [lang]);
+  }, [read]);
 
   const people = stage.kind === 'ready' ? stage.people : [];
+  /** iOS 18 gave us a few named people rather than the book. */
+  const limited = stage.kind === 'ready' && stage.access === 'limited';
+
+  /** Apple's picker, then read whatever it handed over. */
+  const chooseMore = async () => {
+    if (!(await widenPhoneContacts())) return;
+    setChosen(new Set());
+    await read();
+  };
   const shown = useMemo(() => people.filter((person) => matchesQuery(person, query)), [people, query]);
   /** The key of a row: its number where it has one, else its name. */
   const keyOf = (person: ContactDraft) => `${person.phone || person.email || ''}|${person.name}`;
@@ -181,11 +206,32 @@ export default function PhoneBookScreen() {
           <Text token="h3">{copy.title}</Text>
         </View>
 
-        {stage.kind === 'ready' && people.length > 0 ? (
+        {stage.kind === 'ready' ? (
           <>
             <Text token="micro" lh={17} color={ink.s4}>
               {copy.sub}
             </Text>
+
+            {limited ? (
+              <View testID="phone-book-limited" style={{ gap: 6, padding: 12, borderRadius: 14, backgroundColor: surface.fill }}>
+                <Text token="bodyS" weight="600">
+                  {copy.limited}
+                </Text>
+                <Text token="micro" lh={17} color={ink.s4}>
+                  {copy.limitedHow}
+                </Text>
+                {canWidenPhoneContacts ? (
+                  <View style={{ paddingTop: 6 }}>
+                    <Button testID="phone-book-choose-more" variant="outline" label={copy.chooseMore} onPress={chooseMore} />
+                  </View>
+                ) : null}
+              </View>
+            ) : null}
+          </>
+        ) : null}
+
+        {stage.kind === 'ready' && people.length > 0 ? (
+          <>
             <TextInput
               testID="phone-book-search"
               value={query}
@@ -252,7 +298,7 @@ export default function PhoneBookScreen() {
 
         {stage.kind === 'ready' && people.length === 0 ? (
           <Text testID="phone-book-empty" token="bodyS" color={ink.s4} style={{ paddingVertical: 20 }}>
-            {copy.none}
+            {limited ? copy.noneLimited : copy.none}
           </Text>
         ) : null}
 
