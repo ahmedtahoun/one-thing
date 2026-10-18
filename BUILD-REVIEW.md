@@ -4156,3 +4156,76 @@ choosing a tier, the total following it, the documented fallback, and the
 counter's absence. On hardware: watch the three prices arrive in the
 device's own currency, set the counter to three, and confirm the sheet,
 the StoreKit confirmation and the `tip` row all say three.
+
+### 2.101 No notification ever arrived, and nothing said why
+
+The owner reported that notifications do not work and reminders never
+appear. Asked what they had seen, the answer settled it: **the iOS prompt
+was never shown.** Without permission `sync` returns on its first line, so
+nothing is scheduled — not a task reminder, not the morning or evening
+nudge, not a follow-up. One cause, all three symptoms.
+
+**Why the prompt was never drawn.** `requestPermission` read
+`canAskAgain` and returned the current status without asking whenever it
+was false:
+
+```ts
+if (!current.canAskAgain) return current.status;
+```
+
+It was written as a courtesy — do not pester somebody who has already
+refused. But asking after a refusal does not pester: the OS answers with
+the same refusal and draws nothing. What the gate did do was skip the
+request wherever the platform reports that field conservatively, and then
+the prompt is never drawn even on a device that has never been asked.
+Every path went through this one function, so every path was dead.
+
+The same field gated two more places. `NotificationsProvider` only set
+`unasked` when `canAskAgain` was true, so its one automatic ask — on the
+first task — never fired either; and `turnOn` used it to decide between
+asking and opening Settings. Both now act on the answer rather than on a
+prediction of it: ask, and if the answer is still no, Settings is the only
+way forward and that is where it sends you.
+
+A fourth hole sat underneath: the provider's permission check fell back to
+`.catch(() => setAllowed(false))`, which never set `unasked` at all. A
+single rejection there killed the automatic ask for the life of the app.
+
+**And nothing said any of this.** `sync(...).catch(() => {})` swallowed
+every failure, so a device that could not schedule looked exactly like one
+with nothing to schedule. Settings now carries a **Reminders** row with
+both halves of the truth: whether the OS will deliver, and **how many
+notifications are actually waiting in it** — read back from
+`getAllScheduledNotificationsAsync` after each sync, so it reports what the
+OS holds rather than what the app meant to give it. `reminder-state.ts`
+decides the line and is tested; the case worth shouting about is the one
+that was silent — permission granted, tasks carrying times, and nothing
+waiting.
+
+**Two more found on the way, both real and neither the cause here.**
+
+`usePersisted` hands back `JSON.parse(raw) as T` with no merge against the
+defaults, and the cast means TypeScript never notices. `planNotifications`
+reads `prefs.quietHours.start` unguarded, so a stored blob missing a field
+would throw and be swallowed — the whole reminder system gone, silently.
+`prefs.tsx` merged over the defaults on the way *in* and said so in a
+comment; it does so on the way out now. The history says no field was
+added to `Prefs` after it shipped, so this was latent rather than live.
+
+And **Android had no notification channel**. Android 8 and later will not
+show a notification without one, and none was ever created — every Android
+reminder rested on whatever fallback the library supplied.
+`registerChannel` creates one, named in the reading language, and every
+scheduled notification names it.
+
+**Checks:** 1050 unit tests (8 new on the row's decision). The ask itself
+cannot be tested here — a browser has no permission prompt — which is
+exactly why this survived to a real phone.
+
+**What is not verified here, and must be on the next build:** that the
+prompt now appears. Install, open the app, create a task with a time, and
+the iOS dialog should come up; allow it, then open Settings and read the
+Reminders row — it should name a number rather than say nothing. If the
+prompt still does not appear, that row is now the instrument: *off* means
+the OS refused, *"you have 3 with a time, but nothing is waiting"* means
+scheduling itself is failing, and those were indistinguishable before.

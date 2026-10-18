@@ -11,7 +11,7 @@ import * as Notifications from 'expo-notifications';
 import { AppState, Linking, Platform } from 'react-native';
 import { router } from 'expo-router';
 
-import { registerCategories, requestPermission, SNOOZE_MINUTES, sync, type NotificationPayload } from './scheduler';
+import { registerCategories, registerChannel, requestPermission, SNOOZE_MINUTES, sync, type NotificationPayload } from './scheduler';
 import { added } from '@/content/additions';
 import { useLanguage } from '@/i18n/LanguageProvider';
 import { track } from '@/lib/analytics/track';
@@ -41,16 +41,25 @@ type NotificationsValue = {
   ask: () => Promise<boolean>;
   /** The "turn on" button: asks if the OS still will, otherwise opens the app's settings. */
   turnOn: () => Promise<void>;
+  /**
+   * How many notifications the OS is actually holding, re-read after every
+   * sync. Settings shows it, because an absence of reminders used to be
+   * indistinguishable from having none to give (BUILD-REVIEW §2.101).
+   */
+  scheduled: number;
+  /** Open tasks carrying a time, which is what should have produced them. */
+  remindable: number;
 };
 
 const NotificationsContext = createContext<NotificationsValue | null>(null);
 
 export function NotificationsProvider({ children }: { children: ReactNode }) {
-  const { t, pfx, lang } = useLanguage();
+  const { t, pfx, lang, inline } = useLanguage();
   const { tasks, oneThing, ready: tasksReady, toggleDone, snooze } = useTasks();
   const { followUps, ready: peopleReady } = usePeople();
   const { prefs, ready: prefsReady } = usePrefs();
   const [allowed, setAllowed] = useState<boolean | null>(null);
+  const [scheduled, setScheduled] = useState(0);
   // The OS has never been asked: the one chance to ask is worth choosing well.
   const [unasked, setUnasked] = useState(false);
   // Bumped each time the app comes to the front, so the plan is made again from "now":
@@ -73,10 +82,13 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
 
   const turnOn = useCallback(async () => {
     if (Platform.OS === 'web') return;
-    const current = await Notifications.getPermissionsAsync();
-    // iOS shows its prompt once; after a refusal only Settings can change it.
-    if (!current.granted && !current.canAskAgain) return void Linking.openSettings().catch(() => {});
-    await ask();
+    // Ask first and read the answer, rather than deciding from
+    // `canAskAgain` what the OS is willing to do. A device that has never
+    // been asked gets the prompt; one that has refused returns the refusal
+    // without drawing anything, and *then* Settings is the only way
+    // forward, which is where this sends them (§2.101).
+    if (await ask()) return;
+    await Linking.openSettings().catch(() => {});
   }, [ask]);
 
   useEffect(() => {
@@ -84,9 +96,21 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     Notifications.getPermissionsAsync()
       .then((status) => {
         setAllowed(status.granted);
-        setUnasked(!status.granted && status.canAskAgain);
+        // Not `&& status.canAskAgain`. iOS has no honest answer to "may I
+        // ask again" before it has been asked once, and asking when the
+        // answer is already no is a no-op that returns the same no. Gating
+        // the one automatic ask on it meant a device that reported it
+        // wrongly never saw the prompt at all, and with no permission
+        // `sync` returns early — so no reminder, no nudge, no follow-up,
+        // and nothing anywhere saying why (BUILD-REVIEW §2.101).
+        setUnasked(!status.granted);
       })
-      .catch(() => setAllowed(false));
+      // A rejection used to leave `unasked` false for the life of the app,
+      // which killed the only ask the provider has.
+      .catch(() => {
+        setAllowed(false);
+        setUnasked(true);
+      });
     const subscription = AppState.addEventListener('change', (state) => {
       if (state === 'active') setOpened((n) => n + 1);
     });
@@ -96,10 +120,16 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
   // The action buttons carry copy, so they are re-registered when the
   // language changes.
   useEffect(() => {
-    if (allowed) registerCategories(t, pfx).catch(() => {});
-  }, [allowed, t, pfx]);
+    if (!allowed) return;
+    registerCategories(t, pfx).catch(() => {});
+    // Android will not show a notification without a channel; naming it in
+    // the reading language is what the person sees in the OS settings.
+    registerChannel(inline.notifications).catch(() => {});
+  }, [allowed, t, pfx, inline.notifications]);
 
   const ready = tasksReady && peopleReady && prefsReady;
+  /** What *should* have produced a reminder, for the Settings row to compare against. */
+  const remindable = tasks.filter((task) => task.status === 'open' && Boolean(task.dueAt)).length;
 
   // The first task is the moment a reminder means something: ask then, once,
   // rather than leaving the person to find a switch in Settings.
@@ -111,10 +141,24 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!allowed || !ready) return;
-    sync({ tasks, followUps, prefs, habit: true }, t, { oneThing, nudge: added(lang).nudge }).catch(() => {
-      // A scheduling failure must not take the app down with it; the next
-      // change to the list tries again.
-    });
+    let gone = false;
+    sync({ tasks, followUps, prefs, habit: true }, t, { oneThing, nudge: added(lang).nudge })
+      // What the OS is holding afterwards, not what we meant to give it: a
+      // scheduling call that threw or was refused shows up here as a count
+      // that did not move, which is what Settings reads.
+      .then(() => Notifications.getAllScheduledNotificationsAsync())
+      .then((pending) => {
+        if (!gone) setScheduled(pending.length);
+      })
+      .catch(() => {
+        // A scheduling failure must not take the app down with it; the next
+        // change to the list tries again. It is no longer silent, though —
+        // the count stays where it was and Settings says so.
+        if (!gone) setScheduled(0);
+      });
+    return () => {
+      gone = true;
+    };
   }, [allowed, ready, tasks, followUps, prefs, t, oneThing, lang, opened]);
 
   useEffect(() => {
@@ -145,7 +189,9 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <NotificationsContext.Provider value={{ allowed, ask, turnOn }}>{children}</NotificationsContext.Provider>
+    <NotificationsContext.Provider value={{ allowed, ask, turnOn, scheduled, remindable }}>
+      {children}
+    </NotificationsContext.Provider>
   );
 }
 

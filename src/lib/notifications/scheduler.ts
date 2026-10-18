@@ -47,7 +47,13 @@ export async function requestPermission(): Promise<Notifications.PermissionStatu
   if (!supported) return Notifications.PermissionStatus.DENIED;
   const current = await Notifications.getPermissionsAsync();
   if (current.granted) return Notifications.PermissionStatus.GRANTED;
-  if (!current.canAskAgain) return current.status;
+  // No `canAskAgain` gate. It read as a guard against pestering somebody who
+  // had already refused, but asking after a refusal does not pester: the OS
+  // returns the same refusal without drawing anything. What the gate did do
+  // was skip the request entirely wherever the platform reported the field
+  // conservatively, so the prompt was never drawn even on a device that had
+  // never been asked — and with no permission nothing is ever scheduled
+  // (BUILD-REVIEW §2.101).
   const asked = await Notifications.requestPermissionsAsync();
   return asked.status;
 }
@@ -55,6 +61,26 @@ export async function requestPermission(): Promise<Notifications.PermissionStatu
 export async function hasPermission(): Promise<boolean> {
   if (!supported) return false;
   return (await Notifications.getPermissionsAsync()).granted;
+}
+
+/**
+ * Android 8 and later will not show a notification that has no channel, and
+ * the app had never created one — every reminder on Android depended on
+ * whatever fallback the library happened to provide (BUILD-REVIEW §2.101).
+ * iOS has no channels and ignores this.
+ */
+export const ANDROID_CHANNEL = 'reminders';
+
+export async function registerChannel(name: string): Promise<void> {
+  if (Platform.OS !== 'android') return;
+  await Notifications.setNotificationChannelAsync(ANDROID_CHANNEL, {
+    name,
+    importance: Notifications.AndroidImportance.HIGH,
+    // The per-notification sound and vibration toggles in Settings are
+    // honoured by the content; the channel is what makes it showable at all.
+    vibrationPattern: [0, 250, 250, 250],
+    lockscreenVisibility: Notifications.AndroidNotificationVisibility.PRIVATE,
+  });
 }
 
 /** Registers the Done / Snooze / Open buttons the two action rows carry. */
@@ -162,6 +188,7 @@ async function schedule(
     trigger: {
       type: Notifications.SchedulableTriggerInputTypes.DATE,
       date: new Date(notification.at),
+      ...(Platform.OS === 'android' ? { channelId: ANDROID_CHANNEL } : null),
     },
   });
 }
