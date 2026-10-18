@@ -713,13 +713,13 @@ export default function Settings() {
       <TipSheet
         open={tipOpen}
         onClose={() => setTipOpen(false)}
-        onBuy={async (size) => {
+        onBuy={async (size, cups) => {
           // A consumable in-app purchase, never a payment link. The thanks
           // waits for the store to take the money: before, it was said for a
           // purchase that never happened (§2.34).
           setTipOpen(false);
           const product = TIP_PRODUCTS[size] ?? 'tip_small';
-          const result = await buyTip(product);
+          const result = await buyTip(product, cups);
           if (result === 'started') {
             track({ name: 'tip', product });
             toast.show(st.toastTip, { undo: false });

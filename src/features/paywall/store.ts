@@ -18,10 +18,12 @@
  *   consumed, so the same tip can be bought again.
  */
 
-import { applePrices, playPrices, type Money } from './live-prices';
+import { applePrices, inAppPrices, playPrices, type Money } from './live-prices';
 
 export type Period = 'year' | 'month';
 export type TipProduct = 'tip_small' | 'tip_regular' | 'tip_large';
+/** The three, in the order the sheet shows them: Small, Regular, Large. */
+export const TIP_PRODUCTS: readonly TipProduct[] = ['tip_small', 'tip_regular', 'tip_large'];
 export type Platform = 'ios' | 'android';
 
 /** App Store product ids (RELEASE.md § 1.2). */
@@ -192,6 +194,22 @@ export function createStore(deps: Deps) {
       }
     },
 
+    /**
+     * What the store charges for each tip, in the buyer's own currency.
+     * The sheet showed a hand-typed "$0.99" to everyone, including the
+     * storefronts that are billed in riyals (BUILD-REVIEW §2.100).
+     */
+    tipPrices: async (): Promise<Partial<Record<TipProduct, Money>>> => {
+      if (!deps.platform) return {};
+      try {
+        const iap = deps.iap();
+        await iap.initConnection();
+        return inAppPrices(await iap.fetchProducts({ skus: [...TIP_PRODUCTS], type: 'in-app' }), TIP_PRODUCTS);
+      } catch {
+        return {};
+      }
+    },
+
     /** Starts the 7-day trial on the period chosen on the paywall. */
     startTrial: (period: Period): Promise<BuyResult> =>
       deps.platform === 'android'
@@ -223,13 +241,21 @@ export function createStore(deps: Deps) {
           }),
 
     /** One of the three consumable tips. */
-    buyTip: (product: TipProduct): Promise<BuyResult> =>
+    /**
+     * `quantity` is iOS only, and not an oversight: StoreKit takes it on the
+     * request, while Play's `RequestPurchaseAndroidProps` has no such field —
+     * multi-quantity there is a Play Console setting that puts a stepper in
+     * Google's own sheet. Passing it on Android would charge for one and
+     * say three, so the counter is not offered there at all
+     * (BUILD-REVIEW §2.100).
+     */
+    buyTip: (product: TipProduct, quantity = 1): Promise<BuyResult> =>
       buy(product, async (iap, userId) => {
         await iap.fetchProducts({ skus: [product], type: 'in-app' });
         await iap.requestPurchase({
           type: 'in-app',
           request: {
-            apple: { sku: product, appAccountToken: userId },
+            apple: { sku: product, appAccountToken: userId, quantity: Math.max(1, Math.trunc(quantity)) },
             google: { skus: [product], obfuscatedAccountId: userId },
           },
         });

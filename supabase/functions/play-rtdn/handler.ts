@@ -13,6 +13,7 @@
  * answers 500.
  */
 import {
+  cupsOf,
   planFor,
   readPlayNotification,
   readPlaySubscription,
@@ -30,6 +31,14 @@ export type PlayProductPurchase = {
   purchaseTimeMillis?: string;
   orderId?: string;
   purchaseState?: number;
+  /**
+   * `purchases.products.get` returns this when the Play Console has
+   * multi-quantity turned on for the product; absent otherwise, which
+   * `cupsOf` reads as one. The app cannot ask for a quantity on Android —
+   * Play puts its own stepper in Google's sheet — so this is the only way
+   * a count above one reaches us from that store (BUILD-REVIEW §2.100).
+   */
+  quantity?: number;
 };
 
 export type Deps = {
@@ -105,6 +114,7 @@ export async function handlePlay(body: unknown, deps: Deps): Promise<Reply> {
         // Google's own handle on the purchase, so two notifications about one
         // tip cannot become two tips.
         transactionId: purchase.orderId ?? lookup.purchaseToken,
+        quantity: cupsOf(purchase.quantity),
       });
       return { status: 200, body: fresh ? { ok: true } : { seen: true } };
     }

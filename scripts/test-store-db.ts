@@ -104,6 +104,33 @@ describe('what the store webhooks write', () => {
     assert.equal(one(`count(*) from tip where user_id = '${A}'`), '1');
   });
 
+  // B, not A: a later test asserts A has exactly one tip, and these would
+  // make it three. The suite shares one database across its tests.
+  it('records how many cups a tip was, and one when nothing says', () => {
+    // The default: every tip written before the column existed was one, and
+    // Play sends no quantity unless multi-quantity is on (BUILD-REVIEW §2.100).
+    assert.equal(
+      asService(`select public.record_store_tip('app_store', 'uuid-q1', 'ONE_TIME_CHARGE', '${B}', 'tip_small', 'tx-q1', now())`),
+      't'
+    );
+    assert.equal(one(`quantity from tip where transaction_id = 'tx-q1'`), '1');
+
+    assert.equal(
+      asService(`select public.record_store_tip('app_store', 'uuid-q2', 'ONE_TIME_CHARGE', '${B}', 'tip_small', 'tx-q2', now(), 3::smallint)`),
+      't'
+    );
+    assert.equal(one(`quantity from tip where transaction_id = 'tx-q2'`), '3');
+  });
+
+  it('will not record a tip of nought cups', () => {
+    assert.throws(() =>
+      asService(
+        `insert into tip (user_id, store, product_id, transaction_id, at, quantity) ` +
+          `values ('${B}', 'app_store', 'tip_small', 'tx-zero', now(), 0)`
+      )
+    );
+  });
+
   it('records what it ignored, and what failed, with the reason', () => {
     assert.equal(asService(`select public.record_store_notice('app_store', 'uuid-test', 'TEST', 'ignored', 'TEST: nothing to change')`), 't');
     assert.equal(asService(`select public.record_store_notice('play', 'msg-9', 'Play RENEWED', 'failed', 'Play API 500')`), 't');

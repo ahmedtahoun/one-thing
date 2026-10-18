@@ -4087,3 +4087,72 @@ focused piece of work, not a line of config, and it is the next thing to
 do on this list.
 
 **Checks:** 1026 unit tests (36 new).
+
+### 2.100 Dollars at everybody, and a counter for the cups
+
+The owner, checking the tip products in App Store Connect, confirmed the
+prices were right. They were — in dollars, to a US storefront. The sheet
+showed those dollars to everyone.
+
+**The constant that outlived its own comment.** `sheets.tsx` held
+
+```ts
+const TIP_PRICES = ['$0.99', '$2.99', '$4.99'] as const;
+```
+
+under a note saying that "once the in-app purchase is wired in, the
+store's own localised price string replaces these". The purchase was
+wired in — `expo-iap`, `buyTip`, the webhooks, all of it — and the
+replacement never happened. So a buyer in Riyadh read **$0.99** and was
+charged in riyals at whatever Apple's tier equivalent is. The machinery
+to do it right was already in the tree and already tested: `formatMoney`
+knows SAR reads "SAR 6.99" in English and "ر.س. ٦٫٩٩" in Arabic. It was
+simply only ever wired to the subscription paywall.
+
+`inAppPrices` is the one-off twin of `applePrices`/`playPrices`, and it
+needs no second version per store: a consumable has no base plans and no
+pricing phases, so both stores hand back `{ id, price, currency }` and one
+reader does. The fallback is **per tier**, not all or nothing — a single
+missing product leaves its neighbours alone rather than blanking the row.
+
+**And the counter the owner asked for.** Tiers select rather than buy; a
+stepper sets one to ten cups; the button carries the running total, "Send
+$2.97". `MAX_CUPS` is ten because a slipped finger should not be a
+forty-dollar surprise, and `clampCups` reads nonsense as **one**, not ten:
+if what reaches it is not a number, the safe direction is the cheap one.
+
+**It is iOS only, and that is not an oversight.** StoreKit takes a
+`quantity` on the purchase request. Play's `RequestPurchaseAndroidProps`
+has no such field — multi-quantity there is a Play Console setting that
+puts a stepper inside Google's own sheet. A counter on Android would say
+three and charge for one, so `canCount` is `Platform.OS === 'ios'` and
+there is no counter on Android.
+
+**The part that would have gone wrong quietly.** Three cups are **one**
+transaction with quantity 3, not three transactions. `tip` had no column
+for it, so the panel would have recorded one tip and under-reported what
+was actually paid. `0013_tip_quantity.sql` adds it, defaulting to 1
+because every tip written before this was exactly one. Both webhooks carry
+it, and Play's own `quantity` is read as well, so turning multi-quantity on
+in the Play Console later needs no code.
+
+Two things the tests caught that the writing had not. Postgres cannot add
+a parameter to a function — `create or replace` with a longer argument
+list makes a second one — so the migration drops and recreates
+`record_store_tip`; the first draft dropped it and re-applied 0007's
+revokes but **not** its `grant execute to service_role`, and the webhooks
+lost the ability to write a tip at all. And the new database tests wrote
+their tips for user A, where a later test asserts A has exactly one tip:
+the suite shares one database, so they write for B.
+
+**Checks:** 1037 unit tests (11 on the arithmetic, 5 on the contract),
+35 against Postgres including the new column and its `quantity >= 1`
+constraint, and five browser checks on the sheet, which had none at all.
+
+**What is not verified here:** the counter and the live prices, for the
+same reason — a web build has no store, so `tipPrices()` answers nothing
+and `canCount('web')` is false. The browser checks exercise what is left:
+choosing a tier, the total following it, the documented fallback, and the
+counter's absence. On hardware: watch the three prices arrive in the
+device's own currency, set the counter to three, and confirm the sheet,
+the StoreKit confirmation and the `tip` row all say three.

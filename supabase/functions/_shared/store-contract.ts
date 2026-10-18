@@ -50,6 +50,14 @@ export type TipEvent = {
   at: string;
   /** One row per purchase, so the same transaction cannot be counted twice. */
   transactionId: string;
+  /**
+   * How many cups. StoreKit takes a quantity on a consumable purchase and
+   * reports it back here, so three small coffees arrive as **one**
+   * transaction with quantity 3 — counted as one tip before this, which
+   * under-reported what was paid (BUILD-REVIEW §2.100). Play sends none:
+   * its multi-quantity purchases still arrive one per transaction.
+   */
+  quantity: number;
 };
 
 /** Everything else: recorded, acted on by nobody. */
@@ -81,6 +89,17 @@ export const TIP_PRODUCTS: readonly TipProduct[] = ['tip_small', 'tip_regular', 
  */
 export function periodOf(productId: string, basePlanId?: string | null): Period | null {
   return SUBSCRIPTION_PERIODS[basePlanId ?? ''] ?? SUBSCRIPTION_PERIODS[productId] ?? null;
+}
+
+/**
+ * The quantity on a transaction, as a number of cups. Anything missing,
+ * unreadable or below one is one: a tip that was certainly paid for at
+ * least once should never be recorded as zero.
+ */
+export function cupsOf(quantity: unknown): number {
+  const n = typeof quantity === 'number' ? quantity : Number(quantity);
+  if (!Number.isFinite(n)) return 1;
+  return Math.min(99, Math.max(1, Math.trunc(n)));
 }
 
 export function tipProductOf(productId: string): TipProduct | null {
@@ -158,6 +177,8 @@ export type AppleTransaction = {
   originalPurchaseDate?: number;
   expiresDate?: number;
   revocationDate?: number;
+  /** How many of a consumable were bought in the one transaction. */
+  quantity?: number;
   /** 1 is Apple's introductory offer, which is how the 7-day trial ships. */
   offerType?: number;
   offerDiscountType?: string;
@@ -214,6 +235,7 @@ export function readAppleNotification(
       productId: tip,
       at: iso(transaction.purchaseDate) ?? now.toISOString(),
       transactionId: transaction.transactionId ?? transaction.originalTransactionId ?? '',
+      quantity: cupsOf(transaction.quantity),
     };
   }
 
