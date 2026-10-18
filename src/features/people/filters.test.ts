@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { filterCounts, filterPeople, floatFavorites, followUpStates, isRecent, labelFilter, labelsIn } from './filters';
-import type { Contact, FollowUp } from '@/lib/model-types';
+import { actedOn, filterCounts, filterPeople, floatFavorites, followUpStates, isRecent, labelFilter, labelsIn } from './filters';
+import type { Contact, FollowUp, HistoryEntry } from '@/lib/model-types';
 
 const NOW = new Date('2026-10-13T09:00:00');
 const person = (id: string, name: string, over: Partial<Contact> = {}): Contact => ({
@@ -72,7 +72,7 @@ describe('filterPeople', () => {
     assert.deepEqual(filterPeople('recent', ALL, context).map((c) => c.id), ['a', 'c']);
   });
   it('counts them for the badges', () => {
-    assert.deepEqual(filterCounts(ALL, context), { waiting: 2, due: 1, favorites: 1, recent: 2 });
+    assert.deepEqual(filterCounts(ALL, context), { waiting: 2, due: 1, favorites: 1, recent: 2, untouched: 0 });
   });
 });
 
@@ -103,5 +103,69 @@ describe('labels', () => {
   it('shows everyone with the label, and only them', () => {
     assert.deepEqual(filterPeople(labelFilter('Client'), contacts, context).map((c) => c.name), ['Sara', 'Omar']);
     assert.deepEqual(filterPeople(labelFilter('Nobody'), contacts, context), []);
+  });
+});
+
+describe('who has actually been dealt with', () => {
+  const logged = (contactId: string): HistoryEntry => ({ id: `h-${contactId}`, contactId, kind: 'call', text: 'Called', at: '2026-10-11T09:00:00.000Z' });
+  /** Straight off a phone: added, and nothing done since. */
+  const fresh = (id: string, name: string) => person(id, name);
+
+  it('counts a message that went out', () => {
+    assert.deepEqual([...actedOn([A], [], [])], ['a']);
+  });
+
+  it('counts something logged against them', () => {
+    const d = fresh('d', 'Faisal Noor');
+    assert.deepEqual([...actedOn([d], [logged('d')], [])], ['d']);
+  });
+
+  it('counts a follow-up, open or closed, and finds an older one by name', () => {
+    const d = fresh('d', 'Faisal Noor');
+    const e = fresh('e', 'Lina Saad');
+    assert.deepEqual([...actedOn([d], [], [followUp('1', 'x', 'waiting', { contactId: 'd' })])], ['d']);
+    assert.deepEqual([...actedOn([d], [], [followUp('1', 'x', 'done', { contactId: 'd' })])], ['d']);
+    assert.deepEqual([...actedOn([e], [], [followUp('2', 'Lina Saad · Designer', 'waiting')])], ['e']);
+  });
+
+  it('does not count merely being added', () => {
+    assert.deepEqual([...actedOn([fresh('d', 'Faisal Noor')], [], [])], []);
+  });
+});
+
+describe('the Not contacted chip', () => {
+  const imported = [
+    person('d', 'Faisal Noor', { createdAt: '2026-10-13T08:00:00.000Z' }),
+    person('e', 'Lina Saad', { createdAt: '2026-10-13T08:30:00.000Z' }),
+  ];
+  const everyone = [...ALL, ...imported];
+  const context = { followUps: [], favorites: new Set<string>(), now: NOW, history: [] as HistoryEntry[] };
+
+  it('shows only the people nothing has happened with', () => {
+    assert.deepEqual(filterPeople('untouched', everyone, context).map((c) => c.id), ['e', 'd']);
+  });
+
+  it('puts the newest first, since those are the ones being worked through', () => {
+    const ids = filterPeople('untouched', everyone, context).map((c) => c.id);
+    assert.deepEqual(ids, ['e', 'd']);
+  });
+
+  it('drops somebody the moment anything is logged against them', () => {
+    const history: HistoryEntry[] = [{ id: 'h1', contactId: 'd', kind: 'note', text: 'Met at the fair', at: '2026-10-13T09:00:00.000Z' }];
+    assert.deepEqual(filterPeople('untouched', everyone, { ...context, history }).map((c) => c.id), ['e']);
+  });
+
+  it('drops somebody a follow-up was promised to', () => {
+    const followUps = [followUp('1', 'Lina Saad', 'waiting', { contactId: 'e' })];
+    assert.deepEqual(filterPeople('untouched', everyone, { ...context, followUps }).map((c) => c.id), ['d']);
+  });
+
+  it('counts them for the chip', () => {
+    assert.equal(filterCounts(everyone, context).untouched, 2);
+  });
+
+  it('reads an absent history as nothing logged, for the sheets that never show the chip', () => {
+    const { history: _history, ...noHistory } = context;
+    assert.equal(filterCounts(everyone, noHistory).untouched, 2);
   });
 });

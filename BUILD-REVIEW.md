@@ -3879,3 +3879,137 @@ browser harness has no region to report, so `dialOfRegion` falls back to
 +966 there and the screenshots do not move (`en-contact-new` 8.17%,
 unchanged). The typed detection is tested; the device default is one line
 and it is the next hardware build's to confirm.
+
+### 2.97 Two names, both Added — and the people nobody has spoken to
+
+A screenshot from a real iPhone, build 11: **From your phone** listing
+exactly two contacts, both marked "Added", Select all greyed out, and no
+way forward. The owner's words were "I can't add more". Two faults, one
+a bug and one a gap, and they are related only in that the same screen
+showed both.
+
+**iOS 18's third answer.** The permission sheet has offered *Allow
+Limited Access* since iOS 18, and it answers `granted: true` with
+`accessPrivileges: 'limited'` — after which `getContactsAsync` returns
+only the people ticked in Apple's sheet. `listPhoneContacts` read
+`granted` and nothing else, so a grant over two contacts and a grant over
+nine hundred were the same thing to this app: it drew what it was given
+and called it the address book. Both happened to be in People already, so
+every row said "Added", nothing could be ticked, and the screen became a
+dead end that looked like a phone with two contacts in it.
+
+The privilege is now carried out of the reader (`PhoneBook.access`) and
+the screen says so, with Apple's own picker behind **Choose more
+contacts** (`presentAccessPickerAsync`, iOS only — Android has no such
+grant). Picking more re-reads the book in place rather than making anyone
+leave and come back. `widenPhoneContacts` catches rather than throws on
+an iOS older than 18, where the call does not exist and limited access
+cannot happen anyway. The empty state is no longer the flat lie "No
+contacts on this phone" when the truth is that none have been shared.
+
+**And the gap the same screenshot named.** Somebody who imports their
+phone book has the people they deal with and the people they merely know
+sitting in one list, indistinguishable. The owner asked for the two to be
+kept apart; of a chip, sections inside All, and a separate screen, they
+chose the chip — the pattern People already uses.
+
+**Not contacted** is `actedOn` inverted, and what counts as an action is
+the part worth stating: a message that went out (`touchedAt`), anything
+written into their history — a call, a note, a visit — or a follow-up,
+open *or* closed, since promising to come back to somebody is dealing
+with them. `createdAt` is deliberately not on that list: being added is
+not an action, it is the thing the chip exists to separate out. Newest
+first, because the people added a minute ago are the ones being worked
+through.
+
+`touchedAt` alone would not have done. `saveContact` stamps it on every
+save, so a contact typed into the form has one before anything has
+happened, while `addContacts` — the phone book's own path — does not.
+Reading the three signals together is what makes the chip mean what its
+name says.
+
+`history` joins `FilterContext` as optional: People passes it, and the
+two sheets that never show the chip ("Who?" and Send to many) leave it
+out, where an absent history reads as nothing logged.
+
+**Checks:** ten new unit tests — each of the three signals on its own, a
+closed follow-up, an older follow-up matched by name, being added
+counting for nothing, and the absent-history default. Four new browser
+checks drive the chip on the seeded eight, of whom four are untouched.
+
+**What is not verified here:** the limited-access path. The browser has
+no address book and no permission sheet, so neither the banner nor
+**Choose more contacts** can be driven in the harness — the same hole
+that already covers this screen. Both want a walk on the next hardware
+build: grant limited access to two people, confirm the banner explains
+it, tap Choose more, and confirm the list grows without leaving.
+
+### 2.98 Three gaps an audit found, and one the audit itself found
+
+Asked for a full audit of what is missing, these three came out on top. The
+fourth was found while fixing the third, which is the argument for the
+exercise.
+
+**A sync that failed told nobody.** `SyncProvider` has always set
+`status: 'error'` and written a line to the console, and `useSync()` has
+always exported it. Nothing read it. The one caller, `src/lib/account.ts`,
+takes `syncNow` alone, to flush before the device is wiped at sign-out. So
+a phone whose token had expired, or whose rows the server rejected, looked
+exactly like one that was up to date: the writing stayed where it was and
+the person was never told. For an app whose paid tier implies more than one
+device, that is the worst kind of silence.
+
+Settings now carries a row: **Your other devices**, the state under it, and
+**Sync now** to force a pass. A failure is red and says when it last worked
+— *"Last worked Tuesday. Your writing is safe on this phone and will go up
+when it can"* — because the honest worry is data loss and the honest answer
+is that nothing is lost. The decision of which line to show is
+`src/features/settings/sync-state.ts`, pure and tested; the screen does the
+words and `chatTime` does the clock.
+
+`lastSyncedAt` is now kept on the device, per account, and cleared with it.
+It was `useState(null)`, which would have made the row say "nothing synced
+yet" after every launch — false rather than merely unhelpful.
+
+**The one screen nobody was watching.** `app/templates.tsx` — Saved
+messages, reached from Settings — had no screenshot, no smoke check and no
+drift probe. Not set aside like the phone book and the file importer, which
+cannot be driven in a browser; simply missed. It is 159 lines with a sheet,
+a validity rule and a delete, and it is now captured as `28-templates` and
+driven by thirteen checks: that an empty one will not save, that saving
+writes the title, subject, body and the follow-up mark, that editing changes
+it in place rather than adding a second, and that deleting brings the empty
+line back.
+
+**The phrase list had stopped being true.** `ASSISTANT-PHRASES.md` was last
+read against the parser on 15 October; three commits had changed it since
+(§2.91, §2.92, §2.93). None of the reproach forms, none of `TASKS_WORD`,
+not **Now**, not the refusals, not "which Sara", not **Search People**. The
+file says at the top that every line in it is covered by a test, so a stale
+list is not merely out of date — it is a promise that has quietly lapsed.
+It is current as of 18 October, and says so.
+
+**And the one the refresh found.** Reading the list back against the code
+rather than against memory, **"حالًا" was unreadable**. `NOW_WORD` lists
+`حالا` and `حالاً`, and the only difference in the third spelling is which
+side of the alif the tanween sits on — U+064B before the alif rather than
+after it. A keyboard gives you whichever it gives you. The same hole sat
+under `لاحقًا` against `NO_TIME`'s `لاحقاً`.
+
+The marks now come off before those two patterns are tested. **Only the
+marks**: the first attempt used the existing `fold`, which also folds ى to
+ي, and the patterns are written with ى — `ما ابغى` folded to `ما ابغي` and
+stopped being a refusal. The test written for the tanween caught it on the
+same run, which is the only reason it is not in this build. Fourteen new
+cases hold both halves down.
+
+**Checks:** 990 unit tests (24 new — fourteen of them the Arabic spellings
+above), and the smoke suites gain the thirteen on Saved messages.
+
+**What is not verified here:** the sync row. With no backend configured the
+harness leaves `status` at `'off'` and the row does not render, by design —
+there is nothing to sync with. Every branch of the decision is unit-tested
+and the row is a thin render of it, the same shape as
+`src/lib/notifications/scheduler.ts`. On the next hardware build: sign in,
+confirm the row reads a real time, turn the network off, write something,
+and confirm it goes red and recovers on **Sync now**.

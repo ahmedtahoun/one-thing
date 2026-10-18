@@ -128,6 +128,20 @@ const SESSION = { userId: 'smoke', name: 'Khalid Al-Mansouri', firstName: 'Khali
   await page.waitForTimeout(200);
   check('clearing brings everyone back', (await people()) === everyone);
 
+  // "Not contacted" (BUILD-REVIEW §2.97): a phone book just imported should
+  // not go about unmarked among the people actually being dealt with. Of
+  // the eight seeded, four have something logged or promised against them.
+  await page.getByTestId('people-filters-untouched').click();
+  await page.waitForTimeout(300);
+  const untouched = await people();
+  check('Not contacted shows only those nothing has happened with', untouched === 4, `${untouched} rows`);
+  check('…and leaves out somebody with history against them', (await page.getByTestId('person-c1').count()) === 0);
+  check('…while keeping one merely added', await page.getByTestId('person-c3').isVisible());
+
+  await page.getByTestId('people-filters-all').click();
+  await page.waitForTimeout(300);
+  check('All brings everyone back after it', (await people()) === everyone);
+
   // The three per-row buttons are gone: press and hold opens the quick
   // options instead, which is what the row now promises.
   const tasksBefore = (await read('ot.tasks')).length;
@@ -619,6 +633,58 @@ const SESSION = { userId: 'smoke', name: 'Khalid Al-Mansouri', firstName: 'Khali
   await page.getByTestId('pick-c2').click();
   await page.waitForTimeout(600);
   check('picking somebody starts the message', page.url().includes('/compose'), page.url());
+
+  // ------------------------------------------------------ Saved messages
+  // app/templates.tsx had no screenshot, no smoke check and no drift probe
+  // — the one screen that fell through rather than being set aside
+  // (BUILD-REVIEW §2.98). Reached from Settings, as a person reaches it.
+  await seed();
+  await open('/settings');
+  await page.getByTestId('settings-saved').click();
+  await page.waitForTimeout(600);
+  check('Settings opens Saved messages', page.url().includes('/templates'), page.url());
+  check('…and it starts empty', await page.getByTestId('templates-empty').isVisible());
+
+  await page.getByTestId('templates-add').click();
+  await page.waitForTimeout(300);
+  check('Add opens the sheet', await page.getByTestId('template-title').isVisible());
+
+  await page.getByTestId('template-save').click();
+  await page.waitForTimeout(300);
+  check('a message with no words is not saved', await page.getByTestId('template-title').isVisible());
+
+  await page.getByTestId('template-title').fill('Chase the quote');
+  await page.getByTestId('template-subject').fill('Following up');
+  await page.getByTestId('template-body').fill('Just checking in on the quote.');
+  await page.getByTestId('template-chase').click();
+  await page.getByTestId('template-save').click();
+  await page.waitForTimeout(500);
+  const savedMsg = await read('one-thing.saved-messages.v1');
+  check('saving writes one message', Array.isArray(savedMsg) && savedMsg.length === 1, JSON.stringify(savedMsg));
+  check('…with its title, subject and body', savedMsg[0] && savedMsg[0].title === 'Chase the quote' && savedMsg[0].subject === 'Following up' && savedMsg[0].body === 'Just checking in on the quote.');
+  check('…marked as the follow-up wording', savedMsg[0] && savedMsg[0].chase === true);
+  check('…and the empty line is gone', (await page.getByTestId('templates-empty').count()) === 0);
+
+  await page.getByTestId(`template-${savedMsg[0].id}`).click();
+  await page.waitForTimeout(300);
+  check('tapping one opens it filled in', (await page.getByTestId('template-title').inputValue()) === 'Chase the quote');
+
+  await page.getByTestId('template-title').fill('Chase the invoice');
+  await page.getByTestId('template-save').click();
+  await page.waitForTimeout(500);
+  const editedMsg = await read('one-thing.saved-messages.v1');
+  check('editing changes it in place rather than adding', editedMsg.length === 1 && editedMsg[0].title === 'Chase the invoice', JSON.stringify(editedMsg));
+
+  await page.getByTestId(`template-${editedMsg[0].id}`).click();
+  await page.waitForTimeout(300);
+  await page.getByTestId('template-delete').click();
+  await page.waitForTimeout(500);
+  check('deleting takes it away', (await read('one-thing.saved-messages.v1')).length === 0);
+  check('…and the empty line is back', await page.getByTestId('templates-empty').isVisible());
+
+  await page.getByTestId('templates-back').click();
+  await page.waitForTimeout(500);
+  check('back returns to Settings', page.url().includes('/settings'), page.url());
 
   await seed();
   await open('/settings');

@@ -35,6 +35,9 @@ import { ink, settingsTile, status, surface, typeColour } from '@/design/tokens'
 import { useDirection, useLanguage } from '@/i18n/LanguageProvider';
 import type { Lang } from '@/content/strings';
 import { useAccount } from '@/lib/account';
+import { useSync } from '@/lib/sync/SyncProvider';
+import { canSyncNow, isTrouble, showsRow, syncLine } from '@/features/settings/sync-state';
+import { chatTime } from '@/features/people/time';
 import { TIP_PRODUCTS, buyTip, manageSubscription as openStoreSubscriptions } from '@/features/paywall/purchases';
 import { added } from '@/content/additions';
 import { track } from '@/lib/analytics/track';
@@ -77,6 +80,13 @@ export default function Settings() {
   const { setFocusMinutes } = useTasks();
   const { signOut, deleteAccount } = useAccount();
   const toast = useToast();
+  // Syncing used to fail in silence: the provider set 'error' and wrote a
+  // console line nobody sees (BUILD-REVIEW §2.98).
+  const { status: syncStatus, lastSyncedAt, syncNow } = useSync();
+  const line = syncLine(syncStatus, lastSyncedAt);
+  // Fixed per render rather than ticking: the row reads "Last synced 14:32",
+  // which does not need a clock behind it.
+  const now = new Date();
   const chase = useChase();
   const barOn = useBarOn();
   const st = setx.st;
@@ -552,6 +562,49 @@ export default function Settings() {
             </AccordionPanel>
           ) : null}
         </SettingsCard>
+
+        {showsRow(line) ? (
+          <SettingsCard>
+            <Pressable
+              testID="settings-sync"
+              onPress={() => {
+                if (!canSyncNow(line)) return;
+                toast.show(added(lang).sync.started, { undo: false });
+                void syncNow();
+              }}
+              accessibilityRole="button"
+              accessibilityLabel={added(lang).sync.title}
+              disabled={!canSyncNow(line)}
+              style={{ flexDirection: dir.row, alignItems: 'center', gap: 14, paddingVertical: 14, paddingHorizontal: 16 }}
+            >
+              <View style={{ flex: 1, gap: 3 }}>
+                <Text token="body" weight="600" color={isTrouble(line) ? status.dangerFg : undefined}>
+                  {line.kind === 'syncing'
+                    ? added(lang).sync.syncing
+                    : line.kind === 'error'
+                      ? added(lang).sync.failed
+                      : added(lang).sync.title}
+                </Text>
+                <Text testID="settings-sync-line" token="micro" lh={17} color={ink.s4}>
+                  {line.kind === 'synced'
+                    ? added(lang).sync.synced.replace('{t}', chatTime(line.at, now, lang))
+                    : line.kind === 'pending'
+                      ? added(lang).sync.pending
+                      : line.kind === 'error'
+                        ? line.lastAt
+                          ? added(lang).sync.failedSince.replace('{t}', chatTime(line.lastAt, now, lang))
+                          : added(lang).sync.failedNever
+                        : added(lang).sync.syncing}
+                </Text>
+              </View>
+              {canSyncNow(line) ? (
+                <Text token="caption" weight="600">
+                  {added(lang).sync.now}
+                </Text>
+              ) : null}
+            </Pressable>
+          </SettingsCard>
+        ) : null}
 
         <SettingsCard>
           <Pressable

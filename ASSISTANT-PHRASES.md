@@ -6,8 +6,11 @@ requests, none of them sends your words anywhere, and all of them work with
 no signal.
 
 Written for the store listing and the in-app help text. Each line is covered
-by a test in `src/lib/parse/ask-data.test.ts`, `attach.test.ts` or
-`scripts/smoke-capture.js`, so this list cannot quietly stop being true.
+by a test in `src/lib/parse/ask-data.test.ts`, `clarify.test.ts`,
+`attach.test.ts` or `scripts/smoke-capture.js`, so this list cannot quietly
+stop being true.
+
+Last read against the parser on 18 October 2026.
 
 ## Questions about a person
 
@@ -20,8 +23,18 @@ by a test in `src/lib/parse/ask-data.test.ts`, `attach.test.ts` or
 | Sara? | سارة؟ |
 
 Answers with the detail, then buttons to call, WhatsApp, email or open their
-profile. If the name fits more than one person it offers the choice; if the
-name is not in People it says so instead of guessing.
+profile.
+
+**If the name fits more than one person it asks which**, and choosing one
+answers *the question that was asked* — pick a Sara after "what's Sara's
+number?" and you get the number, not her profile with the question lost
+(§2.93). **If the name is not in People** it says so rather than guessing,
+and offers **Search People**.
+
+A question that names somebody is always about them, even mid-thread: with
+Sara remembered from the question before, "what's Jane's number?" is about
+Jane. The thread's memory fills a gap only when the question names nobody
+at all.
 
 ## What was said to someone
 
@@ -37,11 +50,25 @@ name is not in People it says so instead of guessing.
 | What do I have today? | ايه عندي اليوم؟ |
 | What do I have tomorrow? | وش عندي بكرة؟ |
 | What do I have this week? | وش عندي هذا الأسبوع؟ |
+| What tasks do I have? | وش مهامي؟ |
+| My tasks | مهامي |
+| What's on? | وش علي؟ |
+| Anything due? | قائمة مهامي |
 | What's late? | ايش متأخر؟ |
+| What should I have done? | وش فاتني؟ |
+| Did I miss anything? | فاتني شي؟ |
 | Arrange my day | رتب يومي |
 
 Each answer is a short list of real tasks, soonest first. Tap one to open it.
 Done and undated tasks are left out.
+
+The list can be asked for **without the word "today" in it** — "my tasks",
+"what's on", "anything left" — and the late list answers the reproach forms
+as well as the status ones: "what should I have done", "was I supposed to",
+"did I miss anything", "كان لازم". Both were added after a phone showed
+"What tasks should I have done" being met with *"I'm best with your people
+and your follow-ups"* — the app saying it could not read its own list
+(BUILD-REVIEW §2.91).
 
 ## Who is waiting
 
@@ -90,6 +117,39 @@ The same three choices as the paperclip beside the microphone. A card is read
 by the phone's own text reader; a file can be Excel (every sheet), CSV, PDF
 or vCard. **Nothing is uploaded** — the file is read on the phone, reported
 in the chat as counts, and nothing is saved until you say so.
+
+## Answering the Assistant when it asks
+
+Saving a task sometimes needs one more thing — usually *when*. These are the
+answers it takes beyond a plain date or time.
+
+| English | Arabic |
+| --- | --- |
+| Now · right now · asap | الحين · حالًا · الآن |
+| No · not now · never mind | لا · مو الحين · ما أبغى |
+| Later · whenever · any time | بعدين · لاحقًا · أي وقت |
+
+**Now** is also a chip on the question, because it is the one time nobody
+can type as one; it sets a minute ahead so the card does not reopen what it
+just closed. **Turning the question down is an answer**, not a failure to
+read one: the app lets the task go and says what it needs instead of
+replying "I couldn't read that" (§2.91).
+
+**A question asked while a question is open gets answered.** Typing "what
+tasks do I have today?" into *"When should I set this for?"* used to make
+that sentence the time, because it has "today" in it, and neither question
+got an answer. Now a question the app **can** answer is answered and the
+open one is let go. A question it cannot answer is not worth abandoning a
+half-written task for, so that still asks again.
+
+## The chips under the chat
+
+The chips are drawn from your own data, not from a fixed list: what's late,
+who's waiting, your One Thing, what's next, your day, scan a card. Nothing
+is offered that would answer "nobody", and the one you tap most comes back
+first — counted on the device, with no profile and nothing sent anywhere
+(§2.92). Each chip still types its full sentence into the chat, so tapping
+one teaches what could have been typed.
 
 ## Anything else
 

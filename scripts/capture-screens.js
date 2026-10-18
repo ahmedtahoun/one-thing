@@ -121,6 +121,11 @@ const ROUTES = [
   { path: '/scan-many', name: '25-scan-many', signedIn: true, firstRun: false, seedPeople: true },
   { path: '/recap', name: '26-recap', signedIn: true, firstRun: false, seedTasks: true, seedPeople: true, oneThing: true },
   { path: '/smart-lists', name: '27-smart-lists', signedIn: true, firstRun: false, seedPeople: true, seedTasks: true },
+  // The screen with no picture at all until BUILD-REVIEW §2.98. It has no
+  // prototype shot either, so there is no pair for it in screen-pairs.json
+  // — this is for reading the Arabic beside the English, which is the
+  // check no automated one can stand in for.
+  { path: '/templates', name: '28-templates', signedIn: true, firstRun: false },
 ];
 
 const MIME = {

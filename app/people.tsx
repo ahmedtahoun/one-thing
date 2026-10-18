@@ -85,7 +85,12 @@ export default function People() {
     params.pick === 'whatsapp' || params.pick === 'email' || params.pick === 'call' ? params.pick : null;
 
   const smartLists = useSmartLists();
-  const context = useMemo(() => ({ followUps, favorites, now, smartLists }), [followUps, favorites, now, smartLists]);
+  // History rides along because "Not contacted" asks what has been logged
+  // against each person, not only what was sent to them.
+  const context = useMemo(
+    () => ({ followUps, favorites, now, smartLists, history }),
+    [followUps, favorites, now, smartLists, history],
+  );
   const counts = useMemo(() => filterCounts(contacts, context), [contacts, context]);
   // The labels people have put on each other are chips beside the built-in
   // ones, and so are their smart lists — a saved rule read fresh each tap.
@@ -285,7 +290,11 @@ export default function People() {
             ) : list.length === 0 && ready ? (
               <View testID="people-none" style={{ paddingVertical: 30, paddingHorizontal: 10 }}>
                 <Text token="bodyS" color={ink.s4} align="center">
-                  {searching || filter === 'all' ? t.pp_none.replace('{q}', query) : filters.recentNone}
+                  {searching || filter === 'all'
+                    ? t.pp_none.replace('{q}', query)
+                    : filter === 'untouched'
+                      ? filters.untouchedNone
+                      : filters.recentNone}
                 </Text>
               </View>
             ) : null}
