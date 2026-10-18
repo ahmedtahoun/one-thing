@@ -37,6 +37,12 @@ import type { Lang } from '@/content/strings';
 import { useAccount } from '@/lib/account';
 import { useSync } from '@/lib/sync/SyncProvider';
 import { canSyncNow, isTrouble, showsRow, syncLine } from '@/features/settings/sync-state';
+import {
+  canTurnOn as canTurnOnReminders,
+  isTrouble as remindersTrouble,
+  reminderLine,
+  showsRow as showsReminderRow,
+} from '@/features/settings/reminder-state';
 import { chatTime } from '@/features/people/time';
 import { TIP_PRODUCTS, buyTip, manageSubscription as openStoreSubscriptions } from '@/features/paywall/purchases';
 import { added } from '@/content/additions';
@@ -76,7 +82,9 @@ export default function Settings() {
   const dir = useDirection();
   const { session } = useSession();
   const { prefs, setPrefs } = usePrefs();
-  const { allowed, ask } = useNotifications();
+  const { allowed, ask, turnOn, scheduled, remindable } = useNotifications();
+  // Reminders could fail entirely and say nothing (BUILD-REVIEW §2.101).
+  const reminders = reminderLine({ supported: Platform.OS !== 'web', allowed, scheduled, remindable });
   const { setFocusMinutes } = useTasks();
   const { signOut, deleteAccount } = useAccount();
   const toast = useToast();
@@ -562,6 +570,39 @@ export default function Settings() {
             </AccordionPanel>
           ) : null}
         </SettingsCard>
+
+        {showsReminderRow(reminders) ? (
+          <SettingsCard>
+            <Pressable
+              testID="settings-reminder-state"
+              onPress={() => (canTurnOnReminders(reminders) ? void turnOn() : undefined)}
+              accessibilityRole={canTurnOnReminders(reminders) ? 'button' : 'text'}
+              accessibilityLabel={added(lang).reminders.title}
+              disabled={!canTurnOnReminders(reminders)}
+              style={{ flexDirection: dir.row, alignItems: 'center', gap: 14, paddingVertical: 14, paddingHorizontal: 16 }}
+            >
+              <View style={{ flex: 1, gap: 3 }}>
+                <Text token="body" weight="600" color={remindersTrouble(reminders) ? status.dangerFg : undefined}>
+                  {reminders.kind === 'off' ? added(lang).reminders.off : added(lang).reminders.title}
+                </Text>
+                <Text testID="settings-reminder-line" token="micro" lh={17} color={ink.s4}>
+                  {reminders.kind === 'off'
+                    ? added(lang).reminders.offHow
+                    : reminders.kind === 'on'
+                      ? added(lang).reminders.on.replace('{n}', String(reminders.scheduled))
+                      : reminders.kind === 'broken'
+                        ? added(lang).reminders.broken.replace('{n}', String(reminders.expected))
+                        : added(lang).reminders.nothing}
+                </Text>
+              </View>
+              {canTurnOnReminders(reminders) ? (
+                <Text token="caption" weight="600">
+                  {added(lang).reminders.turnOn}
+                </Text>
+              ) : null}
+            </Pressable>
+          </SettingsCard>
+        ) : null}
 
         {showsRow(line) ? (
           <SettingsCard>

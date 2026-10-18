@@ -229,6 +229,19 @@ export type Added = {
     noneLimited: string;
   };
   /**
+   * What Settings says about reminders. The app could not deliver one and
+   * said nothing about it (BUILD-REVIEW §2.101).
+   */
+  reminders: {
+    title: string;
+    off: string;
+    offHow: string;
+    on: string;
+    nothing: string;
+    broken: string;
+    turnOn: string;
+  };
+  /**
    * What Settings says about syncing. Before this the provider knew a sync
    * had failed and told nobody (BUILD-REVIEW §2.98).
    */
@@ -1030,6 +1043,15 @@ const ADDED: Record<Lang, Added> = {
       chooseMore: 'Choose more contacts',
       noneLimited: 'You haven’t shared any contacts yet.',
     },
+    reminders: {
+      title: 'Reminders',
+      off: 'Reminders are off',
+      offHow: 'Your phone isn’t letting The One Thing remind you, so nothing will arrive.',
+      on: '{n} waiting on your phone',
+      nothing: 'Nothing to remind you about yet — give a task a time.',
+      broken: 'You have {n} with a time, but nothing is waiting. Something went wrong setting them.',
+      turnOn: 'Turn on',
+    },
     sync: {
       title: 'Your other devices',
       syncing: 'Syncing…',
@@ -1681,6 +1703,15 @@ const ADDED: Record<Lang, Added> = {
       limitedHow: 'عشان كذا القائمة قصيرة. اختر أكثر من تحت، أو شغّل كل جهات الاتصال من إعدادات جوالك.',
       chooseMore: 'اختر جهات اتصال أكثر',
       noneLimited: 'ما شاركت أي جهة اتصال لين الحين.',
+    },
+    reminders: {
+      title: 'التذكيرات',
+      off: 'التذكيرات مقفلة',
+      offHow: 'جوالك ما يسمح للتطبيق يذكّرك، فما بيوصلك شي.',
+      on: '{n} جاهزة على جوالك',
+      nothing: 'ما فيه شي نذكّرك فيه — حط وقت لأي مهمة.',
+      broken: 'عندك {n} لها وقت، وما فيه ولا تذكير جاهز. صار خطأ وإحنا نجهّزها.',
+      turnOn: 'شغّلها',
     },
     sync: {
       title: 'أجهزتك الثانية',

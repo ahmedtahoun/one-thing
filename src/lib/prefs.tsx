@@ -33,7 +33,17 @@ type PrefsValue = {
 const PrefsContext = createContext<PrefsValue | null>(null);
 
 export function PrefsProvider({ children }: { children: ReactNode }) {
-  const [prefs, setStored, ready, reset] = usePersisted<Prefs>(STORAGE_KEY, DEFAULT_PREFS);
+  const [stored, setStored, ready, reset] = usePersisted<Prefs>(STORAGE_KEY, DEFAULT_PREFS);
+  /**
+   * Merged over the defaults on the way *out* as well as in. `usePersisted`
+   * hands back what it parsed, cast to `Prefs` — so a blob written before a
+   * field existed reads back missing it, and nothing in TypeScript says so.
+   * `planNotifications` reads `prefs.quietHours.start` unguarded, which
+   * throws, and `NotificationsProvider` swallows the throw: the whole
+   * reminder system would go quiet with nothing to show for it
+   * (BUILD-REVIEW §2.101).
+   */
+  const prefs = useMemo<Prefs>(() => ({ ...DEFAULT_PREFS, ...stored }), [stored]);
 
   const setPrefs = useCallback<PrefsValue['setPrefs']>(
     // Merged over the defaults too, so a blob written before a field existed
