@@ -80,10 +80,12 @@ const KNOWN_DEVIATIONS = {
     'written spec — BUILD-REVIEW.md §2.11.',
   'focus/en/oneThing': FOCUS_TITLE,
   'focus/ar/oneThing': FOCUS_TITLE,
-  'people/en/recent': PEOPLE_SEARCH,
+  // people/en/recent and people/ar/recent sat here until 18 October. The
+  // `recent` probe went when the People redesign replaced the RECENT eyebrow
+  // with the filter chips (a90103e); the explanations for it stayed behind,
+  // and every drift run since has printed them as stale (BUILD-REVIEW §2.99).
   'people/en/firstRow': PEOPLE_SEARCH,
   'people/en/secondRow': PEOPLE_SEARCH,
-  'people/ar/recent': PEOPLE_SEARCH,
   'people/ar/firstRow': PEOPLE_SEARCH,
   'people/ar/secondRow': PEOPLE_SEARCH,
   // sign-in/ar/hero was listed here too. Once the writing direction stopped
@@ -181,6 +183,17 @@ const PROBES = {
       secondRow: { en: 'Sara Haddad', ar: 'سارة حداد' },
     },
   },
+  // Still unprobed, and deliberately so after an attempt on 18 October:
+  // priority, tasks and brain-dump (plus sign-in, account setup and the
+  // new-contact form). The first two are the furthest of all forty pairs
+  // from the design — 31.6% and 26.5% — so a gate on them would be worth
+  // having, but the labels have to be chosen against both rendered DOMs,
+  // not from `C`. A quick pass using the ported strings resolved one label
+  // in eight: `pr_k` is 'GOOD MORNING, KHALID' where the app renders
+  // 'Good morning, Khalid', the placeholders are `placeholder` attributes
+  // rather than text, and in Arabic `pr_k` is byte-identical to the Today
+  // greeting, so the one label that did resolve was not necessarily the
+  // element meant (BUILD-REVIEW §2.99).
   followups: {
     app: '/followups',
     proto: '19',
