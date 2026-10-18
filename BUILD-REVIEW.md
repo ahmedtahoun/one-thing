@@ -4145,7 +4145,7 @@ lost the ability to write a tip at all. And the new database tests wrote
 their tips for user A, where a later test asserts A has exactly one tip:
 the suite shares one database, so they write for B.
 
-**Checks:** 1037 unit tests (11 on the arithmetic, 5 on the contract),
+**Checks:** 1042 unit tests (11 on the arithmetic, 5 on the contract),
 35 against Postgres including the new column and its `quantity >= 1`
 constraint, and five browser checks on the sheet, which had none at all.
 
