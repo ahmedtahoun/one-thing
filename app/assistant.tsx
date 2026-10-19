@@ -15,7 +15,7 @@
  * does need it opens the paywall instead of sending — BUILD-REVIEW.md §2.34.
  */
 import { clockOf } from '@/lib/clock-format';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Linking, Pressable, ScrollView, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import * as DocumentPicker from 'expo-document-picker';
@@ -418,6 +418,10 @@ export default function Assistant() {
   };
 
   const open = (url: string) => void Linking.openURL(url).catch(() => toast.show(copy.qa.cantOpen, { undo: false }));
+
+  // What is done now, so an answer already on screen ticks its rows off.
+  const doneTasks = useMemo(() => new Set(tasks.filter((task) => task.status === 'done').map((task) => task.id)), [tasks]);
+  const closedFollowUps = useMemo(() => new Set(followUps.filter((f) => f.status === 'done').map((f) => f.id)), [followUps]);
 
   const dataActions = {
     onContact: (contact: { id: string }) => router.push(`/contact?id=${contact.id}`),
@@ -868,6 +872,9 @@ export default function Assistant() {
                     answer={m.answer}
                     copy={copy.qa}
                     whenLabel={(iso) => (iso ? whenText(iso, t) : '')}
+                    doneTasks={doneTasks}
+                    closedFollowUps={closedFollowUps}
+                    oneThingDone={oneThing?.done}
                     {...dataActions}
                   />
                 ) : null}

@@ -320,7 +320,7 @@ const D_SAMPLE =
   await page.waitForTimeout(500);
   const openAfter = (await read('ot.tasks')).filter((t) => t.status === 'open').length;
   check('a task can be ticked off from the chat', openAfter === openBefore - 1, `${openBefore} → ${openAfter}`);
-  check('…and says so, with Undo', (await text('toast')).includes('Marked done'));
+  check('…and says so, with Undo', (await text('toast')).includes('Done — '));
   await page.getByTestId('toast-undo').click();
   await page.waitForTimeout(400);
   check('…which puts it back', (await read('ot.tasks')).filter((t) => t.status === 'open').length === openBefore);
