@@ -85,7 +85,7 @@ import { useCadence } from '@/lib/cadence';
 import { useFavorites } from '@/lib/favorites';
 import { usePeople } from '@/lib/people';
 import { useSession } from '@/lib/session';
-import { deviceRegion, startListening } from '@/lib/speech';
+import { deviceRegion, startListening, withReason } from '@/lib/speech';
 import { useTasks } from '@/lib/tasks';
 
 /** How long the prototype takes to answer. */
@@ -580,7 +580,7 @@ export default function Assistant() {
         setInput('');
         if (heard.trim()) void send(heard.trim(), true);
       },
-      (why) => toast.show(why === 'denied' ? copy.micOff : copy.micFailed, { undo: false }),
+      (why) => toast.show(why === 'denied' ? copy.micOff : withReason(copy.micFailed), { undo: false }),
       { names: contacts.map((c) => c.name), autoStopMs: 2600, onPartial: setInput }
     );
     if (!stop) return toast.show(copy.micFailed, { undo: false });

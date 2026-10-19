@@ -22,6 +22,14 @@ import { currentDialect } from '@/i18n/dialect';
 
 export type ListenFailure = 'denied' | 'failed';
 
+/**
+ * What the recogniser said the last time it failed ("audio-capture: Failed to
+ * initialize recognizer"), so the message on screen can carry it and a
+ * screenshot from a phone says what went wrong.
+ */
+let lastFailure = '';
+export const withReason = (message: string): string => (lastFailure ? `${message} (${lastFailure})` : message);
+
 export type ListenOptions = {
   /** Names the person has: the recogniser favours them, and the reading that contains one wins. */
   names?: string[];
@@ -161,6 +169,9 @@ function startNative(
   let finished = false;
   let lastHeard = 0;
   let silence: ReturnType<typeof setInterval> | null = null;
+  let retried = false;
+  let retrying = false;
+  let locale = '';
   const subscriptions: { remove: () => void }[] = [];
   const names = options.names ?? [];
 
@@ -199,27 +210,58 @@ function startNative(
     mod.addListener('error', (event) => {
       // Silence and a deliberate stop are not failures: just nothing heard.
       if (event.error === 'no-speech' || event.error === 'aborted') return finish();
-      finish(event.error === 'not-allowed' || event.error === 'service-not-allowed' ? 'denied' : 'failed');
+      if (event.error === 'not-allowed' || event.error === 'service-not-allowed') return finish('denied');
+      lastFailure = `${event.error}${event.message ? `: ${event.message}` : ''}`;
+      console.warn(`[speech] ${lastFailure}`);
+      /**
+       * A recogniser that fails before a word is heard is started once more,
+       * plainly and a moment later. iOS can refuse the first start while the
+       * audio session it has just switched on is still settling ("Failed to
+       * initialize recognizer"), and the second one is what works.
+       */
+      if (!retried && !stopped && !heardSoFar()) {
+        retried = true;
+        retrying = true;
+        setTimeout(() => {
+          retrying = false;
+          if (stopped) return finish();
+          begin(true);
+        }, 500);
+        return;
+      }
+      finish('failed');
     }),
-    mod.addListener('end', () => finish())
+    mod.addListener('end', () => {
+      if (!retrying) finish();
+    })
   );
+
+  /** `plain` leaves out the hints, for the second try. */
+  const begin = (plain: boolean) => {
+    if (!locale) return finish('failed');
+    try {
+      mod.start({
+        lang: locale,
+        interimResults: true,
+        continuous: true,
+        maxAlternatives: 3,
+        ...(plain ? {} : { contextualStrings: hintsFrom(names), addsPunctuation: false, iosTaskHint: 'dictation' as const }),
+      });
+    } catch (error) {
+      lastFailure = String(error);
+      finish('failed');
+    }
+  };
 
   mod
     .requestPermissionsAsync()
     .then(async (permission) => {
       if (!permission.granted) return finish('denied');
       if (stopped) return finish();
-      const locale = await localeFor(mod, lang);
+      locale = await localeFor(mod, lang);
       if (stopped) return finish();
-      mod.start({
-        lang: locale,
-        interimResults: true,
-        continuous: true,
-        maxAlternatives: 3,
-        contextualStrings: hintsFrom(names),
-        addsPunctuation: false,
-        iosTaskHint: 'dictation',
-      });
+      lastFailure = '';
+      begin(false);
       // A person who has finished a sentence should not have to find the stop button.
       if (options.autoStopMs) {
         silence = setInterval(() => {
@@ -227,7 +269,10 @@ function startNative(
         }, 300);
       }
     })
-    .catch(() => finish('failed'));
+    .catch((error: unknown) => {
+      lastFailure = String(error);
+      finish('failed');
+    });
 
   return stop;
 }

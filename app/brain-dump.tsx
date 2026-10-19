@@ -24,7 +24,7 @@ import { useDirection, useLanguage } from '@/i18n/LanguageProvider';
 import { textParser, type ParsedTask } from '@/lib/parse';
 import { followUpFromParsed, taskFromParsed } from '@/lib/parse/to-task';
 import { usePeople } from '@/lib/people';
-import { startListening } from '@/lib/speech';
+import { startListening, withReason } from '@/lib/speech';
 import { useSession } from '@/lib/session';
 import { useTasks } from '@/lib/tasks';
 
@@ -72,7 +72,7 @@ export default function BrainDump() {
         if (heard) setText((current) => (current.trim() ? `${current.trim()}\n${heard}` : heard));
       },
       (why) => {
-        toast.show(why === 'denied' ? added(lang).micOff : added(lang).micFailed, { undo: false });
+        toast.show(why === 'denied' ? added(lang).micOff : withReason(added(lang).micFailed), { undo: false });
         inputRef.current?.focus();
       },
       { names: contacts.map((c) => c.name) }
