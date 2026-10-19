@@ -14,6 +14,7 @@ import { parseClock } from '@/lib/clock';
 import { clockFromHHMM } from '@/lib/clock-format';
 import { initials, type Contact } from '@/lib/model-types';
 import type { EventType } from './model';
+import { bleed } from '@/ui/bleed';
 
 /** Label 12/`ink-4` above anything. */
 export function Labelled({
@@ -101,8 +102,8 @@ export function TimeRow({
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
-        style={{ marginHorizontal: -space.screenX, flexGrow: 0 }}
-        contentContainerStyle={{ flexDirection: dir.row, gap: space.gridGap, paddingHorizontal: space.screenX }}
+        style={{ ...bleed(dir.isRTL, space.screenX).style, flexGrow: 0 }}
+        contentContainerStyle={{ flexDirection: dir.row, gap: space.gridGap, ...bleed(dir.isRTL, space.screenX).content }}
       >
         {times.map((time) => {
           const on = time === selected;
@@ -233,8 +234,8 @@ export function PersonChips({
     <ScrollView
       horizontal
       showsHorizontalScrollIndicator={false}
-      style={{ marginHorizontal: -space.screenX, flexGrow: 0 }}
-      contentContainerStyle={{ flexDirection: dir.row, gap: space.gridGap, paddingHorizontal: space.screenX }}
+      style={{ ...bleed(dir.isRTL, space.screenX).style, flexGrow: 0 }}
+      contentContainerStyle={{ flexDirection: dir.row, gap: space.gridGap, ...bleed(dir.isRTL, space.screenX).content }}
     >
       {contacts.map((contact, index) => {
         const on = selected.includes(index);

@@ -80,7 +80,7 @@ export default function Today() {
     const locale = lang === 'ar' ? 'ar' : 'en-GB';
     const weekday = now.toLocaleDateString(locale, { weekday: 'long' });
     const dayMonth = now.toLocaleDateString(locale, { day: 'numeric', month: 'long' });
-    return `${weekday}, ${dayMonth}`;
+    return `${weekday}${lang === 'ar' ? '، ' : ', '}${dayMonth}`;
   }, [lang, now]);
 
   // Done last, then by time — so what is still to come stays at the top.

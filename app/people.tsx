@@ -32,6 +32,7 @@ import {
   smartFilter,
   type PeopleFilter,
 } from '@/features/people/filters';
+import { isMomentLabel } from '@/features/people/moment-label';
 import { matchContact } from '@/features/people/search';
 import { useStartTask } from '@/features/people/start-task';
 import { chatTime } from '@/features/people/time';
@@ -474,7 +475,7 @@ function PersonRow({
   // The quiet line: what is going on with them, else when you last spoke, else who they are.
   const line = followUp
     ? { text: followUp === 'due' ? t.st.due : t.st.waiting, colour: followUp === 'due' ? status.invalid : ink.s3, weight: '600' as const }
-    : contact.lastLabel
+    : contact.lastLabel && !isMomentLabel(contact.lastLabel)
       ? { text: contact.lastLabel, colour: ink.s4, weight: '400' as const }
       : { text: [contact.role, reach ? ltr(reach) : ''].filter(Boolean).join(' · '), colour: ink.s4, weight: '400' as const };
 

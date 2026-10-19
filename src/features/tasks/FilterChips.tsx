@@ -15,6 +15,7 @@ import { added } from '@/content/additions';
 import { Text } from '@/ui/Text';
 import { ink, space, surface, typeColour } from '@/design/tokens';
 import { useDirection, useLanguage } from '@/i18n/LanguageProvider';
+import { bleed } from '@/ui/bleed';
 
 export function FilterChips({
   active,
@@ -36,8 +37,8 @@ export function FilterChips({
     <ScrollView
       horizontal
       showsHorizontalScrollIndicator={false}
-      style={{ marginHorizontal: -space.screenX, flexGrow: 0 }}
-      contentContainerStyle={{ flexDirection: dir.row, gap: 8, paddingHorizontal: space.screenX }}
+      style={{ ...bleed(dir.isRTL, space.screenX).style, flexGrow: 0 }}
+      contentContainerStyle={{ flexDirection: dir.row, gap: 8, ...bleed(dir.isRTL, space.screenX).content }}
     >
       {TASK_FILTERS.map((filter) => {
         const on = filter === active;

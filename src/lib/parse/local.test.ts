@@ -134,3 +134,44 @@ describe('asking about the day', () => {
     assert.equal(intentOf('فكرني اراجع جدول يومي بكرة'), 'task');
   });
 });
+
+describe('a time counted from now, and how people start a sentence', () => {
+  const now = new Date(2026, 9, 19, 11, 0);
+  const contacts = [{ id: 'd', name: 'Daina' }, { id: 's', name: 'Stephany' }] as unknown as Contact[];
+  const parse = (text: string) => localParser.parse(text, { lang: /[a-z]/i.test(text) ? 'en' : 'ar', now, contacts });
+  const hhmm = (iso: string) => new Date(iso).toTimeString().slice(0, 5);
+
+  it('reads "in an hour" and its Arabic forms', async () => {
+    const cases: [string, string][] = [
+      ['remind me in an hour to email Stephany', '12:00'],
+      ['can you remind me in 30 minutes to call Daina', '11:30'],
+      ['call Daina in half an hour', '11:30'],
+      ['in 2 hours email Daina', '13:00'],
+      ['عايز تذكرني كمان ساعة بايميل ستفني', '12:00'],
+      ['كمان ساعتين كلم دينا', '13:00'],
+      ['ممكن تفكرني بعد نص ساعة أكلم عبد', '11:30'],
+      ['بعد ربع ساعة كلم دينا', '11:15'],
+      ['بعد ١٠ دقايق اتصل بعبد', '11:10'],
+      ['كمان ساعة ونص راسل دينا', '12:30'],
+    ];
+    for (const [text, at] of cases) assert.equal(hhmm((await parse(text)).when), at, text);
+  });
+
+  it('keeps what to do and drops the asking', async () => {
+    const cases: [string, string][] = [
+      ['I want to send an email for Daina about the contract', 'Email Daina about the contract'],
+      ['remind me in an hour to email Stephany', 'Email Stephany'],
+      ['can you remind me in 30 minutes to call Daina', 'Call Daina'],
+      ['I need to call Daina tomorrow', 'Call Daina'],
+      ['عايز تذكرني كمان ساعة بايميل ستفني', 'ايميل ستفني'],
+      ['ممكن تفكرني بعد نص ساعة أكلم عبد', 'كلم عبد'],
+      ['كمان ساعتين كلم دينا', 'كلم دينا'],
+    ];
+    for (const [text, title] of cases) assert.equal((await parse(text)).title, title, text);
+  });
+
+  it('leaves a sentence with no lead-in alone', () => {
+    assert.equal(titleOf('Send the deck to Omar'), 'Send the deck to Omar');
+    assert.equal(titleOf('ابعت العرض لعمر'), 'ابعت العرض لعمر');
+  });
+});

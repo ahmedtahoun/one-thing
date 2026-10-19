@@ -34,6 +34,7 @@ import { Toast, useToast } from '@/ui/Toast';
 import { ink, settingsTile, status, surface, typeColour } from '@/design/tokens';
 import { useDirection, useLanguage } from '@/i18n/LanguageProvider';
 import type { Lang } from '@/content/strings';
+import type { LanguageChoice } from '@/i18n/dialect';
 import { useAccount } from '@/lib/account';
 import { useSync } from '@/lib/sync/SyncProvider';
 import { canSyncNow, isTrouble, showsRow, syncLine } from '@/features/settings/sync-state';
@@ -64,9 +65,11 @@ import { isPro } from '@/policy/entitlements';
 type Panel = 'reminders' | 'notifications' | 'channels' | 'privacy';
 
 /** Names of the two languages, each in itself — the same in both UIs. */
-const LANGUAGES: { key: Lang; label: string }[] = [
+/** English, Gulf Arabic and Egyptian: the last two differ only in their words (src/i18n/dialect.ts). */
+const LANGUAGES: { key: LanguageChoice; label: string }[] = [
   { key: 'en', label: 'English' },
   { key: 'ar', label: 'العربية' },
+  { key: 'eg', label: 'مصري' },
 ];
 
 const FOCUS_OPTIONS = [25, 45, 90] as const;
@@ -78,7 +81,7 @@ const STORE_SUBSCRIPTIONS = Platform.select({
 });
 
 export default function Settings() {
-  const { t, acc, setx, inline, a11y, lang, setLang, theme, setTheme } = useLanguage();
+  const { t, acc, setx, inline, a11y, lang, choice, setChoice, theme, setTheme } = useLanguage();
   const dir = useDirection();
   const { session } = useSession();
   const { prefs, setPrefs } = usePrefs();
@@ -473,12 +476,12 @@ export default function Settings() {
               style={{ flexDirection: dir.row, backgroundColor: surface.langTrack, borderRadius: 999, padding: 3, gap: 2 }}
             >
               {LANGUAGES.map((option) => {
-                const on = option.key === lang;
+                const on = option.key === choice;
                 return (
                   <Pressable
                     key={option.key}
                     testID={`settings-lang-${option.key}`}
-                    onPress={() => setLang(option.key)}
+                    onPress={() => setChoice(option.key)}
                     accessibilityRole="button"
                     accessibilityState={{ selected: on }}
                     style={{

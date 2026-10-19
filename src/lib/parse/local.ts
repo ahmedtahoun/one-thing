@@ -20,7 +20,7 @@
  * the day a task is for (today, tomorrow, the day after, a weekday) and the
  * part of the day ("tomorrow morning", "tonight", "بالليل", "العصر").
  */
-import { ar, arw, AR_LETTER, firstNameOf, mentions } from './names';
+import { ar, arw, arx, AR_LETTER, firstNameOf, mentions } from './names';
 import { loopOf, type Loop } from './promise';
 import type { AssistantIntent, ParseContext, ParsedTask, ParsedType, TextParser } from './types';
 
@@ -59,7 +59,7 @@ export function typeOf(text: string): ParsedType {
 }
 
 /** "Remind me…": said to oneself, even when it mentions sending something. */
-const REMIND_SELF = /\bremind me\b|ذكرني|ذكّرني|ذكريني|فكرني|فكّرني|نبهني|نبّهني/i;
+const REMIND_SELF = /\bremind me\b|ذكرني|ذكّرني|ذكريني|فكرني|فكّرني|نبهني|نبّهني|تذكرني|تفكرني/i;
 
 // --- the day -------------------------------------------------------------
 
@@ -201,10 +201,57 @@ export function partOf(text: string): [number, number] | null {
   return null;
 }
 
+// --- in an hour ------------------------------------------------------------
+
+/**
+ * "In an hour", "in 30 minutes", "كمان ساعة", "بعد نص ساعة", "بعد ساعتين":
+ * a time counted from now rather than read off a clock. These came through
+ * as the whole sentence for a title and 17:00 for a time (found on a phone),
+ * because nothing here read them.
+ */
+const EN_REL =
+  /\bin\s+(?:(half an?|a half)\s+hour|(an?|one|\d+(?:\.\d+)?)\s+(?:hours?|hrs?)(\s+and\s+a\s+half)?|(\d+)\s*(?:minutes?|mins?))\b/i;
+const AR_REL_SRC =
+  '(?:كمان|بعد)\\s+(?:(ساعه\\s+ونص|ساعه\\s+و\\s*نص)|(نص\\s+ساعه)|(ربع\\s+ساعه)|((?:ثلث|تلت)\\s+ساعه)|(ساعتين)|(\\d+)\\s*(?:ساعات|ساعه)|(ساعه)|(دقيقتين)|(\\d+)\\s*(?:دقايق|دقائق|دقيقه))';
+const AR_REL = ar(AR_REL_SRC);
+
+/** Minutes from now the sentence asks for, or null when it names no such span. */
+export function relativeMinutes(text: string): number | null {
+  const t = westernDigits(text);
+  const en = EN_REL.exec(t);
+  if (en) {
+    if (en[1]) return 30;
+    if (en[2]) {
+      const n = /^\d/.test(en[2]) ? Number(en[2]) : 1;
+      return Math.round(n * 60 + (en[3] ? 30 : 0));
+    }
+    if (en[4]) return Number(en[4]);
+  }
+  const a = AR_REL.exec(t);
+  if (a) {
+    if (a[1]) return 90;
+    if (a[2]) return 30;
+    if (a[3]) return 15;
+    if (a[4]) return 20;
+    if (a[5]) return 120;
+    if (a[6]) return Number(a[6]) * 60;
+    if (a[7]) return 60;
+    if (a[8]) return 2;
+    if (a[9]) return Number(a[9]);
+  }
+  return null;
+}
+
 /** The prototype's default when no time is said. */
 const DEFAULT_TIME: [number, number] = [17, 0];
 
 export function whenOf(text: string, now: Date): string {
+  const later = relativeMinutes(text);
+  if (later !== null) {
+    const at = new Date(now.getTime() + later * 60_000);
+    at.setSeconds(0, 0);
+    return at.toISOString();
+  }
   const d = dayOf(text, now).date;
   const [h, m] = timeOf(text) ?? partOf(text) ?? DEFAULT_TIME;
   // "Tonight at 9" is 21:00, though "at 9" alone is the morning.
@@ -228,6 +275,39 @@ export function whoOf(text: string, contacts: ParseContext['contacts']) {
 
 const REMIND_ME =
   /^\s*(please\s+)?remind me(\s+to\b)?\s*|^\s*(?:ذكّرني|ذكرني|ذكريني|فكّرني|فكرني|فكريني|نبّهني|نبهني)\s*(?:ان|إني|اني|أن)?\s*/i;
+
+/**
+ * How people start a sentence to an assistant before saying the task: "I
+ * want to", "can you", "عايز تفكرني", "ممكن تذكرني". Taken off the front, as
+ * many times as they are stacked ("can you remind me to …").
+ */
+const LEAD_IN_EN =
+  /^\s*(?:please|pls|hey|ok(?:ay)?|can you|could you|would you|will you|i want to|i wanna|i need to|i have to|i've got to|i gotta|i should|i must|i'd like to|let me|remind me(?:\s+to)?|don't let me forget to|make sure i)\b[\s,]*/i;
+const LEAD_IN_AR = new RegExp(
+  `^\\s*${arx('(?:لو سمحت|من فضلك|ممكن|عايزك|عاوزك|عايزه|عاوزه|عايز|عاوز|ابغاك|ابيك|ابغى|ابي|ودي|لازم|محتاج|محتاجه|تقدر|ياريت|يا ريت|تفكرني|تذكرني|فكرني|ذكرني|فكريني|ذكريني|نبهني|انك|انى|اني|ان)')}(?![${AR_LETTER}])[\\s،,]*`,
+  'i'
+);
+
+/** "أكلم عبد" reads as "I call Abd"; a task is written as what to do: "كلم عبد". */
+const FIRST_PERSON: [RegExp, string][] = [
+  [ar('^(?:ا)كلم(?![\\u0621-\\u064A])'), 'كلم'],
+  [ar('^(?:ا)راسل(?![\\u0621-\\u064A])'), 'راسل'],
+  [ar('^(?:ا)تابع(?![\\u0621-\\u064A])'), 'تابع'],
+  [ar('^(?:ا)شوف(?![\\u0621-\\u064A])'), 'شوف'],
+  [ar('^(?:ا)خلص(?![\\u0621-\\u064A])'), 'خلّص'],
+  [ar('^(?:ا)جهز(?![\\u0621-\\u064A])'), 'جهّز'],
+  [ar('^(?:ا)رد(?![\\u0621-\\u064A])'), 'رد'],
+];
+
+/** "بايميل ستفني" — "by email, Stephany": the channel without its "by". */
+const BY_CHANNEL = ar('^ب(?=(?:ال)?(?:ايميل|اميل|رساله|واتس))');
+
+const EN_REPHRASE: [RegExp, string][] = [
+  [/^send (?:an? )?e-?mail (?:to|for) /i, 'Email '],
+  [/^send (?:a )?(?:message|text|whatsapp) (?:to|for) /i, 'Message '],
+  [/^give (\S+) a call\b/i, 'Call $1'],
+  [/^make a call to /i, 'Call '],
+];
 
 /** Everything that says when, so the title can be what to do and nothing else. */
 const WHEN_PHRASES = [
@@ -257,12 +337,20 @@ const WHEN_PHRASES = [
 export function titleOf(text: string): string {
   const original = text.trim().replace(/[.。]+$/, '');
   let cleaned = westernDigits(original).replace(REMIND_ME, '');
+  for (let before = ''; before !== cleaned; ) {
+    before = cleaned;
+    cleaned = cleaned.replace(LEAD_IN_EN, '').replace(LEAD_IN_AR, '').replace(REMIND_ME, '');
+  }
+  cleaned = cleaned.replace(new RegExp(EN_REL.source, 'gi'), ' ').replace(ar(AR_REL_SRC, 'gi'), ' ');
   for (const phrase of WHEN_PHRASES) cleaned = cleaned.replace(phrase, ' ');
   cleaned = cleaned
     .replace(/\s+/g, ' ')
     .replace(/^\s*(to|and)\s+/i, '')
     .replace(/\s+(to|and|و)$/i, '')
     .trim();
+  for (const [rule, to] of FIRST_PERSON) cleaned = cleaned.replace(rule, to);
+  cleaned = cleaned.replace(BY_CHANNEL, '');
+  for (const [rule, to] of EN_REPHRASE) cleaned = cleaned.replace(rule, to);
   const title = cleaned || original;
   return title.charAt(0).toUpperCase() + title.slice(1);
 }

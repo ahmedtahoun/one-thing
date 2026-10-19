@@ -822,7 +822,15 @@ export default function Assistant() {
                 </Text>
               </View>
             ) : (
-              <View key={m.id} testID="assistant-reply" style={{ alignSelf: 'flex-start', maxWidth: '88%', gap: 8 }}>
+              <View
+                key={m.id}
+                testID="assistant-reply"
+                /* An answer with a list is given the width outright. Sized to
+                   its content, the list's text column (flex 1, min width 0)
+                   measured to nothing on a phone, and only the icons and the
+                   Done buttons were left. */
+                style={{ alignSelf: 'flex-start', ...('kind' in m && m.kind === 'data' ? { width: '88%' } : { maxWidth: '88%' }), gap: 8 }}
+              >
                 <Bubble>
                   {'kind' in m
                     ? m.kind === 'greet'
@@ -1051,7 +1059,7 @@ export default function Assistant() {
 
 function Bubble({ children }: { children: string }) {
   return (
-    <View style={{ backgroundColor: surface.langTrack, paddingVertical: 11, paddingHorizontal: 14, borderRadius: 18 }}>
+    <View style={{ alignSelf: 'flex-start', maxWidth: '100%', backgroundColor: surface.langTrack, paddingVertical: 11, paddingHorizontal: 14, borderRadius: 18 }}>
       <Text token="body" lh={22.5}>
         {children}
       </Text>

@@ -18,6 +18,7 @@ import { Platform } from 'react-native';
 
 import { bestHeard } from './parse/spoken';
 import { pickLocale } from './speech-locale';
+import { currentDialect } from '@/i18n/dialect';
 
 export type ListenFailure = 'denied' | 'failed';
 
@@ -31,6 +32,15 @@ export type ListenOptions = {
 };
 
 /** The device's region ("EG"), so a number or a dialect is read the way the person's phone is set. */
+/**
+ * The region to listen in: Egypt when Egyptian is the Arabic chosen in
+ * Settings, so the recogniser is ar-EG wherever the phone has it, else the
+ * phone's own region.
+ */
+function listenRegion(lang: 'en' | 'ar'): string | undefined {
+  return lang === 'ar' && currentDialect() === 'egypt' ? 'EG' : deviceRegion();
+}
+
 export function deviceRegion(): string | undefined {
   try {
     const { getLocales } = require('expo-localization') as typeof import('expo-localization');
@@ -65,7 +75,7 @@ function startWeb(lang: 'en' | 'ar', onDone: (text: string) => void): (() => voi
   const R = recognitionClass();
   if (!R) return null;
   const rec = new R();
-  rec.lang = pickLocale(lang, [], deviceRegion());
+  rec.lang = pickLocale(lang, [], listenRegion(lang));
   rec.interimResults = false;
   rec.continuous = true;
   let heard = '';
@@ -108,7 +118,8 @@ function nativeModule(): NativeModule | null {
 const localeCache = new Map<string, string>();
 
 async function localeFor(mod: NativeModule, lang: 'en' | 'ar'): Promise<string> {
-  const cached = localeCache.get(lang);
+  const key = `${lang}-${listenRegion(lang) ?? ''}`;
+  const cached = localeCache.get(key);
   if (cached) return cached;
   let supported: string[] = [];
   try {
@@ -116,8 +127,8 @@ async function localeFor(mod: NativeModule, lang: 'en' | 'ar'): Promise<string> 
   } catch {
     // Older Android lists nothing; the default for the region is used.
   }
-  const locale = pickLocale(lang, supported, deviceRegion());
-  localeCache.set(lang, locale);
+  const locale = pickLocale(lang, supported, listenRegion(lang));
+  localeCache.set(key, locale);
   return locale;
 }
 

@@ -579,7 +579,8 @@ const SESSION = { userId: 'smoke', name: 'Khalid Al-Mansouri', firstName: 'Khali
   await page.getByTestId('delete-confirm').click();
   await page.waitForTimeout(600);
   const left = await page.evaluate(() => Object.keys(localStorage).filter((k) => k.startsWith('ot.')));
-  check('deleting wipes the account from the device', left.length === 1 && left[0] === 'ot.lang', JSON.stringify(left));
+  // Only the language choices stay: English or Arabic, and which Arabic. They are the phone's, not the account's.
+  check('deleting wipes the account from the device', left.every((k) => k === 'ot.lang' || k === 'ot.dialect') && left.includes('ot.lang'), JSON.stringify(left));
   check('…returns to Sign in', page.url().endsWith('/sign-in'), page.url());
   check('…and says so', (await page.getByTestId('toast').innerText()) === 'Your account was deleted.');
 

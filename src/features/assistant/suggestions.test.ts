@@ -31,7 +31,7 @@ describe('what is worth suggesting', () => {
 
   it('carries the sentence as well as the label, and they differ', () => {
     const waiting = chipsFor(COPY, { ...EMPTY, waiting: 1 })[0];
-    assert.equal(waiting?.label, 'Who’s waiting?');
+    assert.equal(waiting?.label, 'No reply yet');
     assert.equal(waiting?.say, 'Who am I waiting on?');
   });
 

@@ -18,9 +18,12 @@ import { twelveHour } from '@/content/twelve-hour';
 import { A11Y } from '@/content/a11y';
 import { applyTheme, type ThemeMode } from '@/design/theme';
 import { setClockLang } from '@/lib/clock-format';
+import { egyptian } from '@/content/egyptian';
+import { choiceOf, setDialect, type Dialect, type LanguageChoice } from './dialect';
 
 const STORAGE_KEY = 'ot.lang';
 const THEME_KEY = 'ot.theme';
+const DIALECT_KEY = 'ot.dialect';
 
 type LanguageValue = {
   lang: Lang;
@@ -28,6 +31,11 @@ type LanguageValue = {
   dir: 'ltr' | 'rtl';
   isRTL: boolean;
   setLang: (lang: Lang) => void;
+  /** Which Arabic: Gulf, or Egyptian. Only the words change; see ./dialect.ts. */
+  dialect: Dialect;
+  /** English, Arabic or Egyptian, as Settings offers them. */
+  choice: LanguageChoice;
+  setChoice: (choice: LanguageChoice) => void;
   /** Light or dark. Lives here because every screen already reads this context, so changing it redraws them all. */
   theme: ThemeMode;
   setTheme: (theme: ThemeMode) => void;
@@ -51,8 +59,17 @@ function deviceLang(): Lang {
   return getLocales()[0]?.languageCode === 'ar' ? 'ar' : 'en';
 }
 
+/** Egyptian on a phone set to Egypt, Gulf everywhere else, until the person chooses. */
+function deviceDialect(): Dialect {
+  return getLocales()[0]?.regionCode === 'EG' ? 'egypt' : 'gulf';
+}
+
+/** The Arabic copy in the chosen dialect; English is untouched. */
+const inDialect = <T,>(copy: T, lang: Lang, dialect: Dialect): T => (lang === 'ar' && dialect === 'egypt' ? egyptian(copy) : copy);
+
 export function LanguageProvider({ children }: { children: ReactNode }) {
   const [lang, setLangState] = useState<Lang>(deviceLang);
+  const [dialect, setDialectState] = useState<Dialect>(deviceDialect);
   const [theme, setThemeState] = useState<ThemeMode>('light');
   // Nothing is drawn until the saved theme is known, so a dark user never sees a light first frame.
   const [themeReady, setThemeReady] = useState(false);
@@ -66,6 +83,11 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
       .catch(() => {
         // A failed read just means we keep the device default.
       });
+    AsyncStorage.getItem(DIALECT_KEY)
+      .then((saved) => {
+        if (!cancelled && (saved === 'gulf' || saved === 'egypt')) setDialectState(saved);
+      })
+      .catch(() => {});
     return () => {
       cancelled = true;
     };
@@ -98,8 +120,21 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  const setChoice = useCallback(
+    (next: LanguageChoice) => {
+      setLang(next === 'en' ? 'en' : 'ar');
+      if (next === 'en') return;
+      const d: Dialect = next === 'eg' ? 'egypt' : 'gulf';
+      setDialectState(d);
+      AsyncStorage.setItem(DIALECT_KEY, d).catch(() => {});
+    },
+    [setLang]
+  );
+
   // Times are written for the active language wherever a label is built.
   setClockLang(lang);
+  // And added(lang), read deep inside label builders, answers in the chosen Arabic.
+  setDialect(dialect);
   // The colours every screen reads, set before any of them renders.
   applyTheme(theme);
 
@@ -109,18 +144,21 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
       dir: lang === 'ar' ? 'rtl' : 'ltr',
       isRTL: lang === 'ar',
       setLang,
+      dialect,
+      choice: choiceOf(lang, dialect),
+      setChoice,
       theme,
       setTheme,
-      t: twelveHour(C[lang], lang),
-      acc: ACC[lang],
-      setx: SETX[lang],
-      evx: EVX[lang],
-      fux: FUX[lang],
-      pfx: PFX[lang],
-      inline: INLINE[lang],
-      a11y: A11Y[lang],
+      t: twelveHour(inDialect(C[lang], lang, dialect), lang),
+      acc: inDialect(ACC[lang], lang, dialect),
+      setx: inDialect(SETX[lang], lang, dialect),
+      evx: inDialect(EVX[lang], lang, dialect),
+      fux: inDialect(FUX[lang], lang, dialect),
+      pfx: inDialect(PFX[lang], lang, dialect),
+      inline: inDialect(INLINE[lang], lang, dialect),
+      a11y: inDialect(A11Y[lang], lang, dialect),
     }),
-    [lang, setLang, theme, setTheme]
+    [lang, setLang, dialect, setChoice, theme, setTheme]
   );
 
   if (!themeReady) return null;
