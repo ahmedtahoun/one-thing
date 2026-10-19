@@ -169,3 +169,43 @@ describe('the Not contacted chip', () => {
     assert.equal(filterCounts(everyone, noHistory).untouched, 2);
   });
 });
+
+describe('hiding the people nothing has happened with', () => {
+  const imported = [
+    person('d', 'Faisal Noor', { createdAt: '2026-10-13T08:00:00.000Z' }),
+    person('e', 'Lina Saad', { createdAt: '2026-10-13T08:30:00.000Z' }),
+  ];
+  const everyone = [...ALL, ...imported];
+  const base = { followUps: [], favorites: new Set<string>(), now: NOW, history: [] as HistoryEntry[] };
+
+  it('shows everybody under All until asked not to', () => {
+    assert.deepEqual(filterPeople('all', everyone, base).map((c) => c.id), ['a', 'b', 'c', 'd', 'e']);
+  });
+
+  it('keeps them out of All when asked', () => {
+    const shown = filterPeople('all', everyone, { ...base, hideUntouched: true });
+    assert.deepEqual(shown.map((c) => c.id), ['a', 'b', 'c']);
+  });
+
+  it('lets somebody back into All the moment anything happens with them', () => {
+    const history: HistoryEntry[] = [{ id: 'h1', contactId: 'd', kind: 'call', text: 'Called', at: '2026-10-13T09:00:00.000Z' }];
+    const shown = filterPeople('all', everyone, { ...base, hideUntouched: true, history });
+    assert.ok(shown.some((c) => c.id === 'd'));
+    assert.ok(!shown.some((c) => c.id === 'e'));
+  });
+
+  it('still lists them under Not contacted — hidden is not gone', () => {
+    const shown = filterPeople('untouched', everyone, { ...base, hideUntouched: true });
+    assert.deepEqual(shown.map((c) => c.id), ['e', 'd']);
+  });
+
+  it('hides nobody from the other chips', () => {
+    const favorites = new Set(['d']);
+    assert.deepEqual(filterPeople('favorites', everyone, { ...base, hideUntouched: true, favorites }).map((c) => c.id), ['d']);
+  });
+
+  it('counts them whether or not they are hidden, so the chip can say how many', () => {
+    assert.equal(filterCounts(everyone, base).untouched, 2);
+    assert.equal(filterCounts(everyone, { ...base, hideUntouched: true }).untouched, 2);
+  });
+});

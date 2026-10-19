@@ -57,6 +57,17 @@ export type FilterContext = {
    * out, and an absent history is read as nothing logged.
    */
   history?: readonly HistoryEntry[];
+  /**
+   * Keeps the people nothing has happened with *out* of All, so a phone
+   * book just imported does not bury the handful actually being dealt with.
+   * They are one tap away under "Not contacted", and they rejoin All the
+   * moment anything happens with them (BUILD-REVIEW §2.102).
+   *
+   * Only People's own list passes this. The "Who?" sheet and Send to many
+   * must never hide anybody: they are how a person gets messaged, and
+   * hiding somebody there would leave them hidden for ever.
+   */
+  hideUntouched?: boolean;
 };
 
 /**
@@ -146,8 +157,11 @@ export function filterPeople(filter: PeopleFilter, contacts: readonly Contact[],
     return contacts.filter((c) => c.labels?.includes(label));
   }
   switch (filter) {
-    case 'all':
-      return [...contacts];
+    case 'all': {
+      if (!context.hideUntouched) return [...contacts];
+      const acted = actedOn(contacts, context.history ?? [], context.followUps);
+      return contacts.filter((c) => !isUntouched(c, acted));
+    }
     case 'favorites':
       return contacts.filter((c) => context.favorites.has(c.id));
     case 'recent':
