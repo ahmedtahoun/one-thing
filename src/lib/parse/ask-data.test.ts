@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { askData, isQuestion, labelIn, quietIn, tasksIn, waitingIn, type DataAnswer, type DataWorld } from './ask-data';
+import { askData, isQuestion, labelIn, quietIn, tasksIn, waitingByPerson, waitingIn, type DataAnswer, type DataWorld } from './ask-data';
 import type { Contact, FollowUp, HistoryEntry, Task } from '@/lib/model-types';
 
 const NOW = new Date('2026-10-15T10:00:00.000Z');
@@ -274,6 +274,11 @@ describe('the list', () => {
 
 describe('who is waiting', () => {
   const followUps = [followUp('f1', 'Sara'), followUp('f2', 'Omar', { nextAt: '2026-10-14T09:00:00.000Z' }), followUp('f3', 'Noura', { status: 'done' })];
+
+  it('names someone owed several replies once', () => {
+    const many = [followUp('m1', 'Maria', { contactId: 'c1' }), followUp('d1', 'Daina'), followUp('m2', 'Maria', { contactId: 'c1' }), followUp('m3', 'maria ')];
+    assert.deepEqual(waitingByPerson(many).map((g) => g.map((f) => f.id)), [['m1', 'm2'], ['d1'], ['m3']]);
+  });
 
   it('leaves out the ones closed, and puts the most overdue first', () => {
     assert.deepEqual(waitingIn(world({ followUps })).map((f) => f.id), ['f2', 'f1']);

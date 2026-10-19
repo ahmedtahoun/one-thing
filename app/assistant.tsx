@@ -40,7 +40,7 @@ import { TYPE_ICON } from '@/design/icon-paths';
 import { ink, surface, typeColour } from '@/design/tokens';
 import { useDirection, useLanguage } from '@/i18n/LanguageProvider';
 import { useAssistantMeter } from '@/lib/assistant-meter';
-import { dateKey, followUpStatus, isOnDay, type Contact, type Task } from '@/lib/model-types';
+import { dateKey, displayName, followUpStatus, isOnDay, type Contact, type FollowUp, type Task } from '@/lib/model-types';
 import { AssistLimitError, localIsEnough, textParser, type AssistantIntent, type ParsedTask } from '@/lib/parse';
 import {
   answerFromText,
@@ -145,7 +145,7 @@ export default function Assistant() {
   const dir = useDirection();
   const { session } = useSession();
   const { tasks, oneThing, addTask, toggleDone, restore, setOneThingDone } = useTasks();
-  const { contacts, followUps, history, addContact, addContacts, updateContact, addFollowUp, updateFollowUp } = usePeople();
+  const { contacts, followUps, history, addContact, addContacts, updateContact, addFollowUp, updateFollowUp, restoreFollowUps } = usePeople();
   const favorites = useFavorites();
   const cadence = useCadence();
   const meter = useAssistantMeter();
@@ -426,9 +426,11 @@ export default function Assistant() {
     onEmail: (contact: { email?: string }) => open(`mailto:${contact.email ?? ''}`),
     onTask: (task: Task) => router.push(`/compose?id=${task.id}`),
     onFollowUps: () => router.push('/followups'),
-    onReplied: (followUp: { id: string }) => {
-      updateFollowUp(followUp.id, { status: 'done', lastAction: 'closed', lastActionAt: new Date().toISOString() });
-      toast.show(fux.toastClose, { undo: false });
+    onReplied: (group: FollowUp[]) => {
+      const before = followUps;
+      const at = new Date().toISOString();
+      for (const f of group) updateFollowUp(f.id, { status: 'done', lastAction: 'closed', lastActionAt: at });
+      toast.show(fux.toastClose.replace('{n}', displayName(group[0]?.who ?? '')), { undo: () => restoreFollowUps(before) });
     },
     /**
      * Ticking a task off from the chat. The whole list is snapshotted first,
@@ -829,7 +831,7 @@ export default function Assistant() {
                    its content, the list's text column (flex 1, min width 0)
                    measured to nothing on a phone, and only the icons and the
                    Done buttons were left. */
-                style={{ alignSelf: 'flex-start', ...('kind' in m && m.kind === 'data' ? { width: '88%' } : { maxWidth: '88%' }), gap: 8 }}
+                style={{ alignSelf: 'flex-start', ...('kind' in m && (m.kind === 'data' || m.kind === 'contact' || m.kind === 'file') ? { width: '88%' } : { maxWidth: '88%' }), gap: 8 }}
               >
                 <Bubble>
                   {'kind' in m

@@ -10,7 +10,7 @@ import type { Added } from '@/content/additions';
 import type { Candidate } from '@/features/people-import/columns';
 import { ltr } from '@/lib/bidi';
 import { displayName } from '@/lib/model-types';
-import type { DataAnswer } from '@/lib/parse/ask-data';
+import { waitingByPerson, type DataAnswer } from '@/lib/parse/ask-data';
 
 /** At most this many rows under one answer; the rest are a "+{n} more" line. */
 export const MAX_ROWS = 5;
@@ -51,8 +51,10 @@ export function answerLine(answer: DataAnswer, copy: Added['qa']): string {
       if (answer.span === 'week') return count === 0 ? copy.noneWeek : copy.weekN.replace('{n}', n(count));
       return count === 0 ? copy.noneToday : copy.todayN.replace('{n}', n(count));
     }
-    case 'waiting':
-      return answer.items.length === 0 ? copy.noneWaiting : copy.waitingN.replace('{n}', n(answer.items.length));
+    case 'waiting': {
+      const people = waitingByPerson(answer.items).length;
+      return people === 0 ? copy.noneWaiting : copy.waitingN.replace('{n}', n(people));
+    }
     case 'quiet':
       return answer.items.length === 0 ? copy.noneQuiet : copy.quietN.replace('{n}', n(answer.items.length));
     case 'people': {
@@ -68,7 +70,7 @@ export function answerLine(answer: DataAnswer, copy: Added['qa']): string {
       return `${one.done ? copy.oneThingDone : copy.oneThingIs}: ${one.title}`;
     }
     case 'next':
-      return answer.task ? copy.nextIs : copy.noNext;
+      return answer.task ? (answer.late ? copy.nextLate : copy.nextIs) : copy.noNext;
     case 'log': {
       const count = answer.entries.length;
       const empty = { today: copy.noLogToday, yesterday: copy.noLogYesterday, week: copy.noLogWeek };

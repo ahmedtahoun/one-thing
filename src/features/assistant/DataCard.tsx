@@ -14,13 +14,14 @@
 import { Pressable, View } from 'react-native';
 
 import type { Added } from '@/content/additions';
+import { own } from '@/lib/bidi';
 import { Icon } from '@/ui/Icon';
 import { Text } from '@/ui/Text';
 import { TYPE_ICON } from '@/design/icon-paths';
 import { ink, surface, typeColour } from '@/design/tokens';
 import { useDirection } from '@/i18n/LanguageProvider';
 import { displayName, type Contact, type FollowUp, type HistoryEntry, type Task } from '@/lib/model-types';
-import type { DataAnswer, Want } from '@/lib/parse/ask-data';
+import { waitingByPerson, type DataAnswer, type Want } from '@/lib/parse/ask-data';
 import { MAX_ROWS } from './answer-line';
 
 export type DataCardProps = {
@@ -34,7 +35,8 @@ export type DataCardProps = {
   onEmail: (contact: Contact) => void;
   onTask: (task: Task) => void;
   onFollowUps: () => void;
-  onReplied: (followUp: FollowUp) => void;
+  /** Every open wait on that person: one reply answers them all. */
+  onReplied: (followUps: FollowUp[]) => void;
   /** Tick a task off from the chat. Undo is the screen's business. */
   onDone: (task: Task) => void;
   /** A line of the day's log opens the person it was with. */
@@ -93,11 +95,11 @@ export function DataCard(props: DataCardProps) {
       {left}
       <View style={{ flex: 1, minWidth: 0 }}>
         <Text token="bodyS" weight="600" numberOfLines={1}>
-          {title}
+          {own(title)}
         </Text>
         {sub ? (
           <Text token="micro" color={ink.s4} numberOfLines={1}>
-            {sub}
+            {own(sub)}
           </Text>
         ) : null}
       </View>
@@ -240,22 +242,24 @@ export function DataCard(props: DataCardProps) {
   }
 
   if (answer.kind === 'waiting') {
-    if (answer.items.length === 0) return null;
+    const people = waitingByPerson(answer.items);
+    if (people.length === 0) return null;
     return frame(
       <>
-        {answer.items.slice(0, MAX_ROWS).map((f, i) =>
-          row(
+        {people.slice(0, MAX_ROWS).map((group, i) => {
+          const f = group[0]!;
+          return row(
             f.id,
             `qa-waiting-${f.id}`,
             props.onFollowUps,
             null,
             displayName(f.who),
-            f.what,
-            pill(`qa-replied-${f.id}`, copy.replied, () => props.onReplied(f)),
+            group.length > 1 ? `${f.what} · ×${group.length}` : f.what,
+            pill(`qa-replied-${f.id}`, copy.replied, () => props.onReplied(group)),
             i === 0
-          )
-        )}
-        {more(answer.items.length)}
+          );
+        })}
+        {more(people.length)}
       </>,
       'qa-waiting'
     );

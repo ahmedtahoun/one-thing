@@ -12,6 +12,7 @@ import { Animated, PanResponder, Pressable, View } from 'react-native';
 
 import { Icon } from '@/ui/Icon';
 import { LTRText, Text } from '@/ui/Text';
+import { own } from '@/lib/bidi';
 import { TYPE_ICON } from '@/design/icon-paths';
 import { ink, radius, status, surface, typeColour } from '@/design/tokens';
 import { useDirection, useLanguage } from '@/i18n/LanguageProvider';
@@ -179,7 +180,7 @@ export function TaskRow({
               color={done ? ink.muted : ink.base}
               style={done ? { textDecorationLine: 'line-through' } : undefined}
             >
-              {task.title}
+              {own(task.title)}
             </Text>
             <View style={{ flexDirection: dir.row, alignItems: 'center', gap: 5 }}>
               <Text token="micro" weight="600" color={colour.fg} numberOfLines={1}>

@@ -92,6 +92,8 @@ export type Added = {
   /** The Assistant saving a person from a sentence or a voice note. */
   contact: {
     chip: string;
+    /** The card's heading before a name is typed. */
+    fresh: string;
     askName: string;
     askDetail: string;
     ready: string;
@@ -571,6 +573,7 @@ export type Added = {
     oneThingDone: string;
     noOneThing: string;
     nextIs: string;
+    nextLate: string;
     noNext: string;
     logToday: string;
     logYesterday: string;
@@ -840,6 +843,7 @@ const ADDED: Record<Lang, Added> = {
     /** The Assistant saving a person: asks for what is missing, one thing at a time. */
     contact: {
       chip: 'Save a contact',
+      fresh: 'New contact',
       askName: 'Sure. What’s their name?',
       askDetail: 'Got it, {n}. What’s their number or email?',
       ready: 'Here’s what I have. Save this contact?',
@@ -1361,6 +1365,7 @@ const ADDED: Record<Lang, Added> = {
       oneThingDone: 'Done today',
       noOneThing: 'You haven’t named a One Thing for today.',
       nextIs: 'Next',
+      nextLate: 'Next — this one is late',
       noNext: 'Nothing scheduled next.',
       logToday: '{n} today',
       logYesterday: '{n} yesterday',
@@ -1503,6 +1508,7 @@ const ADDED: Record<Lang, Added> = {
     customTimePast: 'هذا الوقت فات — اختر وقت أبعد.',
     contact: {
       chip: 'احفظ جهة اتصال',
+      fresh: 'جهة اتصال جديدة',
       askName: 'تمام. ما اسمه؟',
       askDetail: 'تمام، {n}. ما رقمه أو إيميله؟',
       ready: 'هذه البيانات اللي عندي. أحفظ الجهة؟',
@@ -2024,6 +2030,7 @@ const ADDED: Record<Lang, Added> = {
       oneThingDone: 'خلص اليوم',
       noOneThing: 'ما حدّدت شغلك الأساسي لليوم.',
       nextIs: 'التالي',
+      nextLate: 'التالي — وهذي متأخرة',
       noNext: 'ما فيه شيء مجدول بعده.',
       logToday: 'سجّلت اليوم: {n}',
       logYesterday: 'سجّلت أمس: {n}',

@@ -92,7 +92,8 @@ export type DataAnswer =
   /** "What's my one thing today?" — the answer is a screen of its own, so it carries the state too. */
   | { kind: 'oneThing'; oneThing: OneThing | null }
   /** "What's next?" — the single thing to do now, late first. */
-  | { kind: 'next'; task: Task | null }
+  /** `late` when the next thing is already overdue, so it is not called just "Next". */
+  | { kind: 'next'; task: Task | null; late?: boolean }
   /** "What did I do today?" — from history, which is the only thing the app dates. */
   | { kind: 'log'; span: 'today' | 'yesterday' | 'week'; entries: HistoryEntry[] }
   | { kind: 'unknown' };
@@ -394,6 +395,22 @@ export function waitingIn(world: DataWorld): FollowUp[] {
 }
 
 /**
+ * The same list as one entry per person, most overdue first. Four emails to
+ * Maria are one person owing a reply, so "Who am I waiting on?" names her
+ * once, and "Replied" closes all four.
+ */
+export function waitingByPerson(items: FollowUp[]): FollowUp[][] {
+  const groups = new Map<string, FollowUp[]>();
+  for (const f of items) {
+    const key = f.contactId ? `id:${f.contactId}` : `who:${f.who.trim().toLowerCase()}`;
+    const group = groups.get(key);
+    if (group) group.push(f);
+    else groups.set(key, [f]);
+  }
+  return [...groups.values()];
+}
+
+/**
  * People who have not heard from you for longer than their own rhythm — the
  * same rule the Next queue uses (src/features/next/build.ts), so the two
  * screens never disagree about who has gone quiet. Someone with no rhythm of
@@ -565,7 +582,11 @@ export function askData(text: string, world: DataWorld, about: Subject = null): 
   // Before the stretches of the list, because each of these is asked with
   // "today" in it and none of them is the day's list.
   if (ONE_THING_WORD.test(t)) return { kind: 'oneThing', oneThing: world.oneThing };
-  if (NEXT_WORD.test(t)) return { kind: 'next', task: nextTask(world) };
+  if (NEXT_WORD.test(t)) {
+    const task = nextTask(world);
+    const late = task?.dueAt ? Date.parse(task.dueAt) < world.now.getTime() : false;
+    return { kind: 'next', task, ...(late ? { late } : {}) };
+  }
   if (LOG_WORD.test(t)) {
     const span = WEEK_WORD.test(t) ? 'week' : YESTERDAY_WORD.test(t) ? 'yesterday' : 'today';
     return { kind: 'log', span, entries: logIn(span, world) };
