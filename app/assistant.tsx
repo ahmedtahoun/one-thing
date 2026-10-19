@@ -722,7 +722,9 @@ export default function Assistant() {
 
   // The greeting names the person where the prototype names its demo user.
   const demoFirst = t.set_name.split(' ')[0] ?? '';
-  const greeting = session?.firstName ? t.bot0.replace(demoFirst, session.firstName) : t.bot0;
+  const named = session?.firstName ? t.bot0.replace(demoFirst, session.firstName) : t.bot0;
+  // The opening line says "morning" as written; from six it says evening, as Today does.
+  const greeting = new Date().getHours() >= 18 ? named.replace(/^Morning/, 'Evening').replace(/^صباح الخير/, 'مساء الخير') : named;
 
   const today = dateKey();
   const todaysOpen = tasks

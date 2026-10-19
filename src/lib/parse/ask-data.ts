@@ -275,7 +275,7 @@ const ONE_THING_WORD = new RegExp(
 const NEXT_WORD = new RegExp(
   "\\bwhat(?:'|’)?s next\\b|\\bwhat next\\b|\\bnext (?:task|thing|up|one)\\b|" +
     '\\bwhat should i (?:do|start)(?: now| next)?\\b|\\bwhat do i do now\\b|' +
-    ar('(?:وش بعده|ايش بعده|إيش بعده|وش التالي|ايش التالي|الجاي|اللي جاي|وش اسوي الحين|ايه اللي بعده|وش بعدين)').source,
+    ar('(?:وش بعده|ايش بعده|إيش بعده|وش التالي|ايش التالي|الجاي|اللي جاي|وش اسوي الحين|ايه اللي بعده|وش بعدين|ايه التالي|اعمل ايه دلوقتي|ايه اللي بعد كده)').source,
   'i'
 );
 
@@ -529,7 +529,8 @@ function personAnswer(text: string, want: Want, world: DataWorld, about: Subject
  * the list come before the catch-all, so "what's late?" never reaches it.
  */
 export function askData(text: string, world: DataWorld, about: Subject = null): DataAnswer | null {
-  const t = text.trim();
+  // Diacritics and the stretching tatweel are dropped: "مردّش" is asked the same as "مردش".
+  const t = text.trim().replace(/[\u064B-\u0652\u0640]/g, '');
   if (t === '') return null;
   // "I told Omar I'd send it", "waiting for Sara to reply": something to
   // remember, not something to look up. `loopOf` turns its own questions down

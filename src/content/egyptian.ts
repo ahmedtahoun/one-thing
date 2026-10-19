@@ -17,6 +17,7 @@
  * as written: they are the text a lawyer approved, and the notice has to be
  * the policy's own words (src/features/voice/mic-notice.test.ts).
  */
+import { EGYPTIAN_LINES } from './egyptian-lines';
 
 /** An Arabic letter or mark, for "not inside a longer word". */
 const L = '\\u0621-\\u064A\\u064B-\\u0652\\u0670';
@@ -253,7 +254,7 @@ export function toEgyptian(text: string): string {
   if (!/[؀-ۿ]/.test(text)) return text;
   const hit = cache.get(text);
   if (hit !== undefined) return hit;
-  let out = EXACT[text];
+  let out = EGYPTIAN_LINES[text] ?? EXACT[text];
   if (out === undefined) {
     out = text;
     for (const [rule, to] of FIXED_NEGATION) out = out.replace(rule, to as string);
