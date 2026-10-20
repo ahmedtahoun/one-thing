@@ -4850,3 +4850,57 @@ checks at both reference frames (402pt leaves 228, 360pt leaves 186).
 **Checks:** 1377 unit tests (19 new), 171 People checks (3 new), 54 at
 360×640, 35 against Postgres, drift clean, both typechecks clean, web export
 clean.
+
+
+### 2.112 The evening card was a box; it is a band
+
+The owner sent a screenshot of Today at 9:26pm and said the black box made
+them uncomfortable — too big, and not saying enough for its size. Both halves
+of that are measurable, so both were measured.
+
+**It was 216pt in Arabic and 249 in English, a quarter of the screen**, and it
+held: an eyebrow saying EVENING under a greeting that already said good
+evening; a 28pt question; a line for how the One Thing ended, *blank* whenever
+no One Thing was set, which is exactly the screenshot's case; a count; and a
+54pt full-width white button — the heaviest treatment the app has, for a tap
+that opens a screen. Below it, pushed off the fold, were the people actually
+waiting: one of them seven days overdue. The card was the day's headline, but
+by evening the day has no headline left; it is a prompt, and it was dressed as
+a hero.
+
+**So it is a band: 71pt, in all three languages.** One line of words, one of
+numbers, the action beside them rather than under them, and the eyebrow gone
+with the height — the moon carries what it said. Three people now stand where
+one did.
+
+**Smaller made it say less, so the words had to start earning the space.**
+The old card asked "Ready to close your day?" whether the day had finished
+everything or nothing, and printed the count underneath without the question
+following from it. `src/features/today/evening.ts` chooses the words from the
+two numbers now: a day with nothing left reads "All done today." over "12 of
+12 done today", and an ordinary one keeps the question over "10 to do · 2
+done". A clean sweep is `open === 0 && done > 0` — nothing left on an empty
+day is not an achievement, and congratulating nobody is worse than saying
+nothing. The count line never prints "0 to do" under a line that already says
+everything is done.
+
+**The English did not fit, which the measuring caught before the owner did.**
+"Ready to close your day?" overflowed its share of the band, and the fix was
+not a wider band: the button beside it already says "Close the day", so a
+title repeating the verb was spending the app's scarcest line on a word the
+reader had just read. It is "Ready to wrap up?" now, and the Arabic lost its
+"يومك" for the same reason.
+
+**Nothing had ever rendered this screen.** No suite set the clock past six,
+which is how a blank line and a quarter-screen box survived to a build. The
+evening band is in `smoke-day.js` now, in all three languages and in both
+states, asserting that it renders, that it stays under 96pt — the old box and
+the One Thing card are both well over, so growing back fails — that no line of
+it is cut off (`scrollWidth` against `clientWidth`, the check §2.111 added for
+People), that a finished day does not read like an unfinished one, and that
+the band still opens the review. That is the §2.109 lesson a third time: a
+fixture that cannot produce the fault cannot catch it, and a state nothing
+renders is a state nothing checks.
+
+**Checks:** 1382 unit tests (5 new), 88 day checks (22 new), 54 at 360×640,
+drift clean, both typechecks clean, web export clean.

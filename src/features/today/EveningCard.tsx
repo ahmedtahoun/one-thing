@@ -1,70 +1,76 @@
 /**
- * Today's evening variant: after 18:00 the One Thing card becomes an ink
- * "Close the day" card that leads into the Daily review. SCREENS.md § 06.
+ * Today's evening band: after 18:00 the One Thing card gives way to the way
+ * into the Daily review.
+ *
+ * It used to be a card the size of the One Thing card — an ink box 216pt tall
+ * in Arabic, a quarter of the screen, holding a 28pt question, a count, a
+ * blank line where the One Thing's outcome went when none was set, and a
+ * full-width white button. It is a prompt, not the day's headline, and it was
+ * pushing the people actually waiting below the fold. BUILD-REVIEW §2.112.
+ *
+ * So it is a band now: one line of words, one of numbers, and the action
+ * beside them rather than under them. The eyebrow went with the height — the
+ * greeting at the top of the screen already says good evening, and the moon
+ * says the rest. src/features/today/evening.ts chooses the words.
  */
-import { View } from 'react-native';
+import { Pressable, View } from 'react-native';
 
-import { Button } from '@/ui/Button';
 import { Icon } from '@/ui/Icon';
-import { BalancedText } from '@/ui/BalancedText';
 import { Text } from '@/ui/Text';
 import { ink, radius, surface } from '@/design/tokens';
 import { useDirection, useLanguage } from '@/i18n/LanguageProvider';
+import { eveningWords, type DayCount } from './evening';
 
-export function EveningCard({
-  oneThingLine,
-  keptLine,
-  onReview,
-}: {
-  /** How the day's One Thing ended up. */
-  oneThingLine: string;
-  /** How many promises were kept. */
-  keptLine: string;
-  onReview: () => void;
-}) {
+export function EveningCard({ count, onReview }: { count: DayCount; onReview: () => void }) {
   const { t } = useLanguage();
   const dir = useDirection();
+  const { title, meta } = eveningWords(count, { ready: t.ev_t, allDone: t.ev_done, sum: t.tk_sum, sumAll: t.tk_prog });
 
   return (
     <View
       testID="evening-card"
       style={{
         backgroundColor: ink.card,
-        borderRadius: radius.oneThing,
-        paddingTop: 24,
-        paddingHorizontal: 22,
-        paddingBottom: 20,
-        gap: 14,
+        borderRadius: radius.largeCard,
+        paddingVertical: 14,
+        paddingHorizontal: 16,
+        flexDirection: dir.row,
+        alignItems: 'center',
+        gap: 12,
       }}
     >
-      <View style={{ flexDirection: dir.row, alignItems: 'center', gap: 6 }}>
-        <Icon name="moon" size={14} color={ink.s6} strokeWidth={1.9} />
-        <Text token="eyebrow" color={ink.s6}>
-          {t.ev_k}
+      <Icon name="moon" size={18} color={ink.onInk} strokeWidth={1.9} />
+
+      <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
+        <Text token="body" weight="600" color={surface.onCard} numberOfLines={1}>
+          {title}
+        </Text>
+        <Text token="caption" color={ink.onInk} numberOfLines={1}>
+          {meta}
         </Text>
       </View>
 
-      {/* 28 / 1.2, balanced — same treatment as the One Thing title. */}
-      <BalancedText token="h1" lh={33.6} color={surface.onCard}>
-        {t.ev_t}
-      </BalancedText>
-
-      <View style={{ gap: 4 }}>
-        <Text token="bodyS" color={ink.onInk}>
-          {oneThingLine}
-        </Text>
-        <Text token="bodyS" color={ink.onInk}>
-          {keptLine}
-        </Text>
-      </View>
-
-      <Button
+      {/* The action sits beside the words, not under them: a 54pt white bar
+          across the card was the heaviest treatment the app has, for a tap
+          that only opens a screen. */}
+      <Pressable
         testID="close-the-day"
-        label={t.review}
-        variant="outline"
         onPress={onReview}
-        style={{ height: 54, backgroundColor: surface.white, borderWidth: 0 }}
-      />
+        accessibilityRole="button"
+        style={({ pressed }) => ({
+          height: 38,
+          paddingHorizontal: 16,
+          borderRadius: radius.pill,
+          backgroundColor: surface.white,
+          alignItems: 'center',
+          justifyContent: 'center',
+          opacity: pressed ? 0.75 : 1,
+        })}
+      >
+        <Text token="bodyS" weight="600" color={ink.base} numberOfLines={1}>
+          {t.review}
+        </Text>
+      </Pressable>
     </View>
   );
 }

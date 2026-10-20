@@ -10,6 +10,9 @@
  *               finishing a step advances, and the breakdown follows the
  *               language rather than falling back to the generic list.
  *   Focus:      the timer runs and pauses; "I'm done" marks the One Thing.
+ *   Evening:    after 18:00 Today's band replaces the One Thing card, stays a
+ *               band rather than a card, says what the day did, and fits its
+ *               own words in all three languages.
  *   Review:     marks change nothing until Close the day, which then applies
  *               Kept, Tomorrow and Not needed.
  *   Reschedule: moves a task, and in remind mode moves only the reminder.
@@ -328,6 +331,58 @@ const ONE_THING = { en: 'Finish the investor proposal', ar: 'أخلّص عرض �
   await page.waitForTimeout(400);
   check('Skip puts them away too', (await page.getByTestId('coach').count()) === 0);
   check('…and counts as seen', (await read('ot.tour')) === true);
+
+  // ------------------------------------------------------- 06 Evening band
+  // Nothing rendered this state before, which is how it went unnoticed that
+  // it was an ink box 216pt tall — a quarter of the screen — with a blank
+  // line in it whenever no One Thing was set. BUILD-REVIEW §2.112.
+  const evening = new Date();
+  evening.setHours(21, 26, 0, 0);
+  await page.clock.setFixedTime(evening);
+
+  /** The band's height, and whether any line of it is cut off. */
+  const band = () =>
+    page.evaluate(() => {
+      const el = document.querySelector('[data-testid="evening-card"]');
+      if (!el) return null;
+      const cut = [];
+      for (const d of el.querySelectorAll('div')) {
+        if (d.childElementCount || !d.textContent.trim()) continue;
+        if (d.scrollWidth > d.clientWidth + 1) cut.push(`${d.textContent} (${d.scrollWidth} > ${d.clientWidth})`);
+      }
+      return { height: Math.round(el.getBoundingClientRect().height), text: el.textContent, cut };
+    });
+
+  for (const [lang, dialect] of [['en', 'gulf'], ['ar', 'gulf'], ['ar', 'egypt']]) {
+    const named = dialect === 'egypt' ? 'eg' : lang;
+    await seed(lang, { oneThing: false });
+    await page.evaluate((d) => localStorage.setItem('ot.dialect', d), dialect);
+    await open('/today');
+    const open_ = await band();
+    check(`${named}: the evening band shows after 18:00`, open_ !== null);
+    // A band, not a card. The old one was 216; the One Thing card it replaces
+    // is about 250. Anything near those means it has grown back.
+    check(`${named}: …and stays a band, not a card`, open_ && open_.height <= 96, open_ && `${open_.height}pt`);
+    check(`${named}: …with no line of it cut off`, open_ && open_.cut.length === 0, open_ && open_.cut.join(' | '));
+    check(`${named}: …and says what is left of the day`, open_ && /\d/.test(open_.text), open_ && open_.text.replace(/\n/g, ' ⏎ '));
+
+    // Everything finished reads differently, and never prints "0 to do".
+    await page.evaluate(() => {
+      const list = JSON.parse(localStorage.getItem('ot.tasks') || '[]');
+      localStorage.setItem('ot.tasks', JSON.stringify(list.map((t) => ({ ...t, status: 'done', doneAt: new Date().toISOString() }))));
+    });
+    await open('/today');
+    const swept = await band();
+    check(`${named}: a finished day is not greeted like an unfinished one`, swept && swept.text !== open_.text, swept && swept.text.replace(/\n/g, ' ⏎ '));
+    check(`${named}: …and no line of that is cut off either`, swept && swept.cut.length === 0, swept && swept.cut.join(' | '));
+    check(`${named}: …and it still fits a band`, swept && swept.height <= 96, swept && `${swept.height}pt`);
+  }
+
+  // Closing from the band is the way into the review.
+  await page.getByTestId('close-the-day').click();
+  await page.waitForTimeout(700);
+  check('the band opens the review', page.url().includes('/review'), page.url());
+  await page.clock.setFixedTime(frozen);
 
   await browser.close();
   srv.close();

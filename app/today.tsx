@@ -203,10 +203,7 @@ export default function Today() {
 
         {isEvening ? (
           <EveningCard
-            oneThingLine={oneThing ? `${oneThing.title} — ${oneThing.done ? t.doneToday : t.notYet}` : ''}
-            keptLine={t.tk_sum
-              .replace('{a}', String(openCount))
-              .replace('{b}', String(todaysTasks.length - openCount))}
+            count={{ open: openCount, done: todaysTasks.length - openCount }}
             onReview={() => router.push('/review')}
           />
         ) : askOneThing ? (
