@@ -4268,3 +4268,66 @@ changed meaning and had to change with it: of the eight seeded, four have
 history or a follow-up, so All holds four and the chip holds four.
 A check that keeps counting eight would have been a check that had
 stopped reading the screen.
+
+### 2.103 Egyptian, rendered
+
+A third language arrived while this session was not looking. Build 14 went
+out, the owner's collaborator worked the phone, and `ff10d52` and `a77d830`
+brought Egyptian Arabic in as a choice Settings offers: 1,363 lines of
+hand-written copy in `src/content/egyptian-lines.ts`, a word-and-negation
+rewriter in `egyptian.ts` for anything added after the list, and a dialect
+setting carried beside the language.
+
+It arrived with real unit tests, which is why the gap in it was easy to
+miss. `egyptian-lines.test.ts` walks every Arabic copy table and asserts
+that each line **has** an Egyptian line, that every `{n}` survives, and
+that no Gulf word is left in the table. All three passed. None of them
+rendered a single screen.
+
+**What a copy-table test cannot see.** `added(lang)` and its neighbours
+*build* sentences at run time from parts. A part that never passed through
+the table reaches the glass in Gulf Arabic with every unit test still
+green — and the last two Arabic faults the owner found on his phone were
+both of that shape. 1,363 lines were being checked as data.
+
+Two places now render it.
+
+**`scripts/narrow.js` runs all three languages.** It was the one suite
+that renders at Play's small-phone baseline, 360×640, and it ran `en` and
+`ar` only. Egyptian lines are not the same length as the Gulf ones they
+replace — "عايزني أفكّرك إزاي؟" is not "كيف تبيني أذكّرك؟" — so a dialect
+that reads fine on the design's 402 can still cut a greeting at 360.
+36 checks became 54. All pass, and at `OT_FRAME=300x600` the three that
+break are *English*: the Arabic of either dialect has more margin than
+"Good morning, Abdulrahman". So the truncation check bites, and Egyptian
+is not the tight case.
+
+**`scripts/smoke-dialect.js` is new, and chooses the dialect the way a
+person does.** It taps مصري in Settings rather than writing a storage key,
+then reads the screens back: the copy changes at once, the choice is
+stored, it survives a reload, and picking العربية again gives the Gulf copy
+back. Then, with Egyptian on, it scans seven screens people live in for
+Gulf words — the same word list `egyptian-lines.test.ts` holds the copy
+tables to, so the rendered check and the table check cannot disagree about
+what counts. And it opens the privacy policy, which a dialect must never
+touch, and finds its approved heading and opening intact.
+
+**Pointed at Gulf, the scan fires on four of the seven screens** — `مو` on
+Today, `ما فيه` on Recap and Smart lists, `وش` on the Assistant. Pointed at
+Egyptian it finds none. That is the evidence the dialect actually reaches
+the glass, and the reason to trust a passing run: a scan that found nothing
+either way would have been decoration.
+
+**The drift gate stays `en` and `ar`, deliberately.** `measure-drift.js`
+compares the app's rendered labels against the design prototype's, and the
+prototype was drawn in two languages. There is no Egyptian design to
+measure against, so an Egyptian probe there could only compare the dialect
+to itself and would report a number nobody could act on. The question drift
+would have been asked — does Egyptian text overflow its box — is the
+question `narrow.js` now answers directly, on a smaller frame than the
+design's.
+
+**Checks:** 1075 unit tests (19 of them the collaborator's, for the dialect
+and the new `bidi.ts`), 35 against Postgres, 450 browser checks across
+seven suites, and 54 at 360×640. The dialect suite's 19 are new. No change
+to anything the app ships: this section adds tests and nothing else.

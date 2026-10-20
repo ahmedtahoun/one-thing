@@ -17,6 +17,13 @@
  *   The bar:    scrolled to the end, the last row clears the floating tab
  *               bar rather than hiding under it.
  *
+ * All three languages, Egyptian included. Egyptian is written by hand from
+ * the Gulf copy (src/content/egyptian-lines.ts) and its lines are not the
+ * same length — "عايزني أفكّرك إزاي؟" is not "كيف تبيني أذكّرك؟" — so a
+ * dialect that reads fine at 402 can still cut a greeting at 360. The unit
+ * tests check that every Arabic line *has* an Egyptian line; only rendering
+ * it says whether it fits.
+ *
  *   npx expo export --platform web
  *   node scripts/narrow.js
  */
@@ -93,8 +100,13 @@ const MUST_READ = ['today-greeting', 'tab-People', 'tab-Home', 'tab-Assistant', 
   const base = `http://127.0.0.1:${srv.address().port}`;
   const browser = await launchChromium();
 
-  for (const lang of ['en', 'ar']) {
-    const ctx = await browser.newContext({ viewport: FRAME, deviceScaleFactor: 2, locale: lang === 'ar' ? 'ar-SA' : 'en-GB' });
+  // 'eg' is Arabic copy in the Egyptian dialect: `Lang` stays 'en' | 'ar'
+  // and only the words change, so demo data and the session are seeded from
+  // `lang` while `choice` decides the dialect. See src/i18n/dialect.ts.
+  for (const choice of ['en', 'ar', 'eg']) {
+    const lang = choice === 'eg' ? 'ar' : choice;
+    const locale = choice === 'eg' ? 'ar-EG' : choice === 'ar' ? 'ar-SA' : 'en-GB';
+    const ctx = await browser.newContext({ viewport: FRAME, deviceScaleFactor: 2, locale });
     const page = await ctx.newPage();
     const frozen = new Date();
     frozen.setHours(9, 20, 0, 0);
@@ -107,9 +119,13 @@ const MUST_READ = ['today-greeting', 'tab-People', 'tab-Home', 'tab-Assistant', 
           localStorage.clear();
           for (const [k, v] of Object.entries(d.store)) localStorage.setItem(k, JSON.stringify(v));
           localStorage.setItem('ot.lang', d.lang);
+          // Raw strings, both: AsyncStorage on web is localStorage, and the
+          // provider compares these against 'ar' and 'egypt' directly.
+          localStorage.setItem('ot.dialect', d.dialect);
         },
         {
           lang,
+          dialect: choice === 'eg' ? 'egypt' : 'gulf',
           store: {
             'ot.session': SESSION[lang],
             'ot.tasks': demoTasks(lang, new Date()),
@@ -123,7 +139,7 @@ const MUST_READ = ['today-greeting', 'tab-People', 'tab-Home', 'tab-Assistant', 
       await page.goto(`${base}${route.path}`, { waitUntil: 'networkidle' });
       await page.waitForTimeout(700);
 
-      const where = `${lang} ${route.name}`;
+      const where = `${choice} ${route.name}`;
 
       const sideways = await page.evaluate(() => ({
         scroll: document.documentElement.scrollWidth,
