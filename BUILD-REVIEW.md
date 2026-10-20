@@ -4660,3 +4660,66 @@ change what a typed list already did), 464 browser checks across seven suites
 spoken hour read as four in the afternoon, a dropped row not saved, and the
 comma that must not make a list), 54 at 360×640, 35 against Postgres, drift
 clean, both typechecks clean.
+
+### 2.109 Four faults from three screenshots
+
+The owner sent two screenshots of the Assistant in Egyptian, with nobody in
+People. Three messages, and every one of them went wrong differently. None
+of these shapes was in the corpus §2.107 built, which is the lesson: a corpus
+written at a desk covers what you thought of.
+
+**"مفيش حاجة بكرة" to a list of four errands.** The message was *"طيب أنا
+عايز أعمل كم حاجة بكرة اكلم محمد 5:00 وأكلم أحمد 7:00 واتبع المنيو"* — "I
+want to do a few things tomorrow" and then the things. `ASK_WORD` has كم, so
+it read as **how many**, `askData` answered tomorrow's empty list, and four
+errands went nowhere with nothing said about why. **كم and كام before حاجة
+are a quantifier, not a count** — the one pair in that list that is not
+always a question. "كم عميل عندي؟" still counts.
+
+**A list of people became one task.** *"عايز أكلم محمد بكرة 5:00 وإبراهيم
+6:00 وأحمد 7:00"* came back as a single call titled "كلم محمد وإبراهيم
+وأحمد". §2.108's splitter breaks on و before a *verb*, and these are names.
+A name after و is now a break **only when a clock follows it**, so "اتصل
+بسارة وعمر بخصوص السعر" is still one errand about two people.
+
+**And the splitter's own verb list missed the commonest spelling.** It had
+كلم and the message said أكلم; it had ابعت and the message said واتبع. `arx`
+expands ا into every spelling of the hamza, so one optional ا covers them
+all. This is the second time today a pattern was written without it.
+
+**Three things a run says once, and meant for all of it.** Reading each piece
+alone threw them away:
+
+  *The day.* "بكرة" is said once at the top; Ahmed was landing **today**.
+  *The verb.* "أكلم محمد ٥ وإبراهيم ٦" names the verb once; Ibrahim became a
+  reminder called "إبراهيم" rather than a call.
+  *The half of the day.* 5 and 6 read as the afternoon, because nobody means
+  five in the morning — and the 7 in the middle of the same list landed at
+  dawn.
+
+Each is carried only where the piece said nothing of its own, and **only
+across a run said in one breath**. That last clause cost a test to find:
+carrying the day everywhere moved the Brain dump sample's supplier invoice a
+day late, because a typed comma list is a list of independent items and
+"tomorrow" there belongs to the lawyer. No punctuation is the only honest
+signal of one utterance, and it is what separates the two.
+
+**And the throat-clearing became the title.** "و الله عايز أكلم محمد بكرة
+5:00" produced a task called *"و الله عايز أكلم محمد"*. و الله، طيب، يلا،
+خلاص، تمام، أنا now join the lead-ins that are dropped, as does the preamble
+"أعمل كم حاجة" that announces a list rather than being the first thing in it.
+
+**The UI, and what the drift gate said about it.** The second screenshot
+showed four replies and then four hundred points of nothing before the
+message bar: the conversation is top-aligned, so a short one leaves the
+screen empty under it. Bottom-aligning it fixed that — and failed the drift
+gate by 476 points, because the design puts the greeting at the top of the
+*empty* screen and the probe measures exactly that. Both are right about
+different states, so the conversation now rests on the bar **only once it is
+under way**, and the empty screen is left as designed. The gate was correct
+to stop it; the fix is better for having been stopped.
+
+**Checks:** 1358 unit tests (8 new, every one of them a sentence from the
+screenshots, in `src/lib/parse/spoken-run.test.ts`), 465 browser checks across
+seven suites (1 new: a short conversation must rest within 220 points of the
+bar), 54 at 360×640, 35 against Postgres, drift clean, both typechecks clean.

@@ -118,7 +118,12 @@ const ASK_WORD = new RegExp(
   '\\b(?:what|whats|how|why|who|whose|whom|when|where|which|anything|any)\\b|' +
     "\\bwhat(?:'|’)s\\b|" +
     ar(
-      `(?<![${AR_LETTER}])(?:وش|ايش|إيش|كيف|ازاي|إزاي|ليش|لماذا|مين|منو|من هو|متى|امتى|إمتى|فين|وين|اين|أين|كام|كم|ايه|إيه|شنو|هل)(?![${AR_LETTER}])`
+      // كم and كام are the one pair here that is not always a question:
+      // before حاجة they are a quantifier — "عايز أعمل كم حاجة" is "a few
+      // things", not "how many things". Found on a phone, where it turned a
+      // list of four errands into "nothing tomorrow".
+      `(?<![${AR_LETTER}])(?:وش|ايش|إيش|كيف|ازاي|إزاي|ليش|لماذا|مين|منو|من هو|متى|امتى|إمتى|فين|وين|اين|أين|` +
+        `(?:كام|كم)(?!\\s*(?:حاجة|حاجات|حاجتين|شغلة|شغلات|اشياء|أشياء|شوية))|ايه|إيه|شنو|هل)(?![${AR_LETTER}])`
     ).source,
   'i'
 );
@@ -295,7 +300,12 @@ const WHO_OPENER = new RegExp(
 );
 
 const FAVOURITE_WORD = new RegExp('\\bfavourites?\\b|\\bfavorites?\\b|\\bstarred\\b|' + ar('(?:المفضلة|المفضله|مفضل)').source, 'i');
-const COUNT_WORD = new RegExp('\\bhow many\\b|\\bcount\\b|' + ar(`(?<![${AR_LETTER}])(?:كم|كام|عدد)(?![${AR_LETTER}])`).source, 'i');
+const COUNT_WORD = new RegExp(
+  // Same quantifier exception as ASK_WORD: "كم حاجة" counts nothing.
+  '\\bhow many\\b|\\bcount\\b|' +
+    ar(`(?<![${AR_LETTER}])(?:(?:كم|كام)(?!\\s*(?:حاجة|حاجات|حاجتين|شغلة|شغلات|اشياء|أشياء|شوية))|عدد)(?![${AR_LETTER}])`).source,
+  'i'
+);
 const PEOPLE_WORD = new RegExp(
   // كام takes the singular after it — "عندي كام شخص؟", "كام حد عندي؟" — so
   // the plurals alone never matched the way Egypt asks for a count.

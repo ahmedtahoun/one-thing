@@ -893,7 +893,18 @@ export default function Assistant() {
         <ScrollView
           ref={scroll}
           style={{ flex: 1 }}
-          contentContainerStyle={{ padding: 16, gap: 12 }}
+          /* A conversation under way sits on the message bar rather than
+             stranded at the top with the screen empty beneath it — a phone
+             showed four replies and then four hundred points of nothing.
+             **Only once it is under way**: on the empty screen the greeting
+             belongs at the top, where the design puts it, and the drift gate
+             holds it there. A full conversation scrolls exactly as before. */
+          contentContainerStyle={{
+            padding: 16,
+            gap: 12,
+            flexGrow: 1,
+            justifyContent: messages.length > 1 ? 'flex-end' : 'flex-start',
+          }}
           onContentSizeChange={() => scroll.current?.scrollToEnd({ animated: true })}
           keyboardShouldPersistTaps="handled"
           /* Dragging the conversation puts the keyboard away, as every chat

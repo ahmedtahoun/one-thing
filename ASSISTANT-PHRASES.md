@@ -234,7 +234,7 @@ five wrong tasks are worse than none.
 | Joins it breaks on | |
 | --- | --- |
 | English | and then · and also · also · after that · plus · and finally · one more thing · remind me to · don't forget · make sure · I need to · I have to · and I promised · and I told · **and** + call/email/send/book/pay/ask/meet… |
-| Arabic & Egyptian | وبعدين · بعدين · وبعد كده · بعد كده · وكمان · كمان · وأيضا · **و** + كلم/ابعت/ارسل/احجز/ادفع/اسأل/فكرني/لازم/محتاج |
+| Arabic & Egyptian | وبعدين · بعدين · وبعد كده · بعد كده · وكمان · كمان · وأيضا · **و** + كلم/أكلم/ابعت/ارسل/احجز/ادفع/اسأل/اتبع/راجع/فكرني/لازم/محتاج · **و** + a name with a time after it |
 
 **"and" on its own is never a join.** "Call Sara and Omar about the price" is
 one errand; so is "اتصل بسارة وعمر". A splitter that divided there would turn
@@ -244,6 +244,25 @@ one errand into two wrong ones, which is worse than the fault it fixes.
 tomorrow, the contract one" is one errand — so typing is split on a full stop,
 semicolon or new line, while the mic is taken at its word. The Brain dump
 screen is still the place to paste a long comma-separated list.
+
+### What a run says once, for all of it
+
+In one unbroken sentence — nothing typed between the errands — two things
+said once are meant for the whole list:
+
+| Said | Read as |
+| --- | --- |
+| بكرة اكلم محمد ٥ **و**أكلم أحمد ٧ | both tomorrow, not Ahmed today |
+| أكلم محمد ٥ **و**إبراهيم ٦ **و**أحمد ٧ | three **calls**, at 5, 6 and 7 in the evening |
+
+A bare name after **و** borrows the verb the run opened with, and a name with
+a clock after it starts a new errand — but a name with **no** time never
+does: "اتصل بسارة وعمر بخصوص السعر" is one errand about two people.
+
+**A punctuated list is not a run.** Commas and full stops mean separate
+items, each standing on its own, so "Call the lawyer about the contract
+tomorrow at 11, email Sara the deck, pay the supplier invoice by 5" leaves
+the invoice undated — tomorrow belongs to the lawyer.
 
 ### The clock, said out loud
 
@@ -329,6 +348,19 @@ both documented phrases already said.
 **هات** and **find** likewise: "هات رقم سارة" is a request and "هات العقد من
 عمر بكرة" is an errand; "find Sara's number" is a question and "find a new
 supplier" is a task. Both now sit behind the same noun list.
+
+## What is not a question, though it looks like one
+
+**كم** and **كام** before حاجة are a quantifier, not a count. "عايز أعمل كم
+حاجة بكرة…" is *"I want to do a few things tomorrow"* and opens a list of
+errands; it used to be read as *"how many things tomorrow?"* and answered
+**مفيش حاجة بكرة** — four errands lost in one reply, with nothing said about
+why. "كم عميل عندي؟" and "عندي كام شخص؟" still count.
+
+A sentence also stops being a question once it opens with the usual
+throat-clearing — **و الله · والله · طيب · يلا · خلاص · تمام · أنا** — which
+is dropped rather than kept as the title. "و الله عايز أكلم محمد بكرة 5:00"
+is a call to Mohammed, not a task named after the whole sentence.
 
 ## Anything else
 

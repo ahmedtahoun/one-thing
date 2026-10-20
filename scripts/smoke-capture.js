@@ -343,6 +343,18 @@ const D_SAMPLE =
     (await count('qa-found-task')) ? (await text('qa-found-task')).slice(0, 120) : 'no card'
   );
 
+  // A short conversation sits on the message bar, not stranded at the top
+  // with the screen empty under it — a phone showed four hundred points of
+  // nothing between the last reply and the bar.
+  const resting = await page.evaluate(() => {
+    const said = [...document.querySelectorAll('[data-testid="assistant-reply"], [data-testid="assistant-mine"]')];
+    const last = said[said.length - 1];
+    const bar = document.querySelector('[data-testid="assistant-input"]');
+    if (!last || !bar) return null;
+    return Math.round(bar.getBoundingClientRect().top - last.getBoundingClientRect().bottom);
+  });
+  check('a short conversation rests on the message bar', resting !== null && resting < 220, `${resting}px of empty space`);
+
   // Several errands in one message — a minute at the mic, typed here because
   // a browser has no microphone. A typed full stop is the other way in.
   const tasksBefore = (await read('ot.tasks')).length;

@@ -289,7 +289,7 @@ const REMIND_ME =
 const LEAD_IN_EN =
   /^\s*(?:please|pls|hey|ok(?:ay)?|can you|could you|would you|will you|i want to|i wanna|i need to|i have to|i've got to|i gotta|i should|i must|i'd like to|let me|remind me(?:\s+to)?|don't let me forget to|make sure i)\b[\s,]*/i;
 const LEAD_IN_AR = new RegExp(
-  `^\\s*${arx('(?:لو سمحت|من فضلك|ممكن|عايزك|عاوزك|عايزه|عاوزه|عايز|عاوز|ابغاك|ابيك|ابغى|ابي|ودي|لازم|محتاج|محتاجه|تقدر|ياريت|يا ريت|تفكرني|تذكرني|فكرني|ذكرني|فكريني|ذكريني|نبهني|انك|انى|اني|ان)')}(?![${AR_LETTER}])[\\s،,]*`,
+  `^\\s*${arx('(?:اعمل كم حاجة|اسوي كم حاجة|اعمل كام حاجة|عندي كم حاجة|في كم حاجة|و الله|والله|يا الله|طيب|يلا|خلاص|اوكي|اوك|تمام|انا|احنا|لو سمحت|من فضلك|ممكن|عايزك|عاوزك|عايزه|عاوزه|عايز|عاوز|ابغاك|ابيك|ابغى|ابي|ودي|لازم|محتاج|محتاجه|تقدر|ياريت|يا ريت|تفكرني|تذكرني|فكرني|ذكرني|فكريني|ذكريني|نبهني|انك|انى|اني|ان)')}(?![${AR_LETTER}])[\\s،,]*`,
   'i'
 );
 
@@ -365,6 +365,12 @@ export function titleOf(text: string): string {
 }
 
 /**
+ * A piece that is nothing but somebody's name, with or without a time:
+ * "وإبراهيم 6:00", "وأحمد". The only shape that borrows the run's verb.
+ */
+const JUST_A_NAME = /^\s*\S+(?:\s+\d{1,2}(?::\d{2})?)?\s*$/;
+
+/**
  * Where a *spoken* run of errands breaks.
  *
  * The splitter below was written for typed text and divides on punctuation.
@@ -402,9 +408,15 @@ const SPOKEN_BREAKS: readonly (readonly [RegExp, string])[] = [
   // joins; و before a verb is a join with the verb attached to it.
   [arg('\\s+(?:وبعدين|بعدين|وبعد كده|بعد كده|وكمان|كمان|وايضا|وأيضا|وأخيرا|واخيرا)\\s+'), '\n'],
   [
-    arg('\\s+و(?=(?:كلم|اتصل|ابعت|أبعت|ارسل|أرسل|احجز|أحجز|ادفع|أدفع|اسأل|أسأل|اشتري|أشتري|قابل|راجع|تابع|رد|ذكرني|فكرني|لازم|محتاج|المفروض|متنساش|ما تنسى))'),
+    arg(
+      '\\s+و(?=ا?(?:كلم|تصل|بعت|رسل|حجز|دفع|سأل|شتري|قابل|راجع|تابع|تبع|روح|شوف|رد|ذكرني|فكرني|لازم|محتاج|المفروض|متنساش|ما تنسى))'
+    ),
     '\n',
   ],
+  // A list of people, each with a time of their own: "وإبراهيم 6:00". The
+  // name alone is never a break — "اتصل بسارة وعمر بخصوص السعر" is one
+  // errand — so the clock immediately after it is what makes this a list.
+  [/\s+و(?=[^\s]+\s+\d{1,2}:\d{2})/g, '\n'],
 ];
 
 /**
@@ -535,8 +547,67 @@ export const localParser: TextParser = {
   async parse(text, ctx) {
     return parseNow(text, ctx);
   },
+  /**
+   * A run of errands, each read on its own — but not read in isolation.
+   *
+   * Two things in a spoken list are said once and meant for all of it, and
+   * reading each piece alone threw both away (BUILD-REVIEW §2.109):
+   *
+   *   The day.  "بكرة اكلم محمد ٥ وأكلم أحمد ٧" says tomorrow once. Ahmed
+   *             was landing *today*, because his own piece has no day in it.
+   *   The verb. "أكلم محمد ٥ وإبراهيم ٦ وأحمد ٧" names the verb once and
+   *             then lists people. Ibrahim became a reminder called
+   *             "إبراهيم" rather than a call.
+   *
+   * Both are carried forward only where the piece said nothing of its own,
+   * so a piece that names its own day or its own verb always wins.
+   */
   async split(text, ctx) {
-    return splitDump(text).map((piece) => parseNow(piece, ctx));
+    const pieces = splitDump(text);
+    /**
+     * Carried only across a run said in one breath.
+     *
+     * A typed list is punctuated, and each item in it stands alone: the
+     * Brain dump sample says "Call the lawyer … **tomorrow** at 11, email
+     * Sara the deck, … pay the supplier invoice by 5", and the invoice is
+     * not due tomorrow — the day belongs to the lawyer. A dictated run has
+     * no punctuation at all, and there a day said once is said for all of
+     * it. That difference is the only honest signal there is, and it cost a
+     * test to find: carrying the day everywhere moved the supplier invoice
+     * a day late.
+     */
+    const oneBreath = !/[.،,;؛\n]/.test(text);
+    const run = oneBreath ? dayOf(text, ctx.now) : { date: ctx.now, said: false };
+    let runType: ParsedType | null = null;
+    /** The half of the day the run has been in so far, once one is settled. */
+    let runPM: boolean | null = null;
+    return pieces.map((piece, i) => {
+      const task = parseNow(piece, ctx);
+      const saidType = TYPE_RULES.some(([, rule]) => rule.test(piece));
+      if (i === 0 && saidType) runType = task.type;
+      // Only a bare name and a clock borrows the verb — "وإبراهيم 6:00".
+      // A piece with words of its own ("اتبع المنيو") keeps its own reading,
+      // or every errand after a call would become a call.
+      const justSomebody = JUST_A_NAME.test(piece);
+      const type = saidType || runType === null || !justSomebody ? task.type : runType;
+
+      if (!task.when) return { ...task, type };
+      const when = new Date(task.when);
+      // The day, said once at the top and meant for all of it.
+      if (run.said && !dayOf(piece, ctx.now).said) {
+        const onDay = new Date(run.date);
+        onDay.setHours(when.getHours(), when.getMinutes(), 0, 0);
+        when.setTime(onDay.getTime());
+      }
+      // And the half of the day. "محمد 5 وإبراهيم 6 وأحمد 7" is one evening:
+      // the first two are read as the afternoon because nothing means five
+      // in the morning, and the seven was landing at dawn on its own. Only
+      // where the piece named no half of its own.
+      const saidHalf = /\b(?:am|pm|a\.m\.|p\.m\.|morning|afternoon|evening|night|noon|midday)\b/i.test(piece) || PM_WORDS.test(piece) || AM_WORDS.test(piece);
+      if (oneBreath && runPM === true && !saidHalf && when.getHours() >= 1 && when.getHours() < 12) when.setHours(when.getHours() + 12);
+      if (when.getHours() >= 12) runPM = true;
+      return { ...task, type, when: when.toISOString() };
+    });
   },
   async interpret(text, ctx): Promise<AssistantIntent> {
     // "Waiting for Sara…" with a person in it is something to remember, not the follow-ups list.
