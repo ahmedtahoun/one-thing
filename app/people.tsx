@@ -9,7 +9,7 @@
  * reach them; nothing is sent from here.
  */
 import { useEffect, useMemo, useState } from 'react';
-import { Pressable, TextInput, View } from 'react-native';
+import { Pressable, TextInput, useWindowDimensions, View } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { router, useLocalSearchParams } from 'expo-router';
 
@@ -33,6 +33,7 @@ import {
   type PeopleFilter,
 } from '@/features/people/filters';
 import { isMomentLabel } from '@/features/people/moment-label';
+import { identityLine, lineWidth } from '@/features/people/quiet-line';
 import { matchContact } from '@/features/people/search';
 import { useStartTask } from '@/features/people/start-task';
 import { chatTime } from '@/features/people/time';
@@ -46,7 +47,6 @@ import { Toast, useToast } from '@/ui/Toast';
 import { type IconName } from '@/design/icon-paths';
 import { fontFamily, ink, status, surface, typeColour } from '@/design/tokens';
 import { useDirection, useLanguage } from '@/i18n/LanguageProvider';
-import { ltr } from '@/lib/bidi';
 import { toggleFavorite, useFavorites } from '@/lib/favorites';
 import { type Channel, type Contact } from '@/lib/model-types';
 import { usePeople } from '@/lib/people';
@@ -470,6 +470,7 @@ function PersonRow({
 }) {
   const { t } = useLanguage();
   const dir = useDirection();
+  const { width: windowWidth } = useWindowDimensions();
   const reach = contact.phone ? `${contact.dial ?? ''} ${contact.phone}`.trim() : contact.email ?? '';
 
   // The quiet line: what is going on with them, else when you last spoke, else who they are.
@@ -477,12 +478,13 @@ function PersonRow({
     ? { text: followUp === 'due' ? t.st.due : t.st.waiting, colour: followUp === 'due' ? status.invalid : ink.s3, weight: '600' as const }
     : contact.lastLabel && !isMomentLabel(contact.lastLabel)
       ? { text: contact.lastLabel, colour: ink.s4, weight: '400' as const }
-      : // Who they are: their role, or how to reach them when they have no
-        // role. Not both — the row fits one line, and a long role left the
-        // number cut to "+2…", two characters of a phone number, which is
-        // noise rather than information (seen on the owner's own list). The
-        // number is on their profile, and a tap away from this row.
-        { text: contact.role || (reach ? ltr(reach) : ''), colour: ink.s4, weight: '400' as const };
+      : // Who they are, and how to reach them when both still fit on the
+        // row's one line. A long role used to leave the number cut to "+2…",
+        // two characters of a phone number, which is noise rather than
+        // information (seen on the owner's own list); the reach is dropped
+        // instead, and the profile a tap away carries it in full.
+        // src/features/people/quiet-line.ts
+        { text: identityLine(contact.role, reach, lineWidth(windowWidth)), colour: ink.s4, weight: '400' as const };
 
   return (
     <Pressable

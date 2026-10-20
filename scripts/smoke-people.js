@@ -112,29 +112,44 @@ const SESSION = { userId: 'smoke', name: 'Khalid Al-Mansouri', firstName: 'Khali
   check('Waiting carries the overdue count', (await text('people-filters-badge')) === '1');
 
   // A long role used to leave the number cut to "+2…" — two characters of a
-  // phone number, which is noise rather than information. The row carries one
-  // identifying thing, so nothing is cut mid-number.
+  // phone number, which is noise rather than information. The quiet line is
+  // measured now: both are shown when they fit, and the reach is what gives
+  // way when they do not, so nothing is ever cut mid-number.
+  // src/features/people/quiet-line.ts
   await page.evaluate(() => {
     const list = JSON.parse(localStorage.getItem('ot.contacts') || '[]');
-    list.push({
-      id: 'cLong',
-      name: 'Khaled Farag',
-      role: 'General Manager · @speranza',
-      dial: '+20',
-      phone: '100 123 4567',
-      createdAt: new Date().toISOString(),
-      touchedAt: new Date().toISOString(),
-    });
+    const at = new Date().toISOString();
+    list.push({ id: 'cLong', name: 'Khaled Farag', role: 'General Manager · @speranza', dial: '+20', phone: '100 123 4567', createdAt: at, touchedAt: at });
+    // The roomy row: a short role and an address with 80pt to spare.
+    list.push({ id: 'cRoomy', name: 'Stephany Bakir', role: 'Travel', email: 'info@test.com', createdAt: at, touchedAt: at });
     localStorage.setItem('ot.contacts', JSON.stringify(list));
   });
   await open('/people');
   const longRow = await page.getByTestId('person-cLong').innerText();
   check('a long role is shown whole, not cut', longRow.includes('General Manager · @speranza'), longRow.replace(/\n/g, ' ⏎ '));
   check('…and no stump of a phone number beside it', !/\+\d{0,3}…|\+\d{0,3}\.\.\./.test(longRow), longRow.replace(/\n/g, ' ⏎ '));
+  // The reach is wrapped in bidi isolates so a number keeps its direction in
+  // an Arabic line; they are invisible, and have to come off before matching.
+  const roomyRow = (await page.getByTestId('person-cRoomy').innerText()).replace(/[\u2066-\u2069]/g, '');
+  check('a short role keeps the address beside it', /Travel · info@test\.com/.test(roomyRow), roomyRow.replace(/\n/g, ' ⏎ '));
+  // What the estimate claims has to be what the browser draws: no quiet line
+  // may overflow the column it was measured against.
+  const overflow = await page.evaluate(() => {
+    const out = [];
+    for (const row of document.querySelectorAll('[data-testid^="person-c"]:not([data-testid$="-due"])')) {
+      for (const el of row.querySelectorAll('div')) {
+        if (el.childElementCount || !el.textContent.trim()) continue;
+        if (Math.round(parseFloat(getComputedStyle(el).fontSize)) !== 14) continue;
+        if (el.scrollWidth > el.clientWidth + 1) out.push(`${row.dataset.testid}: ${el.textContent} (${el.scrollWidth} > ${el.clientWidth})`);
+      }
+    }
+    return out;
+  });
+  check('no quiet line is cut off by its column', overflow.length === 0, overflow.join(' | '));
   // Put the book back as it was: the counts below are the seeded eight.
   await page.evaluate(() => {
     const list = JSON.parse(localStorage.getItem('ot.contacts') || '[]');
-    localStorage.setItem('ot.contacts', JSON.stringify(list.filter((c) => c.id !== 'cLong')));
+    localStorage.setItem('ot.contacts', JSON.stringify(list.filter((c) => c.id !== 'cLong' && c.id !== 'cRoomy')));
   });
   await open('/people');
 

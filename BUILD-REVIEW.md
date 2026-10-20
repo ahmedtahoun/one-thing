@@ -4762,9 +4762,10 @@ Arabic than a transliterated "+1".
 their role and their number, and with the owner's own data it came out
 **"General Manager · @speranza · +2…"** — two characters of a phone number,
 which is noise rather than information. It reads the same way in English. The
-row holds one line, so it now carries **one** identifying thing: the role, or
+row holds one line, so it was cut to **one** identifying thing: the role, or
 the number when there is no role. The number is on their profile and a tap
-from the row.
+from the row. (§2.111 revisits this: one thing per row was too blunt, and the
+line is measured now.)
 
 **Why the probe found none of this.** It renders the demo contacts, whose
 roles are short, so nothing overflowed and nothing was cut. The fault needed
@@ -4776,3 +4777,76 @@ that cannot produce the fault cannot catch it, which is the same lesson
 
 **Checks:** 1358 unit tests, 467 browser checks across seven suites (2 new),
 54 at 360×640, 35 against Postgres, drift clean, both typechecks clean.
+
+
+### 2.111 Measuring the line instead of guessing at it
+
+§2.110 fixed a crowded row by taking something off every row. "General
+Manager · @speranza · +2…" became "General Manager · @speranza", which is
+right; but "Travel · info@test.com" became "Travel", which is not — that line
+had 80pt of its 228 to spare, and an address was thrown away for a crowding
+that was not happening. One identifying thing per row is the correct answer to
+a row that overflows and the wrong answer to a row that does not. The rule has
+to depend on the width, so the width has to be known.
+
+**React Native will not tell you.** There is no synchronous text metric, and
+`onTextLayout` arrives a frame after the row is drawn, so measuring for real
+means drawing the wrong thing first and correcting it — a flicker down a
+scrolling list. The width has to be estimated before the row is drawn.
+
+**So the font was measured, once, and the table checked in.**
+`scripts/measure-line.js` renders a real row, reads the font and the column
+off it, measures the advance width of every character at 100px, and prints the
+tables in the shape `src/features/people/quiet-line.ts` holds them. On Latin
+text the sum of the parts is the whole to within 1% — the font barely kerns.
+
+**Arabic does not add up, which cost a round.** Its letters join, so a letter
+inside a word is drawn without the tail it has alone: "مسؤول المشتريات" sums
+to 9.27em and draws at 7.31em, 27% less. The first attempt took the easy way
+out — one flat 0.50em for any Arabic letter, fitted over real roles — on the
+reasoning that an Arabic role is short and an Arabic contact's reach is a
+Latin email anyway, so the Arabic is never the part near the limit. A wider
+corpus said otherwise. **"مؤسس · books@ledgerco.com" needs 192pt and the flat
+average called it 186**: ؤ does not join forward, so the word is two shaped
+runs, both letters keep their tails, and four letters at a joined average is
+far too light. The flat average was not merely imprecise, it was imprecise in
+the one direction that cuts a number. So the Arabic letters are now in the
+table too, at their *isolated* widths, with a single `SHRINK` taking the
+joining back out.
+
+**The two constants are fitted against each other.** An estimate has two ways
+to be wrong and they are not equally bad. Call an overflow a fit, and a number
+gets cut to a stub — the fault this started as. Call a fit an overflow, and a
+row shows the role alone when the address would have squeezed in; nobody can
+see what is missing. So the estimate is allowed 96% of the column, and
+`SHRINK` is swept for the value that is safe at that margin: at 0.8, across
+**151 strings judged at both 402pt and 360pt, no pair the estimate called a
+fit was really an overflow, and none it called an overflow had room to spare**.
+The worst an Arabic line is underestimated by is 3.8% — inside the 4% margin,
+so the pair hold together by construction rather than by luck. 0.7 and below
+start calling overflows fits; 0.85 and above start dropping addresses that
+fitted.
+
+**The test is held to the measurement, not to a tolerance.** The script writes
+`font-widths.json` — the width of every role-and-reach pair a real address
+book makes, in both languages — and `quiet-line.test.ts` reads it as an
+oracle: every pair goes to `identityLine` at both columns and the verdict is
+compared to what the browser really drew. A verdict in the unsafe direction
+fails the suite; so does a table that has drifted from the measured font,
+which is what notices if the font is changed and the script re-run but the
+paste forgotten.
+
+**And the browser checks the arithmetic.** An estimate that agrees with a
+canvas can still disagree with a laid-out row, so the People suite now seeds
+both shapes — the owner's long role and a roomy "Travel · info@test.com" —
+asserts the long one keeps its role whole with no stump of a number beside
+it, asserts the roomy one keeps its address, and then walks every quiet line
+on the screen comparing `scrollWidth` to `clientWidth`. If any line overflows
+the column it was measured against, the suite says which and by how much. The
+column width itself is not assumed either: it is `useWindowDimensions()` less
+the picture, the gaps and the date, a relation the script prints and the test
+checks at both reference frames (402pt leaves 228, 360pt leaves 186).
+
+**Checks:** 1377 unit tests (19 new), 171 People checks (3 new), 54 at
+360×640, 35 against Postgres, drift clean, both typechecks clean, web export
+clean.
