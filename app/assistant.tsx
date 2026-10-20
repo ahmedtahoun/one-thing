@@ -81,8 +81,11 @@ import { followUpFromParsed, taskFromParsed } from '@/lib/parse/to-task';
 import { LoopTag } from '@/features/capture/LoopTag';
 import { promiseDraft } from '@/features/compose/drafts';
 import { MicNotice, useMicGate } from '@/features/mic/MicNotice';
+import { IntroCard } from '@/features/assistant/IntroCard';
+import { introSteps, openingLine, type Opening } from '@/features/assistant/intro';
 import { chipsFor, rankChips } from '@/features/assistant/suggestions';
 import { useAssistantHabits } from '@/lib/assistant-habits';
+import { useAssistantMet } from '@/lib/assistant-met';
 import { telUrl, whatsAppUrl } from '@/features/compose/recipient';
 import { useCadence } from '@/lib/cadence';
 import { useFavorites } from '@/lib/favorites';
@@ -161,6 +164,10 @@ export default function Assistant() {
   const toast = useToast();
   const mic = useMicGate();
   const habits = useAssistantHabits();
+  // Whether Sanad has introduced itself on this phone yet — src/lib/assistant-met.ts.
+  const { met, ready: metKnown, meet } = useAssistantMet();
+  /** Whether they had met Sanad when this screen opened, held still while they use it. */
+  const metAtOpen = useRef<boolean | null>(null);
   // Quick capture hands over a sentence that is really "save this person".
   const { say } = useLocalSearchParams<{ say?: string }>();
 
@@ -635,6 +642,8 @@ export default function Assistant() {
   const send = async (raw?: string, typed = raw === undefined, spoken = false) => {
     const text = (raw ?? input).trim();
     if (!text) return;
+    // Saying anything is meeting: the introduction does not wait to be dismissed.
+    if (!met) meet();
     const clear = () => raw === undefined && setInput('');
     // Saving a person takes no Assistant request: it is read on the device.
     if (typed && openContact && continueContact(openContact, text)) return clear();
@@ -814,12 +823,6 @@ export default function Assistant() {
     ]);
   };
 
-  // The greeting names the person where the prototype names its demo user.
-  const demoFirst = t.set_name.split(' ')[0] ?? '';
-  const named = session?.firstName ? t.bot0.replace(demoFirst, session.firstName) : t.bot0;
-  // The opening line says "morning" as written; from six it says evening, as Today does.
-  const greeting = new Date().getHours() >= 18 ? named.replace(/^Morning/, 'Evening').replace(/^صباح الخير/, 'مساء الخير') : named;
-
   const today = dateKey();
   const todaysOpen = tasks
     .filter((task) => task.status === 'open' && isOnDay(task, today))
@@ -834,9 +837,10 @@ export default function Assistant() {
    * Nothing is suggested that would answer "nobody" — a chip that wastes a
    * tap is worse than one fewer chip.
    */
+  const lateCount = tasks.filter((task) => task.status === 'open' && task.dueAt !== null && Date.parse(task.dueAt) < now.getTime()).length;
   const chips = rankChips(
     chipsFor(copy.chips, {
-      late: tasks.filter((task) => task.status === 'open' && task.dueAt !== null && Date.parse(task.dueAt) < now.getTime()).length,
+      late: lateCount,
       waiting: nudge + waiting,
       openTasks: tasks.filter((task) => task.status === 'open').length,
       hasOneThing: oneThing !== null,
@@ -844,6 +848,30 @@ export default function Assistant() {
     }),
     habits.tapped
   );
+
+  /**
+   * What Sanad opens with. Every clause of it is a claim about this account,
+   * so it is assembled from the ones that are true rather than taken whole
+   * from the handoff: that fixed line told a brand-new account its One Thing
+   * was set. src/features/assistant/intro.ts, BUILD-REVIEW §2.113.
+   */
+  const whoTheyAre: Opening = {
+    firstName: session?.firstName ?? '',
+    hour: new Date().getHours(),
+    hasOneThing: oneThing !== null,
+    openToday: todaysOpen.length,
+    late: lateCount,
+    waiting: nudge + waiting,
+    people: contacts.length,
+    // As it was when the screen opened. Saying anything sets the flag, and a
+    // greeting that rewrote itself from "I'm Sanad" to a status line the
+    // moment somebody replied would be the screen talking over itself.
+    met: metAtOpen.current ?? met,
+  };
+  if (metKnown && metAtOpen.current === null) metAtOpen.current = met;
+  const greeting = openingLine(whoTheyAre, copy.meet);
+  /** The four things offered on a first visit, narrowed to what this account can answer. */
+  const steps = introSteps(whoTheyAre, copy.meet);
   // botFu is the prototype's demo sentence ("Three threads are open. Noura
   // is the oldest — 3 days."); the Follow-ups summary says the same thing
   // from real counts — BUILD-REVIEW.md §2.34.
@@ -1095,6 +1123,23 @@ export default function Assistant() {
               </View>
             )
           )}
+
+          {/* The first visit: what Sanad can do, as sentences one tap away.
+              Held back until the flag is read, so it cannot flash up at
+              somebody who met Sanad weeks ago, and gone the moment the
+              conversation starts — it is an introduction, not a panel. */}
+          {metKnown && !met && messages.length === 1 ? (
+            <IntroCard
+              steps={steps}
+              heading={copy.meet.try}
+              done={copy.meet.done}
+              onTry={(say) => {
+                meet();
+                void send(say);
+              }}
+              onDone={meet}
+            />
+          ) : null}
         </ScrollView>
 
         {/* What is worth suggesting to this person now, and in the order

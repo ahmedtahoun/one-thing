@@ -223,6 +223,21 @@ const WAITING_WORD = new RegExp(
   'i'
 );
 
+/**
+ * "Who do I owe a reply?" — the waiting list, asked from the other side.
+ *
+ * Deliberately narrow. "I must reply to Sara tomorrow" is an errand, and the
+ * only thing separating it from this question is the interrogative, so the
+ * interrogative is required rather than the verb alone. Widening على its own
+ * — لازم ارد, المفروض ارد — is the mistake §2.109 paid for with five errands.
+ */
+const OWE_REPLY_WORD = new RegExp(
+  '\\bwho (?:do|should|must) i (?:owe|reply|respond|get back)\\b|' +
+    '\\bwho am i supposed to (?:reply|respond|get back)\\b|\\bwho (?:needs|is owed) (?:a )?(?:reply|answer|response)\\b|' +
+    ar('(?:مين لازم ارد|مين المفروض ارد|مين مستني رد|مين عايز رد)').source,
+  'i'
+);
+
 const LATE_WORD = new RegExp(
   '\\b(?:late|overdue|behind|missed|slipped)\\b|' +
     // Asked as a reproach rather than a status: "what should I have done?",
@@ -241,7 +256,15 @@ const LATE_WORD = new RegExp(
 const TASKS_WORD = new RegExp(
   "\\b(?:what|which) tasks?\\b|\\bmy tasks?\\b|\\bthe tasks?\\b|\\bwhat(?:'|’)?s on\\b|" +
     '\\bwhat do i have\\b|\\bwhat have i got\\b|\\banything (?:on|due|left|to do)\\b|\\bto-?do list\\b|' +
-    ar(`(?<![${AR_LETTER}])(?:مهامي|مهماتي|وش مهامي|ايش مهامي|وش عندي|ايش عندي|شنو عندي|وش علي|ايش علي|قائمة مهامي)(?![${AR_LETTER}])`).source,
+    // Counted rather than listed ("how many tasks do I have?"), and asked as
+    // an obligation ("what's expected of me?") — both are the same list.
+    "\\bhow many tasks?\\b|\\bwhat(?:'|’)?s (?:required|expected) of me\\b|\\bwhat is (?:required|expected) of me\\b|" +
+    // Anchored: "send what is left to Omar" is an errand, and only the
+    // opening position makes it the question.
+    "^\\s*what(?:'|’)?s left\\b|^\\s*what is left\\b|" +
+    // مهمة, never حاجة: "كام حاجة" is "a few things" in an errand, which is
+    // why ASK_WORD and COUNT_WORD both except it.
+    ar(`(?<![${AR_LETTER}])(?:مهامي|مهماتي|وش مهامي|ايش مهامي|وش عندي|ايش عندي|شنو عندي|وش علي|ايش علي|قائمة مهامي|قائمتي|المطلوب مني|كم مهمة|كام مهمة|كم مهام|كام مهام)(?![${AR_LETTER}])`).source,
   'i'
 );
 const TODAY_WORD = new RegExp(
@@ -758,7 +781,7 @@ export function askData(text: string, world: DataWorld, about: Subject = null): 
   if (!isQuestion(t) && intentOf(t) === 'task') return null;
 
   const named = readWho(t, world.contacts as Contact[]);
-  const waiting = WAITING_WORD.test(t) || intentOf(t) === 'followups';
+  const waiting = WAITING_WORD.test(t) || OWE_REPLY_WORD.test(t) || intentOf(t) === 'followups';
   // The lists get first refusal: they are asked for with the same words a
   // question about one person uses ("who", "haven't I"), and "ما كلمته" sits
   // in both the history list and the going-quiet one.

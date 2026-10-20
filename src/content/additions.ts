@@ -611,6 +611,30 @@ export type Added = {
     egImport: string;
   };
   /**
+   * Sanad's own words: the greeting assembled from things that are true of
+   * the account, and the four things a newcomer is invited to try on their
+   * first visit — `src/features/assistant/intro.ts`.
+   */
+  meet: {
+    morning: string;
+    evening: string;
+    hi: string;
+    what: string;
+    oneThing: string;
+    onToday: string;
+    late: string;
+    nothingYet: string;
+    invite: string;
+    /** The heading over the four examples. */
+    try: string;
+    /** Puts the examples away; they do not come back. */
+    done: string;
+    remind: { label: string; say: string };
+    dump: { label: string; say: string };
+    ask: { label: string; say: string };
+    card: { label: string; say: string };
+  };
+  /**
    * The Assistant's suggestion chips. Each is a short label and the
    * sentence it sends, so the chat shows what could have been typed and
    * the person learns the phrase — `src/features/assistant/suggestions.ts`
@@ -1407,6 +1431,23 @@ const ADDED: Record<Lang, Added> = {
       egLate: 'What’s late?',
       egImport: 'Import a file',
     },
+    meet: {
+      morning: 'Morning {name}.',
+      evening: 'Evening {name}.',
+      hi: 'I’m Sanad.',
+      what: 'Tell me what’s on your mind — out loud or typed — and I’ll turn it into tasks, reminders and follow-ups you won’t drop.',
+      oneThing: 'Your One Thing is set.',
+      onToday: '{n} still on today.',
+      late: '{n} late.',
+      nothingYet: 'Nothing on today yet.',
+      invite: 'Anything on your mind? Say it here and I’ll sort it.',
+      try: 'Try one of these:',
+      done: 'Got it',
+      remind: { label: 'Set a reminder', say: 'Remind me tomorrow at 4 to renew the licence' },
+      dump: { label: 'Empty your head', say: 'Renew the licence. Book a flight. Pay the rent.' },
+      ask: { label: 'Ask about your day', say: 'What’s next?' },
+      card: { label: 'Scan a card', say: 'Scan a card' },
+    },
     chips: {
       late: { label: 'What’s late?', say: 'What’s late?' },
       waiting: { label: 'No reply yet', say: 'Who am I waiting on?' },
@@ -2082,6 +2123,23 @@ const ADDED: Record<Lang, Added> = {
       egTask: 'فكرني أكلم سارة الساعة ٤',
       egLate: 'وش المتأخر؟',
       egImport: 'استورد ملف',
+    },
+    meet: {
+      morning: 'صباح الخير يا {name}.',
+      evening: 'مساء الخير يا {name}.',
+      hi: 'أنا سند.',
+      what: 'قول لي اللي في بالك — بصوتك أو مكتوب — وأنا أحوّله مهام وتذكيرات ومتابعات ما تفوتك.',
+      oneThing: 'شغلك الأساسي جاهز.',
+      onToday: 'باقي لك {n} اليوم.',
+      late: 'عندك {n} متأخرة.',
+      nothingYet: 'ما عندك شي اليوم للحين.',
+      invite: 'في شي شاغل بالك؟ قوله هنا وأنا أرتّبه.',
+      try: 'جرّب وحدة من هذي:',
+      done: 'تمام',
+      remind: { label: 'ذكّرني بشي', say: 'ذكّرني بكرة الساعة ٤ أجدد الرخصة' },
+      dump: { label: 'فضّي بالك', say: 'أجدد الرخصة. أحجز تذكرة. أدفع الإيجار.' },
+      ask: { label: 'اسأل عن يومك', say: 'وش التالي؟' },
+      card: { label: 'صوّر كرت', say: 'صوّر كرت' },
     },
     chips: {
       late: { label: 'وش المتأخر؟', say: 'وش المتأخر؟' },

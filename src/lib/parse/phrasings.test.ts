@@ -269,6 +269,34 @@ const CORPUS: readonly Row[] = [
   ['en', 'is the dentist appointment soon?', 'findTask'],
   ['ar', 'امتى موعد الدكتور؟', 'findTask'],
   ['eg', 'الدكتور امتى؟', 'findTask'],
+  // ---- owed a reply, asked from the other side ----------------------
+  // The waiting list is normally asked as "who hasn't replied?"; this is the
+  // same list asked as a debt. Only ever with the interrogative: "I must
+  // reply to Sara tomorrow" is an errand — see STATEMENTS below.
+  ['en', 'who do I owe a reply?', 'waiting'],
+  ['en', 'who am I supposed to get back to?', 'waiting'],
+  ['en', 'who needs a reply?', 'waiting'],
+  ['ar', 'مين لازم أرد عليه؟', 'waiting'],
+  ['ar', 'مين المفروض أرد عليه؟', 'waiting'],
+  ['ar', 'مين مستني رد مني؟', 'waiting'],
+  ['eg', 'مين لازم ارد عليه؟', 'waiting'],
+  ['eg', 'مين المفروض ارد عليه؟', 'waiting'],
+  // ---- the list, counted or asked as an obligation -------------------
+  ['en', 'how many tasks do I have?', 'tasks'],
+  ['en', 'how many tasks are left?', 'tasks'],
+  ['en', 'what is expected of me?', 'tasks'],
+  ['en', 'what’s required of me?', 'tasks'],
+  ['en', 'what is left?', 'tasks'],
+  ['en', 'what’s left?', 'tasks'],
+  ['ar', 'كم مهمة عندي؟', 'tasks'],
+  ['ar', 'كم مهمة باقية؟', 'tasks'],
+  ['ar', 'ايش المطلوب مني؟', 'tasks'],
+  ['ar', 'وش المطلوب مني؟', 'tasks'],
+  ['ar', 'عطني قائمتي', 'tasks'],
+  ['eg', 'كام مهمة عندي؟', 'tasks'],
+  ['eg', 'كام مهمة فاضلة؟', 'tasks'],
+  ['eg', 'المطلوب مني ايه؟', 'tasks'],
+  ['eg', 'هاتلي قائمتي', 'tasks'],
 ];
 
 describe('how people actually ask, in three languages', () => {
@@ -310,6 +338,16 @@ const STATEMENTS = [
   'مستني رد سارة',
   'فكرني اكلم عمر بكرة',
   'قلت لعمر اني هبعت العقد',
+  // The errands the reply and list questions above sit next to. Each of
+  // these is one interrogative away from a question, which is why the
+  // patterns ask for the interrogative and not the verb.
+  'reply to Sara tomorrow',
+  'I owe Sara a reply',
+  'get back to Omar on Thursday',
+  'لازم ارد على سارة بكرة',
+  'المفروض ارد على عمر',
+  'ضيف العقد لقائمتي',
+  'عايز اعمل كام حاجة النهارده',
 ];
 
 describe('and what must not become a question', () => {

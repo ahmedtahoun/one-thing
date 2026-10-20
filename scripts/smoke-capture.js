@@ -211,6 +211,72 @@ const D_SAMPLE =
   check('…each linked where a name was caught', dumped.find((t) => t.title === 'Email Sara the deck')?.contactIds[0] === 'c2');
   check('…returns to Today and says so', page.url().endsWith('/today') && (await text('toast')) === '6 things saved. Head’s clearer now.');
 
+  // --------------------------------------------------- Meeting Sanad
+  // A brand-new account used to be told "Your One Thing is set" when nothing
+  // was, over 70% empty screen with no sign of what to type. BUILD-REVIEW
+  // §2.113.
+  await page.goto(`${base}/`, { waitUntil: 'domcontentloaded' });
+  await page.evaluate((d) => {
+    localStorage.clear();
+    for (const [k, v] of Object.entries(d)) localStorage.setItem(k, JSON.stringify(v));
+    localStorage.setItem('ot.lang', 'en');
+  }, { 'ot.session': SESSION, 'ot.tasks': [], 'ot.contacts': [], 'ot.followups': [], 'ot.history': [] });
+  await open('/assistant');
+  const hello = await page.getByTestId('assistant-reply').first().innerText();
+  check('Sanad says its name on a first meeting', hello.includes('Sanad'), hello);
+  check('…and says what it is for', hello.includes('tasks, reminders and follow-ups'), hello);
+  check('…and claims nothing about an account with nothing in it', !hello.includes('One Thing'), hello);
+  check('the screen is named after it', (await page.locator('body').innerText()).includes('Sanad'));
+  check('the introduction offers things to try', await page.getByTestId('assistant-intro').isVisible());
+  // Nothing is next on an empty account, so it is not offered — a tap that
+  // answers "nothing" teaches that Sanad has nothing to offer.
+  check('…only the ones that work on an empty account', (await page.getByTestId('assistant-intro-ask').count()) === 0);
+  for (const key of ['remind', 'dump', 'card']) {
+    check(`…including ${key}`, (await page.getByTestId(`assistant-intro-${key}`).count()) === 1);
+  }
+
+  // Every sentence it offers has to be one the parser can actually read: an
+  // introduction that demonstrates a phrase the app cannot parse is worse
+  // than no introduction.
+  const introStart = await taskCount();
+  await page.getByTestId('assistant-intro-remind').click();
+  await page.waitForTimeout(1200);
+  check('tapping a row sends it as if typed', (await count('assistant-mine')) === 1);
+  // The examples name nobody on purpose: "call Ahmed" to an empty address
+  // book answers "I don't have Ahmed in People yet", so the first thing a
+  // newcomer ever tries would be a question back at them.
+  check('…and Sanad answers with a task, not a question about a stranger', (await count('assistant-card')) === 1, (await page.locator('body').innerText()).slice(0, 220));
+  check('…which is not saved until confirmed', (await taskCount()) === introStart);
+  const stillHello = await page.getByTestId('assistant-reply').first().innerText();
+  check('…and the greeting does not rewrite itself mid-conversation', stillHello.includes('Sanad'), stillHello);
+  check('the introduction goes once the conversation starts', (await page.getByTestId('assistant-intro').count()) === 0);
+  await open('/assistant');
+  check('…and does not come back on the next visit', (await page.getByTestId('assistant-intro').count()) === 0);
+  const second = await page.getByTestId('assistant-reply').first().innerText();
+  check('…nor does the introduction itself', !second.includes('I’m Sanad'), second);
+
+  // The "empty your head" example has to actually come apart. Typed text
+  // splits on a full stop and never on a comma (app/assistant.tsx), so an
+  // example punctuated with commas would come back as one task with the
+  // whole sentence for a title — demonstrating the opposite of the point.
+  await page.evaluate(() => localStorage.removeItem('ot.assistant.met'));
+  await open('/assistant');
+  await page.getByTestId('assistant-intro-dump').click();
+  await page.waitForTimeout(1500);
+  check('the brain-dump example comes apart into its errands', (await page.locator('[data-testid^="qa-dump-"]').count()) === 4, String(await page.locator('[data-testid^="qa-dump-"]').count()));
+  check('…and offers to save them together', await page.getByTestId('qa-dump-save').isVisible());
+  check('…with nothing saved until it is pressed', (await taskCount()) === introStart);
+
+  // Dismissing counts as having met, on its own.
+  await page.evaluate(() => localStorage.removeItem('ot.assistant.met'));
+  await open('/assistant');
+  check('a fresh phone meets Sanad again', await page.getByTestId('assistant-intro').isVisible());
+  await page.getByTestId('assistant-intro-done').click();
+  await page.waitForTimeout(300);
+  check('Got it puts it away', (await page.getByTestId('assistant-intro').count()) === 0);
+  await open('/assistant');
+  check('…and it stays away', (await page.getByTestId('assistant-intro').count()) === 0);
+
   // -------------------------------------------------------------- Assistant
   await seed();
   const askStart = await taskCount();

@@ -9,7 +9,7 @@
 const A11Y_en = {
   back: 'Back',
   close: 'Close',
-  assistant: 'Assistant',
+  assistant: 'Sanad',
   dailyReview: 'Daily review',
   settings: 'Settings',
   capture: 'Quick capture',
@@ -22,7 +22,7 @@ const A11Y_en = {
 const A11Y_ar: typeof A11Y_en = {
   back: 'رجوع',
   close: 'إغلاق',
-  assistant: 'المساعد',
+  assistant: 'سند',
   dailyReview: 'مراجعة اليوم',
   settings: 'الإعدادات',
   capture: 'التقاط سريع',

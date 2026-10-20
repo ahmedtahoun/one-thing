@@ -349,6 +349,29 @@ both documented phrases already said.
 عمر بكرة" is an errand; "find Sara's number" is a question and "find a new
 supplier" is a task. Both now sit behind the same noun list.
 
+## Owed a reply, counted, or asked as an obligation
+
+A second round of the same exercise, after Sanad got a name. Each is in the
+corpus test, and each sits beside an errand it must not swallow.
+
+| Scenario | Also understood now |
+| --- | --- |
+| Who's waiting | who do I owe a reply?, who am I supposed to get back to?, who needs a reply? · مين لازم أرد عليه · مين المفروض أرد عليه · مين مستني رد مني |
+| The day's list | how many tasks do I have?, what's expected of me?, what's required of me?, what's left? · كم مهمة عندي · كام مهمة فاضلة · المطلوب مني · قائمتي |
+
+**The interrogative is what is matched, never the verb.** "لازم أرد على سارة
+بكرة" is an errand and "مين لازم أرد عليه؟" is the waiting list, and the only
+difference between them is **مين**. The same holds in English: "reply to Sara
+tomorrow" is an errand, "who do I owe a reply?" is the list. Widening on
+لازم or *reply* alone is the mistake §2.109 paid for with five errands, so
+the patterns ask for the question word and not the verb.
+
+**مهمة, never حاجة.** "كام مهمة عندي؟" counts tasks; "عايز أعمل كام حاجة
+النهارده" is still a list of errands, for the reason in the next section.
+
+**"What's left" only at the start of a sentence.** "Send what is left to
+Omar" is an errand.
+
 ## What is not a question, though it looks like one
 
 **كم** and **كام** before حاجة are a quantifier, not a count. "عايز أعمل كم

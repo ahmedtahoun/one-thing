@@ -342,11 +342,24 @@ const PROBES = {
     proto: '20',
     state: { signedIn: true, firstRun: false, seedTasks: true, seedPeople: true, oneThing: true },
     labels: {
-      title: { en: 'Assistant', ar: 'المساعد' },
+      // The Assistant has a name now — §2.113. The prototype still calls it
+      // by the category, and it is the same heading in the same place.
+      title: { en: 'Assistant', ar: 'المساعد', app: { en: 'Sanad', ar: 'سند' } },
       oneThing: { en: 'Finish the investor proposal', ar: 'أخلّص عرض المستثمرين' },
+      /**
+       * The prototype's greeting is one fixed sentence; the app's is
+       * assembled from what is true of the account, so the words differ
+       * while the bubble is the same bubble in the same place. Seeded with
+       * a One Thing and today's tasks, it says the One Thing is set —
+       * which here it is. §2.113.
+       */
       greeting: {
         en: 'Morning Khalid. Your One Thing is set. Anything rattling around your head? Dump it here — I’ll sort it.',
         ar: 'صباح الخير يا خالد. شغلك الأساسي جاهز. في شي شاغل بالك؟ قوله هنا وأنا أرتّبه.',
+        app: {
+          en: 'Morning Khalid. Your One Thing is set. Anything on your mind? Say it here and I’ll sort it.',
+          ar: 'صباح الخير يا خالد. شغلك الأساسي جاهز. في شي شاغل بالك؟ قوله هنا وأنا أرتّبه.',
+        },
       },
       /**
        * The chip row holds this person's own short labels now (§2.92), so
@@ -458,8 +471,12 @@ async function measureApp(lang, screen, probe) {
 
   await page.goto(`http://127.0.0.1:${port}/`, { waitUntil: 'domcontentloaded' });
   await page.evaluate(
-    ({ session, tasks, oneThing, contacts, followUps, history }) => {
+    ({ session, tasks, oneThing, contacts, followUps, history, met }) => {
       const put = (k, v) => (v ? localStorage.setItem(k, JSON.stringify(v)) : localStorage.removeItem(k));
+      // Somebody who has met Sanad already. The introduction is a first-run
+      // surface and the prototype has none, the same reason `firstRun` is
+      // false everywhere here: what is measured is the steady state.
+      put('ot.assistant.met', met);
       put('ot.session', session);
       put('ot.tasks', tasks);
       put('ot.oneThing', oneThing);
@@ -477,6 +494,7 @@ async function measureApp(lang, screen, probe) {
       contacts: probe.state.seedPeople ? demoContacts(lang, new Date()) : null,
       followUps: probe.state.seedPeople ? demoFollowUps(lang) : null,
       history: probe.state.seedPeople ? demoHistory(lang, new Date()) : null,
+      met: probe.state.met !== false,
     }
   );
   await page.goto(`http://127.0.0.1:${port}${probe.app}`, { waitUntil: 'networkidle' });

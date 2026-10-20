@@ -4904,3 +4904,106 @@ renders is a state nothing checks.
 
 **Checks:** 1382 unit tests (5 new), 88 day checks (22 new), 54 at 360×640,
 drift clean, both typechecks clean, web export clean.
+
+
+### 2.113 The Assistant has a name, and stops lying to people who have just arrived
+
+The owner asked for three things: a name for the Assistant, a proper
+introduction the first time somebody opens it, and more keywords. The first
+screenshot of a brand-new account answered the second one before it was asked.
+
+**It was telling newcomers something untrue.** The opening line came from the
+design handoff as one fixed sentence — "Morning Khalid. Your One Thing is set.
+Anything rattling around your head?" — with the demo name swapped for the real
+one. Everything after the name is a claim about the account, and on an account
+with nothing in it every word of it was false: nothing was set, and the screen
+said it was. Below that claim sat 70% empty screen and two chips, so the only
+hint of what could be typed was "Scan a card" and "Save a contact".
+
+**The name is سَنَد / Sanad** — "the one who backs you up", a normal warm word
+in both Gulf and Egyptian Arabic, three letters, and no trouble in English. It
+was chosen over وفي (Wafi City is a Dubai landmark), نبيه (English speakers
+stumble on the final -h) and رفيق (reads as a person you know rather than a
+product). The privacy policy still says "the assistant" throughout: that text
+describes where data goes and a lawyer approved its words, so a rename does
+not reach into it.
+
+**The greeting is assembled from things that are true.**
+`src/features/today/evening.ts` did this for the evening band two entries ago;
+`src/features/assistant/intro.ts` does it here. One piece of news, not four —
+what is late if anything is, else the One Thing if it is set, else what is on
+today, else plainly that nothing is — then the invitation. A first meeting
+skips the news altogether and introduces Sanad instead, because a status report
+on an empty account is not an introduction.
+
+**And the introduction is interactive, because a list of features is not.**
+Four things to try, each the sentence that does it, each one tap. Tapping
+sends it as though it had been typed, so the introduction is also the first
+thing Sanad does for them and the sentence stays in the chat as a phrase they
+now know. "What's next?" is withheld until there is something for it to find:
+a chip that answers "nothing" teaches that Sanad has nothing to offer.
+
+**Every example had to be run before it could be offered, and three of the
+four were wrong.** A demonstration of a sentence the app reads badly is worse
+than no demonstration.
+
+  * "Remind me tomorrow at 4 to call Ahmed" — the parser read it perfectly,
+    and the app answered **"I don't have Ahmed in People yet."** An empty
+    address book has never heard of Ahmed, so the first thing a newcomer ever
+    tried was a question back at them. Naming nobody was not enough either:
+    "call the bank" is still a `call`, and a call with no person asks who.
+    It is a plain reminder now — "renew the licence" — which needs nobody.
+  * "I need to call the supplier, send Sara the invoice and book a flight"
+    split into three errands in the module and came back as **one task with
+    the whole sentence for a title** in the app. Typed text splits on a full
+    stop and never on a comma, deliberately — a typed "Call Sara tomorrow, the
+    contract one" is one errand with a comma in it (§2.108). So the example is
+    punctuated the way typed text has to be, which teaches the real rule.
+  * The Scan a card row printed its own label twice, once as the heading and
+    once as the sentence beneath it.
+
+Each was found by driving the real screen, not by reading the parser. The
+module and the app disagreed about all three.
+
+**The greeting also had to stop rewriting itself.** Sending anything marks
+Sanad as met, and the greeting is computed from that flag, so the bubble
+changed from "I'm Sanad" to a status line the moment somebody replied — the
+screen talking over itself. It is held at whatever it was when the screen
+opened.
+
+**More keywords, found by probing rather than guessing.** Forty candidate
+sentences were put through `askData` in all three languages; the same three
+gaps appeared in each. Who is owed a reply ("who do I owe a reply?", "مين لازم
+أرد عليه؟"), the list asked as a count ("how many tasks do I have?", "كام مهمة
+فاضلة؟") and the list asked as an obligation ("what's expected of me?",
+"المطلوب مني ايه؟"). Thirty rows went into the corpus, which is at 197.
+
+**What the widening is careful about is the same thing §2.109 was.** "لازم أرد
+على سارة بكرة" is an errand and "مين لازم أرد عليه؟" is the waiting list, and
+the only difference is **مين** — so the pattern requires the interrogative and
+not the verb. The count matches مهمة and never حاجة, because "عايز أعمل كام
+حاجة" is a list of errands. "What's left" is anchored to the start of a
+sentence, because "send what is left to Omar" is an errand. Seven more errands
+joined the must-not-become-a-question list beside the new questions.
+
+**Two faults were found and left alone, deliberately.** "Send what is left to
+Omar" answers as though it were a question about Omar, and "add milk to my
+list" is read as a search rather than an errand. Both were checked against the
+previous commit and both predate this work — the fourth time measuring against
+HEAD before claiming a regression has paid for itself. Neither is in scope
+here and both are worth a look.
+
+**Coverage.** Nothing had driven a first meeting, so `smoke-capture.js` now
+does: that Sanad names itself, says what it is for, claims nothing about an
+empty account, offers only the examples that work on one, that a tap sends and
+is answered with a task rather than a question about a stranger, that the
+brain-dump example really comes apart into three rows, that the greeting holds
+still, and that the introduction goes once the conversation starts and does
+not come back. The drift probe learned the new name and greeting as an `app:`
+override, the way §2.92 taught it the chip labels, and its seed now marks
+Sanad as met — the introduction is a first-run surface and the prototype has
+none, which is the same reason that probe has always set `firstRun: false`.
+
+**Checks:** 1423 unit tests (41 new), 126 capture checks (23 new), 197 corpus
+phrasings (30 new), 54 at 360×640, drift clean, both typechecks clean, web
+export clean.
