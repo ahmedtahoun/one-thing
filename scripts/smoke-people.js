@@ -111,6 +111,33 @@ const SESSION = { userId: 'smoke', name: 'Khalid Al-Mansouri', firstName: 'Khali
   check('the filters show', await page.getByTestId('people-filters').isVisible());
   check('Waiting carries the overdue count', (await text('people-filters-badge')) === '1');
 
+  // A long role used to leave the number cut to "+2…" — two characters of a
+  // phone number, which is noise rather than information. The row carries one
+  // identifying thing, so nothing is cut mid-number.
+  await page.evaluate(() => {
+    const list = JSON.parse(localStorage.getItem('ot.contacts') || '[]');
+    list.push({
+      id: 'cLong',
+      name: 'Khaled Farag',
+      role: 'General Manager · @speranza',
+      dial: '+20',
+      phone: '100 123 4567',
+      createdAt: new Date().toISOString(),
+      touchedAt: new Date().toISOString(),
+    });
+    localStorage.setItem('ot.contacts', JSON.stringify(list));
+  });
+  await open('/people');
+  const longRow = await page.getByTestId('person-cLong').innerText();
+  check('a long role is shown whole, not cut', longRow.includes('General Manager · @speranza'), longRow.replace(/\n/g, ' ⏎ '));
+  check('…and no stump of a phone number beside it', !/\+\d{0,3}…|\+\d{0,3}\.\.\./.test(longRow), longRow.replace(/\n/g, ' ⏎ '));
+  // Put the book back as it was: the counts below are the seeded eight.
+  await page.evaluate(() => {
+    const list = JSON.parse(localStorage.getItem('ot.contacts') || '[]');
+    localStorage.setItem('ot.contacts', JSON.stringify(list.filter((c) => c.id !== 'cLong')));
+  });
+  await open('/people');
+
   await page.getByTestId('people-search').fill('sara');
   await page.waitForTimeout(200);
   check('search by name', (await people()) === 1 && (await page.getByTestId('person-c2').isVisible()));

@@ -1801,7 +1801,11 @@ const ADDED: Record<Lang, Added> = {
       done: 'تم',
       doneShort: 'تم',
       replied: 'وصل الرد',
-      alsoMore: '+{n} أخرى',
+      // "و{n}" rather than "+{n}": a plus sign is a neutral character, so in
+      // an Arabic line bidi puts it on the far side of the digit and "+1"
+      // came out as "1+" (seen on Today's Next card). The Arabic of
+      // `qa.more` already reads "و{n} غيرهم" for the same reason.
+      alsoMore: 'و{n} أخرى',
       more: 'أظهر {n} إضافية',
       less: 'أقل',
       emptyTitle: 'ما عليك شي',

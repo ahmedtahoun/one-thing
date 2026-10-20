@@ -477,7 +477,12 @@ function PersonRow({
     ? { text: followUp === 'due' ? t.st.due : t.st.waiting, colour: followUp === 'due' ? status.invalid : ink.s3, weight: '600' as const }
     : contact.lastLabel && !isMomentLabel(contact.lastLabel)
       ? { text: contact.lastLabel, colour: ink.s4, weight: '400' as const }
-      : { text: [contact.role, reach ? ltr(reach) : ''].filter(Boolean).join(' · '), colour: ink.s4, weight: '400' as const };
+      : // Who they are: their role, or how to reach them when they have no
+        // role. Not both — the row fits one line, and a long role left the
+        // number cut to "+2…", two characters of a phone number, which is
+        // noise rather than information (seen on the owner's own list). The
+        // number is on their profile, and a tap away from this row.
+        { text: contact.role || (reach ? ltr(reach) : ''), colour: ink.s4, weight: '400' as const };
 
   return (
     <Pressable

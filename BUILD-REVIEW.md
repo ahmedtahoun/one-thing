@@ -4723,3 +4723,56 @@ to stop it; the fix is better for having been stopped.
 screenshots, in `src/lib/parse/spoken-run.test.ts`), 465 browser checks across
 seven suites (1 new: a short conversation must rest within 220 points of the
 bar), 54 at 360×640, 35 against Postgres, drift clean, both typechecks clean.
+
+### 2.110 The Arabic layout, looked at rather than reasoned about
+
+The owner asked for the app's layout to be checked and fixed in Arabic, with
+a screenshot of People. Every main screen was rendered at 402×874 in both
+languages and the pairs compared side by side, with a probe over nine screens
+looking for anything past the viewport edge or cut off inside its box.
+
+**The mirroring is right.** Titles, headers, search, chips, rows, the tab bar,
+Today's segmented control and quick actions, the Next card's buttons — all of
+them mirror correctly, and the probe found nothing clipped in either
+language. That is the main finding and it is worth stating plainly rather
+than inventing work.
+
+**Two things that looked like faults and are not.**
+
+The chips row in the screenshot is cut off at the *left* edge. That is
+correct: the row scrolls, and in Arabic the overflow belongs on the left,
+exactly as English overflows on the right. `src/ui/bleed.ts` already
+documents why a right-to-left row stays inside the padding.
+
+And an Arabic avatar shows **one** letter where a Latin one shows two. Also
+deliberate, and documented at `initials()`: two Arabic letters side by side
+join into a word — "محمد السعدي" drew "ما", which reads as *what* — and "ال"
+is the article, so "النور للتغليف" drew "ال". WhatsApp shows one letter for
+the same reason. It was nearly "fixed" before the comment was read.
+
+**One real right-to-left fault.** Today's Next card read **"وقت المتابعة ·
+1+ كمان"**. A plus sign is a *neutral* character in the bidi algorithm, so
+inside an Arabic line it takes the paragraph's direction and lands on the far
+side of the digit: "+1" is rendered "1+". The Arabic of `qa.more` had already
+met this and sidesteps it — "و{n} غيرهم" — so `next.alsoMore` now reads
+"و{n} أخرى", and Egyptian "و{n} كمان". No sign, no reordering, and better
+Arabic than a transliterated "+1".
+
+**One real fault that is not about Arabic at all.** A person's second line is
+their role and their number, and with the owner's own data it came out
+**"General Manager · @speranza · +2…"** — two characters of a phone number,
+which is noise rather than information. It reads the same way in English. The
+row holds one line, so it now carries **one** identifying thing: the role, or
+the number when there is no role. The number is on their profile and a tap
+from the row.
+
+**Why the probe found none of this.** It renders the demo contacts, whose
+roles are short, so nothing overflowed and nothing was cut. The fault needed
+a contact shaped like the owner's — a long role *and* a handle *and* a
+number — and a browser check now seeds exactly that and asserts both that the
+role survives whole and that no stump of a number sits beside it. A fixture
+that cannot produce the fault cannot catch it, which is the same lesson
+§2.109 taught about a corpus written at a desk.
+
+**Checks:** 1358 unit tests, 467 browser checks across seven suites (2 new),
+54 at 360×640, 35 against Postgres, drift clean, both typechecks clean.
