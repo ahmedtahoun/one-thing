@@ -10,7 +10,7 @@ by a test in `src/lib/parse/ask-data.test.ts`, `clarify.test.ts`,
 `attach.test.ts` or `scripts/smoke-capture.js`, so this list cannot quietly
 stop being true.
 
-Last read against the parser on 18 October 2026.
+Last read against the parser on 20 October 2026.
 
 ## Questions about a person
 
@@ -42,6 +42,51 @@ at all.
 | --- | --- |
 | When did I last talk to Layla? | امتى اخر مرة كلمت ليلى؟ |
 | What did I send Omar? | ايش ارسلت لعمر؟ |
+
+## What is still open with one person
+
+| English | Arabic |
+| --- | --- |
+| Anything pending with Sara? | ايش باقي مع سارة؟ |
+| What do I have with Omar? | وش عندي مع عمر؟ |
+| Do I owe Layla anything? | لسه عليّ حاجة لليلى؟ |
+| Did Sara reply? | ردت سارة؟ |
+| Has Omar got back to me? | جاوب عمر؟ |
+| Is Sara waiting on me? | سارة مستنية ردي؟ |
+
+One card with both halves of what is outstanding with that person: their
+open tasks, soonest first, and every reply they still owe — with **Replied**
+on each, so a follow-up closes from the chat.
+
+**An undated task is kept here**, unlike a question about a day. "Send Sara
+the contract, no date yet" is precisely what is being asked after; a day can
+only hold things with a day on them, but a person holds everything.
+
+**A name makes it about them; "who" makes it the list.** "Is Sara waiting on
+me?" is Sara. "Who's waiting?" is everybody. Both are asked with the word
+*waiting*, and that is the only thing telling them apart.
+
+The thread remembers the person, so **"did he reply?"** straight after is
+still about them.
+
+## A task by its own name
+
+| English | Arabic |
+| --- | --- |
+| When is the dentist? | امتى الدكتور؟ |
+| What time is the bank meeting? | الاجتماع مع البنك امتى؟ |
+| When is the VAT filing? | امتى اقرار الضريبة؟ |
+
+People remember the thing, not the date, and the date is what the app is
+holding. This is tried **last of all** — only where the answer would
+otherwise be *"I'm best with your people and your follow-ups"* — so it can
+turn a refusal into an answer but can never take a question away from one of
+the answers above.
+
+The match is on the question's own words, with everything that merely opens a
+question thrown away first. So "what is that about then?" finds nothing and
+says so, rather than matching every task with *is* in it: a search that
+always succeeds answers nothing.
 
 ## The day and the list
 

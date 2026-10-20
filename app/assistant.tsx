@@ -412,8 +412,11 @@ export default function Assistant() {
    * `unknown`, and says so with examples instead of being saved as a task.
    */
   const showData = (said: string, answer: DataAnswer) => {
-    // An answer about one person is what the next question can lean on.
-    if (answer.kind === 'person' || answer.kind === 'history') setSubject({ contact: answer.contact });
+    // An answer about one person is what the next question can lean on, so
+    // "and her email?" after it knows who "her" is. `withPerson` counts for
+    // the same reason: "anything pending with Sara?" then "did she reply?"
+    // is one conversation about Sara.
+    if (answer.kind === 'person' || answer.kind === 'history' || answer.kind === 'withPerson') setSubject({ contact: answer.contact });
     setMessages((list) => [...list, { id: newId(), from: 'me', text: said }, { id: newId(), from: 'bot', kind: 'data', answer }]);
   };
 

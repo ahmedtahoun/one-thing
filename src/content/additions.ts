@@ -581,6 +581,14 @@ export type Added = {
     noLogToday: string;
     noLogYesterday: string;
     noLogWeek: string;
+    /**
+     * What is still open with one person, and a task found by its own
+     * words. `{w}` is the person; `{n}` is how many.
+     */
+    openWith: string;
+    noneWith: string;
+    foundTask: string;
+    foundTaskN: string;
     /** Acting on what an answer found, rather than only reading it. */
     done: string;
     undone: string;
@@ -1373,6 +1381,10 @@ const ADDED: Record<Lang, Added> = {
       noLogToday: 'Nothing logged today yet.',
       noLogYesterday: 'Nothing logged yesterday.',
       noLogWeek: 'Nothing logged this week yet.',
+      openWith: 'Still open with {w}: {n}',
+      noneWith: 'Nothing open with {w}.',
+      foundTask: 'This looks like it:',
+      foundTaskN: '{n} look like that:',
       done: 'Done',
       undone: 'Not done',
       focus: 'Start focus',
@@ -2038,6 +2050,10 @@ const ADDED: Record<Lang, Added> = {
       noLogToday: 'ما فيه شيء مسجّل اليوم.',
       noLogYesterday: 'ما فيه شيء مسجّل أمس.',
       noLogWeek: 'ما فيه شيء مسجّل هذا الأسبوع.',
+      openWith: 'الباقي مع {w}: {n}',
+      noneWith: 'ما فيه شيء باقي مع {w}.',
+      foundTask: 'هذا اللي يبدو إنه هو:',
+      foundTaskN: '{n} تشبه اللي تسأل عنه:',
       done: 'تم',
       undone: 'ما تم',
       focus: 'ابدأ التركيز',

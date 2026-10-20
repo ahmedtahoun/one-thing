@@ -29,7 +29,7 @@
  *   anything else     — the answer.
  */
 import { COLD_DAYS } from '@/features/next/build';
-import { dateKey, type Contact, type FollowUp, type HistoryEntry, type OneThing, type Task } from '@/lib/model-types';
+import { dateKey, displayName, type Contact, type FollowUp, type HistoryEntry, type OneThing, type Task } from '@/lib/model-types';
 import { readWho } from './clarify';
 import { intentOf } from './local';
 import { loopOf } from './promise';
@@ -96,6 +96,17 @@ export type DataAnswer =
   | { kind: 'next'; task: Task | null; late?: boolean }
   /** "What did I do today?" — from history, which is the only thing the app dates. */
   | { kind: 'log'; span: 'today' | 'yesterday' | 'week'; entries: HistoryEntry[] }
+  /**
+   * Everything still open with one person: their own tasks and the replies
+   * they still owe. "Anything pending with Sara?" — the question this app
+   * exists for, and the one it used to answer with her phone number.
+   */
+  | { kind: 'withPerson'; contact: Contact; tasks: Task[]; followUps: FollowUp[] }
+  /**
+   * A task found by its own words: "when is the dentist?". People remember
+   * the thing, not the date, and the date is what the app is holding.
+   */
+  | { kind: 'findTask'; query: string; tasks: Task[] }
   | { kind: 'unknown' };
 
 const DAY_MS = 86_400_000;
@@ -291,6 +302,67 @@ const LOG_WORD = new RegExp(
     ar('(?:وش سويت|ايش سويت|إيش سويت|وش عملت|ايه عملت|سويت ايه|مين كلمت|مع مين تكلمت|نشاطي|سجل اليوم)').source,
   'i'
 );
+
+/**
+ * What is still open *with one person*: "anything pending with Sara?", "do I
+ * owe Omar anything?", "what's left with Layla?".
+ *
+ * Deliberately not the bare word "with": "when did I last speak with Sara"
+ * is a history question and is read before this one. What is matched here is
+ * the sense of something outstanding, which is the sense this app is about.
+ *
+ * Arabic leaves out عليّ — once diacritics are stripped (askData does that
+ * first) it is indistinguishable from the name علي, and reading a question
+ * about Ali as a question about a debt would be a wrong answer rather than
+ * a missing one.
+ */
+const WITH_WORD = new RegExp(
+  '\\b(?:pending|outstanding|owe|owes|owed|owing|left|remaining|still open|open with|due with)\\b|' +
+    '\\b(?:anything|everything|what|whats|all)\\b[^?\u061F]{0,24}\\b(?:with|for|from)\\b|' +
+    ar(`(?<![${AR_LETTER}])(?:باقي|متبقي|فاضل|لسه|المتبقي|الباقي|مستحق)(?![${AR_LETTER}])`).source,
+  'i'
+);
+
+/**
+ * "Did Sara reply?" — one person's side of a follow-up, asked the way people
+ * ask it. `WAITING_WORD` is the *list* of everyone owed a reply; this is one
+ * name, and the two are told apart by whether the question opens with "who".
+ */
+const REPLIED_WORD = new RegExp(
+  "\\b(?:did|has|have|hasn(?:'|\u2019)?t|haven(?:'|\u2019)?t)\\b[^?\u061F]{0,24}\\b(?:repl(?:y|ied)|answer(?:ed)?|respond(?:ed)?|got back|get back|come back|came back)\\b|" +
+    ar(`(?<![${AR_LETTER}])(?:رد|ردت|ردوا|جاوب|جاوبت|جاوبوا|رجع لي|ردها|رده)(?![${AR_LETTER}])`).source,
+  'i'
+);
+
+/**
+ * Arabic says "with" and nothing more: "وش عندي مع عمر؟" is the same
+ * question as "what do I have with Omar?", which the English pattern above
+ * already reads.
+ *
+ * Bare مع is far too common to sit in `WITH_WORD` — "تكلمت مع سارة" is a
+ * history question and "ارسل العرض مع سارة" is a task — so it counts only
+ * when the question names one person the app knows, only in a question, and
+ * only after the history and detail questions have had their turn.
+ */
+const AR_WITH_WORD = ar(`(?<![${AR_LETTER}])مع(?![${AR_LETTER}])`);
+
+/**
+ * Words too common to find a task by. Everything that opens a question, the
+ * articles and the auxiliaries: without this list "what is the plan?" would
+ * match every task with "is" in it, which is a search that always succeeds
+ * and therefore never answers anything.
+ */
+const STOP_WORDS = new Set([
+  'what', 'whats', 'when', 'where', 'which', 'who', 'whom', 'whose', 'why', 'how', 'the', 'and', 'for', 'with', 'from', 'about',
+  'did', 'does', 'do', 'done', 'have', 'has', 'had', 'got', 'get', 'was', 'were', 'are', 'is', 'am', 'been', 'being', 'will',
+  'would', 'should', 'could', 'can', 'may', 'might', 'must', 'shall', 'any', 'anything', 'something', 'everything', 'all',
+  'some', 'my', 'mine', 'me', 'our', 'ours', 'you', 'your', 'his', 'her', 'hers', 'its', 'their', 'them', 'they', 'this',
+  'that', 'these', 'those', 'there', 'here', 'now', 'then', 'again', 'still', 'left', 'open', 'next', 'last', 'time', 'times',
+  'show', 'tell', 'give', 'find', 'list', 'need', 'want', 'know', 'see', 'look', 'much', 'many', 'more', 'most', 'please',
+  'يوم', 'ايه', 'إيه', 'وش', 'ايش', 'إيش', 'مين', 'منو', 'متى', 'امتى', 'إمتى', 'فين', 'وين', 'كيف', 'ازاي', 'إزاي', 'ليش',
+  'كم', 'كام', 'هل', 'عندي', 'عندك', 'على', 'عن', 'في', 'من', 'مع', 'الى', 'إلى', 'اللي', 'التي', 'الذي', 'هذا', 'هذه',
+  'هذي', 'ده', 'دي', 'كان', 'يكون', 'لسه', 'باقي', 'فاضل', 'شي', 'شيء', 'حاجة', 'حاجه', 'ورني', 'وريني', 'اعرض', 'هات',
+]);
 
 /**
  * The person already being talked about: "and her email?", "his number".
@@ -494,6 +566,71 @@ export function labelIn(text: string, world: DataWorld): string | null {
 const withLabel = (label: string, world: DataWorld): Contact[] =>
   world.contacts.filter((c) => (c.labels ?? []).some((l) => fold(l) === fold(label)));
 
+/** Whether a task or a follow-up is about this person at all. */
+const aboutPerson = (who: string | undefined, ids: readonly string[] | undefined, contact: Contact): boolean => {
+  if (ids?.includes(contact.id)) return true;
+  if (!who) return false;
+  // A task typed as "Call Sara" carries her name as text and no id, which is
+  // most of them: the first word of the stored name is what a person types.
+  const said = fold(who);
+  const full = fold(contact.name);
+  const first = fold(displayName(contact.name));
+  return said.includes(full) || (first.length >= 2 && said.includes(first));
+};
+
+/**
+ * Everything still open with one person: their own tasks, soonest first, and
+ * every reply they still owe.
+ *
+ * Undated tasks are kept rather than dropped, unlike `tasksIn`. There a
+ * question about *a day* can only be answered by things with a day on them;
+ * here the question is about a person, and "send Sara the contract, no date
+ * yet" is exactly the thing being asked after.
+ */
+export function openWith(contact: Contact, world: DataWorld): { tasks: Task[]; followUps: FollowUp[] } {
+  const at = (task: Task) => (task.dueAt ? Date.parse(task.dueAt) : Number.POSITIVE_INFINITY);
+  const tasks = world.tasks
+    .filter((task) => task.status === 'open' && aboutPerson(task.who, task.contactIds, contact))
+    .sort((a, b) => at(a) - at(b));
+  const followUps = world.followUps
+    .filter((f) => f.status !== 'done' && aboutPerson(f.who, f.contactId ? [f.contactId] : [], contact))
+    .sort((a, b) => Date.parse(a.nextAt ?? a.createdAt ?? '') - Date.parse(b.nextAt ?? b.createdAt ?? ''));
+  return { tasks, followUps };
+}
+
+/** The words of a question worth matching a task by. */
+export function contentWords(text: string): string[] {
+  const out: string[] = [];
+  for (const raw of fold(text).split(/[^\p{L}\p{N}]+/u)) {
+    if (raw.length < 3) continue;
+    if (STOP_WORDS.has(raw)) continue;
+    if (/^\d+$/.test(raw)) continue;
+    if (!out.includes(raw)) out.push(raw);
+  }
+  return out;
+}
+
+/**
+ * An open task the question names rather than describes: "when is the
+ * dentist?", "what time is the bank meeting?".
+ *
+ * Reached only where the answer would otherwise be "I can't help with
+ * that", so at worst it turns a refusal into a wrong task — which is why
+ * the match is on the question's *content* words and a bare question with
+ * none of them finds nothing. Most hits first, then soonest.
+ */
+export function findTasks(text: string, world: DataWorld): Task[] {
+  const words = contentWords(text);
+  if (words.length === 0) return [];
+  const at = (task: Task) => (task.dueAt ? Date.parse(task.dueAt) : Number.POSITIVE_INFINITY);
+  return world.tasks
+    .filter((task) => task.status === 'open')
+    .map((task) => ({ task, hits: words.filter((w) => fold([task.title, task.who ?? '', task.notes ?? ''].join(' ')).includes(w)).length }))
+    .filter((scored) => scored.hits > 0)
+    .sort((a, b) => b.hits - a.hits || at(a.task) - at(b.task))
+    .map((scored) => scored.task);
+}
+
 /** Which detail of a person the question wants. */
 function wantOf(text: string): Want | null {
   if (PHONE_WORD.test(text)) return 'phone';
@@ -533,9 +670,12 @@ export function askData(text: string, world: DataWorld, about: Subject = null): 
   const t = text.trim().replace(/[\u064B-\u0652\u0640]/g, '');
   if (t === '') return null;
   // "I told Omar I'd send it", "waiting for Sara to reply": something to
-  // remember, not something to look up. `loopOf` turns its own questions down
-  // already, so this only takes the statements away.
-  if (loopOf(t, world.contacts as Contact[])) return null;
+  // remember, not something to look up. `loopOf` declines a sentence that
+  // *opens* as a question, but it strips the trailing mark before testing,
+  // so "is Sara waiting on me?" reached it as a follow-up to record and the
+  // question went unanswered. A mark at the end is the plainest statement of
+  // intent there is, and `isQuestion` already treats it as decisive.
+  if (!/[?؟]\s*$/.test(t) && loopOf(t, world.contacts as Contact[])) return null;
   // Asked as a question, or said as one of the two errands the app already
   // recognises by name — "Arrange my day" is an instruction with no question
   // in it, and the answer is still sitting on the phone.
@@ -562,6 +702,24 @@ export function askData(text: string, world: DataWorld, about: Subject = null): 
   if (HISTORY_WORD.test(t) && named) {
     if (named.kind === 'several') return { kind: 'who', name: named.name, options: named.options, want: 'all' };
     return { kind: 'history', contact: named.contact, entries: historyWith(named.contact, world) };
+  }
+
+  // --- what is open with one person -----------------------------------
+  // After the history questions, which are also asked with a name and the
+  // word "with", and before the lists, because a name makes the question
+  // specific: "is Sara waiting on me?" is about Sara, while "who's waiting?"
+  // is about everybody. A question opening with "who" is always the list.
+  const asksOpen =
+    WITH_WORD.test(t) ||
+    REPLIED_WORD.test(t) ||
+    (AR_WITH_WORD.test(t) && named?.kind === 'one') ||
+    (WAITING_WORD.test(t) && !WHO_OPENER.test(t));
+  if (asksOpen && !QUIET_WORD.test(t) && !wantOf(t)) {
+    if (named?.kind === 'several') return { kind: 'who', name: named.name, options: named.options, want: 'all' };
+    // `carried` lets "did she reply?" follow the person the chat is about,
+    // the same thread memory a detail question already has.
+    const person = named?.kind === 'one' ? named.contact : carried;
+    if (person) return { kind: 'withPerson', contact: person, ...openWith(person, world) };
   }
 
   const want = wantOf(t);
@@ -618,6 +776,13 @@ export function askData(text: string, world: DataWorld, about: Subject = null): 
   if (named) return personAnswer(t, 'all', world);
   // "What about him?", "who is she?" — the person the chat is already about.
   if (carried && PRONOUN_WORD.test(t)) return { kind: 'person', want: 'all', contact: carried };
+
+  // Last of all: the question may name a *task* rather than a person —
+  // "when is the dentist?". Only reached where the answer would otherwise
+  // be "I can't help with that", so it can only turn a refusal into an
+  // answer, never take a question away from one that was already right.
+  const like = findTasks(t, world);
+  if (like.length > 0) return { kind: 'findTask', query: t, tasks: like };
 
   // A question, and none of the above.
   return { kind: 'unknown' };

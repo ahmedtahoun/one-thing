@@ -312,6 +312,37 @@ const D_SAMPLE =
   await page.waitForTimeout(900);
   check('…and the week has the history in it', (await count('qa-log')) === 1);
 
+  // Everything open with one person — the question this app is for, and the
+  // one that used to come back as his phone number.
+  await page.getByTestId('assistant-input').fill('Anything pending with Mohammed?');
+  await page.getByTestId('assistant-send').click();
+  await page.waitForTimeout(900);
+  check('a question about one person gathers what is open with them', (await count('qa-with-person')) === 1);
+  const withOne = (await count('qa-with-person')) ? await text('qa-with-person') : '';
+  check(
+    '…his task and the reply he owes, in one card',
+    withOne.includes('Follow up on price quote') && withOne.includes('Price quote'),
+    withOne.slice(0, 180)
+  );
+  check('…and the reply can be closed from the chat', (await page.locator('[data-testid^="qa-replied-"]').count()) > 0);
+
+  // The thread remembers him, so the next question needs no name in it.
+  await page.getByTestId('assistant-input').fill('did he reply?');
+  await page.getByTestId('assistant-send').click();
+  await page.waitForTimeout(900);
+  check('…and the question after it can just say "he"', (await count('qa-with-person')) === 2, `${await count('qa-with-person')} cards`);
+
+  // A task found by its own words: people remember the thing, not the date.
+  await page.getByTestId('assistant-input').fill('When is the VAT filing?');
+  await page.getByTestId('assistant-send').click();
+  await page.waitForTimeout(900);
+  check('a task can be found by its own words', (await count('qa-found-task')) === 1);
+  check(
+    '…and it is the one that was named',
+    (await count('qa-found-task')) ? (await text('qa-found-task')).includes('Quarterly VAT filing') : false,
+    (await count('qa-found-task')) ? (await text('qa-found-task')).slice(0, 120) : 'no card'
+  );
+
   // Acting on an answer, not only reading it.
   await page.getByTestId('assistant-chip-day').click();
   await page.waitForTimeout(900);

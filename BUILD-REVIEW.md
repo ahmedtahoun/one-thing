@@ -4331,3 +4331,74 @@ design's.
 and the new `bidi.ts`), 35 against Postgres, 450 browser checks across
 seven suites, and 54 at 360×640. The dialect suite's 19 are new. No change
 to anything the app ships: this section adds tests and nothing else.
+
+### 2.104 Two questions the Assistant could not answer
+
+The owner asked for the chat to handle more of what people actually type.
+Reading `ASSISTANT-PHRASES.md` against `ask-data.ts`, the parser was strong
+on three axes — one person's details, one stretch of the list, one list of
+people — and had a hole where those three meet: **a question about one
+person that is not about their details.**
+
+"Anything pending with Sara?" came back with her phone number. "Did Sara
+reply?" came back with her phone number. The app whose entire purpose is
+remembering what is outstanding with people could not be asked that.
+
+**`withPerson` answers it with both halves at once:** her open tasks,
+soonest first, and every reply she still owes, in one card with **Replied**
+on each so a follow-up closes from the chat. Two sources in one card
+deliberately — the question was about the person, not about which of the
+app's lists her commitments happen to be filed in.
+
+Three decisions in it are worth keeping:
+
+**An undated task is kept here**, where `tasksIn` drops it. A question about
+a *day* can only be answered by things with a day on them; a question about
+a person is answered by everything, and "send Sara the contract, no date
+yet" is precisely what is being asked after.
+
+**A name makes it specific; "who" makes it the list.** "Is Sara waiting on
+me?" is Sara. "Who's waiting?" is everybody. Both are asked with the word
+*waiting*, and that is the only thing telling them apart.
+
+**Arabic says "with" and nothing else.** "وش عندي مع عمر؟" is the same
+question as the English, but bare مع is the commonest word in these
+sentences — "تكلمت مع سارة" is a history question, "ارسل العرض مع سارة" is
+a task. So مع counts only when the question names one person the app knows,
+and only after the history and detail questions have had their turn. Found
+by running every phrase in the documentation through the parser rather than
+by trusting the table: that one came back as the day's list.
+
+**`findTask` answers the second hole: a task named rather than described.**
+"When is the dentist?" People remember the thing; the date is what the app
+is holding. It runs **last of all**, only where the answer would otherwise
+be *"I'm best with your people and your follow-ups"*, so it can turn a
+refusal into an answer and can never take a question from one that was
+already right — a test asserts exactly that, with a task titled "What is
+late today this week tomorrow" sitting in the world to try to steal them.
+
+Its match is on the question's own content words, with everything that
+merely opens a question thrown away first. Without that list "what is the
+plan?" would match every task with *is* in it, and a search that always
+succeeds answers nothing.
+
+**One fault found on the way, outside the new code.** `loopOf` declines a
+sentence that *opens* as a question, but it strips the trailing punctuation
+before testing — so "is Sara waiting on me?" reached it as a follow-up to
+record, and `askData` never saw the question at all. A mark at the end is
+the plainest statement of intent there is, and `isQuestion` already treats
+it as decisive, so `askData` now agrees with itself: a sentence punctuated
+as a question is a question. The same words without the mark still file as
+a follow-up, which a test holds down.
+
+**Checks:** 1111 unit tests (36 new), 456 browser checks across seven
+suites (6 new, in `smoke-capture.js` — the cards are driven in a real
+browser, including the thread remembering the person so the next question
+can just say "he"), 54 at 360×640, 35 against Postgres, drift clean.
+`answer-line.test.ts` now walks all fourteen answer shapes in **three**
+languages: the Egyptian pass reads the copy inside the test, after the
+dialect is set, because `added` answers for whichever dialect is current
+when it is called.
+
+Every phrase added to `ASSISTANT-PHRASES.md` was run through the parser and
+is covered by a test, so the table cannot quietly stop being true.
