@@ -589,6 +589,14 @@ export type Added = {
     noneWith: string;
     foundTask: string;
     foundTaskN: string;
+    /**
+     * Several errands said in one breath. `{n}` is how many were heard.
+     * Separate from the Brain dump's own copy because this is said back
+     * about something spoken, not about something typed into a box.
+     */
+    heardMany: string;
+    saveMany: string;
+    savedMany: string;
     /** Acting on what an answer found, rather than only reading it. */
     done: string;
     undone: string;
@@ -1385,6 +1393,9 @@ const ADDED: Record<Lang, Added> = {
       noneWith: 'Nothing open with {w}.',
       foundTask: 'This looks like it:',
       foundTaskN: '{n} look like that:',
+      heardMany: 'I heard {n} things. Tap any one to drop it.',
+      saveMany: 'Save {n}',
+      savedMany: '{n} saved',
       done: 'Done',
       undone: 'Not done',
       focus: 'Start focus',
@@ -2054,6 +2065,9 @@ const ADDED: Record<Lang, Added> = {
       noneWith: 'ما فيه شيء باقي مع {w}.',
       foundTask: 'هذا اللي يبدو إنه هو:',
       foundTaskN: '{n} تشبه اللي تسأل عنه:',
+      heardMany: 'سمعت {n} أشياء. اضغط على أي واحد عشان تشيله.',
+      saveMany: 'احفظ {n}',
+      savedMany: 'حفظت {n}',
       done: 'تم',
       undone: 'ما تم',
       focus: 'ابدأ التركيز',

@@ -343,6 +343,46 @@ const D_SAMPLE =
     (await count('qa-found-task')) ? (await text('qa-found-task')).slice(0, 120) : 'no card'
   );
 
+  // Several errands in one message — a minute at the mic, typed here because
+  // a browser has no microphone. A typed full stop is the other way in.
+  const tasksBefore = (await read('ot.tasks')).length;
+  await page
+    .getByTestId('assistant-input')
+    .fill('Call Sara tomorrow at four about the contract. Send Omar the invoice. Book the dentist for Tuesday morning.');
+  await page.getByTestId('assistant-send').click();
+  await page.waitForTimeout(1200);
+  check('several errands in one message come back as a list', (await count('qa-dump')) === 1);
+  const dumpRows = await page.locator('[data-testid^="qa-dump-"]:not([data-testid="qa-dump-save"])').count();
+  check('…one row for each of the three', dumpRows === 3, `${dumpRows} rows`);
+  check(
+    '…each read on its own, with its own person and day',
+    (await text('qa-dump')).includes('Call Sara') && (await text('qa-dump')).includes('Send Omar the invoice'),
+    (await text('qa-dump')).slice(0, 220)
+  );
+  check('…and nothing is saved until it is looked at', (await read('ot.tasks')).length === tasksBefore);
+
+  // "at four" spoken, not "at 4": the hour has to survive being a word.
+  check(
+    '…the spoken hour is read as four in the afternoon',
+    /4:00\s*PM|16:00/.test(await text('qa-dump')),
+    (await text('qa-dump')).slice(0, 220)
+  );
+
+  // A row dropped is a row not saved.
+  await page.getByTestId('qa-dump-1').click();
+  await page.waitForTimeout(300);
+  await page.getByTestId('qa-dump-save').click();
+  await page.waitForTimeout(600);
+  const afterDump = await read('ot.tasks');
+  check('dropping one row saves the rest', afterDump.length === tasksBefore + 2, `${tasksBefore} → ${afterDump.length}`);
+  check('…and the dropped one is not among them', !afterDump.some((task) => /Omar the invoice/i.test(task.title)), JSON.stringify(afterDump.slice(-2).map((task) => task.title)));
+
+  // One errand with a comma in it stays one errand: the comma is not a list.
+  await page.getByTestId('assistant-input').fill('Call Sara tomorrow, the contract one');
+  await page.getByTestId('assistant-send').click();
+  await page.waitForTimeout(1200);
+  check('a typed comma does not make a list of one errand', (await count('qa-dump')) === 1, `${await count('qa-dump')} dump cards`);
+
   // Acting on an answer, not only reading it.
   await page.getByTestId('assistant-chip-day').click();
   await page.waitForTimeout(900);

@@ -20,7 +20,7 @@
  * the day a task is for (today, tomorrow, the day after, a weekday) and the
  * part of the day ("tomorrow morning", "tonight", "بالليل", "العصر").
  */
-import { ar, arw, arx, AR_LETTER, firstNameOf, mentions } from './names';
+import { ar, arg, arw, arx, AR_LETTER, firstNameOf, mentions } from './names';
 import { loopOf, type Loop } from './promise';
 import type { AssistantIntent, ParseContext, ParsedTask, ParsedType, TextParser } from './types';
 
@@ -169,7 +169,12 @@ export function timeOf(text: string): [number, number] | null {
   const clock = /\b([01]?\d|2[0-3]):([0-5]\d)\b/.exec(t);
   if (clock) {
     const hour = Number(clock[1]);
-    return [PM_WORDS.test(t) && hour >= 1 && hour < 12 ? hour + 12 : hour, Number(clock[2])];
+    const minutes = Number(clock[2]);
+    if (/\ba\.?m\.?\b/i.test(t) || AM_WORDS.test(t)) return [hour === 12 ? 0 : hour, minutes];
+    if (/\bp\.?m\.?\b/i.test(t) || PM_WORDS.test(t)) return [hour >= 1 && hour < 12 ? hour + 12 : hour, minutes];
+    // Said with no half of the day named, so read as a bare hour is: before
+    // seven is the afternoon. "at 4:30" is half four, not dawn.
+    return [inPeriod(hour, t), minutes];
   }
 
   const meridiem = /\b(1[0-2]|0?[1-9])\s*(am|pm|a\.m\.|p\.m\.)/i.exec(t);
@@ -346,7 +351,11 @@ export function titleOf(text: string): string {
   cleaned = cleaned
     .replace(/\s+/g, ' ')
     .replace(/^\s*(to|and)\s+/i, '')
-    .replace(/\s+(to|and|و)$/i, '')
+    // Taking the when out leaves the word that introduced it: "Book the
+    // dentist for", "Send the deck by", "Call Sara in the". Trimmed until
+    // nothing dangles — "at eight in the evening" leaves two words, not one
+    // — and if that empties the title the original is used instead.
+    .replace(/(?:\s+(?:to|and|at|by|on|in|for|from|the|a|an|around|about|before|after|until|till|و|في|على|من))+\s*$/i, '')
     .trim();
   for (const [rule, to] of FIRST_PERSON) cleaned = cleaned.replace(rule, to);
   cleaned = cleaned.replace(BY_CHANNEL, '');
@@ -356,12 +365,58 @@ export function titleOf(text: string): string {
 }
 
 /**
+ * Where a *spoken* run of errands breaks.
+ *
+ * The splitter below was written for typed text and divides on punctuation.
+ * Speech to text supplies none — a minute of dictation arrives as one
+ * unbroken run of words — so a person who held the mic and listed five
+ * errands got one task with the whole minute as its title, and in Arabic
+ * that is exactly what happened (BUILD-REVIEW §2.108).
+ *
+ * The words people join errands with are therefore the only boundaries
+ * there are. **"and" alone is never one of them**: "Sara and Omar" is one
+ * person and then another, not two errands. So every marker here is either a
+ * connective that can only join clauses, or "and" / "و" followed by a verb
+ * that opens an errand.
+ *
+ * Each rule replaces the connective with a newline, which the splitter
+ * already divides on, so the connective does not survive into a task title.
+ */
+const SPOKEN_BREAKS: readonly (readonly [RegExp, string])[] = [
+  // Connectives that cannot be anything but a join.
+  [/\s+(?:and then|and also|and after that|after that|oh and|and plus|plus)\s+/gi, '\n'],
+  [/\s+(?:also|and finally|finally|lastly|one more thing|another thing)\s+/gi, '\n'],
+  // "and" or "و" immediately before a verb that starts an errand. The
+  // connective is dropped; the verb begins the new piece.
+  [
+    /\s+and (?=(?:call|ring|phone|email|e-?mail|send|text|message|whatsapp|book|pay|ask|meet|visit|order|check|chase|reply|follow up|remind|buy|collect|confirm)\b)/gi,
+    '\n',
+  ],
+  // Said as an obligation rather than an order: "and I need to book…".
+  // "and I promised Layla I'd send the deck" is its own errand — and a
+  // promise, which the parser reads differently — so it has to break away
+  // from whatever was said before it.
+  [/\s+(?:and )?(?=i (?:(?:need|have|must|should) to|promised|told|owe)\b)/gi, '\n'],
+  [/\s+(?:and )?(?=(?:don'?t forget|make sure|remind me to)\b)/gi, '\n'],
+  // Arabic and Egyptian: the same two shapes. وبعدين، وكمان، وبعد كده are
+  // joins; و before a verb is a join with the verb attached to it.
+  [arg('\\s+(?:وبعدين|بعدين|وبعد كده|بعد كده|وكمان|كمان|وايضا|وأيضا|وأخيرا|واخيرا)\\s+'), '\n'],
+  [
+    arg('\\s+و(?=(?:كلم|اتصل|ابعت|أبعت|ارسل|أرسل|احجز|أحجز|ادفع|أدفع|اسأل|أسأل|اشتري|أشتري|قابل|راجع|تابع|رد|ذكرني|فكرني|لازم|محتاج|المفروض|متنساش|ما تنسى))'),
+    '\n',
+  ],
+];
+
+/**
  * The prototype's brain-dump splitter — new lines, full stops, commas
  * (Latin and Arabic), semicolons and "then" — keeping pieces longer than two
- * characters.
+ * characters, now with the spoken boundaries above applied first so a
+ * dictated run divides the same way a typed one does.
  */
 export function splitDump(text: string): string[] {
-  return text
+  let marked = text;
+  for (const [rule, to] of SPOKEN_BREAKS) marked = marked.replace(rule, to);
+  return marked
     .split(/\n|[.،,;؛]|\band then\b|\bthen\b/i)
     .map((piece) => piece.trim())
     .filter((piece) => piece.length > 2);
@@ -405,7 +460,65 @@ function fromLoop(loop: Loop, text: string, ctx: ParseContext): ParsedTask {
   };
 }
 
-function parseNow(text: string, ctx: ParseContext): ParsedTask {
+
+/**
+ * Spoken English clock words, written as digits.
+ *
+ * Arabic already reads its number words — `arabicClock` has handled اربعة
+ * and عشرة and اتناشر from the start — and English read none of them, so a
+ * dictated "call Sara tomorrow at four" was scheduled at the default evening
+ * hour rather than at four (BUILD-REVIEW §2.108). Dictation is exactly where
+ * this matters: a recogniser writes what it hears, and people say "four".
+ *
+ * The rewriting happens once, before the sentence is read at all, so the
+ * time *and* the title both see "4" — teaching `timeOf` alone would have
+ * scheduled it correctly and left "at four" sitting in the title.
+ *
+ * Compound forms come first: "half past four" must not be read as the four
+ * in "four". And nothing here invents a time where none was said — a
+ * sentence with no clock word in it comes back untouched.
+ */
+const EN_HOUR_WORDS: Readonly<Record<string, number>> = {
+  one: 1, two: 2, three: 3, four: 4, five: 5, six: 6,
+  seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12,
+};
+const EN_HOURS = Object.keys(EN_HOUR_WORDS).join('|');
+const EN_MINUTE_WORDS: Readonly<Record<string, number>> = {
+  'o clock': 0, "o'clock": 0, oclock: 0, five: 5, ten: 10, fifteen: 15, twenty: 20,
+  'twenty five': 25, thirty: 30, 'thirty five': 35, forty: 40, 'forty five': 45, fifty: 50, 'fifty five': 55,
+};
+const EN_MINUTES = Object.keys(EN_MINUTE_WORDS).map((w) => w.replace(/'/g, "'?")).join('|');
+const enHourOf = (word: string): number => EN_HOUR_WORDS[word.toLowerCase()] ?? 0;
+const two = (n: number): string => String(n).padStart(2, '0');
+
+export function spokenClock(text: string): string {
+  let out = text;
+  // "half past four", "quarter past six", "quarter to seven".
+  out = out.replace(new RegExp(`\\bhalf past (${EN_HOURS}|\\d{1,2})\\b`, 'gi'), (_m, h: string) => `${/^\d/.test(h) ? h : enHourOf(h)}:30`);
+  out = out.replace(new RegExp(`\\b(?:a )?quarter past (${EN_HOURS}|\\d{1,2})\\b`, 'gi'), (_m, h: string) => `${/^\d/.test(h) ? h : enHourOf(h)}:15`);
+  out = out.replace(new RegExp(`\\b(?:a )?quarter to (${EN_HOURS}|\\d{1,2})\\b`, 'gi'), (_m, h: string) => {
+    const hour = /^\d/.test(h) ? Number(h) : enHourOf(h);
+    return `${((hour + 11 - 1) % 12) + 1}:45`;
+  });
+  // "four thirty", "ten fifteen", "six o'clock".
+  out = out.replace(new RegExp(`\\b(${EN_HOURS})\\s+(${EN_MINUTES})\\b`, 'gi'), (whole, h: string, m: string) => {
+    const mins = EN_MINUTE_WORDS[m.toLowerCase().replace(/['']/g, "'")] ?? EN_MINUTE_WORDS[m.toLowerCase()];
+    return mins === undefined ? whole : `${enHourOf(h)}:${two(mins)}`;
+  });
+  // A bare hour word where a time is plainly meant: after at / by / around /
+  // before / from, or before am / pm. "four of them" is left alone.
+  out = out.replace(
+    new RegExp(`\\b(at|by|around|about|before|after|from|until|till)\\s+(${EN_HOURS})\\b`, 'gi'),
+    (_m, lead: string, h: string) => `${lead} ${enHourOf(h)}`
+  );
+  out = out.replace(new RegExp(`\\b(${EN_HOURS})\\s*(a\\.?m\\.?|p\\.?m\\.?)\\b`, 'gi'), (_m, h: string, ap: string) => `${enHourOf(h)} ${ap}`);
+  return out;
+}
+
+function parseNow(said: string, ctx: ParseContext): ParsedTask {
+  // Said rather than typed: "at four" becomes "at 4" before anything reads
+  // it, so the time and the title agree about what was in the sentence.
+  const text = spokenClock(said);
   const loop = loopOf(text, ctx.contacts);
   if (loop) return fromLoop(loop, text, ctx);
   const who = whoOf(text, ctx.contacts);

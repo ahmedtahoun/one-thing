@@ -4580,3 +4580,83 @@ nothing here reads any.
 **Checks:** 1337 unit tests (167 new, in `src/lib/parse/phrasings.test.ts`),
 456 browser checks across seven suites, 54 at 360×640, 35 against Postgres,
 drift clean, both typechecks clean.
+
+### 2.108 A minute at the mic
+
+The owner asked for the Assistant to take more than one thing at a time: hold
+the mic, say everything, and have it understood and scheduled.
+
+Half of it already existed and was in the wrong place. `textParser.split`
+divides a dump into separate errands and the **Brain dump** screen
+(SCREENS.md § 18) has used it from the start. The Assistant used
+`interpret`, which reads one task — so a minute of speech became one task.
+
+**And the half that existed did not work for speech.** `splitDump` divided on
+punctuation, and **speech to text supplies none**. Measured before changing
+anything, on a realistic dictation:
+
+| | errands said | tasks made |
+| --- | --- | --- |
+| typed, with punctuation | 4 | 4 |
+| spoken English, 44 words | 5 | **2** — one of them merging two errands under the wrong person |
+| spoken Gulf Arabic | 4 | **1** — the whole minute as the title |
+| spoken Egyptian | 4 | **1** |
+
+So the words people join errands with are the only boundaries there are. The
+splitter now breaks on them: *and then*, *also*, *after that*, *remind me
+to*, *and I promised*, *and* + an errand verb; وبعدين، وبعد كده، وكمان، and
+و before a verb. All three languages now yield one task per errand, each with
+its own person and its own time.
+
+**"and" on its own is never a boundary.** "Call Sara and Omar about the
+price" is one errand, and "اتصل بسارة وعمر" is one errand. A splitter that
+divided there would turn one errand into two wrong ones — worse than the
+fault it was fixing — so every rule is either a connective that can only join
+clauses, or *and* / *و* followed by a verb. The sample dumps the Brain dump
+screen ships with still come apart into exactly six.
+
+**Scheduling them needed the clock read as words.** Arabic has read its
+number words from the start — `arabicClock` knows اربعة and عشرة and اتناشر —
+and English read none, so a dictated "call Sara tomorrow at four" was filed
+at the default evening hour. `spokenClock` rewrites the hour words before the
+sentence is read at all, so the time *and* the title both see "4": teaching
+`timeOf` alone would have scheduled it correctly and left "at four" sitting
+in the title. Compound forms come first, so "half past four" is not read as
+the four inside it, and a number that is not a time keeps its own meaning —
+"buy four boxes of cups" is untouched.
+
+**Two faults it exposed, both older than this work.**
+
+A written clock was trusted where a bare hour was not: "at 4" has always been
+read as the afternoon, because nobody means five in the morning by "by 5",
+while "at 4:30" was filed at dawn. Dictation made it plain, since "four
+thirty" rewrites to 4:30. Both now read the same way, with an explicit am or
+pm always winning.
+
+And taking the *when* out of a title left the word that introduced it: **"Book
+the dentist for"**, **"Send the deck by"**, **"Call Sara in the"**. Trimmed
+until nothing dangles, with the original kept as a fallback if that empties
+the title.
+
+**In the chat it is a list to look over, not five saved tasks.** The card
+shows a row per errand with its person and time; any row is dropped with a
+tap; one button saves what is left. Nothing is written until it is pressed —
+a dictated errand is the likeliest of all of them to have been misheard, and
+five wrong tasks are worse than none. A waiting becomes a follow-up and
+everything else a task, through the same `taskFromParsed` / `followUpFromParsed`
+the Brain dump screen uses, so the two cannot drift apart.
+
+**The mic says which it was, so the screen does not guess.** `send` now
+carries whether the words were spoken. Spoken input is split as it comes;
+typed input needs a full stop, semicolon or new line, because a typed comma
+is not a list — "Call Sara tomorrow, the contract one" is one errand, and
+turning it into two rows would be a worse answer than leaving it alone. A
+browser check types exactly that and expects one card, not two.
+
+**Checks:** 1350 unit tests (13 new, in `src/lib/parse/spoken-run.test.ts`,
+including the three Brain dump samples held at six so the spoken rules cannot
+change what a typed list already did), 464 browser checks across seven suites
+(8 new, driving the card in a real browser: three rows from one message, the
+spoken hour read as four in the afternoon, a dropped row not saved, and the
+comma that must not make a list), 54 at 360×640, 35 against Postgres, drift
+clean, both typechecks clean.

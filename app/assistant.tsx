@@ -24,6 +24,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { added } from '@/content/additions';
 import { ClipSheet } from '@/features/assistant/ClipSheet';
 import { DataCard } from '@/features/assistant/DataCard';
+import { DumpCard, type DumpItem } from '@/features/assistant/DumpCard';
 import { answerLine, fileLine } from '@/features/assistant/answer-line';
 import { AskChips } from '@/features/capture/AskChips';
 import { PersonSearchSheet } from '@/features/capture/PersonSearchSheet';
@@ -42,6 +43,8 @@ import { useDirection, useLanguage } from '@/i18n/LanguageProvider';
 import { useAssistantMeter } from '@/lib/assistant-meter';
 import { dateKey, displayName, followUpStatus, isOnDay, type Contact, type FollowUp, type Task } from '@/lib/model-types';
 import { AssistLimitError, localIsEnough, textParser, type AssistantIntent, type ParsedTask } from '@/lib/parse';
+import { splitDump } from '@/lib/parse/local';
+import { dumpIsEnough } from '@/lib/parse/confidence';
 import {
   answerFromText,
   clarify,
@@ -132,6 +135,12 @@ type Message =
   | { id: string; from: 'bot'; kind: 'data'; answer: DataAnswer }
   /** A file of people, read on the phone: the counts, then Add all or Review. */
   | { id: string; from: 'bot'; kind: 'file'; candidates: Candidate[]; skipped: number; added?: number }
+  /**
+   * Several errands said in one breath — a minute at the mic. Reviewed row
+   * by row before anything is saved: dictation is the likeliest of all of
+   * them to be misheard, and five wrong tasks are worse than none.
+   */
+  | { id: string; from: 'bot'; kind: 'dump'; items: DumpItem[]; saved?: number }
   | Ask
   | { id: string; from: 'bot'; intent: AssistantIntent; confirmed?: boolean };
 
@@ -420,6 +429,33 @@ export default function Assistant() {
     setMessages((list) => [...list, { id: newId(), from: 'me', text: said }, { id: newId(), from: 'bot', kind: 'data', answer }]);
   };
 
+  /** A row of a spoken run, kept or dropped. Nothing is saved by this. */
+  const toggleDump = (id: string, index: number) => {
+    setMessages((list) =>
+      list.map((m) =>
+        m.id === id && 'kind' in m && m.kind === 'dump'
+          ? { ...m, items: m.items.map((item, i) => (i === index ? { ...item, keep: !item.keep } : item)) }
+          : m
+      )
+    );
+  };
+
+  /**
+   * Everything still kept, saved at once — a waiting becomes a follow-up and
+   * everything else a task, exactly as the Brain dump screen saves them, so
+   * the two cannot drift apart in what a spoken errand turns into.
+   */
+  const saveDump = (id: string, items: readonly DumpItem[]) => {
+    const kept = items.filter((item) => item.keep);
+    if (kept.length === 0) return;
+    for (const item of kept) {
+      if (item.kind === 'waiting') addFollowUp(followUpFromParsed(item, copy.loop.waitSince.replace('{w}', whenText(item.when, t))));
+      else addTask(taskFromParsed(item, 'assistant', promiseDraft(item, lang, session?.name)));
+    }
+    setMessages((list) => list.map((m) => (m.id === id && 'kind' in m && m.kind === 'dump' ? { ...m, saved: kept.length } : m)));
+    toast.show(t.toastDump.replace('{n}', String(kept.length)), { undo: false });
+  };
+
   const open = (url: string) => void Linking.openURL(url).catch(() => toast.show(copy.qa.cantOpen, { undo: false }));
 
   // What is done now, so an answer already on screen ticks its rows off.
@@ -585,7 +621,8 @@ export default function Assistant() {
         stopListeningRef.current = null;
         setListening(false);
         setInput('');
-        if (heard.trim()) void send(heard.trim(), true);
+        // Said, not typed: a spoken run of errands is read as a list.
+        if (heard.trim()) void send(heard.trim(), true, true);
       },
       (why) => toast.show(why === 'denied' ? copy.micOff : withReason(copy.micFailed), { undo: false }),
       { names: contacts.map((c) => c.name), autoStopMs: 2600, onPartial: setInput }
@@ -595,7 +632,7 @@ export default function Assistant() {
     setListening(true);
   };
 
-  const send = async (raw?: string, typed = raw === undefined) => {
+  const send = async (raw?: string, typed = raw === undefined, spoken = false) => {
     const text = (raw ?? input).trim();
     if (!text) return;
     const clear = () => raw === undefined && setInput('');
@@ -661,6 +698,56 @@ export default function Assistant() {
     if (small) {
       clear();
       return answerSmall(text, small);
+    }
+    /**
+     * Several errands in one breath — a minute at the mic, which is what the
+     * owner asked for. `splitDump` divides a spoken run on the words people
+     * join errands with, so anything that comes apart into more than one
+     * piece is read as a list instead of as one task with the whole minute
+     * for a title, which is what happened before (§2.108).
+     *
+     * **Spoken input is taken at its word; typed input needs a full stop.**
+     * The mic says which this was, so the screen does not have to guess: a
+     * typed "Call Sara tomorrow, the contract one" is one errand with a
+     * comma in it, and turning that into two rows would be a worse answer
+     * than leaving it alone. A typed full stop, semicolon or new line is a
+     * person plainly ending one thing and starting another.
+     *
+     * Nothing above claimed it, so this is not a question: those are
+     * answered before here, commas and all.
+     */
+    const pieces = splitDump(text);
+    if (pieces.length > 1 && (spoken || /[.;\u061B\n]/.test(text))) {
+      const splitNeedsServer = !dumpIsEnough(pieces, { lang, now: new Date(), contacts });
+      if (splitNeedsServer) {
+        if (!meter.ready) return;
+        if (!meter.canAsk) {
+          router.push('/paywall');
+          return;
+        }
+      }
+      if (pending) setMessages((list) => list.map((m) => ('kind' in m && m.kind === 'ask' ? { ...m, answered: true } : m)));
+      if (splitNeedsServer) meter.spend();
+      const said = newId();
+      setMessages((list) => [...list, { id: said, from: 'me', text }]);
+      clear();
+      let found: ParsedTask[];
+      try {
+        found = await textParser.split(text, { lang, now: new Date(), contacts });
+      } catch (error) {
+        if (!(error instanceof AssistLimitError)) throw error;
+        setMessages((list) => list.filter((m) => m.id !== said));
+        if (raw === undefined) setInput(text);
+        router.push('/paywall');
+        return;
+      }
+      const items: DumpItem[] = found.map((item) => ({ ...item, keep: true }));
+      timers.current.push(
+        setTimeout(() => {
+          setMessages((list) => [...list, { id: newId(), from: 'bot', kind: 'dump', items }]);
+        }, REPLY_DELAY)
+      );
+      return;
     }
     /**
      * Only a note the rules cannot read themselves costs one of the day's
@@ -856,7 +943,9 @@ export default function Assistant() {
                               ? answerLine(m.answer, copy.qa)
                               : m.kind === 'file'
                                 ? fileLine(m, copy.clip)
-                                : questionFor(m.gap, m.draft, copy)
+                                : m.kind === 'dump'
+                                  ? copy.qa.heardMany.replace('{n}', String(m.items.length))
+                                  : questionFor(m.gap, m.draft, copy)
                     : m.intent.kind === 'task'
                       ? t.botTask
                       : m.intent.kind === 'plan'
@@ -879,6 +968,16 @@ export default function Assistant() {
                     closedFollowUps={closedFollowUps}
                     oneThingDone={oneThing?.done}
                     {...dataActions}
+                  />
+                ) : null}
+                {'kind' in m && m.kind === 'dump' ? (
+                  <DumpCard
+                    items={m.items}
+                    copy={copy.qa}
+                    whenLabel={(iso) => (iso ? whenText(iso, t) : '')}
+                    onToggle={(index) => toggleDump(m.id, index)}
+                    onSave={() => saveDump(m.id, m.items)}
+                    saved={m.saved}
                   />
                 ) : null}
                 {'kind' in m && m.kind === 'data' && m.answer.kind === 'unknown' ? (

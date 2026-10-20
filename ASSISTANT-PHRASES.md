@@ -215,6 +215,53 @@ chat, and in Egyptian that sentence is the Egyptian copy — so the parser has
 to understand the app's own words. A test asserts that for every chip, in
 both dialects, because a chip that answers nothing is worse than no chip.
 
+## Several errands in one breath
+
+Hold the mic and say everything. A spoken run comes apart into separate
+errands, each read on its own, and the chat shows them as a list to look over
+before anything is saved.
+
+> call Sara tomorrow at four about the contract **and then** send Omar the
+> invoice **also** I need to book the dentist for Tuesday morning **remind me
+> to** pay the packaging supplier on Thursday **and I promised** Layla I would
+> send the deck by Friday
+
+→ five rows, each with its own person and its own time. Tap any row to drop
+it; one button saves what is left. **Nothing is saved until you press it** —
+a dictated errand is the likeliest of all of them to have been misheard, and
+five wrong tasks are worse than none.
+
+| Joins it breaks on | |
+| --- | --- |
+| English | and then · and also · also · after that · plus · and finally · one more thing · remind me to · don't forget · make sure · I need to · I have to · and I promised · and I told · **and** + call/email/send/book/pay/ask/meet… |
+| Arabic & Egyptian | وبعدين · بعدين · وبعد كده · بعد كده · وكمان · كمان · وأيضا · **و** + كلم/ابعت/ارسل/احجز/ادفع/اسأل/فكرني/لازم/محتاج |
+
+**"and" on its own is never a join.** "Call Sara and Omar about the price" is
+one errand; so is "اتصل بسارة وعمر". A splitter that divided there would turn
+one errand into two wrong ones, which is worse than the fault it fixes.
+
+**Typed text needs a full stop.** A typed comma is not a list — "Call Sara
+tomorrow, the contract one" is one errand — so typing is split on a full stop,
+semicolon or new line, while the mic is taken at its word. The Brain dump
+screen is still the place to paste a long comma-separated list.
+
+### The clock, said out loud
+
+A recogniser writes what it hears, so a dictated time arrives as words.
+
+| Said | Read as |
+| --- | --- |
+| at four | 16:00 — before seven is the afternoon |
+| at four thirty · at half past four | 16:30 |
+| at quarter past six | 18:15 |
+| at quarter to seven | 18:45 |
+| at nine am | 09:00 |
+| at noon · at eight in the evening | 12:00 · 20:00 |
+| الساعة اربعة · الساعة تسعة الصبح | 16:00 · 09:00 (these always worked) |
+
+A number that is not a time is left alone: "buy four boxes of cups" keeps its
+four.
+
 ## Answering the Assistant when it asks
 
 Saving a task sometimes needs one more thing — usually *when*. These are the
