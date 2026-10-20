@@ -182,7 +182,10 @@ const HISTORY_WORD = new RegExp(
   '\\b(?:last (?:talk|talked|spoke|speak|call|called|messaged|emailed|contacted|heard)|' +
     'did i (?:send|say|tell|email|message|call)|sent (?:to|him|her)|said to|history|talked to|spoke to)\\b|' +
     ar(
-      '(?:اخر مرة|آخر مرة|اخر مره|كلمته|كلمتها|تكلمت مع|ارسلت ل|أرسلت ل|بعتت ل|قلت ل|سجل المحادثات)'
+      '(?:اخر مرة|آخر مرة|اخر مره|كلمته|كلمتها|كلمت|تكلمت مع|اتكلمت مع|سجل المحادثات|' +
+        // Egypt puts the question word in the middle: "بعتت ايه لعمر؟",
+        // "قلت ايه لعمر؟". The Gulf forms had the verb and the ل touching.
+        '(?:ارسلت|أرسلت|بعتت|بعت|ابعت|قلت)(?:\\s+(?:ايه|إيه|ايش|إيش))?\\s+ل)'
     ).source,
   'i'
 );
@@ -225,7 +228,12 @@ const TODAY_WORD = new RegExp(
   'i'
 );
 const YESTERDAY_WORD = new RegExp(
-  '\\byesterday\\b|\\blast night\\b|' + ar(`(?<![${AR_LETTER}])(?:امس|أمس|البارحة|البارحه|مبارح)(?![${AR_LETTER}])`).source,
+  // امبارح is how Egypt says it, and مبارح could not match inside it: the
+  // lookbehind sees the leading ا as part of a longer word. Until this was
+  // added, "مين كلمت امبارح؟" was answered with *today's* log — a wrong day
+  // rather than an unread question, which is the worse of the two.
+  '\\byesterday\\b|\\blast night\\b|' +
+    ar(`(?<![${AR_LETTER}])(?:امس|أمس|البارحة|البارحه|مبارح|امبارح|إمبارح)(?![${AR_LETTER}])`).source,
   'i'
 );
 const TOMORROW_WORD = new RegExp(
@@ -247,7 +255,15 @@ const QUIET_WORD = new RegExp(
   "\\b(?:haven(?:'|’)?t|hasn(?:'|’)?t|didn(?:'|’)?t|not)\\s+(?:i\\s+|we\\s+)?(?:talk|talked|spoke|speak|call|called|messag|messaged|contact|contacted|heard)|" +
     '\\b(?:gone quiet|going quiet|out of touch|a while|ages|too long|neglect|neglected|' +
     'should i (?:contact|call|message|reach)|(?:need|due) (?:to )?(?:a )?(?:catch|check|follow))\\b|' +
-    ar('(?:ما كلمته|ما كلمتهم|ما تكلمت|مو مكلم|من زمان|صار له وقت|صارلي|مهملين|قطعت|مقطوع)').source,
+    ar(
+      '(?:ما كلمته|ما كلمتهم|ما تكلمت|مو مكلم|من زمان|صار له وقت|صارلي|مهملين|قطعت|مقطوع|مكلمتوش|مكلمتهمش|' +
+        // "who should I call?" — the English pattern has this and the Arabic
+        // did not, so the commonest Egyptian way of asking it fell through.
+        // No character class of its own here: `arx` expands ا into
+        // [اأإآٱ], so [اأ] would become a class nested inside a class. A
+        // plain ا? is already tolerant of every spelling (see names.ts).
+        '(?:المفروض|لازم|محتاج)\\s+ا?(?:كلم|تصل|راسل|تواصل))'
+    ).source,
   'i'
 );
 
@@ -262,9 +278,12 @@ const WHO_OPENER = new RegExp(
 );
 
 const FAVOURITE_WORD = new RegExp('\\bfavourites?\\b|\\bfavorites?\\b|\\bstarred\\b|' + ar('(?:المفضلة|المفضله|مفضل)').source, 'i');
-const COUNT_WORD = new RegExp('\\bhow many\\b|\\bcount\\b|' + ar(`(?<![${AR_LETTER}])(?:كم|عدد)(?![${AR_LETTER}])`).source, 'i');
+const COUNT_WORD = new RegExp('\\bhow many\\b|\\bcount\\b|' + ar(`(?<![${AR_LETTER}])(?:كم|كام|عدد)(?![${AR_LETTER}])`).source, 'i');
 const PEOPLE_WORD = new RegExp(
-  '\\b(?:people|contacts|persons)\\b|' + ar(`(?<![${AR_LETTER}])(?:اشخاص|أشخاص|ناس|جهات|عملاء)(?![${AR_LETTER}])`).source,
+  // كام takes the singular after it — "عندي كام شخص؟", "كام حد عندي؟" — so
+  // the plurals alone never matched the way Egypt asks for a count.
+  '\\b(?:people|contacts|persons)\\b|' +
+    ar(`(?<![${AR_LETTER}])(?:اشخاص|أشخاص|ناس|جهات|عملاء|شخص|حد|افراد|أفراد)(?![${AR_LETTER}])`).source,
   'i'
 );
 const TAGGED_WORD = new RegExp(
@@ -299,7 +318,10 @@ const NEXT_WORD = new RegExp(
 const LOG_WORD = new RegExp(
   "\\b(?:what (?:did|have) i (?:do|done|sent?|said)|what i did|who did i (?:talk|speak|call|contact|message|email)|" +
     'did i (?:do|send) anything|my (?:day|week) so far|my activity|how was my (?:day|week))\\b|' +
-    ar('(?:وش سويت|ايش سويت|إيش سويت|وش عملت|ايه عملت|سويت ايه|مين كلمت|مع مين تكلمت|نشاطي|سجل اليوم)').source,
+    ar(
+      '(?:وش سويت|ايش سويت|إيش سويت|وش عملت|ايه عملت|سويت ايه|عملت ايه|عملت إيه|' +
+        'مين كلمت|كلمت مين|مع مين تكلمت|اتكلمت مع مين|نشاطي|سجل اليوم)'
+    ).source,
   'i'
 );
 

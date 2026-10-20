@@ -163,6 +163,52 @@ by the phone's own text reader; a file can be Excel (every sheet), CSV, PDF
 or vCard. **Nothing is uploaded** — the file is read on the phone, reported
 in the chat as counts, and nothing is saved until you say so.
 
+## Egyptian Arabic
+
+Egypt is a language choice in Settings (**مصري**), and the Assistant reads it
+as well as speaking it. Every scenario in this document was run through the
+parser in Egyptian — all of them are understood, and
+`src/lib/parse/egyptian-input.test.ts` keeps it that way.
+
+What differs is not vocabulary alone, so these are worth knowing:
+
+| Egyptian | What it means | The Gulf form it joins |
+| --- | --- | --- |
+| عندي ايه النهارده؟ | What do I have today? | وش عندي اليوم؟ |
+| عملت ايه النهارده؟ | What did I do today? | وش سويت اليوم؟ |
+| مين كلمت امبارح؟ | Who did I talk to yesterday? | مين كلمت أمس؟ |
+| بعتت ايه لعمر؟ | What did I send Omar? | ايش أرسلت لعمر؟ |
+| عندي كام شخص؟ | How many contacts? | كم شخص عندي؟ |
+| مين المفروض اكلمه؟ | Who should I call? | مين ما كلمته من زمان؟ |
+| مين مردش؟ | Who hasn't replied? | مين ما رد؟ |
+| فاضل ايه مع عمر؟ | What's left with Omar? | وش الباقي مع عمر؟ |
+| ايه اللي بعده؟ | What's next? | وش التالي؟ |
+| اعمل ايه دلوقتي؟ | What should I do now? | وش أسوي الحين؟ |
+
+Four things about Egyptian broke patterns written for Gulf Arabic, and each
+was a different kind of fault:
+
+**The question word goes in the middle.** Gulf writes "بعتت لعمر"; Egypt
+writes "بعتت **ايه** لعمر". The old pattern needed the verb and the ل to
+touch.
+
+**Negation wraps the verb** — م…ش. "مردش", "مكلمتوش", "مش عايز". Patterns
+built around ما and مو never saw them.
+
+**Counting uses كام, and a singular follows it.** "عندي كام شخص؟" — كم was
+in the pattern, كام was not, and only the plurals were listed.
+
+**امبارح was answered with the wrong day.** This was the one that mattered:
+`مبارح` *was* in the pattern, but the "not inside a longer word" rule sees
+the leading ا of امبارح, so the match failed and the question fell through to
+today's log. A confident wrong answer, where every other gap here was merely
+a missing one.
+
+**The chips are read back, too.** Each chip types its own sentence into the
+chat, and in Egyptian that sentence is the Egyptian copy — so the parser has
+to understand the app's own words. A test asserts that for every chip, in
+both dialects, because a chip that answers nothing is worse than no chip.
+
 ## Answering the Assistant when it asks
 
 Saving a task sometimes needs one more thing — usually *when*. These are the
@@ -170,8 +216,8 @@ answers it takes beyond a plain date or time.
 
 | English | Arabic |
 | --- | --- |
-| Now · right now · asap | الحين · حالًا · الآن |
-| No · not now · never mind | لا · مو الحين · ما أبغى |
+| Now · right now · asap | الحين · حالًا · الآن · **دلوقتي** |
+| No · not now · never mind | لا · مو الحين · ما أبغى · **مش عايز** · **مش دلوقتي** |
 | Later · whenever · any time | بعدين · لاحقًا · أي وقت |
 
 **Now** is also a chip on the question, because it is the one time nobody

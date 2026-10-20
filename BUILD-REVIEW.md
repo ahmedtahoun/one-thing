@@ -4402,3 +4402,68 @@ when it is called.
 
 Every phrase added to `ASSISTANT-PHRASES.md` was run through the parser and
 is covered by a test, so the table cannot quietly stop being true.
+
+### 2.105 Egyptian as something people type, not only something the app says
+
+The owner asked whether the Assistant *understands* Egyptian, and whether
+the words Egypt actually uses are in it. Reading the code, the answer was
+half: `egyptian.ts` and `egyptian-lines.ts` make the app **speak** Egyptian,
+and `egyptian-lines.test.ts` holds that copy down — but the parser's
+patterns were written in Gulf Arabic and MSA. A person who had just set the
+app to **مصري** was answering it in a dialect it had never been taught to
+read.
+
+Rather than guess which words were missing, every scenario in
+`ASSISTANT-PHRASES.md` was asked again in Egyptian and run through the
+parser. **35 of 43 understood.** The eight misses were not scattered
+vocabulary; they were four structural differences, and one of them was
+giving a wrong answer rather than no answer.
+
+**امبارح was answered with today's log.** `مبارح` *was* in the pattern. But
+every Arabic pattern here is bounded by "not inside a longer word", and that
+rule sees the leading ا of امبارح — so the match failed, the question fell
+through the yesterday branch, and the day's log answered it. "مين كلمت
+امبارح؟" came back with the wrong day, confidently. Every other gap in this
+section was a missing answer; this one was a wrong one, which is worse, and
+it is the reason to measure a dialect rather than assume it mostly works.
+
+**The question word goes in the middle.** Gulf writes "بعتت لعمر"; Egypt
+writes "بعتت **ايه** لعمر". `HISTORY_WORD` listed the verb and the ل as
+touching, so three history questions read as a request for Omar's details.
+
+**Negation wraps the verb**, م…ش: مردش, مكلمتوش, مش عايز. Some of those were
+already in by luck; the patterns built around ما and مو did not generalise.
+
+**Counting uses كام, with a singular after it.** "عندي كام شخص؟" — كم was
+listed and كام was not, and `PEOPLE_WORD` held only the plurals.
+
+Also added: دلوقتي as *now* when the Assistant asks when to set a task for
+(without it the commonest Egyptian answer read as unreadable and the question
+was asked again — §2.91's loop, in a third dialect), and مش عايز / مش دلوقتي
+as turning the question down rather than failing to be read.
+
+**One miss was mine, not the parser's.** "مين مصنف محتمل؟" came back
+`unknown` until I noticed `labelIn` only matches labels actually *in use* and
+my fixture had nobody tagged Lead. Worth recording because it is the shape of
+mistake that produces a fix for a bug that was never there.
+
+**A fault found in the fixing.** `arx` expands each Arabic letter into its
+spellings, and its own doc says to write the source "with no character
+classes of its own". My first pattern used `[اأ]`, which became a class
+nested inside a class and silently matched nothing. A plain `ا?` is already
+tolerant of every spelling.
+
+**The sharpest check in the new file is the chips.** Each chip types its own
+sentence into the chat, and in Egyptian that sentence is the Egyptian copy —
+so the parser has to read the app's own words back. All five parsed chips are
+asserted in both dialects, plus the card and file chips through
+`attachCommand`, because Egypt says كارت where the Gulf says كرت. A chip that
+answers nothing would be worse than no chip at all.
+
+**Checks:** 1170 unit tests (59 new, in `src/lib/parse/egyptian-input.test.ts`
+— the measurement kept, so a pattern that stops reading Egyptian fails here
+and not on a phone), 456 browser checks across seven suites, 54 at 360×640,
+35 against Postgres, drift clean. 43 of 43 scenarios now understood in
+Egyptian, with the Gulf forms of each asserted alongside them and four
+statements asserted to stay statements, since a widened pattern that swallowed
+those would turn every typed errand into a question nobody asked.
