@@ -12,6 +12,12 @@ stop being true.
 
 Last read against the parser on 20 October 2026.
 
+The tables below are the phrases worth showing somebody. The **complete** list
+is `src/lib/parse/phrasings.test.ts`: 145 ways of asking across the three
+languages, each asserted against the answer it should get, beside 22 ordinary
+errands asserted to stay errands. Both halves pass together, because a
+question gained at the price of an errand is not a gain.
+
 ## Questions about a person
 
 | English | Arabic |
@@ -241,6 +247,41 @@ is offered that would answer "nobody", and the one you tap most comes back
 first — counted on the device, with no profile and nothing sent anywhere
 (§2.92). Each chip still types its full sentence into the chat, so tapping
 one teaches what could have been typed.
+
+## More ways to ask the same things
+
+Added after writing out how people actually ask and finding seventeen
+sentences the parser could not read. Each is in the corpus test.
+
+| Scenario | Also understood now |
+| --- | --- |
+| The day | get me…, send me…, what about…, pull up… |
+| What's next | what now?, what's up next?, where do I start? · بعد كده · ابدأ بايه |
+| The One Thing | my focus today?, biggest thing?, what matters most? · اهم حاجة · اهم شي |
+| Who's waiting | who is pending?, still waiting on?, yet to reply? |
+| Who's gone quiet | who should I reconnect with?, who needs a catch up?, cold contacts?, who's fallen off? |
+| The day's log | what did I get done?, what got done? |
+| What was said | have I contacted Layla? · اخر تواصل · اخر اتصال · اخر رسالة |
+| What's late | اتأخر · متأخرين · فات موعده |
+| With one person | where are we with Sara?, what's the status with Omar?, how are we doing with…? · ايه اخبار سارة؟ · وصلنا لفين مع سارة؟ |
+| A person's details | عايز رقم سارة · محتاج ايميل عمر · هاتلي نمرة سارة |
+
+**Three words had to be narrowed rather than added**, and the reason is worth
+knowing because it is the whole difficulty of this:
+
+**عايز، محتاج، ابغى** open a request *and* an errand. "عايز رقم سارة" is a
+question; "عايز اكلم سارة بكرة" is a task. Adding them as whole words bought
+two questions and cost five errands. What separates the two is whether a noun
+or a verb follows, so the **nouns are named** — رقم، ايميل، موبايل، نمرة،
+عنوان، العملاء، المفضلة — rather than the verbs guessed at.
+
+**show** had the same fault in English, from long before this: "show the deck
+to Omar" was read as a question. It is now **show me** / **show my**, which
+both documented phrases already said.
+
+**هات** and **find** likewise: "هات رقم سارة" is a request and "هات العقد من
+عمر بكرة" is an errand; "find Sara's number" is a question and "find a new
+supplier" is a task. Both now sit behind the same noun list.
 
 ## Anything else
 

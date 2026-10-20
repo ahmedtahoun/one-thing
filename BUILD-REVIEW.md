@@ -4529,3 +4529,54 @@ invalidated correctly, and a cache that goes stale answers questions with
 tasks that no longer exist. The measurement script is the thing that will say
 when the trade is worth making; until it does, this is written down rather
 than built.
+
+### 2.107 How people actually ask, in three languages
+
+The owner asked for more keywords and phrasings across English, Gulf Arabic
+and Egyptian. Guessing which to add is how a parser ends up with a hundred
+rules and no idea which earn their keep, so a corpus was written instead —
+how somebody actually asks for each thing the app can answer, 145 sentences
+across the three languages — and run through `askData`.
+
+**It started at 128 of 145.** The seventeen misses were all ordinary
+sentences: "what now?", "what's up next?", "who needs a catch up?", "my focus
+today?", "what did I get done?", "where are we with Sara?", "have I contacted
+Layla?", "اخر تواصل مع ليلى؟", "ايه اللي اتأخر؟", "اعمل ايه بعد كده؟", "ايه
+اهم حاجة النهارده؟", "ايه اخبار سارة؟". Ten patterns were widened, about forty
+keywords in all, and the corpus is now 145 of 145.
+
+**The expensive half of this was not the adding.** Widening a pattern is how
+task capture breaks, and it broke five errands on the first attempt.
+
+Adding **عايز، محتاج، ابغى** as whole words bought two questions and cost
+five: in Arabic those words open a request and an errand equally — "عايز رقم
+سارة" is a question, "عايز اكلم سارة بكرة" is a task — and `isQuestion`
+promoted every one of the latter. "محتاج اكلم سارة بكرة" came back as the
+*gone-quiet list*. What separates the two is whether a noun or a verb
+follows, so the nouns are named rather than the verbs guessed at.
+
+The same shape was already in English and had been for a long time: `show`
+read **"show the deck to Omar"** as a question, and `find` read **"find a new
+supplier"** as one — both answered "I'm best with your people and your
+follow-ups" instead of being saved. `show` is now **show me** / **show my**,
+which both documented phrases already used, and `find` sits behind the same
+detail-noun list as هات, which had the identical fault in Arabic. Those three
+were found by the statement half of the corpus and were *not* regressions
+from this work — they were measured against the previous commit to be sure
+which were mine.
+
+**Both halves of the corpus pass together**, and that is the point of the
+file: 145 questions and 22 errands, asserted side by side, because a question
+gained at the price of an errand is not a gain. Two rounds of this session's
+false findings also came from one fixture mistake — the same person under a
+Latin *and* an Arabic name in one address book makes every Arabic question
+ambiguous — so the test keeps one address book per script and says why.
+
+**And it confirmed §2.106's claim empirically.** Forty new keywords, measured
+on the same script: 230 µs per question on a 200-person account before,
+230 µs after. A pattern really is free; what costs is reading data, and
+nothing here reads any.
+
+**Checks:** 1337 unit tests (167 new, in `src/lib/parse/phrasings.test.ts`),
+456 browser checks across seven suites, 54 at 360×640, 35 against Postgres,
+drift clean, both typechecks clean.

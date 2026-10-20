@@ -125,8 +125,23 @@ const ASK_WORD = new RegExp(
 
 /** Asking to be shown a list is a question in everything but punctuation. */
 const SHOW_WORD = new RegExp(
-  '\\b(?:show|list|tell me|give me|find|look ?up|do i have|have i|am i)\\b|' +
-    ar(`(?<![${AR_LETTER}])(?:ورني|اعطني|عطني|هات|اعرض|وريني|عندي|عندى)(?![${AR_LETTER}])`).source,
+  '\\b(?:show (?:me|my)|list|tell me|give me|get me|send me|what about|look ?up|pull up|do i have|have i|am i)\\b|' +
+    // Same rule in English: finding a *detail* is a request, finding a
+    // supplier is an errand. "find a new supplier" came back "I'm best
+    // with your people" rather than being saved.
+    '\\bfind (?:me )?(?:the )?(?:number|email|phone|address|contact|details)\\b|' +
+    // Asking for a thing rather than for something to be done. The bare
+    // words cannot go in the list above: عايز and محتاج open an errand
+    // ("عايز اكلم سارة بكرة") exactly as often as a request, and as whole
+    // words they read five ordinary errands as questions. What separates
+    // them is what follows — a noun here, a verb there — so the nouns are
+    // named instead of the verbs guessed at.
+    ar(
+      '(?:عايز|عاوز|محتاج|ابغى|أبغى|ابي|أبي|هاتلي|هاتلى|هات)\\s+(?:ال)?' +
+        '(?:رقم|نمرة|نمره|ايميل|إيميل|بريد|موبايل|تليفون|تلفون|جوال|عنوان|معلومات|بيانات|تفاصيل|مهامي|قائمة|عملاء|العملاء|مفضلة|المفضلة)'
+    ).source +
+      '|' +
+    ar(`(?<![${AR_LETTER}])(?:ورني|اعطني|عطني|اعرض|وريني|عندي|عندى)(?![${AR_LETTER}])`).source,
   'i'
 );
 
@@ -180,9 +195,10 @@ const ABOUT_WORD = new RegExp(
 /** "When did I last speak to Layla?", "what did I send Omar?" */
 const HISTORY_WORD = new RegExp(
   '\\b(?:last (?:talk|talked|spoke|speak|call|called|messaged|emailed|contacted|heard)|' +
-    'did i (?:send|say|tell|email|message|call)|sent (?:to|him|her)|said to|history|talked to|spoke to)\\b|' +
+    'did i (?:send|say|tell|email|message|call)|sent (?:to|him|her)|said to|history|talked to|spoke to|' +
+    '(?:have|had) i (?:contacted|called|messaged|emailed|spoken|talked))\\b|' +
     ar(
-      '(?:اخر مرة|آخر مرة|اخر مره|كلمته|كلمتها|كلمت|تكلمت مع|اتكلمت مع|سجل المحادثات|' +
+      '(?:اخر تواصل|آخر تواصل|اخر اتصال|اخر رسالة|اخر مرة|آخر مرة|اخر مره|كلمته|كلمتها|كلمت|تكلمت مع|اتكلمت مع|سجل المحادثات|' +
         // Egypt puts the question word in the middle: "بعتت ايه لعمر؟",
         // "قلت ايه لعمر؟". The Gulf forms had the verb and the ل touching.
         '(?:ارسلت|أرسلت|بعتت|بعت|ابعت|قلت)(?:\\s+(?:ايه|إيه|ايش|إيش))?\\s+ل)'
@@ -197,7 +213,7 @@ const HISTORY_WORD = new RegExp(
  */
 const WAITING_WORD = new RegExp(
   "\\b(?:owes? me|owed|waiting (?:for|on)|hasn(?:'|’)?t (?:replied|answered|got back)|" +
-    "haven(?:'|’)?t heard back|no reply|chasing|to chase)\\b|" +
+    "haven(?:'|’)?t heard back|no reply|chasing|to chase|pending|still waiting|yet to (?:reply|answer))\\b|" +
     ar('(?:يدين لي|مدين لي|ما رد|مردش|مستني|مستنى|لسه ما رد|ينتظر ردي|مستني ردي)').source,
   'i'
 );
@@ -207,7 +223,7 @@ const LATE_WORD = new RegExp(
     // Asked as a reproach rather than a status: "what should I have done?",
     // "did I miss anything?" — both are the late list.
     "\\bshould i have (?:done|finished|sent|called)\\b|\\bwas i supposed to\\b|\\bdid i miss\\b|\\bwhat(?:'|’)?s slipping\\b|" +
-    ar('(?:متأخر|متاخر|فايت|فاتت|متأخرة|متاخره|فاتني|وش فاتني|كان لازم)').source,
+    ar('(?:اتأخر|اتاخر|متأخرين|متاخرين|متأخر|متاخر|فايت|فاتت|متأخرة|متاخره|فاتني|وش فاتني|كان لازم)').source,
   'i'
 );
 
@@ -254,7 +270,8 @@ const WEEK_WORD = new RegExp(
 const QUIET_WORD = new RegExp(
   "\\b(?:haven(?:'|’)?t|hasn(?:'|’)?t|didn(?:'|’)?t|not)\\s+(?:i\\s+|we\\s+)?(?:talk|talked|spoke|speak|call|called|messag|messaged|contact|contacted|heard)|" +
     '\\b(?:gone quiet|going quiet|out of touch|a while|ages|too long|neglect|neglected|' +
-    'should i (?:contact|call|message|reach)|(?:need|due) (?:to )?(?:a )?(?:catch|check|follow))\\b|' +
+    'should i (?:contact|call|message|reach|reconnect|check in)|' +
+    '(?:needs?|due) (?:to )?(?:a )?(?:catch|check|follow|reconnect)|cold contacts?|fallen off)\\b|' +
     ar(
       '(?:ما كلمته|ما كلمتهم|ما تكلمت|مو مكلم|من زمان|صار له وقت|صارلي|مهملين|قطعت|مقطوع|مكلمتوش|مكلمتهمش|' +
         // "who should I call?" — the English pattern has this and the Arabic
@@ -296,16 +313,16 @@ const TAGGED_WORD = new RegExp(
  * I have today?" is the day's list and must not be answered with one task.
  */
 const ONE_THING_WORD = new RegExp(
-  '\\bone thing\\b|\\bmain (?:thing|task|focus|job)\\b|\\b(?:my |the )?(?:top )?priority\\b|\\bmost important\\b|' +
-    ar('(?:الشي الواحد|الشيء الواحد|شغلي الاساسي|شغلي الأساسي|شغلك الاساسي|شغلك الأساسي|أولويتي|اولويتي|الاهم|الأهم)').source,
+  '\\bone thing\\b|\\b(?:main|my) (?:thing|task|focus|job)\\b|\\bbiggest (?:thing|task|job)\\b|\\b(?:my |the )?(?:top )?priority\\b|\\bmost important\\b|' +
+    ar('(?:اهم حاجة|أهم حاجة|اهم شي|أهم شيء|اهم شغلة|الشي الواحد|الشيء الواحد|شغلي الاساسي|شغلي الأساسي|شغلك الاساسي|شغلك الأساسي|أولويتي|اولويتي|الاهم|الأهم)').source,
   'i'
 );
 
 /** "What's next?", "what should I do now?" — one thing, not a list. */
 const NEXT_WORD = new RegExp(
-  "\\bwhat(?:'|’)?s next\\b|\\bwhat next\\b|\\bnext (?:task|thing|up|one)\\b|" +
-    '\\bwhat should i (?:do|start)(?: now| next)?\\b|\\bwhat do i do now\\b|' +
-    ar('(?:وش بعده|ايش بعده|إيش بعده|وش التالي|ايش التالي|الجاي|اللي جاي|وش اسوي الحين|ايه اللي بعده|وش بعدين|ايه التالي|اعمل ايه دلوقتي|ايه اللي بعد كده)').source,
+  "\\bwhat(?:'|’)?s next\\b|\\bwhat next\\b|\\bnext (?:task|thing|up|one)\\b|\\bup next\\b|\\bwhat now\\b|" +
+    '\\bwhat should i (?:do|start)(?: now| next)?\\b|\\bwhat do i do now\\b|\\bwhere do i start\\b|' +
+    ar('(?:بعد كده|ابدأ بايه|ابدا بايه|وش بعده|ايش بعده|إيش بعده|وش التالي|ايش التالي|الجاي|اللي جاي|وش اسوي الحين|ايه اللي بعده|وش بعدين|ايه التالي|اعمل ايه دلوقتي|ايه اللي بعد كده)').source,
   'i'
 );
 
@@ -317,7 +334,8 @@ const NEXT_WORD = new RegExp(
  */
 const LOG_WORD = new RegExp(
   "\\b(?:what (?:did|have) i (?:do|done|sent?|said)|what i did|who did i (?:talk|speak|call|contact|message|email)|" +
-    'did i (?:do|send) anything|my (?:day|week) so far|my activity|how was my (?:day|week))\\b|' +
+    'did i (?:do|send) anything|my (?:day|week) so far|my activity|how was my (?:day|week)|' +
+    '(?:did|have) i (?:get|got) (?:anything )?done|what (?:got|i got) done)\\b|' +
     ar(
       '(?:وش سويت|ايش سويت|إيش سويت|وش عملت|ايه عملت|سويت ايه|عملت ايه|عملت إيه|' +
         'مين كلمت|كلمت مين|مع مين تكلمت|اتكلمت مع مين|نشاطي|سجل اليوم)'
@@ -341,7 +359,10 @@ const LOG_WORD = new RegExp(
 const WITH_WORD = new RegExp(
   '\\b(?:pending|outstanding|owe|owes|owed|owing|left|remaining|still open|open with|due with)\\b|' +
     '\\b(?:anything|everything|what|whats|all)\\b[^?\u061F]{0,24}\\b(?:with|for|from)\\b|' +
-    ar(`(?<![${AR_LETTER}])(?:باقي|متبقي|فاضل|لسه|المتبقي|الباقي|مستحق)(?![${AR_LETTER}])`).source,
+    // How a deal is actually asked after: "where are we with Sara?",
+    // "what's the status with Omar?", and ايه اخبار سارة؟ in Egyptian.
+    '\\bwhere (?:are we|did we get to)\\b|\\bstatus (?:with|on|of)\\b|\\bhow are we doing with\\b|' +
+    ar(`(?<![${AR_LETTER}])(?:باقي|متبقي|فاضل|لسه|المتبقي|الباقي|مستحق|اخبار|أخبار|وصلنا|وقفنا)(?![${AR_LETTER}])`).source,
   'i'
 );
 
