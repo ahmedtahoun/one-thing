@@ -111,7 +111,7 @@ export function ContactCard(props: Props) {
       <View style={{ flexDirection: dir.row, gap: 10, alignItems: 'center' }}>
         <Icon name="users" size={18} strokeWidth={1.7} />
         <Text token="body" weight="600" style={{ flex: 1 }}>
-          {fields.name || copy.name}
+          {fields.name || copy.fresh}
         </Text>
       </View>
       {input(copy.name, fields.name ?? '', (name) => props.onEdit({ name }), { testID: 'assistant-contact-name', autoCapitalize: 'words' })}

@@ -19,6 +19,7 @@ import { Text } from '@/ui/Text';
 import { ONE_THING_SUGGESTIONS } from '@/content/seed';
 import { fontFamily, ink, radius, surface } from '@/design/tokens';
 import { useDirection, useLanguage } from '@/i18n/LanguageProvider';
+import { bleed } from '@/ui/bleed';
 
 export function FirstRunCard({
   onSet,
@@ -131,8 +132,8 @@ export function FirstRunCard({
         horizontal
         showsHorizontalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
-        style={{ marginHorizontal: -18, flexGrow: 0 }}
-        contentContainerStyle={{ flexDirection: dir.row, gap: 8, paddingHorizontal: 18 }}
+        style={{ ...bleed(dir.isRTL, 18).style, flexGrow: 0 }}
+        contentContainerStyle={{ flexDirection: dir.row, gap: 8, ...bleed(dir.isRTL, 18).content }}
       >
         {labels.map((label) => (
           <Pressable

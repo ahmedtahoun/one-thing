@@ -32,7 +32,7 @@ import { clarify, suggestWho, withWhen, withWho, type Gap, type QuickWhen, type 
 import type { Contact } from '@/lib/model-types';
 import { followUpFromParsed, taskFromParsed } from '@/lib/parse/to-task';
 import { usePeople } from '@/lib/people';
-import { startListening } from '@/lib/speech';
+import { startListening, withReason } from '@/lib/speech';
 import { useSession } from '@/lib/session';
 import { useTasks } from '@/lib/tasks';
 
@@ -148,7 +148,7 @@ export default function Capture() {
         }
       },
       (why) => {
-        toast.show(why === 'denied' ? added(lang).micOff : added(lang).micFailed, { undo: false });
+        toast.show(why === 'denied' ? added(lang).micOff : withReason(added(lang).micFailed), { undo: false });
         typeRef.current?.focus();
       },
       { names: contacts.map((c) => c.name), autoStopMs: 2600 }

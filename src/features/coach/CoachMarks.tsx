@@ -86,7 +86,7 @@ export function CoachMarks({ onboarded, seen, onDone }: { onboarded: boolean; se
   const hollow = round ? Math.min(hole.width, hole.height) / 2 : 20;
 
   return (
-    <View testID="coach" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
+    <View testID="coach" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, direction: dir.isRTL ? 'rtl' : 'ltr' }}>
       {/* One path, filled even-odd: the whole screen minus the control. A
           real cut-out rather than four panels around a gap, which matters
           for more than the rounded corners — a gap lets the tap through to

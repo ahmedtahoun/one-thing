@@ -14,13 +14,14 @@
 import { Pressable, View } from 'react-native';
 
 import type { Added } from '@/content/additions';
+import { own } from '@/lib/bidi';
 import { Icon } from '@/ui/Icon';
 import { Text } from '@/ui/Text';
 import { TYPE_ICON } from '@/design/icon-paths';
-import { ink, surface, typeColour } from '@/design/tokens';
+import { ink, status, surface, typeColour } from '@/design/tokens';
 import { useDirection } from '@/i18n/LanguageProvider';
 import { displayName, type Contact, type FollowUp, type HistoryEntry, type Task } from '@/lib/model-types';
-import type { DataAnswer, Want } from '@/lib/parse/ask-data';
+import { waitingByPerson, type DataAnswer, type Want } from '@/lib/parse/ask-data';
 import { MAX_ROWS } from './answer-line';
 
 export type DataCardProps = {
@@ -34,7 +35,8 @@ export type DataCardProps = {
   onEmail: (contact: Contact) => void;
   onTask: (task: Task) => void;
   onFollowUps: () => void;
-  onReplied: (followUp: FollowUp) => void;
+  /** Every open wait on that person: one reply answers them all. */
+  onReplied: (followUps: FollowUp[]) => void;
   /** Tick a task off from the chat. Undo is the screen's business. */
   onDone: (task: Task) => void;
   /** A line of the day's log opens the person it was with. */
@@ -51,6 +53,14 @@ export type DataCardProps = {
   onFocus: () => void;
   onOneThingDone: () => void;
   onChooseOneThing: () => void;
+  /**
+   * What is done *now*, read from the live lists. An answer is a snapshot
+   * of when it was asked; these let its rows show a tick the moment one is
+   * pressed, and lose it again on Undo.
+   */
+  doneTasks?: ReadonlySet<string>;
+  closedFollowUps?: ReadonlySet<string>;
+  oneThingDone?: boolean;
 };
 
 export function DataCard(props: DataCardProps) {
@@ -71,7 +81,8 @@ export function DataCard(props: DataCardProps) {
     title: string,
     sub: string,
     right?: React.ReactNode,
-    first = false
+    first = false,
+    done = false
   ) => (
     <Pressable
       key={key}
@@ -92,12 +103,18 @@ export function DataCard(props: DataCardProps) {
     >
       {left}
       <View style={{ flex: 1, minWidth: 0 }}>
-        <Text token="bodyS" weight="600" numberOfLines={1}>
-          {title}
+        <Text
+          token="bodyS"
+          weight="600"
+          numberOfLines={1}
+          color={done ? ink.muted : ink.base}
+          style={done ? { textDecorationLine: 'line-through' } : undefined}
+        >
+          {own(title)}
         </Text>
         {sub ? (
           <Text token="micro" color={ink.s4} numberOfLines={1}>
-            {sub}
+            {own(sub)}
           </Text>
         ) : null}
       </View>
@@ -112,22 +129,28 @@ export function DataCard(props: DataCardProps) {
       </Text>
     ) : null;
 
-  const pill = (testID: string, label: string, onPress: () => void) => (
+  /** `done` turns it green with a tick: the action went through. */
+  const pill = (testID: string, label: string, onPress: () => void, done = false) => (
     <Pressable
       key={testID}
       testID={testID}
       onPress={onPress}
       accessibilityRole="button"
+      accessibilityState={done ? { checked: true } : undefined}
       style={({ pressed }) => ({
+        flexDirection: dir.row,
+        alignItems: 'center',
+        gap: 5,
         paddingVertical: 8,
         paddingHorizontal: 14,
         borderRadius: 999,
         borderWidth: 1,
-        borderColor: surface.line,
-        backgroundColor: pressed ? surface.fill : surface.white,
+        borderColor: done ? status.successBg : surface.line,
+        backgroundColor: done ? status.successBg : pressed ? surface.fill : surface.white,
       })}
     >
-      <Text token="caption" weight="600">
+      {done ? <Icon name="check" size={14} color={status.successFg} strokeWidth={2.6} /> : null}
+      <Text token="caption" weight="600" color={done ? status.successFg : ink.base}>
         {label}
       </Text>
     </Pressable>
@@ -190,8 +213,9 @@ export function DataCard(props: DataCardProps) {
       <Icon name={TYPE_ICON[task.type]} size={16} color={typeColour[task.type].fg} strokeWidth={1.9} />,
       task.title,
       [task.who, props.whenLabel(task.dueAt)].filter(Boolean).join(' · '),
-      pill(`qa-done-${task.id}`, copy.done, () => props.onDone(task)),
-      i === 0
+      pill(`qa-done-${task.id}`, copy.done, () => props.onDone(task), props.doneTasks?.has(task.id) ?? false),
+      i === 0,
+      props.doneTasks?.has(task.id) ?? false
     );
 
   if (answer.kind === 'tasks') {
@@ -217,11 +241,12 @@ export function DataCard(props: DataCardProps) {
    */
   if (answer.kind === 'oneThing') {
     const one = answer.oneThing;
+    const oneDone = props.oneThingDone ?? one?.done ?? false;
     return (
       <View testID="qa-one-thing" style={{ flexDirection: dir.row, gap: 8, flexWrap: 'wrap' }}>
         {!one ? pill('qa-choose', copy.choose, props.onChooseOneThing) : null}
-        {one && !one.done ? pill('qa-focus', copy.focus, props.onFocus) : null}
-        {one ? pill('qa-one-done', one.done ? copy.undone : copy.done, props.onOneThingDone) : null}
+        {one && !oneDone ? pill('qa-focus', copy.focus, props.onFocus) : null}
+        {one ? pill('qa-one-done', copy.done, props.onOneThingDone, oneDone) : null}
       </View>
     );
   }
@@ -240,22 +265,26 @@ export function DataCard(props: DataCardProps) {
   }
 
   if (answer.kind === 'waiting') {
-    if (answer.items.length === 0) return null;
+    const people = waitingByPerson(answer.items);
+    if (people.length === 0) return null;
     return frame(
       <>
-        {answer.items.slice(0, MAX_ROWS).map((f, i) =>
-          row(
+        {people.slice(0, MAX_ROWS).map((group, i) => {
+          const f = group[0]!;
+          const closed = group.every((g) => props.closedFollowUps?.has(g.id));
+          return row(
             f.id,
             `qa-waiting-${f.id}`,
             props.onFollowUps,
             null,
             displayName(f.who),
-            f.what,
-            pill(`qa-replied-${f.id}`, copy.replied, () => props.onReplied(f)),
-            i === 0
-          )
-        )}
-        {more(answer.items.length)}
+            group.length > 1 ? `${f.what} · ×${group.length}` : f.what,
+            pill(`qa-replied-${f.id}`, copy.replied, () => props.onReplied(group), closed),
+            i === 0,
+            closed
+          );
+        })}
+        {more(people.length)}
       </>,
       'qa-waiting'
     );

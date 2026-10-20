@@ -5,6 +5,8 @@
  * be reworded without hunting through screens.
  */
 import type { Lang } from './strings';
+import { egyptian } from './egyptian';
+import { currentDialect } from '@/i18n/dialect';
 
 export type Added = {
   importC: string;
@@ -90,6 +92,8 @@ export type Added = {
   /** The Assistant saving a person from a sentence or a voice note. */
   contact: {
     chip: string;
+    /** The card's heading before a name is typed. */
+    fresh: string;
     askName: string;
     askDetail: string;
     ready: string;
@@ -569,6 +573,7 @@ export type Added = {
     oneThingDone: string;
     noOneThing: string;
     nextIs: string;
+    nextLate: string;
     noNext: string;
     logToday: string;
     logYesterday: string;
@@ -838,6 +843,7 @@ const ADDED: Record<Lang, Added> = {
     /** The Assistant saving a person: asks for what is missing, one thing at a time. */
     contact: {
       chip: 'Save a contact',
+      fresh: 'New contact',
       askName: 'Sure. What’s their name?',
       askDetail: 'Got it, {n}. What’s their number or email?',
       ready: 'Here’s what I have. Save this contact?',
@@ -1315,8 +1321,8 @@ const ADDED: Record<Lang, Added> = {
       timesOne: 'once',
       closedN: '{n} follow-ups closed',
       closedOne: '1 follow-up closed',
-      waitingN: '{n} still waiting on a reply',
-      waitingOne: '1 still waiting on a reply',
+      waitingN: '{n} still haven’t replied',
+      waitingOne: '1 still hasn’t replied',
       carrying: '{n} carrying into next week',
       carryingOne: '1 carrying into next week',
       nothingSent: 'Nothing went out this week.',
@@ -1346,8 +1352,8 @@ const ADDED: Record<Lang, Added> = {
       noneTomorrow: 'Nothing due tomorrow.',
       noneWeek: 'Nothing due this week.',
       noneLate: 'Nothing late. You’re clear.',
-      waitingN: '{n} waiting on you',
-      noneWaiting: 'Nobody’s waiting on a reply.',
+      waitingN: 'Waiting to hear back: {n}',
+      noneWaiting: 'Nobody owes you a reply.',
       quietN: '{n} you haven’t reached in a while',
       noneQuiet: 'Everyone you keep in touch with is up to date.',
       quietDays: '{n} days',
@@ -1359,6 +1365,7 @@ const ADDED: Record<Lang, Added> = {
       oneThingDone: 'Done today',
       noOneThing: 'You haven’t named a One Thing for today.',
       nextIs: 'Next',
+      nextLate: 'Next — this one is late',
       noNext: 'Nothing scheduled next.',
       logToday: '{n} today',
       logYesterday: '{n} yesterday',
@@ -1370,7 +1377,7 @@ const ADDED: Record<Lang, Added> = {
       undone: 'Not done',
       focus: 'Start focus',
       choose: 'Choose one',
-      markedDone: 'Marked done.',
+      markedDone: 'Done — one less thing on your mind.',
       more: '+{n} more',
       outOfScope: 'I’m best with your people and your follow-ups.',
       egTask: 'Remind me to call Sara at 4',
@@ -1379,7 +1386,7 @@ const ADDED: Record<Lang, Added> = {
     },
     chips: {
       late: { label: 'What’s late?', say: 'What’s late?' },
-      waiting: { label: 'Who’s waiting?', say: 'Who am I waiting on?' },
+      waiting: { label: 'No reply yet', say: 'Who am I waiting on?' },
       oneThing: { label: 'My One Thing', say: 'What’s my One Thing today?' },
       next: { label: 'What’s next?', say: 'What’s next?' },
       day: { label: 'My day', say: 'Arrange my day' },
@@ -1501,6 +1508,7 @@ const ADDED: Record<Lang, Added> = {
     customTimePast: 'هذا الوقت فات — اختر وقت أبعد.',
     contact: {
       chip: 'احفظ جهة اتصال',
+      fresh: 'جهة اتصال جديدة',
       askName: 'تمام. ما اسمه؟',
       askDetail: 'تمام، {n}. ما رقمه أو إيميله؟',
       ready: 'هذه البيانات اللي عندي. أحفظ الجهة؟',
@@ -1602,7 +1610,7 @@ const ADDED: Record<Lang, Added> = {
       favAdded: 'ضفنا {n} للمفضلة',
       favRemoved: 'شلنا {n} من المفضلة',
       favHint: 'اضغط مطولًا على أي شخص عشان تضيفه هنا.',
-      waitingNone: 'ما أحد ينتظر منك ردًا.',
+      waitingNone: 'ما فيه أحد تنتظر ردّه.',
       recentNone: 'ما فيه أحد آخر ٧ أيام.',
       favorite: 'مفضّل',
       followups: 'المتابعات',
@@ -1662,7 +1670,7 @@ const ADDED: Record<Lang, Added> = {
       change: 'غيّر',
       undo: 'تراجع',
       none: 'بدون متابعة',
-      replied: 'رد',
+      replied: 'وصل الرد',
       chaseTitle: 'إذا ما فيه رد',
       chaseHint: 'بعد ما ترسل، أذكّرك ترجع تتابع. وتقفلها بضغطة لما يردون.',
       chaseOptions: { auto: 'تلقائي', off: 'مغلق', d1: 'يوم', d2: 'يومين', d3: '3 أيام', d7: 'أسبوع' },
@@ -1769,7 +1777,7 @@ const ADDED: Record<Lang, Added> = {
       message: 'راسله',
       done: 'تم',
       doneShort: 'تم',
-      replied: 'رد',
+      replied: 'وصل الرد',
       alsoMore: '+{n} أخرى',
       more: 'أظهر {n} إضافية',
       less: 'أقل',
@@ -1807,8 +1815,8 @@ const ADDED: Record<Lang, Added> = {
       sentYes: 'أُرسلت · تابع {w}',
       sentOther: 'أو تابع',
       chipPromise: 'وعدت سارة اني ارسل لها العرض الخميس',
-      chipWait: 'مستني رد عمر على العقد',
-      hint: 'جرّب: «وعدت سارة اني ارسل لها العرض الخميس» أو «مستني رد عمر».',
+      chipWait: 'أنتظر رد عمر على العقد',
+      hint: 'جرّب: «وعدت سارة اني ارسل لها العرض الخميس» أو «أنتظر رد عمر».',
     },
     rhythm: {
       title: 'خلّك على تواصل',
@@ -1978,8 +1986,8 @@ const ADDED: Record<Lang, Added> = {
       timesOne: 'مرة واحدة',
       closedN: 'أقفلت {n} متابعات',
       closedOne: 'أقفلت متابعة واحدة',
-      waitingN: '{n} لسه مستنيين ردك',
-      waitingOne: 'واحد لسه مستني ردك',
+      waitingN: '{n} ما ردّوا للحين',
+      waitingOne: 'واحد ما ردّ للحين',
       carrying: '{n} ينقلون للأسبوع الجاي',
       carryingOne: 'واحد ينقل للأسبوع الجاي',
       nothingSent: 'ما طلع شيء هذا الأسبوع.',
@@ -1990,51 +1998,52 @@ const ADDED: Record<Lang, Added> = {
       whatsapp: 'واتساب',
       email: 'إيميل',
       profile: 'افتح الملف',
-      replied: 'رد',
+      replied: 'وصل الرد',
       cantOpen: 'ما قدرت أفتحه على هذا الجوال.',
       noPhone: 'ما عندي رقم لـ{n}.',
       noEmail: 'ما عندي إيميل لـ{n}.',
       works: '{n} · {w}',
       noWork: 'ما عندي شركة لـ{n}.',
       which: 'أي {n}؟',
-      nobody: 'ما هو في الأشخاص بعد.',
+      nobody: 'مو موجود في الأشخاص.',
       find: 'دوّر في الأشخاص',
       lastWith: 'آخر شيء مع {n}',
       noHistory: 'ما فيه شيء مسجّل مع {n} بعد.',
-      todayN: '{n} اليوم',
-      tomorrowN: '{n} بكرة',
-      weekN: '{n} هذا الأسبوع',
-      lateN: '{n} متأخرة',
+      todayN: 'مهام اليوم: {n}',
+      tomorrowN: 'مهام بكرة: {n}',
+      weekN: 'مهام هذا الأسبوع: {n}',
+      lateN: 'المتأخر: {n}',
       noneToday: 'ما فيه شيء اليوم.',
       noneTomorrow: 'ما فيه شيء بكرة.',
       noneWeek: 'ما فيه شيء هذا الأسبوع.',
-      noneLate: 'ما فيه شيء متأخر. تمام.',
-      waitingN: '{n} مستنيينك',
-      noneWaiting: 'ما فيه أحد مستني ردك.',
-      quietN: '{n} ما كلمتهم من فترة',
+      noneLate: 'ما فيه شيء متأخر. كل شيء تمام.',
+      waitingN: 'تنتظر ردّهم: {n}',
+      noneWaiting: 'ما فيه أحد تنتظر ردّه.',
+      quietN: 'ما تواصلت معهم من فترة: {n}',
       noneQuiet: 'كل اللي تتابعهم على تواصل.',
       quietDays: '{n} يوم',
-      labelN: '{n} مصنّفين {w}',
-      favN: '{n} في المفضلة',
-      allN: '{n} في الأشخاص',
+      labelN: '{w}: {n}',
+      favN: 'المفضلة: {n}',
+      allN: 'في الأشخاص: {n}',
       nonePeople: 'ما فيه أحد بعد.',
       oneThingIs: 'شغلك الأساسي اليوم',
       oneThingDone: 'خلص اليوم',
       noOneThing: 'ما حدّدت شغلك الأساسي لليوم.',
-      nextIs: 'الجاي',
-      noNext: 'ما فيه شيء جاي مجدول.',
-      logToday: '{n} اليوم',
-      logYesterday: '{n} أمس',
-      logWeek: '{n} هذا الأسبوع',
+      nextIs: 'التالي',
+      nextLate: 'التالي — وهذي متأخرة',
+      noNext: 'ما فيه شيء مجدول بعده.',
+      logToday: 'سجّلت اليوم: {n}',
+      logYesterday: 'سجّلت أمس: {n}',
+      logWeek: 'سجّلت هذا الأسبوع: {n}',
       noLogToday: 'ما فيه شيء مسجّل اليوم.',
       noLogYesterday: 'ما فيه شيء مسجّل أمس.',
       noLogWeek: 'ما فيه شيء مسجّل هذا الأسبوع.',
-      done: 'خلصت',
-      undone: 'ما خلصت',
+      done: 'تم',
+      undone: 'ما تم',
       focus: 'ابدأ التركيز',
       choose: 'حدّد واحد',
-      markedDone: 'علّمناها خلصت.',
-      more: '+{n} غيرهم',
+      markedDone: 'تم — شي أقل في بالك.',
+      more: 'و{n} غيرهم',
       outOfScope: 'أنا أفيدك أكثر في أشخاصك ومتابعاتك.',
       egTask: 'فكرني أكلم سارة الساعة ٤',
       egLate: 'وش المتأخر؟',
@@ -2042,7 +2051,7 @@ const ADDED: Record<Lang, Added> = {
     },
     chips: {
       late: { label: 'وش المتأخر؟', say: 'وش المتأخر؟' },
-      waiting: { label: 'مين ينتظرني؟', say: 'مين أنتظر منه رد؟' },
+      waiting: { label: 'مين ما ردّ؟', say: 'مين أنتظر منه رد؟' },
       oneThing: { label: 'شغلي الأساسي', say: 'وش شغلي الأساسي اليوم؟' },
       next: { label: 'وش التالي؟', say: 'وش التالي؟' },
       day: { label: 'يومي', say: 'رتّب لي يومي' },
@@ -2074,4 +2083,5 @@ const ADDED: Record<Lang, Added> = {
   },
 };
 
-export const added = (lang: Lang): Added => ADDED[lang];
+/** The added copy for the language, in Egyptian when that is the Arabic chosen (src/i18n/dialect.ts). */
+export const added = (lang: Lang): Added => (lang === 'ar' && currentDialect() === 'egypt' ? egyptian(ADDED.ar) : ADDED[lang]);

@@ -10,6 +10,7 @@ import { Pressable, View } from 'react-native';
 import { formatGap } from '@/features/today/TaskRow';
 import { Icon } from '@/ui/Icon';
 import { LTRText, Text } from '@/ui/Text';
+import { own } from '@/lib/bidi';
 import { TYPE_ICON } from '@/design/icon-paths';
 import { ink, radius, status, surface, typeColour } from '@/design/tokens';
 import { useDirection, useLanguage } from '@/i18n/LanguageProvider';
@@ -74,7 +75,7 @@ export function UpNextCard({
         </View>
         <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
           <Text token="bodyL" size={18} lh={22.5} weight="600" color={surface.onCard} numberOfLines={2}>
-            {task.title}
+            {own(task.title)}
           </Text>
           <Text token="caption" color={ink.onInk} numberOfLines={1}>
             {/* The time is an LTR island because it sits next to a name. */}

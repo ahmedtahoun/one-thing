@@ -15,7 +15,7 @@
  * does need it opens the paywall instead of sending — BUILD-REVIEW.md §2.34.
  */
 import { clockOf } from '@/lib/clock-format';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Linking, Pressable, ScrollView, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import * as DocumentPicker from 'expo-document-picker';
@@ -40,7 +40,7 @@ import { TYPE_ICON } from '@/design/icon-paths';
 import { ink, surface, typeColour } from '@/design/tokens';
 import { useDirection, useLanguage } from '@/i18n/LanguageProvider';
 import { useAssistantMeter } from '@/lib/assistant-meter';
-import { dateKey, followUpStatus, isOnDay, type Contact, type Task } from '@/lib/model-types';
+import { dateKey, displayName, followUpStatus, isOnDay, type Contact, type FollowUp, type Task } from '@/lib/model-types';
 import { AssistLimitError, localIsEnough, textParser, type AssistantIntent, type ParsedTask } from '@/lib/parse';
 import {
   answerFromText,
@@ -85,7 +85,7 @@ import { useCadence } from '@/lib/cadence';
 import { useFavorites } from '@/lib/favorites';
 import { usePeople } from '@/lib/people';
 import { useSession } from '@/lib/session';
-import { deviceRegion, startListening } from '@/lib/speech';
+import { deviceRegion, startListening, withReason } from '@/lib/speech';
 import { useTasks } from '@/lib/tasks';
 
 /** How long the prototype takes to answer. */
@@ -145,7 +145,7 @@ export default function Assistant() {
   const dir = useDirection();
   const { session } = useSession();
   const { tasks, oneThing, addTask, toggleDone, restore, setOneThingDone } = useTasks();
-  const { contacts, followUps, history, addContact, addContacts, updateContact, addFollowUp, updateFollowUp } = usePeople();
+  const { contacts, followUps, history, addContact, addContacts, updateContact, addFollowUp, updateFollowUp, restoreFollowUps } = usePeople();
   const favorites = useFavorites();
   const cadence = useCadence();
   const meter = useAssistantMeter();
@@ -419,6 +419,10 @@ export default function Assistant() {
 
   const open = (url: string) => void Linking.openURL(url).catch(() => toast.show(copy.qa.cantOpen, { undo: false }));
 
+  // What is done now, so an answer already on screen ticks its rows off.
+  const doneTasks = useMemo(() => new Set(tasks.filter((task) => task.status === 'done').map((task) => task.id)), [tasks]);
+  const closedFollowUps = useMemo(() => new Set(followUps.filter((f) => f.status === 'done').map((f) => f.id)), [followUps]);
+
   const dataActions = {
     onContact: (contact: { id: string }) => router.push(`/contact?id=${contact.id}`),
     onCall: (contact: { dial?: string; phone?: string }) => open(telUrl(contact.dial ?? '', contact.phone ?? '')),
@@ -426,9 +430,11 @@ export default function Assistant() {
     onEmail: (contact: { email?: string }) => open(`mailto:${contact.email ?? ''}`),
     onTask: (task: Task) => router.push(`/compose?id=${task.id}`),
     onFollowUps: () => router.push('/followups'),
-    onReplied: (followUp: { id: string }) => {
-      updateFollowUp(followUp.id, { status: 'done', lastAction: 'closed', lastActionAt: new Date().toISOString() });
-      toast.show(fux.toastClose, { undo: false });
+    onReplied: (group: FollowUp[]) => {
+      const before = followUps;
+      const at = new Date().toISOString();
+      for (const f of group) updateFollowUp(f.id, { status: 'done', lastAction: 'closed', lastActionAt: at });
+      toast.show(fux.toastClose.replace('{n}', displayName(group[0]?.who ?? '')), { undo: () => restoreFollowUps(before) });
     },
     /**
      * Ticking a task off from the chat. The whole list is snapshotted first,
@@ -578,7 +584,7 @@ export default function Assistant() {
         setInput('');
         if (heard.trim()) void send(heard.trim(), true);
       },
-      (why) => toast.show(why === 'denied' ? copy.micOff : copy.micFailed, { undo: false }),
+      (why) => toast.show(why === 'denied' ? copy.micOff : withReason(copy.micFailed), { undo: false }),
       { names: contacts.map((c) => c.name), autoStopMs: 2600, onPartial: setInput }
     );
     if (!stop) return toast.show(copy.micFailed, { undo: false });
@@ -720,7 +726,9 @@ export default function Assistant() {
 
   // The greeting names the person where the prototype names its demo user.
   const demoFirst = t.set_name.split(' ')[0] ?? '';
-  const greeting = session?.firstName ? t.bot0.replace(demoFirst, session.firstName) : t.bot0;
+  const named = session?.firstName ? t.bot0.replace(demoFirst, session.firstName) : t.bot0;
+  // The opening line says "morning" as written; from six it says evening, as Today does.
+  const greeting = new Date().getHours() >= 18 ? named.replace(/^Morning/, 'Evening').replace(/^صباح الخير/, 'مساء الخير') : named;
 
   const today = dateKey();
   const todaysOpen = tasks
@@ -822,7 +830,15 @@ export default function Assistant() {
                 </Text>
               </View>
             ) : (
-              <View key={m.id} testID="assistant-reply" style={{ alignSelf: 'flex-start', maxWidth: '88%', gap: 8 }}>
+              <View
+                key={m.id}
+                testID="assistant-reply"
+                /* An answer with a list is given the width outright. Sized to
+                   its content, the list's text column (flex 1, min width 0)
+                   measured to nothing on a phone, and only the icons and the
+                   Done buttons were left. */
+                style={{ alignSelf: 'flex-start', ...('kind' in m && (m.kind === 'data' || m.kind === 'contact' || m.kind === 'file') ? { width: '88%' } : { maxWidth: '88%' }), gap: 8 }}
+              >
                 <Bubble>
                   {'kind' in m
                     ? m.kind === 'greet'
@@ -856,6 +872,9 @@ export default function Assistant() {
                     answer={m.answer}
                     copy={copy.qa}
                     whenLabel={(iso) => (iso ? whenText(iso, t) : '')}
+                    doneTasks={doneTasks}
+                    closedFollowUps={closedFollowUps}
+                    oneThingDone={oneThing?.done}
                     {...dataActions}
                   />
                 ) : null}
@@ -1051,7 +1070,7 @@ export default function Assistant() {
 
 function Bubble({ children }: { children: string }) {
   return (
-    <View style={{ backgroundColor: surface.langTrack, paddingVertical: 11, paddingHorizontal: 14, borderRadius: 18 }}>
+    <View style={{ alignSelf: 'flex-start', maxWidth: '100%', backgroundColor: surface.langTrack, paddingVertical: 11, paddingHorizontal: 14, borderRadius: 18 }}>
       <Text token="body" lh={22.5}>
         {children}
       </Text>

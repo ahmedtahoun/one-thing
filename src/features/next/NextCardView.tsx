@@ -13,7 +13,7 @@ import { Text } from '@/ui/Text';
 import { TYPE_ICON, type IconName } from '@/design/icon-paths';
 import { ink, status, surface, typeColour, type TaskType } from '@/design/tokens';
 import { useDirection, useLanguage } from '@/i18n/LanguageProvider';
-import { ltr } from '@/lib/bidi';
+import { ltr, own } from '@/lib/bidi';
 
 import type { NextCard } from './build';
 import { isUrgent, reasonText } from './reason';
@@ -141,7 +141,7 @@ export function NextCardView({
           </Text>
           {card.who && card.title ? (
             <Text token="bodyS" color={ink.s2} numberOfLines={2}>
-              {card.title}
+              {own(card.title)}
             </Text>
           ) : null}
           <Text testID={`next-${card.id}-why`} token="caption" weight="500" color={urgent ? status.overdueFg : ink.s4} numberOfLines={1}>

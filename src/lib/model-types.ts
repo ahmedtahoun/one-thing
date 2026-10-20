@@ -186,11 +186,19 @@ export function displayName(who: string): string {
   return who.split(' ·')[0] ?? who;
 }
 
-/** Up to two initials, uppercased: "Al Noor Packaging" → "AN". */
+/**
+ * Up to two initials, uppercased: "Al Noor Packaging" → "AN".
+ *
+ * An Arabic name gets one letter. Two Arabic letters side by side join into
+ * a word — "محمد السعدي" drew "ما", "what" — and "ال" is the article, not
+ * part of the name, so "النور للتغليف" drew "ال". One letter of the name
+ * itself is what WhatsApp shows too: "م", "ن".
+ */
 export function initials(name: string): string {
-  return name
-    .split(/\s+/)
-    .filter(Boolean)
+  const words = name.split(/\s+/).filter(Boolean);
+  const first = words[0] ?? '';
+  if (/^[\u0600-\u06FF]/.test(first)) return first.replace(/^ال(?=[\u0621-\u064A]{2})/, '').charAt(0);
+  return words
     .slice(0, 2)
     .map((w) => w[0])
     .join('')

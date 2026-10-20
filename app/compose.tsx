@@ -22,6 +22,7 @@ import * as Sharing from 'expo-sharing';
 import { track } from '@/lib/analytics/track';
 import { EmailFields, LockedRecipient, PhoneField, SubjectField } from '@/features/compose/fields';
 import { added } from '@/content/additions';
+import { isMomentLabel } from '@/features/people/moment-label';
 import { DRAFT_KINDS, writeDraft, type DraftKind } from '@/features/compose/drafts';
 import { AttachRow, type PickedFile } from '@/features/compose/AttachRow';
 import { sharePlan, type SharePlatform } from '@/features/compose/share-plan';
@@ -145,7 +146,7 @@ function ComposeTask({ task }: { task: Task }) {
   const lastTime = useMemo(() => {
     if (!contact) return null;
     const latest = history.find((h) => h.contactId === contact.id);
-    const text = latest?.text ?? contact.lastLabel;
+    const text = latest?.text ?? (isMomentLabel(contact.lastLabel) ? undefined : contact.lastLabel);
     return text ? { text, contactId: contact.id } : null;
   }, [contact, history]);
 

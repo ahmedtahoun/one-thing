@@ -9,6 +9,7 @@ import { Pressable, View } from 'react-native';
 
 import { Icon } from '@/ui/Icon';
 import { Text } from '@/ui/Text';
+import { own } from '@/lib/bidi';
 import { TYPE_ICON } from '@/design/icon-paths';
 import { ink, radius, surface, typeColour } from '@/design/tokens';
 import { useDirection, useLanguage } from '@/i18n/LanguageProvider';
@@ -47,7 +48,7 @@ export function ReviewRow({
     >
       <Icon name={TYPE_ICON[task.type]} size={18} color={colour.fg} strokeWidth={1.9} />
       <Text token="bodyS" weight="500" numberOfLines={1} style={{ flex: 1, minWidth: 0 }}>
-        {task.title}
+        {own(task.title)}
       </Text>
 
       <Pill label={t.kept} on={mark === 'kept'} onPress={() => onMark('kept')} testID={`review-keep-${task.id}`} />

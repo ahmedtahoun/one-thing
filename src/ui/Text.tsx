@@ -2,7 +2,7 @@
  * Typography. One component per README type token, so sizes and weights can
  * never drift from the scale.
  */
-import { Text as RNText, type TextProps, type TextStyle } from 'react-native';
+import { Platform, StyleSheet, Text as RNText, type TextProps, type TextStyle } from 'react-native';
 
 import { useLanguage } from '@/i18n/LanguageProvider';
 import { fontFamily, ink, naturalLineHeight, type as scale } from '@/design/tokens';
@@ -36,6 +36,26 @@ const FAMILY: Record<string, string> = {
   '700': `${fontFamily}_700Bold`,
 };
 
+/**
+ * React Native on a phone swaps a text's 'left' and 'right' when the layout
+ * around it is right-to-left (RCTAttributedTextUtils.mm on iOS,
+ * TextAttributeProps on Android). The web does not. Every alignment here is
+ * written as the side it should land on, as the web shows it, so on a phone
+ * in Arabic it is swapped first and the platform's swap puts it back. Without
+ * this, every line of Arabic sat against the left edge on the iPhone.
+ */
+const SWAPS = Platform.OS !== 'web';
+
+const ARABIC = /[\u0600-\u06FF]/;
+const LATIN = /[A-Za-z]/;
+/** A line with English in it and no Arabic: a name, a role, an email. */
+const allLatin = (children: unknown): boolean => {
+  const text = typeof children === 'string' ? children : Array.isArray(children) && children.every((c) => typeof c === 'string' || typeof c === 'number') ? children.join('') : null;
+  return text !== null && LATIN.test(text) && !ARABIC.test(text);
+};
+const onScreen = (align: TextStyle['textAlign'], isRTL: boolean): TextStyle['textAlign'] =>
+  SWAPS && isRTL ? (align === 'right' ? 'left' : align === 'left' ? 'right' : align) : align;
+
 export function Text({
   token = 'body',
   size,
@@ -53,6 +73,10 @@ export function Text({
   const fontSize = size ?? t.size;
   const lineHeight = lh ?? (size === undefined ? t.lh : naturalLineHeight(size));
 
+  const flat = StyleSheet.flatten(style) as TextStyle | undefined;
+  const asked = flat?.textAlign;
+  const spaced = isRTL && (flat?.letterSpacing ?? 0) > 0;
+
   return (
     <RNText
       style={[
@@ -61,12 +85,17 @@ export function Text({
           fontSize,
           lineHeight,
           color,
-          textAlign: align ?? (isRTL ? 'right' : 'left'),
-          writingDirection: isRTL ? 'rtl' : 'ltr',
-          ...('tracking' in t ? { letterSpacing: (t as { tracking: number }).tracking } : null),
+          textAlign: onScreen(align ?? (isRTL ? 'right' : 'left'), isRTL),
+          // English inside the Arabic layout still reads left to right — "+20… · Manager · @co" keeps its
+          // order — while it sits on the Arabic side of the line.
+          writingDirection: isRTL && !allLatin(rest.children) ? 'rtl' : 'ltr',
+          // Spacing letters apart breaks Arabic's joined script ("ا لمسا"), so Arabic gets none.
+          ...('tracking' in t && !isRTL ? { letterSpacing: (t as { tracking: number }).tracking } : null),
           ...(tabular ? { fontVariant: ['tabular-nums' as const] } : null),
         },
         style,
+        asked ? { textAlign: onScreen(asked, isRTL) } : null,
+        spaced ? { letterSpacing: 0 } : null,
       ]}
       {...rest}
     />

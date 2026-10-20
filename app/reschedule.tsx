@@ -27,6 +27,7 @@ import { clockFromHHMM } from '@/lib/clock-format';
 import { dateKey, timeLabel } from '@/lib/model-types';
 import { dayLabel } from '@/lib/task-labels';
 import { useTasks } from '@/lib/tasks';
+import { bleed } from '@/ui/bleed';
 
 /** Half-hours from 08:00 to 21:30, as the prototype builds them. */
 const TIMES = Array.from({ length: 14 * 2 }, (_, i) => {
@@ -140,8 +141,8 @@ export default function Reschedule() {
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          style={{ marginHorizontal: -space.screenX, flexGrow: 0 }}
-          contentContainerStyle={{ flexDirection: dir.row, gap: 6, paddingHorizontal: space.screenX }}
+          style={{ ...bleed(dir.isRTL, space.screenX).style, flexGrow: 0 }}
+          contentContainerStyle={{ flexDirection: dir.row, gap: 6, ...bleed(dir.isRTL, space.screenX).content }}
         >
           {t.rQuick.map(([label, offset, at]) => {
             const date = new Date(now.getFullYear(), now.getMonth(), now.getDate() + Number(offset));
@@ -180,8 +181,8 @@ export default function Reschedule() {
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
-            style={{ marginHorizontal: -space.screenX, flexGrow: 0 }}
-            contentContainerStyle={{ flexDirection: dir.row, gap: 6, paddingHorizontal: space.screenX, paddingBottom: 2 }}
+            style={{ ...bleed(dir.isRTL, space.screenX).style, flexGrow: 0 }}
+            contentContainerStyle={{ flexDirection: dir.row, gap: 6, ...bleed(dir.isRTL, space.screenX).content, paddingBottom: 2 }}
           >
             {TIMES.map((slot) => {
               // An hour that has already passed today cannot be chosen.

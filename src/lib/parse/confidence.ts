@@ -21,7 +21,7 @@
  * still show every proposal for confirmation, and ./clarify.ts still asks
  * about whatever is missing, whichever parser produced it.
  */
-import { dayOf, partOf, timeOf, typeOf, whoOf } from './local';
+import { dayOf, partOf, relativeMinutes, timeOf, typeOf, whoOf } from './local';
 import { loopOf } from './promise';
 import type { ParseContext } from './types';
 
@@ -44,7 +44,7 @@ export function enoughFor(text: string, ctx: ParseContext): Enough {
   const t = text.trim();
   if (t === '') return null;
   if (loopOf(t, ctx.contacts)) return 'loop';
-  if (dayOf(t, ctx.now).said || timeOf(t) !== null || partOf(t) !== null) return 'time';
+  if (dayOf(t, ctx.now).said || timeOf(t) !== null || partOf(t) !== null || relativeMinutes(t) !== null) return 'time';
   if (typeOf(t) !== 'reminder' && whoOf(t, ctx.contacts).contactId !== null) return 'channel-and-who';
   return null;
 }

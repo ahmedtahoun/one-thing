@@ -737,7 +737,7 @@ const C_ar: typeof C_en = {
     ],
     "fu": [
       "إيميلك لسارة فيه مكالمة الأسبوع الجاي. أذكّرك تتابع معها الثلاثاء لو ما ردّت؟",
-      "إيه، ذكّرني"
+      "أيوه، ذكّرني"
     ]
   },
   "sugToast": {
@@ -1846,7 +1846,7 @@ const FUX_en = {
       "Replies you mark as done land here."
     ]
   ],
-  "toastClose": "Nice — {n} is closed."
+  "toastClose": "Nice — {n} replied."
 };
 
 const FUX_ar: typeof FUX_en = {
@@ -1880,7 +1880,7 @@ const FUX_ar: typeof FUX_en = {
       "الردود اللي تقفلها تنحفظ هنا."
     ]
   ],
-  "toastClose": "حلو — تم إقفال {n}."
+  "toastClose": "حلو — وصل رد {n}."
 };
 
 export const FUX = { en: FUX_en, ar: FUX_ar };
