@@ -4467,3 +4467,65 @@ and not on a phone), 456 browser checks across seven suites, 54 at 360×640,
 Egyptian, with the Gulf forms of each asserted alongside them and four
 statements asserted to stay statements, since a widened pattern that swallowed
 those would turn every typed errand into a question nobody asked.
+
+### 2.106 What a question costs, and what makes it cost more
+
+The owner asked whether adding scenarios to the Assistant would slow the app
+down. It is not one number, because two different things grow, and only one
+of them is paid per question.
+
+**A pattern is free.** Every rule in `ask-data.ts` is a `RegExp` built once
+when the module loads and tested against a sentence somebody just typed.
+Thirty more rules is thirty more tests on thirty characters. A question the
+parser declines without reading any data — "hello there friend" — measures
+**1.7 µs**, and that figure does not move with the size of the account.
+
+**A scan is not.** An answer that walks the account is paid for by whoever
+has the most of it, on every question. `npm run measure:ask` prints both:
+
+| account | per question |
+| --- | --- |
+| the demo day — 8 people, 18 tasks | 22 µs |
+| a working account — 200 people, 200 tasks | 246 µs |
+| far past any real one — 2,000 people, 2,000 tasks | 2.5 ms |
+
+Flat in the patterns, linear in the data, which is the shape to keep. 2.5 ms
+is one-sixth of a frame, spent once when Send is pressed rather than on every
+frame, so none of this is visible — but the trend is the thing to watch, and
+`scripts/measure-ask.ts` exists so the next answer that reads data can be
+measured before and after instead of argued about.
+
+**Measuring it found three pieces of waste, two of them mine from §2.104.**
+
+`openWith` folded the contact's name — two `normalizeArabic` passes — *once
+per task*, so a question about one person re-derived the same two strings for
+every task on the account. Hoisted to once per question: **1,977 µs → 364 µs**
+at 2,000 tasks.
+
+`findTasks` folded each task's text once per *word* of the question rather
+than once per task. Fixed, though it turned out not to be the dominant cost
+there, which is worth recording: the first guess was wrong and the profile
+said so.
+
+`normalizeArabic` ran its four rewriting passes over every string, including
+the ones with no Arabic in them. It now returns early — one scan to find out
+instead of four that change nothing. This is shared by every name match in
+the app, which is why it was verified against the whole suite rather than
+reasoned about: 1,170 unit tests, 456 browser checks, 35 against Postgres,
+drift clean.
+
+**The other cost is the bundle, and copy is what grows it.** The trilingual
+copy set — English, Gulf Arabic and Egyptian, around 1,300 lines each — is
+**425 KB of a 4,387 KB raw bundle, 9.7%**; non-ASCII is escaped as `\uXXXX`,
+so every Arabic character costs six bytes. `egyptian-lines.ts` alone is 86 KB
+of source. That is the real price of a third language, and it is paid at
+launch rather than per question. A fourth would cost about the same again,
+which is the number to weigh before adding one.
+
+**What is deliberately not done.** `findTasks` at 2,000 tasks is ~9 ms, and
+the obvious fix is an index folded once when the task list changes rather
+than on each question. No account is near that size, an index has to be
+invalidated correctly, and a cache that goes stale answers questions with
+tasks that no longer exist. The measurement script is the thing that will say
+when the trade is worth making; until it does, this is written down rather
+than built.
