@@ -21,6 +21,8 @@ import type {
   Ticket,
   UserDetail,
   UserRow,
+  Phrasings,
+  Transcripts,
 } from './types';
 
 /** Why an action cannot happen yet: the integration it needs does not exist. */
@@ -38,6 +40,10 @@ export interface DataSource {
   growth(): Promise<Growth>;
   requests(): Promise<PrivacyRequest[]>;
   audit(): Promise<AuditEntry[]>;
+  /** How people phrase things to Sanad, redacted on their own device. */
+  phrasings(filter: 'all' | 'unanswered'): Promise<Phrasings>;
+  /** What they typed, from the accounts that offered it. Personal data. */
+  transcripts(filter: 'all' | 'unanswered'): Promise<Transcripts>;
   team(): Promise<TeamMember[]>;
   badges(): Promise<Badges>;
 

@@ -24,6 +24,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { added } from '@/content/additions';
 import { ClipSheet } from '@/features/assistant/ClipSheet';
 import { DataCard } from '@/features/assistant/DataCard';
+import { DumpCard, type DumpItem } from '@/features/assistant/DumpCard';
 import { answerLine, fileLine } from '@/features/assistant/answer-line';
 import { AskChips } from '@/features/capture/AskChips';
 import { PersonSearchSheet } from '@/features/capture/PersonSearchSheet';
@@ -38,10 +39,13 @@ import { Text } from '@/ui/Text';
 import { Toast, useToast } from '@/ui/Toast';
 import { TYPE_ICON } from '@/design/icon-paths';
 import { ink, surface, typeColour } from '@/design/tokens';
+import { currentDialect } from '@/i18n/dialect';
 import { useDirection, useLanguage } from '@/i18n/LanguageProvider';
 import { useAssistantMeter } from '@/lib/assistant-meter';
 import { dateKey, displayName, followUpStatus, isOnDay, type Contact, type FollowUp, type Task } from '@/lib/model-types';
 import { AssistLimitError, localIsEnough, textParser, type AssistantIntent, type ParsedTask } from '@/lib/parse';
+import { splitDump } from '@/lib/parse/local';
+import { dumpIsEnough } from '@/lib/parse/confidence';
 import {
   answerFromText,
   clarify,
@@ -78,8 +82,13 @@ import { followUpFromParsed, taskFromParsed } from '@/lib/parse/to-task';
 import { LoopTag } from '@/features/capture/LoopTag';
 import { promiseDraft } from '@/features/compose/drafts';
 import { MicNotice, useMicGate } from '@/features/mic/MicNotice';
+import { IntroCard } from '@/features/assistant/IntroCard';
+import { introSteps, openingLine, type Opening } from '@/features/assistant/intro';
 import { chipsFor, rankChips } from '@/features/assistant/suggestions';
 import { useAssistantHabits } from '@/lib/assistant-habits';
+import { useAssistantMet } from '@/lib/assistant-met';
+import { notePhrasing, type Verdict } from '@/lib/analytics/phrasings';
+import { usePrefs } from '@/lib/prefs';
 import { telUrl, whatsAppUrl } from '@/features/compose/recipient';
 import { useCadence } from '@/lib/cadence';
 import { useFavorites } from '@/lib/favorites';
@@ -132,6 +141,12 @@ type Message =
   | { id: string; from: 'bot'; kind: 'data'; answer: DataAnswer }
   /** A file of people, read on the phone: the counts, then Add all or Review. */
   | { id: string; from: 'bot'; kind: 'file'; candidates: Candidate[]; skipped: number; added?: number }
+  /**
+   * Several errands said in one breath — a minute at the mic. Reviewed row
+   * by row before anything is saved: dictation is the likeliest of all of
+   * them to be misheard, and five wrong tasks are worse than none.
+   */
+  | { id: string; from: 'bot'; kind: 'dump'; items: DumpItem[]; saved?: number }
   | Ask
   | { id: string; from: 'bot'; intent: AssistantIntent; confirmed?: boolean };
 
@@ -152,6 +167,13 @@ export default function Assistant() {
   const toast = useToast();
   const mic = useMicGate();
   const habits = useAssistantHabits();
+  // "Help improve Sanad": whether the words themselves may travel with the
+  // shape of them. Off until somebody turns it on — src/lib/consent.ts.
+  const { prefs } = usePrefs();
+  // Whether Sanad has introduced itself on this phone yet — src/lib/assistant-met.ts.
+  const { met, ready: metKnown, meet } = useAssistantMet();
+  /** Whether they had met Sanad when this screen opened, held still while they use it. */
+  const metAtOpen = useRef<boolean | null>(null);
   // Quick capture hands over a sentence that is really "save this person".
   const { say } = useLocalSearchParams<{ say?: string }>();
 
@@ -412,9 +434,39 @@ export default function Assistant() {
    * `unknown`, and says so with examples instead of being saved as a task.
    */
   const showData = (said: string, answer: DataAnswer) => {
-    // An answer about one person is what the next question can lean on.
-    if (answer.kind === 'person' || answer.kind === 'history') setSubject({ contact: answer.contact });
+    // An answer about one person is what the next question can lean on, so
+    // "and her email?" after it knows who "her" is. `withPerson` counts for
+    // the same reason: "anything pending with Sara?" then "did she reply?"
+    // is one conversation about Sara.
+    if (answer.kind === 'person' || answer.kind === 'history' || answer.kind === 'withPerson') setSubject({ contact: answer.contact });
     setMessages((list) => [...list, { id: newId(), from: 'me', text: said }, { id: newId(), from: 'bot', kind: 'data', answer }]);
+  };
+
+  /** A row of a spoken run, kept or dropped. Nothing is saved by this. */
+  const toggleDump = (id: string, index: number) => {
+    setMessages((list) =>
+      list.map((m) =>
+        m.id === id && 'kind' in m && m.kind === 'dump'
+          ? { ...m, items: m.items.map((item, i) => (i === index ? { ...item, keep: !item.keep } : item)) }
+          : m
+      )
+    );
+  };
+
+  /**
+   * Everything still kept, saved at once — a waiting becomes a follow-up and
+   * everything else a task, exactly as the Brain dump screen saves them, so
+   * the two cannot drift apart in what a spoken errand turns into.
+   */
+  const saveDump = (id: string, items: readonly DumpItem[]) => {
+    const kept = items.filter((item) => item.keep);
+    if (kept.length === 0) return;
+    for (const item of kept) {
+      if (item.kind === 'waiting') addFollowUp(followUpFromParsed(item, copy.loop.waitSince.replace('{w}', whenText(item.when, t))));
+      else addTask(taskFromParsed(item, 'assistant', promiseDraft(item, lang, session?.name)));
+    }
+    setMessages((list) => list.map((m) => (m.id === id && 'kind' in m && m.kind === 'dump' ? { ...m, saved: kept.length } : m)));
+    toast.show(t.toastDump.replace('{n}', String(kept.length)), { undo: false });
   };
 
   const open = (url: string) => void Linking.openURL(url).catch(() => toast.show(copy.qa.cantOpen, { undo: false }));
@@ -582,7 +634,8 @@ export default function Assistant() {
         stopListeningRef.current = null;
         setListening(false);
         setInput('');
-        if (heard.trim()) void send(heard.trim(), true);
+        // Said, not typed: a spoken run of errands is read as a list.
+        if (heard.trim()) void send(heard.trim(), true, true);
       },
       (why) => toast.show(why === 'denied' ? copy.micOff : withReason(copy.micFailed), { undo: false }),
       { names: contacts.map((c) => c.name), autoStopMs: 2600, onPartial: setInput }
@@ -592,14 +645,37 @@ export default function Assistant() {
     setListening(true);
   };
 
-  const send = async (raw?: string, typed = raw === undefined) => {
+  const send = async (raw?: string, typed = raw === undefined, spoken = false) => {
     const text = (raw ?? input).trim();
     if (!text) return;
+    // Saying anything is meeting: the introduction does not wait to be dismissed.
+    if (!met) meet();
+
+    /**
+     * What Sanad made of this sentence, for the phrasebook the owner reads to
+     * find what it still cannot answer (src/lib/analytics/phrasings.ts).
+     *
+     * The sentence is redacted on this device before it is queued — names,
+     * numbers and addresses out — and a line the redactor is not sure of is
+     * dropped rather than sent. A chip or an intro row is the app quoting
+     * itself and is not recorded at all. BUILD-REVIEW §2.114.
+     */
+    const learn = (verdict: Verdict) =>
+      notePhrasing({
+        text,
+        verdict,
+        source: raw !== undefined && !spoken ? 'chip' : spoken ? 'spoken' : 'typed',
+        lang,
+        dialect: currentDialect(),
+        contacts,
+        helpSanad: prefs.helpSanad,
+      });
     const clear = () => raw === undefined && setInput('');
     // Saving a person takes no Assistant request: it is read on the device.
     if (typed && openContact && continueContact(openContact, text)) return clear();
     if (isContactCommand(text)) {
       clear();
+      learn('contact');
       return startContact(text);
     }
     // "Import my excel", "صور كرت": the paperclip's choices, asked for in
@@ -607,6 +683,7 @@ export default function Assistant() {
     const attach = attachCommand(text);
     if (attach) {
       clear();
+      learn('attach');
       setMessages((list) => [...list, { id: newId(), from: 'me', text }]);
       return chooseClip(attach);
     }
@@ -616,6 +693,7 @@ export default function Assistant() {
     const small = smallTalk(text);
     if (small && small.kind !== 'lookup') {
       clear();
+      learn('smalltalk');
       return answerSmall(text, small);
     }
     /**
@@ -645,6 +723,7 @@ export default function Assistant() {
         return;
       }
       clear();
+      learn(asQuestion.kind as Verdict);
       setMessages((list) => list.map((m) => (m.id === pending.id ? { ...m, answered: true } : m)));
       return showData(text, asQuestion);
     }
@@ -653,11 +732,64 @@ export default function Assistant() {
     const found = askData(text, dataWorld(), subject);
     if (found) {
       clear();
+      learn(found.kind as Verdict);
       return showData(text, found);
     }
     if (small) {
       clear();
+      learn('smalltalk');
       return answerSmall(text, small);
+    }
+    /**
+     * Several errands in one breath — a minute at the mic, which is what the
+     * owner asked for. `splitDump` divides a spoken run on the words people
+     * join errands with, so anything that comes apart into more than one
+     * piece is read as a list instead of as one task with the whole minute
+     * for a title, which is what happened before (§2.108).
+     *
+     * **Spoken input is taken at its word; typed input needs a full stop.**
+     * The mic says which this was, so the screen does not have to guess: a
+     * typed "Call Sara tomorrow, the contract one" is one errand with a
+     * comma in it, and turning that into two rows would be a worse answer
+     * than leaving it alone. A typed full stop, semicolon or new line is a
+     * person plainly ending one thing and starting another.
+     *
+     * Nothing above claimed it, so this is not a question: those are
+     * answered before here, commas and all.
+     */
+    const pieces = splitDump(text);
+    if (pieces.length > 1 && (spoken || /[.;\u061B\n]/.test(text))) {
+      const splitNeedsServer = !dumpIsEnough(pieces, { lang, now: new Date(), contacts });
+      if (splitNeedsServer) {
+        if (!meter.ready) return;
+        if (!meter.canAsk) {
+          router.push('/paywall');
+          return;
+        }
+      }
+      if (pending) setMessages((list) => list.map((m) => ('kind' in m && m.kind === 'ask' ? { ...m, answered: true } : m)));
+      if (splitNeedsServer) meter.spend();
+      const said = newId();
+      setMessages((list) => [...list, { id: said, from: 'me', text }]);
+      clear();
+      let found: ParsedTask[];
+      try {
+        found = await textParser.split(text, { lang, now: new Date(), contacts });
+      } catch (error) {
+        if (!(error instanceof AssistLimitError)) throw error;
+        setMessages((list) => list.filter((m) => m.id !== said));
+        if (raw === undefined) setInput(text);
+        router.push('/paywall');
+        return;
+      }
+      learn('dump');
+      const items: DumpItem[] = found.map((item) => ({ ...item, keep: true }));
+      timers.current.push(
+        setTimeout(() => {
+          setMessages((list) => [...list, { id: newId(), from: 'bot', kind: 'dump', items }]);
+        }, REPLY_DELAY)
+      );
+      return;
     }
     /**
      * Only a note the rules cannot read themselves costs one of the day's
@@ -676,6 +808,15 @@ export default function Assistant() {
     }
     if (pending) setMessages((list) => list.map((m) => ('kind' in m && m.kind === 'ask' ? { ...m, answered: true } : m)));
     if (needsServer) meter.spend();
+    /*
+     * The miss worth reading. Nothing above claimed this line, so it is
+     * about to become a task — and if it was punctuated and worded as a
+     * question, a task named after the question is not what was wanted. That
+     * is recorded as 'unknown' rather than 'task': it is the shape of a
+     * sentence Sanad still cannot answer, which is the whole reason the
+     * owner reads this list.
+     */
+    learn(isQuestion(text) ? 'unknown' : 'task');
     const sent = newId();
     setMessages((list) => [...list, { id: sent, from: 'me', text }]);
     clear();
@@ -724,12 +865,6 @@ export default function Assistant() {
     ]);
   };
 
-  // The greeting names the person where the prototype names its demo user.
-  const demoFirst = t.set_name.split(' ')[0] ?? '';
-  const named = session?.firstName ? t.bot0.replace(demoFirst, session.firstName) : t.bot0;
-  // The opening line says "morning" as written; from six it says evening, as Today does.
-  const greeting = new Date().getHours() >= 18 ? named.replace(/^Morning/, 'Evening').replace(/^صباح الخير/, 'مساء الخير') : named;
-
   const today = dateKey();
   const todaysOpen = tasks
     .filter((task) => task.status === 'open' && isOnDay(task, today))
@@ -744,9 +879,10 @@ export default function Assistant() {
    * Nothing is suggested that would answer "nobody" — a chip that wastes a
    * tap is worse than one fewer chip.
    */
+  const lateCount = tasks.filter((task) => task.status === 'open' && task.dueAt !== null && Date.parse(task.dueAt) < now.getTime()).length;
   const chips = rankChips(
     chipsFor(copy.chips, {
-      late: tasks.filter((task) => task.status === 'open' && task.dueAt !== null && Date.parse(task.dueAt) < now.getTime()).length,
+      late: lateCount,
       waiting: nudge + waiting,
       openTasks: tasks.filter((task) => task.status === 'open').length,
       hasOneThing: oneThing !== null,
@@ -754,6 +890,30 @@ export default function Assistant() {
     }),
     habits.tapped
   );
+
+  /**
+   * What Sanad opens with. Every clause of it is a claim about this account,
+   * so it is assembled from the ones that are true rather than taken whole
+   * from the handoff: that fixed line told a brand-new account its One Thing
+   * was set. src/features/assistant/intro.ts, BUILD-REVIEW §2.113.
+   */
+  const whoTheyAre: Opening = {
+    firstName: session?.firstName ?? '',
+    hour: new Date().getHours(),
+    hasOneThing: oneThing !== null,
+    openToday: todaysOpen.length,
+    late: lateCount,
+    waiting: nudge + waiting,
+    people: contacts.length,
+    // As it was when the screen opened. Saying anything sets the flag, and a
+    // greeting that rewrote itself from "I'm Sanad" to a status line the
+    // moment somebody replied would be the screen talking over itself.
+    met: metAtOpen.current ?? met,
+  };
+  if (metKnown && metAtOpen.current === null) metAtOpen.current = met;
+  const greeting = openingLine(whoTheyAre, copy.meet);
+  /** The four things offered on a first visit, narrowed to what this account can answer. */
+  const steps = introSteps(whoTheyAre, copy.meet);
   // botFu is the prototype's demo sentence ("Three threads are open. Noura
   // is the oldest — 3 days."); the Follow-ups summary says the same thing
   // from real counts — BUILD-REVIEW.md §2.34.
@@ -803,7 +963,18 @@ export default function Assistant() {
         <ScrollView
           ref={scroll}
           style={{ flex: 1 }}
-          contentContainerStyle={{ padding: 16, gap: 12 }}
+          /* A conversation under way sits on the message bar rather than
+             stranded at the top with the screen empty beneath it — a phone
+             showed four replies and then four hundred points of nothing.
+             **Only once it is under way**: on the empty screen the greeting
+             belongs at the top, where the design puts it, and the drift gate
+             holds it there. A full conversation scrolls exactly as before. */
+          contentContainerStyle={{
+            padding: 16,
+            gap: 12,
+            flexGrow: 1,
+            justifyContent: messages.length > 1 ? 'flex-end' : 'flex-start',
+          }}
           onContentSizeChange={() => scroll.current?.scrollToEnd({ animated: true })}
           keyboardShouldPersistTaps="handled"
           /* Dragging the conversation puts the keyboard away, as every chat
@@ -853,7 +1024,9 @@ export default function Assistant() {
                               ? answerLine(m.answer, copy.qa)
                               : m.kind === 'file'
                                 ? fileLine(m, copy.clip)
-                                : questionFor(m.gap, m.draft, copy)
+                                : m.kind === 'dump'
+                                  ? copy.qa.heardMany.replace('{n}', String(m.items.length))
+                                  : questionFor(m.gap, m.draft, copy)
                     : m.intent.kind === 'task'
                       ? t.botTask
                       : m.intent.kind === 'plan'
@@ -876,6 +1049,16 @@ export default function Assistant() {
                     closedFollowUps={closedFollowUps}
                     oneThingDone={oneThing?.done}
                     {...dataActions}
+                  />
+                ) : null}
+                {'kind' in m && m.kind === 'dump' ? (
+                  <DumpCard
+                    items={m.items}
+                    copy={copy.qa}
+                    whenLabel={(iso) => (iso ? whenText(iso, t) : '')}
+                    onToggle={(index) => toggleDump(m.id, index)}
+                    onSave={() => saveDump(m.id, m.items)}
+                    saved={m.saved}
                   />
                 ) : null}
                 {'kind' in m && m.kind === 'data' && m.answer.kind === 'unknown' ? (
@@ -982,6 +1165,23 @@ export default function Assistant() {
               </View>
             )
           )}
+
+          {/* The first visit: what Sanad can do, as sentences one tap away.
+              Held back until the flag is read, so it cannot flash up at
+              somebody who met Sanad weeks ago, and gone the moment the
+              conversation starts — it is an introduction, not a panel. */}
+          {metKnown && !met && messages.length === 1 ? (
+            <IntroCard
+              steps={steps}
+              heading={copy.meet.try}
+              done={copy.meet.done}
+              onTry={(say) => {
+                meet();
+                void send(say);
+              }}
+              onDone={meet}
+            />
+          ) : null}
         </ScrollView>
 
         {/* What is worth suggesting to this person now, and in the order

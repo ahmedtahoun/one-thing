@@ -4268,3 +4268,933 @@ changed meaning and had to change with it: of the eight seeded, four have
 history or a follow-up, so All holds four and the chip holds four.
 A check that keeps counting eight would have been a check that had
 stopped reading the screen.
+
+### 2.103 Egyptian, rendered
+
+A third language arrived while this session was not looking. Build 14 went
+out, the owner's collaborator worked the phone, and `ff10d52` and `a77d830`
+brought Egyptian Arabic in as a choice Settings offers: 1,363 lines of
+hand-written copy in `src/content/egyptian-lines.ts`, a word-and-negation
+rewriter in `egyptian.ts` for anything added after the list, and a dialect
+setting carried beside the language.
+
+It arrived with real unit tests, which is why the gap in it was easy to
+miss. `egyptian-lines.test.ts` walks every Arabic copy table and asserts
+that each line **has** an Egyptian line, that every `{n}` survives, and
+that no Gulf word is left in the table. All three passed. None of them
+rendered a single screen.
+
+**What a copy-table test cannot see.** `added(lang)` and its neighbours
+*build* sentences at run time from parts. A part that never passed through
+the table reaches the glass in Gulf Arabic with every unit test still
+green — and the last two Arabic faults the owner found on his phone were
+both of that shape. 1,363 lines were being checked as data.
+
+Two places now render it.
+
+**`scripts/narrow.js` runs all three languages.** It was the one suite
+that renders at Play's small-phone baseline, 360×640, and it ran `en` and
+`ar` only. Egyptian lines are not the same length as the Gulf ones they
+replace — "عايزني أفكّرك إزاي؟" is not "كيف تبيني أذكّرك؟" — so a dialect
+that reads fine on the design's 402 can still cut a greeting at 360.
+36 checks became 54. All pass, and at `OT_FRAME=300x600` the three that
+break are *English*: the Arabic of either dialect has more margin than
+"Good morning, Abdulrahman". So the truncation check bites, and Egyptian
+is not the tight case.
+
+**`scripts/smoke-dialect.js` is new, and chooses the dialect the way a
+person does.** It taps مصري in Settings rather than writing a storage key,
+then reads the screens back: the copy changes at once, the choice is
+stored, it survives a reload, and picking العربية again gives the Gulf copy
+back. Then, with Egyptian on, it scans seven screens people live in for
+Gulf words — the same word list `egyptian-lines.test.ts` holds the copy
+tables to, so the rendered check and the table check cannot disagree about
+what counts. And it opens the privacy policy, which a dialect must never
+touch, and finds its approved heading and opening intact.
+
+**Pointed at Gulf, the scan fires on four of the seven screens** — `مو` on
+Today, `ما فيه` on Recap and Smart lists, `وش` on the Assistant. Pointed at
+Egyptian it finds none. That is the evidence the dialect actually reaches
+the glass, and the reason to trust a passing run: a scan that found nothing
+either way would have been decoration.
+
+**The drift gate stays `en` and `ar`, deliberately.** `measure-drift.js`
+compares the app's rendered labels against the design prototype's, and the
+prototype was drawn in two languages. There is no Egyptian design to
+measure against, so an Egyptian probe there could only compare the dialect
+to itself and would report a number nobody could act on. The question drift
+would have been asked — does Egyptian text overflow its box — is the
+question `narrow.js` now answers directly, on a smaller frame than the
+design's.
+
+**Checks:** 1075 unit tests (19 of them the collaborator's, for the dialect
+and the new `bidi.ts`), 35 against Postgres, 450 browser checks across
+seven suites, and 54 at 360×640. The dialect suite's 19 are new. No change
+to anything the app ships: this section adds tests and nothing else.
+
+### 2.104 Two questions the Assistant could not answer
+
+The owner asked for the chat to handle more of what people actually type.
+Reading `ASSISTANT-PHRASES.md` against `ask-data.ts`, the parser was strong
+on three axes — one person's details, one stretch of the list, one list of
+people — and had a hole where those three meet: **a question about one
+person that is not about their details.**
+
+"Anything pending with Sara?" came back with her phone number. "Did Sara
+reply?" came back with her phone number. The app whose entire purpose is
+remembering what is outstanding with people could not be asked that.
+
+**`withPerson` answers it with both halves at once:** her open tasks,
+soonest first, and every reply she still owes, in one card with **Replied**
+on each so a follow-up closes from the chat. Two sources in one card
+deliberately — the question was about the person, not about which of the
+app's lists her commitments happen to be filed in.
+
+Three decisions in it are worth keeping:
+
+**An undated task is kept here**, where `tasksIn` drops it. A question about
+a *day* can only be answered by things with a day on them; a question about
+a person is answered by everything, and "send Sara the contract, no date
+yet" is precisely what is being asked after.
+
+**A name makes it specific; "who" makes it the list.** "Is Sara waiting on
+me?" is Sara. "Who's waiting?" is everybody. Both are asked with the word
+*waiting*, and that is the only thing telling them apart.
+
+**Arabic says "with" and nothing else.** "وش عندي مع عمر؟" is the same
+question as the English, but bare مع is the commonest word in these
+sentences — "تكلمت مع سارة" is a history question, "ارسل العرض مع سارة" is
+a task. So مع counts only when the question names one person the app knows,
+and only after the history and detail questions have had their turn. Found
+by running every phrase in the documentation through the parser rather than
+by trusting the table: that one came back as the day's list.
+
+**`findTask` answers the second hole: a task named rather than described.**
+"When is the dentist?" People remember the thing; the date is what the app
+is holding. It runs **last of all**, only where the answer would otherwise
+be *"I'm best with your people and your follow-ups"*, so it can turn a
+refusal into an answer and can never take a question from one that was
+already right — a test asserts exactly that, with a task titled "What is
+late today this week tomorrow" sitting in the world to try to steal them.
+
+Its match is on the question's own content words, with everything that
+merely opens a question thrown away first. Without that list "what is the
+plan?" would match every task with *is* in it, and a search that always
+succeeds answers nothing.
+
+**One fault found on the way, outside the new code.** `loopOf` declines a
+sentence that *opens* as a question, but it strips the trailing punctuation
+before testing — so "is Sara waiting on me?" reached it as a follow-up to
+record, and `askData` never saw the question at all. A mark at the end is
+the plainest statement of intent there is, and `isQuestion` already treats
+it as decisive, so `askData` now agrees with itself: a sentence punctuated
+as a question is a question. The same words without the mark still file as
+a follow-up, which a test holds down.
+
+**Checks:** 1111 unit tests (36 new), 456 browser checks across seven
+suites (6 new, in `smoke-capture.js` — the cards are driven in a real
+browser, including the thread remembering the person so the next question
+can just say "he"), 54 at 360×640, 35 against Postgres, drift clean.
+`answer-line.test.ts` now walks all fourteen answer shapes in **three**
+languages: the Egyptian pass reads the copy inside the test, after the
+dialect is set, because `added` answers for whichever dialect is current
+when it is called.
+
+Every phrase added to `ASSISTANT-PHRASES.md` was run through the parser and
+is covered by a test, so the table cannot quietly stop being true.
+
+### 2.105 Egyptian as something people type, not only something the app says
+
+The owner asked whether the Assistant *understands* Egyptian, and whether
+the words Egypt actually uses are in it. Reading the code, the answer was
+half: `egyptian.ts` and `egyptian-lines.ts` make the app **speak** Egyptian,
+and `egyptian-lines.test.ts` holds that copy down — but the parser's
+patterns were written in Gulf Arabic and MSA. A person who had just set the
+app to **مصري** was answering it in a dialect it had never been taught to
+read.
+
+Rather than guess which words were missing, every scenario in
+`ASSISTANT-PHRASES.md` was asked again in Egyptian and run through the
+parser. **35 of 43 understood.** The eight misses were not scattered
+vocabulary; they were four structural differences, and one of them was
+giving a wrong answer rather than no answer.
+
+**امبارح was answered with today's log.** `مبارح` *was* in the pattern. But
+every Arabic pattern here is bounded by "not inside a longer word", and that
+rule sees the leading ا of امبارح — so the match failed, the question fell
+through the yesterday branch, and the day's log answered it. "مين كلمت
+امبارح؟" came back with the wrong day, confidently. Every other gap in this
+section was a missing answer; this one was a wrong one, which is worse, and
+it is the reason to measure a dialect rather than assume it mostly works.
+
+**The question word goes in the middle.** Gulf writes "بعتت لعمر"; Egypt
+writes "بعتت **ايه** لعمر". `HISTORY_WORD` listed the verb and the ل as
+touching, so three history questions read as a request for Omar's details.
+
+**Negation wraps the verb**, م…ش: مردش, مكلمتوش, مش عايز. Some of those were
+already in by luck; the patterns built around ما and مو did not generalise.
+
+**Counting uses كام, with a singular after it.** "عندي كام شخص؟" — كم was
+listed and كام was not, and `PEOPLE_WORD` held only the plurals.
+
+Also added: دلوقتي as *now* when the Assistant asks when to set a task for
+(without it the commonest Egyptian answer read as unreadable and the question
+was asked again — §2.91's loop, in a third dialect), and مش عايز / مش دلوقتي
+as turning the question down rather than failing to be read.
+
+**One miss was mine, not the parser's.** "مين مصنف محتمل؟" came back
+`unknown` until I noticed `labelIn` only matches labels actually *in use* and
+my fixture had nobody tagged Lead. Worth recording because it is the shape of
+mistake that produces a fix for a bug that was never there.
+
+**A fault found in the fixing.** `arx` expands each Arabic letter into its
+spellings, and its own doc says to write the source "with no character
+classes of its own". My first pattern used `[اأ]`, which became a class
+nested inside a class and silently matched nothing. A plain `ا?` is already
+tolerant of every spelling.
+
+**The sharpest check in the new file is the chips.** Each chip types its own
+sentence into the chat, and in Egyptian that sentence is the Egyptian copy —
+so the parser has to read the app's own words back. All five parsed chips are
+asserted in both dialects, plus the card and file chips through
+`attachCommand`, because Egypt says كارت where the Gulf says كرت. A chip that
+answers nothing would be worse than no chip at all.
+
+**Checks:** 1170 unit tests (59 new, in `src/lib/parse/egyptian-input.test.ts`
+— the measurement kept, so a pattern that stops reading Egyptian fails here
+and not on a phone), 456 browser checks across seven suites, 54 at 360×640,
+35 against Postgres, drift clean. 43 of 43 scenarios now understood in
+Egyptian, with the Gulf forms of each asserted alongside them and four
+statements asserted to stay statements, since a widened pattern that swallowed
+those would turn every typed errand into a question nobody asked.
+
+### 2.106 What a question costs, and what makes it cost more
+
+The owner asked whether adding scenarios to the Assistant would slow the app
+down. It is not one number, because two different things grow, and only one
+of them is paid per question.
+
+**A pattern is free.** Every rule in `ask-data.ts` is a `RegExp` built once
+when the module loads and tested against a sentence somebody just typed.
+Thirty more rules is thirty more tests on thirty characters. A question the
+parser declines without reading any data — "hello there friend" — measures
+**1.7 µs**, and that figure does not move with the size of the account.
+
+**A scan is not.** An answer that walks the account is paid for by whoever
+has the most of it, on every question. `npm run measure:ask` prints both:
+
+| account | per question |
+| --- | --- |
+| the demo day — 8 people, 18 tasks | 22 µs |
+| a working account — 200 people, 200 tasks | 246 µs |
+| far past any real one — 2,000 people, 2,000 tasks | 2.5 ms |
+
+Flat in the patterns, linear in the data, which is the shape to keep. 2.5 ms
+is one-sixth of a frame, spent once when Send is pressed rather than on every
+frame, so none of this is visible — but the trend is the thing to watch, and
+`scripts/measure-ask.ts` exists so the next answer that reads data can be
+measured before and after instead of argued about.
+
+**Measuring it found three pieces of waste, two of them mine from §2.104.**
+
+`openWith` folded the contact's name — two `normalizeArabic` passes — *once
+per task*, so a question about one person re-derived the same two strings for
+every task on the account. Hoisted to once per question: **1,977 µs → 364 µs**
+at 2,000 tasks.
+
+`findTasks` folded each task's text once per *word* of the question rather
+than once per task. Fixed, though it turned out not to be the dominant cost
+there, which is worth recording: the first guess was wrong and the profile
+said so.
+
+`normalizeArabic` ran its four rewriting passes over every string, including
+the ones with no Arabic in them. It now returns early — one scan to find out
+instead of four that change nothing. This is shared by every name match in
+the app, which is why it was verified against the whole suite rather than
+reasoned about: 1,170 unit tests, 456 browser checks, 35 against Postgres,
+drift clean.
+
+**The other cost is the bundle, and copy is what grows it.** The trilingual
+copy set — English, Gulf Arabic and Egyptian, around 1,300 lines each — is
+**425 KB of a 4,387 KB raw bundle, 9.7%**; non-ASCII is escaped as `\uXXXX`,
+so every Arabic character costs six bytes. `egyptian-lines.ts` alone is 86 KB
+of source. That is the real price of a third language, and it is paid at
+launch rather than per question. A fourth would cost about the same again,
+which is the number to weigh before adding one.
+
+**What is deliberately not done.** `findTasks` at 2,000 tasks is ~9 ms, and
+the obvious fix is an index folded once when the task list changes rather
+than on each question. No account is near that size, an index has to be
+invalidated correctly, and a cache that goes stale answers questions with
+tasks that no longer exist. The measurement script is the thing that will say
+when the trade is worth making; until it does, this is written down rather
+than built.
+
+### 2.107 How people actually ask, in three languages
+
+The owner asked for more keywords and phrasings across English, Gulf Arabic
+and Egyptian. Guessing which to add is how a parser ends up with a hundred
+rules and no idea which earn their keep, so a corpus was written instead —
+how somebody actually asks for each thing the app can answer, 145 sentences
+across the three languages — and run through `askData`.
+
+**It started at 128 of 145.** The seventeen misses were all ordinary
+sentences: "what now?", "what's up next?", "who needs a catch up?", "my focus
+today?", "what did I get done?", "where are we with Sara?", "have I contacted
+Layla?", "اخر تواصل مع ليلى؟", "ايه اللي اتأخر؟", "اعمل ايه بعد كده؟", "ايه
+اهم حاجة النهارده؟", "ايه اخبار سارة؟". Ten patterns were widened, about forty
+keywords in all, and the corpus is now 145 of 145.
+
+**The expensive half of this was not the adding.** Widening a pattern is how
+task capture breaks, and it broke five errands on the first attempt.
+
+Adding **عايز، محتاج، ابغى** as whole words bought two questions and cost
+five: in Arabic those words open a request and an errand equally — "عايز رقم
+سارة" is a question, "عايز اكلم سارة بكرة" is a task — and `isQuestion`
+promoted every one of the latter. "محتاج اكلم سارة بكرة" came back as the
+*gone-quiet list*. What separates the two is whether a noun or a verb
+follows, so the nouns are named rather than the verbs guessed at.
+
+The same shape was already in English and had been for a long time: `show`
+read **"show the deck to Omar"** as a question, and `find` read **"find a new
+supplier"** as one — both answered "I'm best with your people and your
+follow-ups" instead of being saved. `show` is now **show me** / **show my**,
+which both documented phrases already used, and `find` sits behind the same
+detail-noun list as هات, which had the identical fault in Arabic. Those three
+were found by the statement half of the corpus and were *not* regressions
+from this work — they were measured against the previous commit to be sure
+which were mine.
+
+**Both halves of the corpus pass together**, and that is the point of the
+file: 145 questions and 22 errands, asserted side by side, because a question
+gained at the price of an errand is not a gain. Two rounds of this session's
+false findings also came from one fixture mistake — the same person under a
+Latin *and* an Arabic name in one address book makes every Arabic question
+ambiguous — so the test keeps one address book per script and says why.
+
+**And it confirmed §2.106's claim empirically.** Forty new keywords, measured
+on the same script: 230 µs per question on a 200-person account before,
+230 µs after. A pattern really is free; what costs is reading data, and
+nothing here reads any.
+
+**Checks:** 1337 unit tests (167 new, in `src/lib/parse/phrasings.test.ts`),
+456 browser checks across seven suites, 54 at 360×640, 35 against Postgres,
+drift clean, both typechecks clean.
+
+### 2.108 A minute at the mic
+
+The owner asked for the Assistant to take more than one thing at a time: hold
+the mic, say everything, and have it understood and scheduled.
+
+Half of it already existed and was in the wrong place. `textParser.split`
+divides a dump into separate errands and the **Brain dump** screen
+(SCREENS.md § 18) has used it from the start. The Assistant used
+`interpret`, which reads one task — so a minute of speech became one task.
+
+**And the half that existed did not work for speech.** `splitDump` divided on
+punctuation, and **speech to text supplies none**. Measured before changing
+anything, on a realistic dictation:
+
+| | errands said | tasks made |
+| --- | --- | --- |
+| typed, with punctuation | 4 | 4 |
+| spoken English, 44 words | 5 | **2** — one of them merging two errands under the wrong person |
+| spoken Gulf Arabic | 4 | **1** — the whole minute as the title |
+| spoken Egyptian | 4 | **1** |
+
+So the words people join errands with are the only boundaries there are. The
+splitter now breaks on them: *and then*, *also*, *after that*, *remind me
+to*, *and I promised*, *and* + an errand verb; وبعدين، وبعد كده، وكمان، and
+و before a verb. All three languages now yield one task per errand, each with
+its own person and its own time.
+
+**"and" on its own is never a boundary.** "Call Sara and Omar about the
+price" is one errand, and "اتصل بسارة وعمر" is one errand. A splitter that
+divided there would turn one errand into two wrong ones — worse than the
+fault it was fixing — so every rule is either a connective that can only join
+clauses, or *and* / *و* followed by a verb. The sample dumps the Brain dump
+screen ships with still come apart into exactly six.
+
+**Scheduling them needed the clock read as words.** Arabic has read its
+number words from the start — `arabicClock` knows اربعة and عشرة and اتناشر —
+and English read none, so a dictated "call Sara tomorrow at four" was filed
+at the default evening hour. `spokenClock` rewrites the hour words before the
+sentence is read at all, so the time *and* the title both see "4": teaching
+`timeOf` alone would have scheduled it correctly and left "at four" sitting
+in the title. Compound forms come first, so "half past four" is not read as
+the four inside it, and a number that is not a time keeps its own meaning —
+"buy four boxes of cups" is untouched.
+
+**Two faults it exposed, both older than this work.**
+
+A written clock was trusted where a bare hour was not: "at 4" has always been
+read as the afternoon, because nobody means five in the morning by "by 5",
+while "at 4:30" was filed at dawn. Dictation made it plain, since "four
+thirty" rewrites to 4:30. Both now read the same way, with an explicit am or
+pm always winning.
+
+And taking the *when* out of a title left the word that introduced it: **"Book
+the dentist for"**, **"Send the deck by"**, **"Call Sara in the"**. Trimmed
+until nothing dangles, with the original kept as a fallback if that empties
+the title.
+
+**In the chat it is a list to look over, not five saved tasks.** The card
+shows a row per errand with its person and time; any row is dropped with a
+tap; one button saves what is left. Nothing is written until it is pressed —
+a dictated errand is the likeliest of all of them to have been misheard, and
+five wrong tasks are worse than none. A waiting becomes a follow-up and
+everything else a task, through the same `taskFromParsed` / `followUpFromParsed`
+the Brain dump screen uses, so the two cannot drift apart.
+
+**The mic says which it was, so the screen does not guess.** `send` now
+carries whether the words were spoken. Spoken input is split as it comes;
+typed input needs a full stop, semicolon or new line, because a typed comma
+is not a list — "Call Sara tomorrow, the contract one" is one errand, and
+turning it into two rows would be a worse answer than leaving it alone. A
+browser check types exactly that and expects one card, not two.
+
+**Checks:** 1350 unit tests (13 new, in `src/lib/parse/spoken-run.test.ts`,
+including the three Brain dump samples held at six so the spoken rules cannot
+change what a typed list already did), 464 browser checks across seven suites
+(8 new, driving the card in a real browser: three rows from one message, the
+spoken hour read as four in the afternoon, a dropped row not saved, and the
+comma that must not make a list), 54 at 360×640, 35 against Postgres, drift
+clean, both typechecks clean.
+
+### 2.109 Four faults from three screenshots
+
+The owner sent two screenshots of the Assistant in Egyptian, with nobody in
+People. Three messages, and every one of them went wrong differently. None
+of these shapes was in the corpus §2.107 built, which is the lesson: a corpus
+written at a desk covers what you thought of.
+
+**"مفيش حاجة بكرة" to a list of four errands.** The message was *"طيب أنا
+عايز أعمل كم حاجة بكرة اكلم محمد 5:00 وأكلم أحمد 7:00 واتبع المنيو"* — "I
+want to do a few things tomorrow" and then the things. `ASK_WORD` has كم, so
+it read as **how many**, `askData` answered tomorrow's empty list, and four
+errands went nowhere with nothing said about why. **كم and كام before حاجة
+are a quantifier, not a count** — the one pair in that list that is not
+always a question. "كم عميل عندي؟" still counts.
+
+**A list of people became one task.** *"عايز أكلم محمد بكرة 5:00 وإبراهيم
+6:00 وأحمد 7:00"* came back as a single call titled "كلم محمد وإبراهيم
+وأحمد". §2.108's splitter breaks on و before a *verb*, and these are names.
+A name after و is now a break **only when a clock follows it**, so "اتصل
+بسارة وعمر بخصوص السعر" is still one errand about two people.
+
+**And the splitter's own verb list missed the commonest spelling.** It had
+كلم and the message said أكلم; it had ابعت and the message said واتبع. `arx`
+expands ا into every spelling of the hamza, so one optional ا covers them
+all. This is the second time today a pattern was written without it.
+
+**Three things a run says once, and meant for all of it.** Reading each piece
+alone threw them away:
+
+  *The day.* "بكرة" is said once at the top; Ahmed was landing **today**.
+  *The verb.* "أكلم محمد ٥ وإبراهيم ٦" names the verb once; Ibrahim became a
+  reminder called "إبراهيم" rather than a call.
+  *The half of the day.* 5 and 6 read as the afternoon, because nobody means
+  five in the morning — and the 7 in the middle of the same list landed at
+  dawn.
+
+Each is carried only where the piece said nothing of its own, and **only
+across a run said in one breath**. That last clause cost a test to find:
+carrying the day everywhere moved the Brain dump sample's supplier invoice a
+day late, because a typed comma list is a list of independent items and
+"tomorrow" there belongs to the lawyer. No punctuation is the only honest
+signal of one utterance, and it is what separates the two.
+
+**And the throat-clearing became the title.** "و الله عايز أكلم محمد بكرة
+5:00" produced a task called *"و الله عايز أكلم محمد"*. و الله، طيب، يلا،
+خلاص، تمام، أنا now join the lead-ins that are dropped, as does the preamble
+"أعمل كم حاجة" that announces a list rather than being the first thing in it.
+
+**The UI, and what the drift gate said about it.** The second screenshot
+showed four replies and then four hundred points of nothing before the
+message bar: the conversation is top-aligned, so a short one leaves the
+screen empty under it. Bottom-aligning it fixed that — and failed the drift
+gate by 476 points, because the design puts the greeting at the top of the
+*empty* screen and the probe measures exactly that. Both are right about
+different states, so the conversation now rests on the bar **only once it is
+under way**, and the empty screen is left as designed. The gate was correct
+to stop it; the fix is better for having been stopped.
+
+**Checks:** 1358 unit tests (8 new, every one of them a sentence from the
+screenshots, in `src/lib/parse/spoken-run.test.ts`), 465 browser checks across
+seven suites (1 new: a short conversation must rest within 220 points of the
+bar), 54 at 360×640, 35 against Postgres, drift clean, both typechecks clean.
+
+### 2.110 The Arabic layout, looked at rather than reasoned about
+
+The owner asked for the app's layout to be checked and fixed in Arabic, with
+a screenshot of People. Every main screen was rendered at 402×874 in both
+languages and the pairs compared side by side, with a probe over nine screens
+looking for anything past the viewport edge or cut off inside its box.
+
+**The mirroring is right.** Titles, headers, search, chips, rows, the tab bar,
+Today's segmented control and quick actions, the Next card's buttons — all of
+them mirror correctly, and the probe found nothing clipped in either
+language. That is the main finding and it is worth stating plainly rather
+than inventing work.
+
+**Two things that looked like faults and are not.**
+
+The chips row in the screenshot is cut off at the *left* edge. That is
+correct: the row scrolls, and in Arabic the overflow belongs on the left,
+exactly as English overflows on the right. `src/ui/bleed.ts` already
+documents why a right-to-left row stays inside the padding.
+
+And an Arabic avatar shows **one** letter where a Latin one shows two. Also
+deliberate, and documented at `initials()`: two Arabic letters side by side
+join into a word — "محمد السعدي" drew "ما", which reads as *what* — and "ال"
+is the article, so "النور للتغليف" drew "ال". WhatsApp shows one letter for
+the same reason. It was nearly "fixed" before the comment was read.
+
+**One real right-to-left fault.** Today's Next card read **"وقت المتابعة ·
+1+ كمان"**. A plus sign is a *neutral* character in the bidi algorithm, so
+inside an Arabic line it takes the paragraph's direction and lands on the far
+side of the digit: "+1" is rendered "1+". The Arabic of `qa.more` had already
+met this and sidesteps it — "و{n} غيرهم" — so `next.alsoMore` now reads
+"و{n} أخرى", and Egyptian "و{n} كمان". No sign, no reordering, and better
+Arabic than a transliterated "+1".
+
+**One real fault that is not about Arabic at all.** A person's second line is
+their role and their number, and with the owner's own data it came out
+**"General Manager · @speranza · +2…"** — two characters of a phone number,
+which is noise rather than information. It reads the same way in English. The
+row holds one line, so it was cut to **one** identifying thing: the role, or
+the number when there is no role. The number is on their profile and a tap
+from the row. (§2.111 revisits this: one thing per row was too blunt, and the
+line is measured now.)
+
+**Why the probe found none of this.** It renders the demo contacts, whose
+roles are short, so nothing overflowed and nothing was cut. The fault needed
+a contact shaped like the owner's — a long role *and* a handle *and* a
+number — and a browser check now seeds exactly that and asserts both that the
+role survives whole and that no stump of a number sits beside it. A fixture
+that cannot produce the fault cannot catch it, which is the same lesson
+§2.109 taught about a corpus written at a desk.
+
+**Checks:** 1358 unit tests, 467 browser checks across seven suites (2 new),
+54 at 360×640, 35 against Postgres, drift clean, both typechecks clean.
+
+
+### 2.111 Measuring the line instead of guessing at it
+
+§2.110 fixed a crowded row by taking something off every row. "General
+Manager · @speranza · +2…" became "General Manager · @speranza", which is
+right; but "Travel · info@test.com" became "Travel", which is not — that line
+had 80pt of its 228 to spare, and an address was thrown away for a crowding
+that was not happening. One identifying thing per row is the correct answer to
+a row that overflows and the wrong answer to a row that does not. The rule has
+to depend on the width, so the width has to be known.
+
+**React Native will not tell you.** There is no synchronous text metric, and
+`onTextLayout` arrives a frame after the row is drawn, so measuring for real
+means drawing the wrong thing first and correcting it — a flicker down a
+scrolling list. The width has to be estimated before the row is drawn.
+
+**So the font was measured, once, and the table checked in.**
+`scripts/measure-line.js` renders a real row, reads the font and the column
+off it, measures the advance width of every character at 100px, and prints the
+tables in the shape `src/features/people/quiet-line.ts` holds them. On Latin
+text the sum of the parts is the whole to within 1% — the font barely kerns.
+
+**Arabic does not add up, which cost a round.** Its letters join, so a letter
+inside a word is drawn without the tail it has alone: "مسؤول المشتريات" sums
+to 9.27em and draws at 7.31em, 27% less. The first attempt took the easy way
+out — one flat 0.50em for any Arabic letter, fitted over real roles — on the
+reasoning that an Arabic role is short and an Arabic contact's reach is a
+Latin email anyway, so the Arabic is never the part near the limit. A wider
+corpus said otherwise. **"مؤسس · books@ledgerco.com" needs 192pt and the flat
+average called it 186**: ؤ does not join forward, so the word is two shaped
+runs, both letters keep their tails, and four letters at a joined average is
+far too light. The flat average was not merely imprecise, it was imprecise in
+the one direction that cuts a number. So the Arabic letters are now in the
+table too, at their *isolated* widths, with a single `SHRINK` taking the
+joining back out.
+
+**The two constants are fitted against each other.** An estimate has two ways
+to be wrong and they are not equally bad. Call an overflow a fit, and a number
+gets cut to a stub — the fault this started as. Call a fit an overflow, and a
+row shows the role alone when the address would have squeezed in; nobody can
+see what is missing. So the estimate is allowed 96% of the column, and
+`SHRINK` is swept for the value that is safe at that margin: at 0.8, across
+**151 strings judged at both 402pt and 360pt, no pair the estimate called a
+fit was really an overflow, and none it called an overflow had room to spare**.
+The worst an Arabic line is underestimated by is 3.8% — inside the 4% margin,
+so the pair hold together by construction rather than by luck. 0.7 and below
+start calling overflows fits; 0.85 and above start dropping addresses that
+fitted.
+
+**The test is held to the measurement, not to a tolerance.** The script writes
+`font-widths.json` — the width of every role-and-reach pair a real address
+book makes, in both languages — and `quiet-line.test.ts` reads it as an
+oracle: every pair goes to `identityLine` at both columns and the verdict is
+compared to what the browser really drew. A verdict in the unsafe direction
+fails the suite; so does a table that has drifted from the measured font,
+which is what notices if the font is changed and the script re-run but the
+paste forgotten.
+
+**And the browser checks the arithmetic.** An estimate that agrees with a
+canvas can still disagree with a laid-out row, so the People suite now seeds
+both shapes — the owner's long role and a roomy "Travel · info@test.com" —
+asserts the long one keeps its role whole with no stump of a number beside
+it, asserts the roomy one keeps its address, and then walks every quiet line
+on the screen comparing `scrollWidth` to `clientWidth`. If any line overflows
+the column it was measured against, the suite says which and by how much. The
+column width itself is not assumed either: it is `useWindowDimensions()` less
+the picture, the gaps and the date, a relation the script prints and the test
+checks at both reference frames (402pt leaves 228, 360pt leaves 186).
+
+**Checks:** 1377 unit tests (19 new), 171 People checks (3 new), 54 at
+360×640, 35 against Postgres, drift clean, both typechecks clean, web export
+clean.
+
+
+### 2.112 The evening card was a box; it is a band
+
+The owner sent a screenshot of Today at 9:26pm and said the black box made
+them uncomfortable — too big, and not saying enough for its size. Both halves
+of that are measurable, so both were measured.
+
+**It was 216pt in Arabic and 249 in English, a quarter of the screen**, and it
+held: an eyebrow saying EVENING under a greeting that already said good
+evening; a 28pt question; a line for how the One Thing ended, *blank* whenever
+no One Thing was set, which is exactly the screenshot's case; a count; and a
+54pt full-width white button — the heaviest treatment the app has, for a tap
+that opens a screen. Below it, pushed off the fold, were the people actually
+waiting: one of them seven days overdue. The card was the day's headline, but
+by evening the day has no headline left; it is a prompt, and it was dressed as
+a hero.
+
+**So it is a band: 71pt, in all three languages.** One line of words, one of
+numbers, the action beside them rather than under them, and the eyebrow gone
+with the height — the moon carries what it said. Three people now stand where
+one did.
+
+**Smaller made it say less, so the words had to start earning the space.**
+The old card asked "Ready to close your day?" whether the day had finished
+everything or nothing, and printed the count underneath without the question
+following from it. `src/features/today/evening.ts` chooses the words from the
+two numbers now: a day with nothing left reads "All done today." over "12 of
+12 done today", and an ordinary one keeps the question over "10 to do · 2
+done". A clean sweep is `open === 0 && done > 0` — nothing left on an empty
+day is not an achievement, and congratulating nobody is worse than saying
+nothing. The count line never prints "0 to do" under a line that already says
+everything is done.
+
+**The English did not fit, which the measuring caught before the owner did.**
+"Ready to close your day?" overflowed its share of the band, and the fix was
+not a wider band: the button beside it already says "Close the day", so a
+title repeating the verb was spending the app's scarcest line on a word the
+reader had just read. It is "Ready to wrap up?" now, and the Arabic lost its
+"يومك" for the same reason.
+
+**Nothing had ever rendered this screen.** No suite set the clock past six,
+which is how a blank line and a quarter-screen box survived to a build. The
+evening band is in `smoke-day.js` now, in all three languages and in both
+states, asserting that it renders, that it stays under 96pt — the old box and
+the One Thing card are both well over, so growing back fails — that no line of
+it is cut off (`scrollWidth` against `clientWidth`, the check §2.111 added for
+People), that a finished day does not read like an unfinished one, and that
+the band still opens the review. That is the §2.109 lesson a third time: a
+fixture that cannot produce the fault cannot catch it, and a state nothing
+renders is a state nothing checks.
+
+**Checks:** 1382 unit tests (5 new), 88 day checks (22 new), 54 at 360×640,
+drift clean, both typechecks clean, web export clean.
+
+
+### 2.113 The Assistant has a name, and stops lying to people who have just arrived
+
+The owner asked for three things: a name for the Assistant, a proper
+introduction the first time somebody opens it, and more keywords. The first
+screenshot of a brand-new account answered the second one before it was asked.
+
+**It was telling newcomers something untrue.** The opening line came from the
+design handoff as one fixed sentence — "Morning Khalid. Your One Thing is set.
+Anything rattling around your head?" — with the demo name swapped for the real
+one. Everything after the name is a claim about the account, and on an account
+with nothing in it every word of it was false: nothing was set, and the screen
+said it was. Below that claim sat 70% empty screen and two chips, so the only
+hint of what could be typed was "Scan a card" and "Save a contact".
+
+**The name is سَنَد / Sanad** — "the one who backs you up", a normal warm word
+in both Gulf and Egyptian Arabic, three letters, and no trouble in English. It
+was chosen over وفي (Wafi City is a Dubai landmark), نبيه (English speakers
+stumble on the final -h) and رفيق (reads as a person you know rather than a
+product). The privacy policy still says "the assistant" throughout: that text
+describes where data goes and a lawyer approved its words, so a rename does
+not reach into it.
+
+**The greeting is assembled from things that are true.**
+`src/features/today/evening.ts` did this for the evening band two entries ago;
+`src/features/assistant/intro.ts` does it here. One piece of news, not four —
+what is late if anything is, else the One Thing if it is set, else what is on
+today, else plainly that nothing is — then the invitation. A first meeting
+skips the news altogether and introduces Sanad instead, because a status report
+on an empty account is not an introduction.
+
+**And the introduction is interactive, because a list of features is not.**
+Four things to try, each the sentence that does it, each one tap. Tapping
+sends it as though it had been typed, so the introduction is also the first
+thing Sanad does for them and the sentence stays in the chat as a phrase they
+now know. "What's next?" is withheld until there is something for it to find:
+a chip that answers "nothing" teaches that Sanad has nothing to offer.
+
+**Every example had to be run before it could be offered, and three of the
+four were wrong.** A demonstration of a sentence the app reads badly is worse
+than no demonstration.
+
+  * "Remind me tomorrow at 4 to call Ahmed" — the parser read it perfectly,
+    and the app answered **"I don't have Ahmed in People yet."** An empty
+    address book has never heard of Ahmed, so the first thing a newcomer ever
+    tried was a question back at them. Naming nobody was not enough either:
+    "call the bank" is still a `call`, and a call with no person asks who.
+    It is a plain reminder now — "renew the licence" — which needs nobody.
+  * "I need to call the supplier, send Sara the invoice and book a flight"
+    split into three errands in the module and came back as **one task with
+    the whole sentence for a title** in the app. Typed text splits on a full
+    stop and never on a comma, deliberately — a typed "Call Sara tomorrow, the
+    contract one" is one errand with a comma in it (§2.108). So the example is
+    punctuated the way typed text has to be, which teaches the real rule.
+  * The Scan a card row printed its own label twice, once as the heading and
+    once as the sentence beneath it.
+
+Each was found by driving the real screen, not by reading the parser. The
+module and the app disagreed about all three.
+
+**The greeting also had to stop rewriting itself.** Sending anything marks
+Sanad as met, and the greeting is computed from that flag, so the bubble
+changed from "I'm Sanad" to a status line the moment somebody replied — the
+screen talking over itself. It is held at whatever it was when the screen
+opened.
+
+**More keywords, found by probing rather than guessing.** Forty candidate
+sentences were put through `askData` in all three languages; the same three
+gaps appeared in each. Who is owed a reply ("who do I owe a reply?", "مين لازم
+أرد عليه؟"), the list asked as a count ("how many tasks do I have?", "كام مهمة
+فاضلة؟") and the list asked as an obligation ("what's expected of me?",
+"المطلوب مني ايه؟"). Thirty rows went into the corpus, which is at 197.
+
+**What the widening is careful about is the same thing §2.109 was.** "لازم أرد
+على سارة بكرة" is an errand and "مين لازم أرد عليه؟" is the waiting list, and
+the only difference is **مين** — so the pattern requires the interrogative and
+not the verb. The count matches مهمة and never حاجة, because "عايز أعمل كام
+حاجة" is a list of errands. "What's left" is anchored to the start of a
+sentence, because "send what is left to Omar" is an errand. Seven more errands
+joined the must-not-become-a-question list beside the new questions.
+
+**Two faults were found and left alone, deliberately.** "Send what is left to
+Omar" answers as though it were a question about Omar, and "add milk to my
+list" is read as a search rather than an errand. Both were checked against the
+previous commit and both predate this work — the fourth time measuring against
+HEAD before claiming a regression has paid for itself. Neither is in scope
+here and both are worth a look.
+
+**Coverage.** Nothing had driven a first meeting, so `smoke-capture.js` now
+does: that Sanad names itself, says what it is for, claims nothing about an
+empty account, offers only the examples that work on one, that a tap sends and
+is answered with a task rather than a question about a stranger, that the
+brain-dump example really comes apart into three rows, that the greeting holds
+still, and that the introduction goes once the conversation starts and does
+not come back. The drift probe learned the new name and greeting as an `app:`
+override, the way §2.92 taught it the chip labels, and its seed now marks
+Sanad as met — the introduction is a first-run surface and the prototype has
+none, which is the same reason that probe has always set `firstRun: false`.
+
+**Checks:** 1423 unit tests (41 new), 126 capture checks (23 new), 197 corpus
+phrasings (30 new), 54 at 360×640, drift clean, both typechecks clean, web
+export clean.
+
+
+### 2.114 How people ask Sanad, without finding out who they are
+
+The owner wants to read what people write to Sanad, so Sanad can be taught
+what it misses. The want is ordinary and the data is not: a line typed into
+the Assistant is "call Ahmed on +20 100 123 4567", and Ahmed is a third party
+who never agreed to anything.
+
+**The codebase already had a position on this.** `0006_events.sql` says in
+its own comment that an analytics event may never carry "a phone, an email or
+message text", and `events.ts` is a closed union so there is nowhere to put
+one. The privacy policy told people their assistant text goes to Anthropic
+and comes back as a task; it did not say it was kept for us to read. Crossing
+that quietly would have been the worst version of this feature.
+
+**So what is stored is the shape, not the sentence.** What improves a parser
+is not a transcript — it is the phrasings it failed on. "مين لازم ارد على
+{name}؟ → waiting" teaches everything useful; who {name} is teaches nothing.
+`src/lib/parse/redact.ts` replaces links, addresses, phone numbers, long
+digit runs, every contact in that phone's own address book, and the name the
+sentence is shaped around even when nobody by that name is saved
+(`candidateName`, already written for a different job). The work happens **on
+the device**, which is the point: the server never holds what was typed, and
+the address book it would need to redact properly never leaves the phone
+anyway.
+
+**Exact on patterns, best-effort on names — so the caller is allowed to be
+unsure.** A number or an address is caught every time. A nickname in a
+sentence shaped like nothing in particular can survive, so `fullyRedacted`
+looks for what a missed name leaves behind — a capitalised word that is not a
+placeholder and did not open the sentence — and `phrasingToQueue` drops the
+line rather than sending it. A lesson lost costs less than a name shared.
+Chips and intro rows are dropped too: those are the app quoting itself, and
+counting them would drown the sentences people actually chose.
+
+**The verdict is the other half, and one of them had to be invented.**
+`interpret` only ever returns task, plan or followups — there is no "I could
+not read that". So a sentence that reaches the end of every rule becomes a
+task named after itself, which is exactly the silent failure worth seeing.
+The Assistant records `unknown` when `isQuestion` is true and nothing
+answered it: a question filed as a task is a miss, however cheerfully it was
+filed.
+
+**Two locks on the same door.** The table refuses a row still holding an
+address or five digits in a row, so a client that forgot to redact is a
+rejected insert rather than a quiet leak. Both locks are tested — the module
+in `redact.test.ts`, the constraint against real Postgres twice.
+
+**And the admin panel reads it as `dataset`, not `personal`.** There is
+nothing in the screen that says who asked, so improving Sanad is work an
+Analyst can do; Support, whose permission is for personal data, is turned
+away. The page groups by sentence, counts, shows which languages and how many
+were spoken, and has one filter that matters: **Not understood**. Each of
+those rows is a line waiting to be written into
+`src/lib/parse/phrasings.test.ts`.
+
+**What this cost outside the code, which is most of the care.** The privacy
+policy now says what is kept, that the phone does the redacting before
+anything is sent, that a sentence it is unsure of is thrown away, and that
+the rest goes after a year — in all three languages, with the retention
+section amended and the "Last updated" line and `POLICY_VERSION` moved so
+consent records which text somebody agreed to. `STORE-PRIVACY.md` gains an
+Apple row (Usage Data → Other Usage Data, **not** linked, Product
+Personalization) and a Play note under "App activity → Other actions", and
+the existing "User Content" row now says explicitly that it does not cover
+assistant text. The export contract carries the new table, so a person's own
+export shows them exactly what was kept — which is also the plainest possible
+demonstration of what was not.
+
+**One thing deliberately not built.** Raw transcripts behind an opt-in were
+offered and declined. If they are ever wanted, what they need is in this
+entry: a consent kind, a Settings toggle off by default, a retention limit,
+and a second purpose on the Apple User Content row.
+
+**Checks:** 1450 unit tests (27 new), 36 against Postgres (1 new), 26 admin
+DB tests (5 new), 63 admin browser checks (5 new), 54 at 360×640, drift
+clean, three typechecks clean, both builds clean.
+
+
+### 2.115 The words themselves, for whoever offers them
+
+§2.114 kept the shape of every question and threw the sentence away. The
+owner asked for the sentence. That is the option the previous entry costed
+out and listed the price of, so this is that list, paid.
+
+**Consent is a row, and the database checks it — not the app.** A new
+`assistant_transcript` consent kind, a Settings switch under Privacy that is
+off until somebody turns it on, and an insert policy that calls
+`consent_now(auth.uid(), 'assistant_transcript')`. `consent` is append-only,
+so "do they agree" is the *latest* row and not merely "is there a row" — a
+grant followed by a withdrawal reads as withdrawn. A client that kept sending
+after the switch went off is refused by Postgres, which is where a rule like
+this has to live: the app can be wrong, and a build can be old.
+
+**Withdrawing is a request to forget, not only to stop.** Stopping at "no new
+rows" would be the letter of consent and not its meaning, so turning the
+switch off empties the queue on the device at once and sets a flag; the next
+sync calls `forget_my_transcripts()` and clears it. The flag outlives the tap
+because the phone may be in a lift, which is the same reason consent itself
+waits in a queue. The engine calls it **before** it sends, so a sync cannot
+refill the pile it is emptying — asserted on the call order, not on the
+result.
+
+**The two tables are deliberately different in kind.** A redacted shape
+survives a deletion with a null `user_id` because it is nobody's; a
+transcript cascades, because it is very much somebody's. The shape keeps a
+year; the sentence keeps ninety days. The shape goes to a screen an Analyst
+can read; the sentence goes to one only the Owner can, with each reading in
+the audit log. Writing them as two tables rather than one nullable column is
+what makes all of that expressible.
+
+**Opting in widens what is *kept*, never what is *sent*.** A sentence the
+device could not safely redact is still dropped whole, consent or not: the
+redaction gate decides whether anything travels, and the switch only decides
+whether the words travel beside the shape. Getting that backwards would have
+turned a privacy feature into its opposite, so it is a test of its own.
+
+**Two bugs, both mine, both found by suites written before this.** The
+existing "deleting wipes the account from the device" check failed on
+`ot.forgetTranscripts` — a stale flag would have made the *next* account's
+first sync delete words it never sent. Looking at why led to the worse one:
+§2.114's phrasing queue was never cleared on sign-out or delete either, so
+anything queued would have gone up as the next account's. Both are cleared
+now, in both paths. A check somebody wrote for a different feature caught
+what I did to this one, which is the whole argument for the wipe test
+enumerating keys rather than asserting a count.
+
+**Where the permission landed, and why it is not where it started.** First
+draft gave the screen `personal`, which the role tests immediately showed
+meant Support could read every user's sentences. Support's job is one person
+at a time; reading everybody's is not support work. It has its own
+permission now, held by the Owner alone: personal data keeps the Analyst out,
+and the nature of the work keeps Support out. Both exclusions are asserted in
+the browser.
+
+**And the declarations moved again.** The policy now describes the switch,
+what it changes, that only the owner can read it, that every reading is
+logged, that turning it off deletes what was collected, and the ninety days —
+in all three languages. Apple's "User Content → Other User Content" gains
+Product Personalization as a second purpose, scoped in writing to this table
+alone. Play's "Messages → Other in-app messages" gains Personalisation and a
+note on what "optional" means here. The export contract carries the table, so
+a person's own export hands them back exactly what they offered.
+
+**Checks:** 1458 unit tests (8 new), 38 against Postgres (2 new), 178 People
+checks (7 new), 28 admin DB tests (2 new), 69 admin browser checks (6 new),
+54 at 360×640, drift clean, three typechecks clean, both builds clean.
+
+
+### 2.116 Two gates the branch had not run, and what they caught
+
+The branch's own checks were clean and CI was not. Both failures were real,
+and neither could have been found by running the suites this work had been
+running.
+
+**The website carries the policy, and the policy had changed.** `website/` is
+generated from the same strings the app reads, and `checks.yml` regenerates
+it and fails on a diff. §2.114 and §2.115 rewrote the privacy text, the
+retention section and the "Last updated" line in both languages, so the
+published pages were a version behind — the one place a reader outside the
+app would have gone looking. Regenerated, and the pages now carry the
+redaction paragraph, the opt-in paragraph and 21 October in English and
+Arabic.
+
+**And the admin fidelity probe had never measured what it meant to.**
+`fidelity.js` finds a probe's text by scanning the document in order, and
+half the admin screens are named after the sidebar link that opens them —
+"Privacy requests", "Audit log", "Team & roles". The link comes first in the
+DOM, so the probe had been measuring the *link* and calling it the heading.
+That was invisible for as long as the sidebar matched the prototype's, and
+stopped being invisible the moment it gained two entries: three headings
+appeared to move 86 px, which is exactly two sidebar rows, and none of them
+had moved at all.
+
+The fix is to the probe rather than to a tolerance list. Both the panel and
+the prototype put the sidebar in an `<aside>`, so the main column is searched
+first and the whole page only if the text lives nowhere else — a label that
+exists only in the sidebar is still probed. 56 probes, none failing, and each
+now measures the heading it was written for.
+
+**What this says about the gates themselves.** A check that has only ever run
+against unchanged structure is not yet known to work; it is only known not to
+have complained. The sidebar had not changed since the panel was built, so
+one of its 56 probes was measuring the wrong element and nothing could tell.
+The same is true of the website check in the other direction: it did its job
+precisely because it compares generated output against what is committed
+rather than asking anybody to remember.
+
+**Checks:** the full gate again, plus 56 admin fidelity probes and the
+website build.

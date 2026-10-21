@@ -243,8 +243,12 @@ export type TextAnswer =
   | { kind: 'refused' }
   | { kind: 'unreadable' };
 
-/** "Now", "right now", "الحين" — a time, and the one nobody can type as one. */
-const NOW_WORD = /^\s*(?:now|right now|asap|straight ?away|immediately|الحين|الحن|الان|الآن|حالا|حالاً|توا|توني)\s*[!.؟?]*\s*$/i;
+/**
+ * "Now", "right now", "الحين" — a time, and the one nobody can type as one.
+ * دلوقتي is how Egypt says it, and without it the commonest answer to "when
+ * should I set this for?" read as unreadable and the question asked again.
+ */
+const NOW_WORD = /^\s*(?:now|right now|asap|straight ?away|immediately|الحين|الحن|الان|الآن|حالا|حالاً|توا|توني|دلوقتي|دلوقت)\s*[!.؟?]*\s*$/i;
 
 /**
  * Turning the question down. Deliberately only the short, whole-sentence
@@ -256,7 +260,8 @@ const NO_TIME = new RegExp(
   // made only of Arabic letters never has one. The two scripts are
   // alternated separately for that reason.
   "^\\s*(?:(?:no|nope|no time|not now|don'?t|dont|never ?mind|skip(?: it)?|later|whenever|any ?time|no thanks)\\b|" +
-    '(?:لا|لأ|مو الحين|بدون وقت|بلا وقت|ما ابغى|ما أبغى|ما ابي|ما أبي|بعدين|لاحقا|لاحقاً|اي وقت|أي وقت))[\\s\\S]{0,24}$',
+    // Egypt negates with مش rather than ما/مو: "مش دلوقتي", "مش عايز".
+    '(?:لا|لأ|مو الحين|مش دلوقتي|مش عايز|مش عاوز|مش محتاج|بدون وقت|بلا وقت|ما ابغى|ما أبغى|ما ابي|ما أبي|بعدين|لاحقا|لاحقاً|اي وقت|أي وقت))[\\s\\S]{0,24}$',
   'i'
 );
 

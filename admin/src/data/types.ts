@@ -189,3 +189,60 @@ export type Badges = { support: number; requests: number };
 
 /** Something the admin did, kept as the audit log's action and reason. */
 export type Logged = { what: string; why: string };
+
+/**
+ * How people really ask Sanad, grouped by the sentence so a phrasing asked
+ * forty times is one row with a 40 on it.
+ *
+ * The text arrived redacted — the phone replaced names, numbers and
+ * addresses with {name}, {phone} and {email} before anything was queued
+ * (src/lib/parse/redact.ts), and the table refuses a row that still holds an
+ * address or a long number. Nothing here is linked to a person in this view,
+ * which is why reading it needs `dataset` and not `personal`.
+ */
+export type PhrasingRow = {
+  /** The redacted sentence, as a reader of the admin panel sees it. */
+  text: string;
+  /** What Sanad made of it. 'unknown' is the one to fix. */
+  verdict: string;
+  /** How many times it has been asked this way. */
+  count: number;
+  /** 'en', 'ar' or 'ar-EG', whichever it was asked in — several if several. */
+  langs: string[];
+  spoken: number;
+  lastAt: string;
+};
+
+/** The phrasings list and what it adds up to. */
+export type Phrasings = {
+  rows: PhrasingRow[];
+  /** Distinct phrasings and total askings, over the window. */
+  distinct: number;
+  total: number;
+  /** How many of the askings Sanad could not answer. */
+  unanswered: number;
+};
+
+/**
+ * What somebody actually typed to Sanad, kept only for accounts that turned
+ * on "Help improve Sanad" and deleted the moment they turn it off
+ * (supabase/migrations/0015_transcripts.sql).
+ *
+ * Personal data, plainly: a sentence can hold a name, a number, a price.
+ * The screen shows no name or email beside it, but the row is somebody's and
+ * reading it is audit-logged like every other view of personal data.
+ */
+export type TranscriptRow = {
+  text: string;
+  verdict: string;
+  source: string;
+  lang: string;
+  at: string;
+};
+
+export type Transcripts = {
+  rows: TranscriptRow[];
+  /** How many accounts are offering, and how many lines they have sent. */
+  people: number;
+  total: number;
+};

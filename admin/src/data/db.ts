@@ -35,6 +35,10 @@ import type {
   Ticket,
   UserDetail,
   UserRow,
+  Phrasings,
+  PhrasingRow,
+  Transcripts,
+  TranscriptRow,
 } from './types';
 
 type Sql = ReturnType<typeof postgres>;
@@ -605,6 +609,80 @@ export function dbSource(url: string): DataSource {
           done: r.completed_at !== null,
         })
       );
+    },
+
+    /**
+     * How people phrase things to Sanad, grouped so one sentence asked many
+     * times is one row. The text arrived redacted from the device; the table
+     * refuses a row that still holds an address or a long run of digits
+     * (supabase/migrations/0014_phrasings.sql), so there is nothing to strip
+     * here — only to count.
+     */
+    async phrasings(filter: 'all' | 'unanswered'): Promise<Phrasings> {
+      const rows = await sql`
+        select
+          p.text,
+          p.verdict::text as verdict,
+          count(*)::int as count,
+          array_agg(distinct case when p.lang = 'ar' and p.dialect = 'egypt' then 'ar-EG' else p.lang end) as langs,
+          count(*) filter (where p.source = 'spoken')::int as spoken,
+          max(p.at) as last_at
+        from assistant_phrasing p
+        where p.at > now() - interval '90 days'
+          and (${filter === 'unanswered'} = false or p.verdict = 'unknown')
+        group by p.text, p.verdict
+        order by count(*) desc, max(p.at) desc
+        limit 500`;
+      const totals = await sql`
+        select count(*)::int as total, count(*) filter (where verdict = 'unknown')::int as unanswered
+        from assistant_phrasing where at > now() - interval '90 days'`;
+      return {
+        rows: rows.map(
+          (r): PhrasingRow => ({
+            text: String(r.text),
+            verdict: String(r.verdict),
+            count: Number(r.count),
+            langs: (r.langs as string[]) ?? [],
+            spoken: Number(r.spoken),
+            lastAt: iso(r.last_at as Date)!,
+          })
+        ),
+        distinct: rows.length,
+        total: Number(totals[0]?.total ?? 0),
+        unanswered: Number(totals[0]?.unanswered ?? 0),
+      };
+    },
+
+    /**
+     * What people typed, newest first, from the accounts offering it. Not
+     * grouped and not counted: the value here is reading a real sentence in
+     * the words somebody chose, which is the whole reason this table is
+     * separate from the redacted one.
+     */
+    async transcripts(filter: 'all' | 'unanswered'): Promise<Transcripts> {
+      const rows = await sql`
+        select t.text, t.verdict::text as verdict, t.source::text as source,
+               case when t.lang = 'ar' and t.dialect = 'egypt' then 'ar-EG' else t.lang end as lang,
+               t.at
+        from assistant_transcript t
+        where (${filter === 'unanswered'} = false or t.verdict = 'unknown')
+        order by t.at desc
+        limit 300`;
+      const totals = await sql`
+        select count(*)::int as total, count(distinct user_id)::int as people from assistant_transcript`;
+      return {
+        rows: rows.map(
+          (r): TranscriptRow => ({
+            text: String(r.text),
+            verdict: String(r.verdict),
+            source: String(r.source),
+            lang: String(r.lang),
+            at: iso(r.at as Date)!,
+          })
+        ),
+        people: Number(totals[0]?.people ?? 0),
+        total: Number(totals[0]?.total ?? 0),
+      };
     },
 
     async audit() {

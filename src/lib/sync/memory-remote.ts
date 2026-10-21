@@ -54,6 +54,11 @@ export function memoryRemote(): MemoryServer {
   return {
     tables,
     log,
+    /** The one function the engine calls, doing here what it does in Postgres. */
+    async call(fn) {
+      log.push(`call ${fn}`);
+      if (fn === 'forget_my_transcripts') tables.set('assistant_transcript', []);
+    },
     async select(table) {
       return rows(table).map((row) => ({ ...row }));
     },

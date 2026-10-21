@@ -686,3 +686,207 @@ describe('the day itself', () => {
     );
   });
 });
+
+describe('what is still open with one person', () => {
+  const SARA = person('c1', 'Sara Haddad');
+  const open = () =>
+    world({
+      tasks: [
+        task('t1', 'Send Sara the contract', '2026-10-16T09:00:00.000Z', { who: 'Sara Haddad' }),
+        task('t2', 'Call the bank', '2026-10-16T11:00:00.000Z'),
+        task('t3', 'Sara: price list', null, { contactIds: ['c1'] }),
+        task('t4', 'Old thing with Sara', '2026-10-02T09:00:00.000Z', { who: 'Sara', status: 'done' }),
+      ],
+      followUps: [followUp('f1', 'Sara Haddad', { contactId: 'c1' }), followUp('f2', 'Omar Khalid', { contactId: 'c2' })],
+    });
+
+  it('gathers her tasks and the replies she owes, and nobody else’s', () => {
+    const answer = askData('anything pending with Sara?', open());
+    assert.equal(answer?.kind, 'withPerson');
+    if (answer?.kind !== 'withPerson') return;
+    assert.equal(answer.contact.id, 'c1');
+    assert.deepEqual(answer.tasks.map((t) => t.id), ['t1', 't3']);
+    assert.deepEqual(answer.followUps.map((f) => f.id), ['f1']);
+  });
+
+  it('keeps an undated task, which a question about a day cannot', () => {
+    // tasksIn drops them because a day cannot hold something with no day.
+    // Here the question is about the person, and "send the price list, no
+    // date yet" is exactly what is being asked after.
+    const answer = askData('what do I have with Sara?', open());
+    assert.equal(answer?.kind === 'withPerson' && answer.tasks.some((t) => t.dueAt === null), true);
+    assert.deepEqual(tasksIn('today', open()).map((t) => t.id), []);
+  });
+
+  it('leaves out what is already done', () => {
+    const answer = askData('anything left with Sara?', open());
+    assert.equal(answer?.kind === 'withPerson' && answer.tasks.every((t) => t.id !== 't4'), true);
+  });
+
+  it('matches a task that carries her name as text, with no id on it', () => {
+    const answer = askData('do I owe Sara anything?', open());
+    assert.equal(answer?.kind === 'withPerson' && answer.tasks.some((t) => t.id === 't1'), true);
+  });
+
+  it('answers "did she reply?" the same way', () => {
+    assert.equal(askData('did Sara reply?', open())?.kind, 'withPerson');
+    assert.equal(askData('has Omar got back to me?', open())?.kind, 'withPerson');
+    // An Arabic question needs the name stored in Arabic: nothing
+    // transliterates سارة to "Sara", and nothing should pretend to.
+    const arabic = world({ contacts: [person('ar1', 'سارة حداد')], followUps: [followUp('f1', 'سارة حداد', { contactId: 'ar1' })] });
+    assert.equal(askData('ردت سارة؟', arabic)?.kind, 'withPerson');
+    assert.equal(askData('ايش باقي مع سارة؟', arabic)?.kind, 'withPerson');
+  });
+
+  it('follows the person the chat is already about', () => {
+    const answer = askData('did she reply?', open(), { contact: SARA });
+    assert.equal(answer?.kind === 'withPerson' && answer.contact.id === 'c1', true);
+  });
+
+  it('is a question about everybody when it opens with "who"', () => {
+    // The distinction the whole branch turns on: a name makes it specific,
+    // "who" makes it the list, and both use the word "waiting".
+    assert.equal(askData('who is waiting on me?', open())?.kind, 'waiting');
+    assert.equal(askData('is Sara waiting on me?', open())?.kind, 'withPerson');
+  });
+
+  it('does not take a question that wants one detail', () => {
+    assert.equal(askData("what's Sara's number?", open())?.kind, 'person');
+    assert.equal(askData('where does Omar work?', open())?.kind, 'person');
+  });
+
+  it('does not take a history question', () => {
+    assert.equal(askData('when did I last talk to Sara?', open())?.kind, 'history');
+    assert.equal(askData('what did I send Omar?', open())?.kind, 'history');
+  });
+
+  it('asks which when the name fits two people', () => {
+    const two = world({ contacts: [person('c1', 'Sara Haddad'), person('c9', 'Sara Noor')], tasks: [], followUps: [] });
+    assert.equal(askData('anything pending with Sara?', two)?.kind, 'who');
+  });
+
+  it('says so plainly when there is nothing', () => {
+    const empty = world({ tasks: [], followUps: [] });
+    const answer = askData('anything pending with Sara?', empty);
+    assert.equal(answer?.kind, 'withPerson');
+    assert.equal(answer?.kind === 'withPerson' && answer.tasks.length + answer.followUps.length, 0);
+  });
+
+  it('is still a task when it is an instruction, not a question', () => {
+    assert.equal(askData('remind me to follow up with Sara tomorrow', open()), null);
+  });
+});
+
+describe('finding a task by its own words', () => {
+  const diary = () =>
+    world({
+      tasks: [
+        task('t1', 'Dentist appointment', '2026-10-20T09:00:00.000Z', { type: 'meeting' }),
+        task('t2', 'Meeting at the bank about the loan', '2026-10-17T09:00:00.000Z', { type: 'meeting' }),
+        task('t3', 'Bank transfer for the deposit', '2026-10-18T09:00:00.000Z'),
+        task('t4', 'Dentist follow-up', null, { status: 'done' }),
+      ],
+    });
+
+  it('finds the one the question names', () => {
+    const answer = askData('when is the dentist?', diary());
+    assert.equal(answer?.kind, 'findTask');
+    assert.deepEqual(answer?.kind === 'findTask' ? answer.tasks.map((t) => t.id) : [], ['t1']);
+  });
+
+  it('puts the closest match first, then the soonest', () => {
+    const answer = askData('what time is the bank meeting?', diary());
+    assert.deepEqual(answer?.kind === 'findTask' ? answer.tasks.map((t) => t.id) : [], ['t2', 't3']);
+  });
+
+  it('leaves a finished task out of it', () => {
+    const answer = askData('when is the dentist?', diary());
+    assert.equal(answer?.kind === 'findTask' && answer.tasks.every((t) => t.id !== 't4'), true);
+  });
+
+  it('says it cannot help rather than matching on nothing', () => {
+    // Every word here is a word that opens a question, so there is nothing
+    // to match on. A search that always finds something answers nothing.
+    assert.equal(askData('what is that about then?', diary())?.kind, 'unknown');
+    assert.equal(askData('how are you?', diary())?.kind, 'unknown');
+  });
+
+  it('never takes a question one of the real answers had', () => {
+    // Each of these names a word that sits in a task title too, and each
+    // must still be answered by the list it belongs to. The branch runs
+    // last for exactly this reason.
+    const loaded = world({
+      tasks: [task('t1', 'What is late today this week tomorrow', '2026-10-15T09:00:00.000Z')],
+      followUps: [followUp('f1', 'Sara Haddad', { contactId: 'c1' })],
+    });
+    assert.equal(askData("what's late?", loaded)?.kind, 'tasks');
+    assert.equal(askData('what do I have today?', loaded)?.kind, 'tasks');
+    assert.equal(askData('what do I have tomorrow?', loaded)?.kind, 'tasks');
+    assert.equal(askData("who's waiting for my reply?", loaded)?.kind, 'waiting');
+    assert.equal(askData("what's next?", loaded)?.kind, 'next');
+  });
+
+  it('is not reached by a statement, which is still a task', () => {
+    assert.equal(askData('book the dentist for Tuesday', diary()), null);
+  });
+});
+
+describe('the Arabic forms of both new questions', () => {
+  const ar = () =>
+    world({
+      contacts: [person('a1', 'سارة حداد'), person('a2', 'عمر خالد'), person('a3', 'ليلى منصور')],
+      tasks: [
+        task('t1', 'ارسل العقد لسارة', '2026-10-16T09:00:00.000Z', { who: 'سارة حداد' }),
+        task('t2', 'موعد الدكتور', '2026-10-20T09:00:00.000Z'),
+        task('t3', 'اقرار الضريبة الربعي', '2026-10-26T09:00:00.000Z'),
+        task('t4', 'الاجتماع مع البنك', '2026-10-21T09:00:00.000Z'),
+      ],
+      followUps: [
+        followUp('f1', 'سارة حداد', { contactId: 'a1' }),
+        followUp('f2', 'عمر خالد', { contactId: 'a2' }),
+        followUp('f3', 'ليلى منصور', { contactId: 'a3' }),
+      ],
+      history: [entry('h1', 'a1', '2026-10-12T09:00:00.000Z')],
+    });
+
+  it('answers each documented phrase', () => {
+    for (const q of ['ايش باقي مع سارة؟', 'وش عندي مع عمر؟', 'لسه عليّ حاجة لليلى؟', 'ردت سارة؟', 'جاوب عمر؟', 'سارة مستنية ردي؟']) {
+      assert.equal(askData(q, ar())?.kind, 'withPerson', q);
+    }
+    for (const q of ['امتى الدكتور؟', 'الاجتماع مع البنك امتى؟', 'امتى اقرار الضريبة؟']) {
+      assert.equal(askData(q, ar())?.kind, 'findTask', q);
+    }
+  });
+
+  it('reads مع as "with this person" only when a person is named', () => {
+    // Bare مع is the commonest word in these questions, so it counts only
+    // with a name on it. Without one, the day's list is still the answer.
+    assert.equal(askData('وش عندي اليوم؟', ar())?.kind, 'tasks');
+    assert.equal(askData('وش عندي؟', ar())?.kind, 'tasks');
+  });
+
+  it('leaves the history question to the history', () => {
+    // "تكلمت مع" sits in both; the history question is read first.
+    assert.equal(askData('امتى اخر مرة تكلمت مع سارة؟', ar())?.kind, 'history');
+  });
+
+  it('is still a task when it is not asked as a question', () => {
+    assert.equal(askData('ارسل العرض مع سارة بكرة', ar()), null);
+  });
+});
+
+describe('a sentence punctuated as a question is a question', () => {
+  it('answers "is Sara waiting on me?" instead of filing it as a follow-up', () => {
+    // loopOf declines a sentence that *opens* as a question, but it strips
+    // the trailing mark before testing, so this arrived as something to
+    // record and the question went unanswered.
+    const w = world({ followUps: [followUp('f1', 'Sara Haddad', { contactId: 'c1' })] });
+    assert.equal(askData('is Sara waiting on me?', w)?.kind, 'withPerson');
+  });
+
+  it('still files the same words as a follow-up without the mark', () => {
+    const w = world({ followUps: [] });
+    assert.equal(askData('waiting for Sara to reply', w), null);
+    assert.equal(askData('I told Omar I’d send the contract Thursday', w), null);
+  });
+});

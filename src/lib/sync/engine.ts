@@ -16,6 +16,7 @@
  */
 import type { QueuedFocus, QueuedReview } from '../activity';
 import type { QueuedEvent } from '../analytics/events';
+import type { QueuedPhrasing } from '../analytics/phrasings';
 import type { ConsentRecord } from '../consent';
 import type { QueuedPrivacyRequest } from '../privacy-request';
 import type { Contact, FollowUp, HistoryEntry, OneThing, Task } from '../model-types';
@@ -56,6 +57,12 @@ export interface Remote {
   insert(table: string, rows: Raw[]): Promise<void>;
   update(table: string, match: Raw, patch: Raw): Promise<void>;
   remove(table: string, column: string, values: string[]): Promise<void>;
+  /**
+   * Calls a database function as this user. Only one thing uses it:
+   * `forget_my_transcripts`, which somebody asks for by turning off "Help
+   * improve Sanad" — see `forgetTranscripts` below (BUILD-REVIEW §2.115).
+   */
+  call(fn: string): Promise<void>;
 }
 
 /** The name fields the user edits; compared and merged like any other row. */
@@ -124,6 +131,10 @@ export type SyncResult = {
   consentSent: number;
   /** How many queued analytics events went out. */
   eventsSent: number;
+  /** How many queued Assistant phrasings went out. */
+  phrasingsSent: number;
+  /** Whether the request to forget what was said has now been carried out. */
+  forgotTranscripts: boolean;
   /** How many queued privacy requests went out. */
   privacySent: number;
   /** How many queued focus sessions and closed reviews went out. */
@@ -178,6 +189,14 @@ export async function syncOnce(options: {
   consent: ConsentRecord[];
   /** Analytics events recorded on this device and not yet on the server. */
   events: QueuedEvent[];
+  /** Redacted Assistant phrasings not yet on the server (../analytics/phrasings.ts). */
+  phrasings: QueuedPhrasing[];
+  /**
+   * True when somebody has turned "Help improve Sanad" off and the words
+   * already sent have not been deleted yet. Consent withdrawn is a request
+   * to forget, not only to stop.
+   */
+  forgetTranscripts: boolean;
   /** Export requests recorded on this device and not yet on the server. */
   privacyRequests: QueuedPrivacyRequest[];
   /** Focus sessions and closed evening reviews not yet on the server. */
@@ -186,7 +205,7 @@ export async function syncOnce(options: {
   /** Today's date key, YYYY-MM-DD, in the device's time zone. */
   today: string;
 }): Promise<SyncResult> {
-  const { remote, userId, local, base, consent, events, privacyRequests, focus, reviews, today } = options;
+  const { remote, userId, local, base, consent, events, phrasings, forgetTranscripts, privacyRequests, focus, reviews, today } = options;
   const withUser = <R extends object>(row: R) => ({ ...row, user_id: userId });
 
   // ---------------------------------------------------------------- read ----
@@ -324,6 +343,40 @@ export async function syncOnce(options: {
       part.map((e) => ({ user_id: userId, name: e.name, props: e.props, at: e.at, platform: local.profile.platform }))
     );
   }
+  /*
+   * Before anything is sent, not after: a sync that forgot halfway through
+   * must not have added more words to a pile somebody asked us to empty.
+   * The consent row saying so went out with `consent` just above, so the
+   * order here is: say they withdrew, then act on it.
+   */
+  if (forgetTranscripts) await remote.call('forget_my_transcripts');
+
+  // Append-only like the events above, and redacted before they were queued:
+  // what goes out is "{name}" and "{phone}", never what anybody typed
+  // (../parse/redact.ts, supabase/migrations/0014_phrasings.sql).
+  for (const part of chunks(phrasings)) {
+    await remote.insert(
+      'assistant_phrasing',
+      part.map((p) => ({ user_id: userId, text: p.text, verdict: p.verdict, source: p.source, lang: p.lang, dialect: p.dialect, at: p.at, platform: local.profile.platform }))
+    );
+    /*
+     * And the words themselves, where somebody offered them. A separate
+     * table rather than a column, because the two have different lives: the
+     * shape outlives the account and this does not, and only this one is
+     * deleted when the switch goes off (0015_transcripts.sql).
+     *
+     * The insert is refused by the database if consent has since been
+     * withdrawn, which is the point of checking it there as well as here: a
+     * queue written while the switch was on must not outlive it.
+     */
+    const offered = part.filter((p) => typeof p.raw === 'string' && p.raw.length > 0);
+    if (offered.length > 0) {
+      await remote.insert(
+        'assistant_transcript',
+        offered.map((p) => ({ user_id: userId, text: p.raw, verdict: p.verdict, source: p.source, lang: p.lang, dialect: p.dialect, at: p.at, platform: local.profile.platform }))
+      );
+    }
+  }
   if (privacyRequests.length > 0) {
     await remote.insert(
       'privacy_request',
@@ -422,6 +475,8 @@ export async function syncOnce(options: {
     marketing: marketingRows[0]?.granted ?? null,
     consentSent: consent.length,
     eventsSent: events.length,
+    phrasingsSent: phrasings.length,
+    forgotTranscripts: forgetTranscripts,
     privacySent: privacyRequests.length,
     focusSent: focus.length,
     reviewsSent: reviews.length,

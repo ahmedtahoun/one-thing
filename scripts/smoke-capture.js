@@ -211,6 +211,72 @@ const D_SAMPLE =
   check('…each linked where a name was caught', dumped.find((t) => t.title === 'Email Sara the deck')?.contactIds[0] === 'c2');
   check('…returns to Today and says so', page.url().endsWith('/today') && (await text('toast')) === '6 things saved. Head’s clearer now.');
 
+  // --------------------------------------------------- Meeting Sanad
+  // A brand-new account used to be told "Your One Thing is set" when nothing
+  // was, over 70% empty screen with no sign of what to type. BUILD-REVIEW
+  // §2.113.
+  await page.goto(`${base}/`, { waitUntil: 'domcontentloaded' });
+  await page.evaluate((d) => {
+    localStorage.clear();
+    for (const [k, v] of Object.entries(d)) localStorage.setItem(k, JSON.stringify(v));
+    localStorage.setItem('ot.lang', 'en');
+  }, { 'ot.session': SESSION, 'ot.tasks': [], 'ot.contacts': [], 'ot.followups': [], 'ot.history': [] });
+  await open('/assistant');
+  const hello = await page.getByTestId('assistant-reply').first().innerText();
+  check('Sanad says its name on a first meeting', hello.includes('Sanad'), hello);
+  check('…and says what it is for', hello.includes('tasks, reminders and follow-ups'), hello);
+  check('…and claims nothing about an account with nothing in it', !hello.includes('One Thing'), hello);
+  check('the screen is named after it', (await page.locator('body').innerText()).includes('Sanad'));
+  check('the introduction offers things to try', await page.getByTestId('assistant-intro').isVisible());
+  // Nothing is next on an empty account, so it is not offered — a tap that
+  // answers "nothing" teaches that Sanad has nothing to offer.
+  check('…only the ones that work on an empty account', (await page.getByTestId('assistant-intro-ask').count()) === 0);
+  for (const key of ['remind', 'dump', 'card']) {
+    check(`…including ${key}`, (await page.getByTestId(`assistant-intro-${key}`).count()) === 1);
+  }
+
+  // Every sentence it offers has to be one the parser can actually read: an
+  // introduction that demonstrates a phrase the app cannot parse is worse
+  // than no introduction.
+  const introStart = await taskCount();
+  await page.getByTestId('assistant-intro-remind').click();
+  await page.waitForTimeout(1200);
+  check('tapping a row sends it as if typed', (await count('assistant-mine')) === 1);
+  // The examples name nobody on purpose: "call Ahmed" to an empty address
+  // book answers "I don't have Ahmed in People yet", so the first thing a
+  // newcomer ever tries would be a question back at them.
+  check('…and Sanad answers with a task, not a question about a stranger', (await count('assistant-card')) === 1, (await page.locator('body').innerText()).slice(0, 220));
+  check('…which is not saved until confirmed', (await taskCount()) === introStart);
+  const stillHello = await page.getByTestId('assistant-reply').first().innerText();
+  check('…and the greeting does not rewrite itself mid-conversation', stillHello.includes('Sanad'), stillHello);
+  check('the introduction goes once the conversation starts', (await page.getByTestId('assistant-intro').count()) === 0);
+  await open('/assistant');
+  check('…and does not come back on the next visit', (await page.getByTestId('assistant-intro').count()) === 0);
+  const second = await page.getByTestId('assistant-reply').first().innerText();
+  check('…nor does the introduction itself', !second.includes('I’m Sanad'), second);
+
+  // The "empty your head" example has to actually come apart. Typed text
+  // splits on a full stop and never on a comma (app/assistant.tsx), so an
+  // example punctuated with commas would come back as one task with the
+  // whole sentence for a title — demonstrating the opposite of the point.
+  await page.evaluate(() => localStorage.removeItem('ot.assistant.met'));
+  await open('/assistant');
+  await page.getByTestId('assistant-intro-dump').click();
+  await page.waitForTimeout(1500);
+  check('the brain-dump example comes apart into its errands', (await page.locator('[data-testid^="qa-dump-"]').count()) === 4, String(await page.locator('[data-testid^="qa-dump-"]').count()));
+  check('…and offers to save them together', await page.getByTestId('qa-dump-save').isVisible());
+  check('…with nothing saved until it is pressed', (await taskCount()) === introStart);
+
+  // Dismissing counts as having met, on its own.
+  await page.evaluate(() => localStorage.removeItem('ot.assistant.met'));
+  await open('/assistant');
+  check('a fresh phone meets Sanad again', await page.getByTestId('assistant-intro').isVisible());
+  await page.getByTestId('assistant-intro-done').click();
+  await page.waitForTimeout(300);
+  check('Got it puts it away', (await page.getByTestId('assistant-intro').count()) === 0);
+  await open('/assistant');
+  check('…and it stays away', (await page.getByTestId('assistant-intro').count()) === 0);
+
   // -------------------------------------------------------------- Assistant
   await seed();
   const askStart = await taskCount();
@@ -311,6 +377,89 @@ const D_SAMPLE =
   await page.getByTestId('assistant-send').click();
   await page.waitForTimeout(900);
   check('…and the week has the history in it', (await count('qa-log')) === 1);
+
+  // Everything open with one person — the question this app is for, and the
+  // one that used to come back as his phone number.
+  await page.getByTestId('assistant-input').fill('Anything pending with Mohammed?');
+  await page.getByTestId('assistant-send').click();
+  await page.waitForTimeout(900);
+  check('a question about one person gathers what is open with them', (await count('qa-with-person')) === 1);
+  const withOne = (await count('qa-with-person')) ? await text('qa-with-person') : '';
+  check(
+    '…his task and the reply he owes, in one card',
+    withOne.includes('Follow up on price quote') && withOne.includes('Price quote'),
+    withOne.slice(0, 180)
+  );
+  check('…and the reply can be closed from the chat', (await page.locator('[data-testid^="qa-replied-"]').count()) > 0);
+
+  // The thread remembers him, so the next question needs no name in it.
+  await page.getByTestId('assistant-input').fill('did he reply?');
+  await page.getByTestId('assistant-send').click();
+  await page.waitForTimeout(900);
+  check('…and the question after it can just say "he"', (await count('qa-with-person')) === 2, `${await count('qa-with-person')} cards`);
+
+  // A task found by its own words: people remember the thing, not the date.
+  await page.getByTestId('assistant-input').fill('When is the VAT filing?');
+  await page.getByTestId('assistant-send').click();
+  await page.waitForTimeout(900);
+  check('a task can be found by its own words', (await count('qa-found-task')) === 1);
+  check(
+    '…and it is the one that was named',
+    (await count('qa-found-task')) ? (await text('qa-found-task')).includes('Quarterly VAT filing') : false,
+    (await count('qa-found-task')) ? (await text('qa-found-task')).slice(0, 120) : 'no card'
+  );
+
+  // A short conversation sits on the message bar, not stranded at the top
+  // with the screen empty under it — a phone showed four hundred points of
+  // nothing between the last reply and the bar.
+  const resting = await page.evaluate(() => {
+    const said = [...document.querySelectorAll('[data-testid="assistant-reply"], [data-testid="assistant-mine"]')];
+    const last = said[said.length - 1];
+    const bar = document.querySelector('[data-testid="assistant-input"]');
+    if (!last || !bar) return null;
+    return Math.round(bar.getBoundingClientRect().top - last.getBoundingClientRect().bottom);
+  });
+  check('a short conversation rests on the message bar', resting !== null && resting < 220, `${resting}px of empty space`);
+
+  // Several errands in one message — a minute at the mic, typed here because
+  // a browser has no microphone. A typed full stop is the other way in.
+  const tasksBefore = (await read('ot.tasks')).length;
+  await page
+    .getByTestId('assistant-input')
+    .fill('Call Sara tomorrow at four about the contract. Send Omar the invoice. Book the dentist for Tuesday morning.');
+  await page.getByTestId('assistant-send').click();
+  await page.waitForTimeout(1200);
+  check('several errands in one message come back as a list', (await count('qa-dump')) === 1);
+  const dumpRows = await page.locator('[data-testid^="qa-dump-"]:not([data-testid="qa-dump-save"])').count();
+  check('…one row for each of the three', dumpRows === 3, `${dumpRows} rows`);
+  check(
+    '…each read on its own, with its own person and day',
+    (await text('qa-dump')).includes('Call Sara') && (await text('qa-dump')).includes('Send Omar the invoice'),
+    (await text('qa-dump')).slice(0, 220)
+  );
+  check('…and nothing is saved until it is looked at', (await read('ot.tasks')).length === tasksBefore);
+
+  // "at four" spoken, not "at 4": the hour has to survive being a word.
+  check(
+    '…the spoken hour is read as four in the afternoon',
+    /4:00\s*PM|16:00/.test(await text('qa-dump')),
+    (await text('qa-dump')).slice(0, 220)
+  );
+
+  // A row dropped is a row not saved.
+  await page.getByTestId('qa-dump-1').click();
+  await page.waitForTimeout(300);
+  await page.getByTestId('qa-dump-save').click();
+  await page.waitForTimeout(600);
+  const afterDump = await read('ot.tasks');
+  check('dropping one row saves the rest', afterDump.length === tasksBefore + 2, `${tasksBefore} → ${afterDump.length}`);
+  check('…and the dropped one is not among them', !afterDump.some((task) => /Omar the invoice/i.test(task.title)), JSON.stringify(afterDump.slice(-2).map((task) => task.title)));
+
+  // One errand with a comma in it stays one errand: the comma is not a list.
+  await page.getByTestId('assistant-input').fill('Call Sara tomorrow, the contract one');
+  await page.getByTestId('assistant-send').click();
+  await page.waitForTimeout(1200);
+  check('a typed comma does not make a list of one errand', (await count('qa-dump')) === 1, `${await count('qa-dump')} dump cards`);
 
   // Acting on an answer, not only reading it.
   await page.getByTestId('assistant-chip-day').click();

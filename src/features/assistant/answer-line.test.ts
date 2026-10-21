@@ -3,6 +3,7 @@ import { describe, it } from 'node:test';
 
 import { answerLine, fileLine } from './answer-line';
 import { added } from '@/content/additions';
+import { setDialect } from '@/i18n/dialect';
 import type { Contact, FollowUp, HistoryEntry, Task } from '@/lib/model-types';
 import type { DataAnswer } from '@/lib/parse/ask-data';
 
@@ -73,6 +74,10 @@ const EVERY: readonly (readonly [string, DataAnswer])[] = [
   ['log yesterday, empty', { kind: 'log', span: 'yesterday', entries: [] }],
   ['log week', { kind: 'log', span: 'week', entries: [entry] }],
   ['log week, empty', { kind: 'log', span: 'week', entries: [] }],
+  ['with person', { kind: 'withPerson', contact: person(), tasks: [task], followUps: [followUp] }],
+  ['with person, nothing', { kind: 'withPerson', contact: person(), tasks: [], followUps: [] }],
+  ['found task', { kind: 'findTask', query: 'when is the dentist?', tasks: [task] }],
+  ['found tasks', { kind: 'findTask', query: 'the bank', tasks: [task, { ...task, id: 't2' }] }],
   ['unknown', { kind: 'unknown' }],
 ];
 
@@ -87,6 +92,43 @@ describe('answerLine', () => {
       });
     }
   }
+
+  /**
+   * And in Egyptian, which is a third set of words over the same shapes
+   * (src/content/egyptian.ts). The copy has to be read *inside* the test,
+   * after the dialect is set, because `added` answers for whichever dialect
+   * is current when it is called.
+   */
+  it('reads as a sentence in Egyptian too, for every shape', () => {
+    setDialect('egypt');
+    try {
+      for (const [name, answer] of EVERY) {
+        const line = answerLine(answer, added('ar').qa);
+        assert.ok(line.trim().length > 0, `${name}: empty line`);
+        assert.ok(!/\{[a-z]+\}/i.test(line), `${name}: a placeholder reached the screen: ${line}`);
+      }
+    } finally {
+      setDialect('gulf');
+    }
+  });
+
+  it('counts the tasks and the people waiting as one number', () => {
+    // The question was about the person, so two tasks and one reply owed is
+    // three things open with them, not two lists.
+    const answer: DataAnswer = { kind: 'withPerson', contact: person(), tasks: [task, { ...task, id: 't2' }], followUps: [followUp] };
+    assert.equal(answerLine(answer, added('en').qa), 'Still open with Sara Haddad: 3');
+  });
+
+  it('counts four emails to one person as one person waiting', () => {
+    const four: FollowUp[] = [0, 1, 2, 3].map((i) => ({ ...followUp, id: `f${i}` }));
+    const answer: DataAnswer = { kind: 'withPerson', contact: person(), tasks: [], followUps: four };
+    assert.equal(answerLine(answer, added('en').qa), 'Still open with Sara Haddad: 1');
+  });
+
+  it('says there is nothing rather than counting nought', () => {
+    const answer: DataAnswer = { kind: 'withPerson', contact: person(), tasks: [], followUps: [] };
+    assert.equal(answerLine(answer, added('en').qa), 'Nothing open with Sara Haddad.');
+  });
 
   it('gives the number with its code, as the design shows it', () => {
     const line = answerLine({ kind: 'person', want: 'phone', contact: person() }, added('en').qa);

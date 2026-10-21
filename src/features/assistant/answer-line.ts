@@ -2,8 +2,8 @@
  * The sentence the Assistant says over an answer it found in the app's data.
  *
  * Separate from the card that draws it (./DataCard.tsx) so it can be tested:
- * it is only copy composition, and the thing worth checking is that all twelve
- * shapes read as sentences in both languages with no placeholder left in
+ * it is only copy composition, and the thing worth checking is that all
+ * fourteen shapes read as sentences in both languages with no placeholder left in
  * them, which needs no renderer and must not need React Native.
  */
 import type { Added } from '@/content/additions';
@@ -77,6 +77,13 @@ export function answerLine(answer: DataAnswer, copy: Added['qa']): string {
       const some = { today: copy.logToday, yesterday: copy.logYesterday, week: copy.logWeek };
       return count === 0 ? empty[answer.span] : some[answer.span].replace('{n}', n(count));
     }
+    case 'withPerson': {
+      const who = displayName(answer.contact.name);
+      const total = answer.tasks.length + waitingByPerson(answer.followUps).length;
+      return total === 0 ? copy.noneWith.replace('{w}', who) : copy.openWith.replace('{w}', who).replace('{n}', n(total));
+    }
+    case 'findTask':
+      return answer.tasks.length === 1 ? copy.foundTask : copy.foundTaskN.replace('{n}', n(answer.tasks.length));
     case 'unknown':
       return copy.outOfScope;
   }

@@ -8,7 +8,7 @@
  * saves any: every action is handed up to the screen.
  *
  * The sentence over the card is ./answer-line.ts, which is pure and has no
- * React Native in it, so the copy for all nine shapes is checked in both
+ * React Native in it, so the copy for every shape is checked in both
  * languages without a renderer.
  */
 import { Pressable, View } from 'react-native';
@@ -261,6 +261,49 @@ export function DataCard(props: DataCardProps) {
         {more(answer.entries.length)}
       </>,
       'qa-log'
+    );
+  }
+
+  /**
+   * Everything open with one person: their tasks, then the replies they owe.
+   * Two sources in one card on purpose — the question was about the person,
+   * not about which of the app's lists their commitments are filed in.
+   */
+  if (answer.kind === 'withPerson') {
+    const groups = waitingByPerson(answer.followUps);
+    if (answer.tasks.length === 0 && groups.length === 0) return null;
+    return frame(
+      <>
+        {answer.tasks.slice(0, MAX_ROWS).map((task, i) => taskRow(task, i))}
+        {groups.slice(0, Math.max(0, MAX_ROWS - answer.tasks.length)).map((group, i) => {
+          const f = group[0]!;
+          const closed = group.every((g) => props.closedFollowUps?.has(g.id));
+          return row(
+            f.id,
+            `qa-with-wait-${f.id}`,
+            props.onFollowUps,
+            null,
+            f.what,
+            group.length > 1 ? `${displayName(f.who)} · ×${group.length}` : displayName(f.who),
+            pill(`qa-replied-${f.id}`, copy.replied, () => props.onReplied(group), closed),
+            answer.tasks.length === 0 && i === 0,
+            closed
+          );
+        })}
+        {more(answer.tasks.length + groups.length)}
+      </>,
+      'qa-with-person'
+    );
+  }
+
+  if (answer.kind === 'findTask') {
+    if (answer.tasks.length === 0) return null;
+    return frame(
+      <>
+        {answer.tasks.slice(0, MAX_ROWS).map((task, i) => taskRow(task, i))}
+        {more(answer.tasks.length)}
+      </>,
+      'qa-found-task'
     );
   }
 

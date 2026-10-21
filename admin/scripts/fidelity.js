@@ -100,22 +100,38 @@ async function tab(page, label) {
   await page.waitForTimeout(500);
 }
 
-/** The top-left of the first element whose own text is exactly `text`. */
+/**
+ * The top-left of the element whose own text is exactly `text`, preferring
+ * one outside the sidebar.
+ *
+ * Half these screens are named after the sidebar link that opens them —
+ * "Privacy requests", "Audit log", "Team & roles" — and a plain scan of the
+ * document in order finds the link long before the heading. That was
+ * invisible while the sidebar matched the prototype's, and stopped being
+ * invisible the moment it gained two entries (§2.114, §2.115): three
+ * headings "moved" 86 px, which is two sidebar rows, and none of them had
+ * moved at all.
+ *
+ * Both the panel and the prototype put the sidebar in an `<aside>`, so the
+ * main column is looked at first and the whole page only if the text lives
+ * nowhere else — a label that exists solely in the sidebar is still probed.
+ */
 async function where(page, text) {
   return page.evaluate((t) => {
-    const all = document.querySelectorAll('body *');
-    for (const el of all) {
+    const at = (el) => {
+      const r = el.getBoundingClientRect();
+      if (r.width === 0 && r.height === 0) return null;
+      const range = document.createRange();
+      range.selectNodeContents(el);
+      const tr = range.getBoundingClientRect();
+      return { x: Math.round(tr.left * 10) / 10, y: Math.round(tr.top * 10) / 10 };
+    };
+    const matches = [...document.querySelectorAll('body *')].filter((el) => {
       const own = [...el.childNodes].filter((n) => n.nodeType === 3).map((n) => n.textContent).join('').trim();
-      const value = el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' ? '' : own;
-      if (value === t) {
-        const r = el.getBoundingClientRect();
-        if (r.width === 0 && r.height === 0) continue;
-        const range = document.createRange();
-        range.selectNodeContents(el);
-        const tr = range.getBoundingClientRect();
-        return { x: Math.round(tr.left * 10) / 10, y: Math.round(tr.top * 10) / 10 };
-      }
-    }
+      return (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' ? '' : own) === t;
+    });
+    for (const el of matches) if (!el.closest('aside')) { const p = at(el); if (p) return p; }
+    for (const el of matches) { const p = at(el); if (p) return p; }
     return null;
   }, text);
 }

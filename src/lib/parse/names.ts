@@ -60,6 +60,12 @@ export const isArabic = (s: string): boolean => /[؀-ۿ]/.test(s);
 
 /** Strips marks and folds the spellings, for comparing two Arabic words. */
 export function normalizeArabic(s: string): string {
+  // Every character the four passes below touch is Arabic, so a string with
+  // no Arabic in it comes back unchanged. One scan to find that out is
+  // cheaper than four that rewrite nothing — and this is called once per
+  // task when the Assistant searches the list, so on an English account it
+  // was four passes over every title to no effect.
+  if (!isArabic(s)) return s;
   return s
     .replace(/[ً-ٰٟـ]/g, '')
     .replace(/[أإآٱ]/g, 'ا')

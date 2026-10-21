@@ -217,4 +217,11 @@ export type Prefs = {
   vibration: boolean;
   /** Mirrors the latest marketing consent row, for the Settings toggle. */
   marketing: boolean;
+  /**
+   * Whether they have agreed to send Sanad what they actually typed, not
+   * only the markered-up shape of it. Off until somebody turns it on, and
+   * mirrors the latest `assistant_transcript` consent row the same way
+   * `marketing` does. BUILD-REVIEW §2.115.
+   */
+  helpSanad: boolean;
 };

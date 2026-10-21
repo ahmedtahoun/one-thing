@@ -111,6 +111,48 @@ const SESSION = { userId: 'smoke', name: 'Khalid Al-Mansouri', firstName: 'Khali
   check('the filters show', await page.getByTestId('people-filters').isVisible());
   check('Waiting carries the overdue count', (await text('people-filters-badge')) === '1');
 
+  // A long role used to leave the number cut to "+2…" — two characters of a
+  // phone number, which is noise rather than information. The quiet line is
+  // measured now: both are shown when they fit, and the reach is what gives
+  // way when they do not, so nothing is ever cut mid-number.
+  // src/features/people/quiet-line.ts
+  await page.evaluate(() => {
+    const list = JSON.parse(localStorage.getItem('ot.contacts') || '[]');
+    const at = new Date().toISOString();
+    list.push({ id: 'cLong', name: 'Khaled Farag', role: 'General Manager · @speranza', dial: '+20', phone: '100 123 4567', createdAt: at, touchedAt: at });
+    // The roomy row: a short role and an address with 80pt to spare.
+    list.push({ id: 'cRoomy', name: 'Stephany Bakir', role: 'Travel', email: 'info@test.com', createdAt: at, touchedAt: at });
+    localStorage.setItem('ot.contacts', JSON.stringify(list));
+  });
+  await open('/people');
+  const longRow = await page.getByTestId('person-cLong').innerText();
+  check('a long role is shown whole, not cut', longRow.includes('General Manager · @speranza'), longRow.replace(/\n/g, ' ⏎ '));
+  check('…and no stump of a phone number beside it', !/\+\d{0,3}…|\+\d{0,3}\.\.\./.test(longRow), longRow.replace(/\n/g, ' ⏎ '));
+  // The reach is wrapped in bidi isolates so a number keeps its direction in
+  // an Arabic line; they are invisible, and have to come off before matching.
+  const roomyRow = (await page.getByTestId('person-cRoomy').innerText()).replace(/[\u2066-\u2069]/g, '');
+  check('a short role keeps the address beside it', /Travel · info@test\.com/.test(roomyRow), roomyRow.replace(/\n/g, ' ⏎ '));
+  // What the estimate claims has to be what the browser draws: no quiet line
+  // may overflow the column it was measured against.
+  const overflow = await page.evaluate(() => {
+    const out = [];
+    for (const row of document.querySelectorAll('[data-testid^="person-c"]:not([data-testid$="-due"])')) {
+      for (const el of row.querySelectorAll('div')) {
+        if (el.childElementCount || !el.textContent.trim()) continue;
+        if (Math.round(parseFloat(getComputedStyle(el).fontSize)) !== 14) continue;
+        if (el.scrollWidth > el.clientWidth + 1) out.push(`${row.dataset.testid}: ${el.textContent} (${el.scrollWidth} > ${el.clientWidth})`);
+      }
+    }
+    return out;
+  });
+  check('no quiet line is cut off by its column', overflow.length === 0, overflow.join(' | '));
+  // Put the book back as it was: the counts below are the seeded eight.
+  await page.evaluate(() => {
+    const list = JSON.parse(localStorage.getItem('ot.contacts') || '[]');
+    localStorage.setItem('ot.contacts', JSON.stringify(list.filter((c) => c.id !== 'cLong' && c.id !== 'cRoomy')));
+  });
+  await open('/people');
+
   await page.getByTestId('people-search').fill('sara');
   await page.waitForTimeout(200);
   check('search by name', (await people()) === 1 && (await page.getByTestId('person-c2').isVisible()));
@@ -556,6 +598,27 @@ const SESSION = { userId: 'smoke', name: 'Khalid Al-Mansouri', firstName: 'Khali
   await page.getByTestId('settings-marketing').click();
   await page.waitForTimeout(200);
   check('marketing is stored', (await read('ot.prefs')).marketing === true);
+
+  // "Help improve Sanad": the words themselves, instead of only the
+  // markered-up shape every account sends. Off until somebody turns it on,
+  // and turning it off is a request to forget. BUILD-REVIEW §2.115.
+  check('the Sanad switch starts off', (await read('ot.prefs')).helpSanad !== true);
+  const consentFor = async (kind) => ((await read('ot.consentQueue')) ?? []).filter((r) => r.kind === kind);
+  await page.getByTestId('settings-help-sanad').click();
+  await page.waitForTimeout(250);
+  check('turning it on is stored', (await read('ot.prefs')).helpSanad === true);
+  const onRow = (await consentFor('assistant_transcript')).at(-1);
+  check('…as its own consent row, with the policy version on it', onRow?.granted === true && typeof onRow?.version === 'string' && onRow?.source === 'settings', JSON.stringify(onRow));
+  check('…and nothing is owed a deletion yet', (await read('ot.forgetTranscripts')) === null);
+
+  await page.getByTestId('settings-help-sanad').click();
+  await page.waitForTimeout(250);
+  check('turning it off is stored', (await read('ot.prefs')).helpSanad === false);
+  const offRow = (await consentFor('assistant_transcript')).at(-1);
+  check('…as a second row rather than an edit of the first', offRow?.granted === false && (await consentFor('assistant_transcript')).length === 2);
+  // Withdrawing is a request to forget, not only to stop: the flag outlives
+  // the tap and the next sync acts on it.
+  check('…and asks for what was sent to be deleted', (await read('ot.forgetTranscripts')) === true);
 
   await page.getByTestId('settings-lang-ar').click();
   await page.waitForTimeout(300);

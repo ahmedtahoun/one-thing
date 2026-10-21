@@ -581,6 +581,22 @@ export type Added = {
     noLogToday: string;
     noLogYesterday: string;
     noLogWeek: string;
+    /**
+     * What is still open with one person, and a task found by its own
+     * words. `{w}` is the person; `{n}` is how many.
+     */
+    openWith: string;
+    noneWith: string;
+    foundTask: string;
+    foundTaskN: string;
+    /**
+     * Several errands said in one breath. `{n}` is how many were heard.
+     * Separate from the Brain dump's own copy because this is said back
+     * about something spoken, not about something typed into a box.
+     */
+    heardMany: string;
+    saveMany: string;
+    savedMany: string;
     /** Acting on what an answer found, rather than only reading it. */
     done: string;
     undone: string;
@@ -593,6 +609,30 @@ export type Added = {
     egTask: string;
     egLate: string;
     egImport: string;
+  };
+  /**
+   * Sanad's own words: the greeting assembled from things that are true of
+   * the account, and the four things a newcomer is invited to try on their
+   * first visit — `src/features/assistant/intro.ts`.
+   */
+  meet: {
+    morning: string;
+    evening: string;
+    hi: string;
+    what: string;
+    oneThing: string;
+    onToday: string;
+    late: string;
+    nothingYet: string;
+    invite: string;
+    /** The heading over the four examples. */
+    try: string;
+    /** Puts the examples away; they do not come back. */
+    done: string;
+    remind: { label: string; say: string };
+    dump: { label: string; say: string };
+    ask: { label: string; say: string };
+    card: { label: string; say: string };
   };
   /**
    * The Assistant's suggestion chips. Each is a short label and the
@@ -1373,6 +1413,13 @@ const ADDED: Record<Lang, Added> = {
       noLogToday: 'Nothing logged today yet.',
       noLogYesterday: 'Nothing logged yesterday.',
       noLogWeek: 'Nothing logged this week yet.',
+      openWith: 'Still open with {w}: {n}',
+      noneWith: 'Nothing open with {w}.',
+      foundTask: 'This looks like it:',
+      foundTaskN: '{n} look like that:',
+      heardMany: 'I heard {n} things. Tap any one to drop it.',
+      saveMany: 'Save {n}',
+      savedMany: '{n} saved',
       done: 'Done',
       undone: 'Not done',
       focus: 'Start focus',
@@ -1383,6 +1430,23 @@ const ADDED: Record<Lang, Added> = {
       egTask: 'Remind me to call Sara at 4',
       egLate: 'What’s late?',
       egImport: 'Import a file',
+    },
+    meet: {
+      morning: 'Morning {name}.',
+      evening: 'Evening {name}.',
+      hi: 'I’m Sanad.',
+      what: 'Tell me what’s on your mind — out loud or typed — and I’ll turn it into tasks, reminders and follow-ups you won’t drop.',
+      oneThing: 'Your One Thing is set.',
+      onToday: '{n} still on today.',
+      late: '{n} late.',
+      nothingYet: 'Nothing on today yet.',
+      invite: 'Anything on your mind? Say it here and I’ll sort it.',
+      try: 'Try one of these:',
+      done: 'Got it',
+      remind: { label: 'Set a reminder', say: 'Remind me tomorrow at 4 to renew the licence' },
+      dump: { label: 'Empty your head', say: 'Renew the licence. Book a flight. Pay the rent.' },
+      ask: { label: 'Ask about your day', say: 'What’s next?' },
+      card: { label: 'Scan a card', say: 'Scan a card' },
     },
     chips: {
       late: { label: 'What’s late?', say: 'What’s late?' },
@@ -1778,7 +1842,11 @@ const ADDED: Record<Lang, Added> = {
       done: 'تم',
       doneShort: 'تم',
       replied: 'وصل الرد',
-      alsoMore: '+{n} أخرى',
+      // "و{n}" rather than "+{n}": a plus sign is a neutral character, so in
+      // an Arabic line bidi puts it on the far side of the digit and "+1"
+      // came out as "1+" (seen on Today's Next card). The Arabic of
+      // `qa.more` already reads "و{n} غيرهم" for the same reason.
+      alsoMore: 'و{n} أخرى',
       more: 'أظهر {n} إضافية',
       less: 'أقل',
       emptyTitle: 'ما عليك شي',
@@ -2038,6 +2106,13 @@ const ADDED: Record<Lang, Added> = {
       noLogToday: 'ما فيه شيء مسجّل اليوم.',
       noLogYesterday: 'ما فيه شيء مسجّل أمس.',
       noLogWeek: 'ما فيه شيء مسجّل هذا الأسبوع.',
+      openWith: 'الباقي مع {w}: {n}',
+      noneWith: 'ما فيه شيء باقي مع {w}.',
+      foundTask: 'هذا اللي يبدو إنه هو:',
+      foundTaskN: '{n} تشبه اللي تسأل عنه:',
+      heardMany: 'سمعت {n} أشياء. اضغط على أي واحد عشان تشيله.',
+      saveMany: 'احفظ {n}',
+      savedMany: 'حفظت {n}',
       done: 'تم',
       undone: 'ما تم',
       focus: 'ابدأ التركيز',
@@ -2048,6 +2123,23 @@ const ADDED: Record<Lang, Added> = {
       egTask: 'فكرني أكلم سارة الساعة ٤',
       egLate: 'وش المتأخر؟',
       egImport: 'استورد ملف',
+    },
+    meet: {
+      morning: 'صباح الخير يا {name}.',
+      evening: 'مساء الخير يا {name}.',
+      hi: 'أنا سند.',
+      what: 'قول لي اللي في بالك — بصوتك أو مكتوب — وأنا أحوّله مهام وتذكيرات ومتابعات ما تفوتك.',
+      oneThing: 'شغلك الأساسي جاهز.',
+      onToday: 'باقي لك {n} اليوم.',
+      late: 'عندك {n} متأخرة.',
+      nothingYet: 'ما عندك شي اليوم للحين.',
+      invite: 'في شي شاغل بالك؟ قوله هنا وأنا أرتّبه.',
+      try: 'جرّب وحدة من هذي:',
+      done: 'تمام',
+      remind: { label: 'ذكّرني بشي', say: 'ذكّرني بكرة الساعة ٤ أجدد الرخصة' },
+      dump: { label: 'فضّي بالك', say: 'أجدد الرخصة. أحجز تذكرة. أدفع الإيجار.' },
+      ask: { label: 'اسأل عن يومك', say: 'وش التالي؟' },
+      card: { label: 'صوّر كرت', say: 'صوّر كرت' },
     },
     chips: {
       late: { label: 'وش المتأخر؟', say: 'وش المتأخر؟' },

@@ -10,7 +10,13 @@ by a test in `src/lib/parse/ask-data.test.ts`, `clarify.test.ts`,
 `attach.test.ts` or `scripts/smoke-capture.js`, so this list cannot quietly
 stop being true.
 
-Last read against the parser on 18 October 2026.
+Last read against the parser on 20 October 2026.
+
+The tables below are the phrases worth showing somebody. The **complete** list
+is `src/lib/parse/phrasings.test.ts`: 145 ways of asking across the three
+languages, each asserted against the answer it should get, beside 22 ordinary
+errands asserted to stay errands. Both halves pass together, because a
+question gained at the price of an errand is not a gain.
 
 ## Questions about a person
 
@@ -42,6 +48,51 @@ at all.
 | --- | --- |
 | When did I last talk to Layla? | امتى اخر مرة كلمت ليلى؟ |
 | What did I send Omar? | ايش ارسلت لعمر؟ |
+
+## What is still open with one person
+
+| English | Arabic |
+| --- | --- |
+| Anything pending with Sara? | ايش باقي مع سارة؟ |
+| What do I have with Omar? | وش عندي مع عمر؟ |
+| Do I owe Layla anything? | لسه عليّ حاجة لليلى؟ |
+| Did Sara reply? | ردت سارة؟ |
+| Has Omar got back to me? | جاوب عمر؟ |
+| Is Sara waiting on me? | سارة مستنية ردي؟ |
+
+One card with both halves of what is outstanding with that person: their
+open tasks, soonest first, and every reply they still owe — with **Replied**
+on each, so a follow-up closes from the chat.
+
+**An undated task is kept here**, unlike a question about a day. "Send Sara
+the contract, no date yet" is precisely what is being asked after; a day can
+only hold things with a day on them, but a person holds everything.
+
+**A name makes it about them; "who" makes it the list.** "Is Sara waiting on
+me?" is Sara. "Who's waiting?" is everybody. Both are asked with the word
+*waiting*, and that is the only thing telling them apart.
+
+The thread remembers the person, so **"did he reply?"** straight after is
+still about them.
+
+## A task by its own name
+
+| English | Arabic |
+| --- | --- |
+| When is the dentist? | امتى الدكتور؟ |
+| What time is the bank meeting? | الاجتماع مع البنك امتى؟ |
+| When is the VAT filing? | امتى اقرار الضريبة؟ |
+
+People remember the thing, not the date, and the date is what the app is
+holding. This is tried **last of all** — only where the answer would
+otherwise be *"I'm best with your people and your follow-ups"* — so it can
+turn a refusal into an answer but can never take a question away from one of
+the answers above.
+
+The match is on the question's own words, with everything that merely opens a
+question thrown away first. So "what is that about then?" finds nothing and
+says so, rather than matching every task with *is* in it: a search that
+always succeeds answers nothing.
 
 ## The day and the list
 
@@ -118,6 +169,118 @@ by the phone's own text reader; a file can be Excel (every sheet), CSV, PDF
 or vCard. **Nothing is uploaded** — the file is read on the phone, reported
 in the chat as counts, and nothing is saved until you say so.
 
+## Egyptian Arabic
+
+Egypt is a language choice in Settings (**مصري**), and the Assistant reads it
+as well as speaking it. Every scenario in this document was run through the
+parser in Egyptian — all of them are understood, and
+`src/lib/parse/egyptian-input.test.ts` keeps it that way.
+
+What differs is not vocabulary alone, so these are worth knowing:
+
+| Egyptian | What it means | The Gulf form it joins |
+| --- | --- | --- |
+| عندي ايه النهارده؟ | What do I have today? | وش عندي اليوم؟ |
+| عملت ايه النهارده؟ | What did I do today? | وش سويت اليوم؟ |
+| مين كلمت امبارح؟ | Who did I talk to yesterday? | مين كلمت أمس؟ |
+| بعتت ايه لعمر؟ | What did I send Omar? | ايش أرسلت لعمر؟ |
+| عندي كام شخص؟ | How many contacts? | كم شخص عندي؟ |
+| مين المفروض اكلمه؟ | Who should I call? | مين ما كلمته من زمان؟ |
+| مين مردش؟ | Who hasn't replied? | مين ما رد؟ |
+| فاضل ايه مع عمر؟ | What's left with Omar? | وش الباقي مع عمر؟ |
+| ايه اللي بعده؟ | What's next? | وش التالي؟ |
+| اعمل ايه دلوقتي؟ | What should I do now? | وش أسوي الحين؟ |
+
+Four things about Egyptian broke patterns written for Gulf Arabic, and each
+was a different kind of fault:
+
+**The question word goes in the middle.** Gulf writes "بعتت لعمر"; Egypt
+writes "بعتت **ايه** لعمر". The old pattern needed the verb and the ل to
+touch.
+
+**Negation wraps the verb** — م…ش. "مردش", "مكلمتوش", "مش عايز". Patterns
+built around ما and مو never saw them.
+
+**Counting uses كام, and a singular follows it.** "عندي كام شخص؟" — كم was
+in the pattern, كام was not, and only the plurals were listed.
+
+**امبارح was answered with the wrong day.** This was the one that mattered:
+`مبارح` *was* in the pattern, but the "not inside a longer word" rule sees
+the leading ا of امبارح, so the match failed and the question fell through to
+today's log. A confident wrong answer, where every other gap here was merely
+a missing one.
+
+**The chips are read back, too.** Each chip types its own sentence into the
+chat, and in Egyptian that sentence is the Egyptian copy — so the parser has
+to understand the app's own words. A test asserts that for every chip, in
+both dialects, because a chip that answers nothing is worse than no chip.
+
+## Several errands in one breath
+
+Hold the mic and say everything. A spoken run comes apart into separate
+errands, each read on its own, and the chat shows them as a list to look over
+before anything is saved.
+
+> call Sara tomorrow at four about the contract **and then** send Omar the
+> invoice **also** I need to book the dentist for Tuesday morning **remind me
+> to** pay the packaging supplier on Thursday **and I promised** Layla I would
+> send the deck by Friday
+
+→ five rows, each with its own person and its own time. Tap any row to drop
+it; one button saves what is left. **Nothing is saved until you press it** —
+a dictated errand is the likeliest of all of them to have been misheard, and
+five wrong tasks are worse than none.
+
+| Joins it breaks on | |
+| --- | --- |
+| English | and then · and also · also · after that · plus · and finally · one more thing · remind me to · don't forget · make sure · I need to · I have to · and I promised · and I told · **and** + call/email/send/book/pay/ask/meet… |
+| Arabic & Egyptian | وبعدين · بعدين · وبعد كده · بعد كده · وكمان · كمان · وأيضا · **و** + كلم/أكلم/ابعت/ارسل/احجز/ادفع/اسأل/اتبع/راجع/فكرني/لازم/محتاج · **و** + a name with a time after it |
+
+**"and" on its own is never a join.** "Call Sara and Omar about the price" is
+one errand; so is "اتصل بسارة وعمر". A splitter that divided there would turn
+one errand into two wrong ones, which is worse than the fault it fixes.
+
+**Typed text needs a full stop.** A typed comma is not a list — "Call Sara
+tomorrow, the contract one" is one errand — so typing is split on a full stop,
+semicolon or new line, while the mic is taken at its word. The Brain dump
+screen is still the place to paste a long comma-separated list.
+
+### What a run says once, for all of it
+
+In one unbroken sentence — nothing typed between the errands — two things
+said once are meant for the whole list:
+
+| Said | Read as |
+| --- | --- |
+| بكرة اكلم محمد ٥ **و**أكلم أحمد ٧ | both tomorrow, not Ahmed today |
+| أكلم محمد ٥ **و**إبراهيم ٦ **و**أحمد ٧ | three **calls**, at 5, 6 and 7 in the evening |
+
+A bare name after **و** borrows the verb the run opened with, and a name with
+a clock after it starts a new errand — but a name with **no** time never
+does: "اتصل بسارة وعمر بخصوص السعر" is one errand about two people.
+
+**A punctuated list is not a run.** Commas and full stops mean separate
+items, each standing on its own, so "Call the lawyer about the contract
+tomorrow at 11, email Sara the deck, pay the supplier invoice by 5" leaves
+the invoice undated — tomorrow belongs to the lawyer.
+
+### The clock, said out loud
+
+A recogniser writes what it hears, so a dictated time arrives as words.
+
+| Said | Read as |
+| --- | --- |
+| at four | 16:00 — before seven is the afternoon |
+| at four thirty · at half past four | 16:30 |
+| at quarter past six | 18:15 |
+| at quarter to seven | 18:45 |
+| at nine am | 09:00 |
+| at noon · at eight in the evening | 12:00 · 20:00 |
+| الساعة اربعة · الساعة تسعة الصبح | 16:00 · 09:00 (these always worked) |
+
+A number that is not a time is left alone: "buy four boxes of cups" keeps its
+four.
+
 ## Answering the Assistant when it asks
 
 Saving a task sometimes needs one more thing — usually *when*. These are the
@@ -125,8 +288,8 @@ answers it takes beyond a plain date or time.
 
 | English | Arabic |
 | --- | --- |
-| Now · right now · asap | الحين · حالًا · الآن |
-| No · not now · never mind | لا · مو الحين · ما أبغى |
+| Now · right now · asap | الحين · حالًا · الآن · **دلوقتي** |
+| No · not now · never mind | لا · مو الحين · ما أبغى · **مش عايز** · **مش دلوقتي** |
 | Later · whenever · any time | بعدين · لاحقًا · أي وقت |
 
 **Now** is also a chip on the question, because it is the one time nobody
@@ -150,6 +313,77 @@ is offered that would answer "nobody", and the one you tap most comes back
 first — counted on the device, with no profile and nothing sent anywhere
 (§2.92). Each chip still types its full sentence into the chat, so tapping
 one teaches what could have been typed.
+
+## More ways to ask the same things
+
+Added after writing out how people actually ask and finding seventeen
+sentences the parser could not read. Each is in the corpus test.
+
+| Scenario | Also understood now |
+| --- | --- |
+| The day | get me…, send me…, what about…, pull up… |
+| What's next | what now?, what's up next?, where do I start? · بعد كده · ابدأ بايه |
+| The One Thing | my focus today?, biggest thing?, what matters most? · اهم حاجة · اهم شي |
+| Who's waiting | who is pending?, still waiting on?, yet to reply? |
+| Who's gone quiet | who should I reconnect with?, who needs a catch up?, cold contacts?, who's fallen off? |
+| The day's log | what did I get done?, what got done? |
+| What was said | have I contacted Layla? · اخر تواصل · اخر اتصال · اخر رسالة |
+| What's late | اتأخر · متأخرين · فات موعده |
+| With one person | where are we with Sara?, what's the status with Omar?, how are we doing with…? · ايه اخبار سارة؟ · وصلنا لفين مع سارة؟ |
+| A person's details | عايز رقم سارة · محتاج ايميل عمر · هاتلي نمرة سارة |
+
+**Three words had to be narrowed rather than added**, and the reason is worth
+knowing because it is the whole difficulty of this:
+
+**عايز، محتاج، ابغى** open a request *and* an errand. "عايز رقم سارة" is a
+question; "عايز اكلم سارة بكرة" is a task. Adding them as whole words bought
+two questions and cost five errands. What separates the two is whether a noun
+or a verb follows, so the **nouns are named** — رقم، ايميل، موبايل، نمرة،
+عنوان، العملاء، المفضلة — rather than the verbs guessed at.
+
+**show** had the same fault in English, from long before this: "show the deck
+to Omar" was read as a question. It is now **show me** / **show my**, which
+both documented phrases already said.
+
+**هات** and **find** likewise: "هات رقم سارة" is a request and "هات العقد من
+عمر بكرة" is an errand; "find Sara's number" is a question and "find a new
+supplier" is a task. Both now sit behind the same noun list.
+
+## Owed a reply, counted, or asked as an obligation
+
+A second round of the same exercise, after Sanad got a name. Each is in the
+corpus test, and each sits beside an errand it must not swallow.
+
+| Scenario | Also understood now |
+| --- | --- |
+| Who's waiting | who do I owe a reply?, who am I supposed to get back to?, who needs a reply? · مين لازم أرد عليه · مين المفروض أرد عليه · مين مستني رد مني |
+| The day's list | how many tasks do I have?, what's expected of me?, what's required of me?, what's left? · كم مهمة عندي · كام مهمة فاضلة · المطلوب مني · قائمتي |
+
+**The interrogative is what is matched, never the verb.** "لازم أرد على سارة
+بكرة" is an errand and "مين لازم أرد عليه؟" is the waiting list, and the only
+difference between them is **مين**. The same holds in English: "reply to Sara
+tomorrow" is an errand, "who do I owe a reply?" is the list. Widening on
+لازم or *reply* alone is the mistake §2.109 paid for with five errands, so
+the patterns ask for the question word and not the verb.
+
+**مهمة, never حاجة.** "كام مهمة عندي؟" counts tasks; "عايز أعمل كام حاجة
+النهارده" is still a list of errands, for the reason in the next section.
+
+**"What's left" only at the start of a sentence.** "Send what is left to
+Omar" is an errand.
+
+## What is not a question, though it looks like one
+
+**كم** and **كام** before حاجة are a quantifier, not a count. "عايز أعمل كم
+حاجة بكرة…" is *"I want to do a few things tomorrow"* and opens a list of
+errands; it used to be read as *"how many things tomorrow?"* and answered
+**مفيش حاجة بكرة** — four errands lost in one reply, with nothing said about
+why. "كم عميل عندي؟" and "عندي كام شخص؟" still count.
+
+A sentence also stops being a question once it opens with the usual
+throat-clearing — **و الله · والله · طيب · يلا · خلاص · تمام · أنا** — which
+is dropped rather than kept as the title. "و الله عايز أكلم محمد بكرة 5:00"
+is a call to Mohammed, not a task named after the whole sentence.
 
 ## Anything else
 

@@ -22,9 +22,11 @@
     "content:port": "node scripts/port-content.js",
     "content:inline": "node scripts/extract-inline-copy.js",
     "measure": "node scripts/measure-prototype-type.js",
+    "measure:ask": "tsx scripts/measure-ask.ts",
+    "measure:line": "node scripts/measure-line.js",
     "drift": "node scripts/measure-drift.js",
     "narrow": "node scripts/narrow.js",
-    "smoke": "node scripts/smoke-tasks.js && node scripts/smoke-people.js && node scripts/smoke-compose.js && node scripts/smoke-day.js && node scripts/smoke-capture.js && node scripts/smoke-analytics.js",
+    "smoke": "node scripts/smoke-tasks.js && node scripts/smoke-people.js && node scripts/smoke-compose.js && node scripts/smoke-day.js && node scripts/smoke-capture.js && node scripts/smoke-analytics.js && node scripts/smoke-dialect.js",
     "typecheck:functions": "tsc -p supabase/functions",
     "postinstall": "patch-package"
   },
