@@ -5253,3 +5253,63 @@ declared unlinked while the row carries a `user_id`.
 **Checks:** 16 migrations applied one-transaction-each (new gate, and watched
 to fail), 1458 unit tests, 38 against Postgres, 28 admin DB tests, drift
 clean, three typechecks clean.
+
+
+### 2.118 Asking properly, instead of defaulting it on
+
+The owner asked whether "Help improve Sanad" could be turned on
+automatically. The useful part of the answer was that **the automatic
+collection already exists and is already on**: every account sends the
+redacted shapes, no toggle, no consent needed, and that is where nearly all
+the parser-learning value is (§2.114). What the switch guards is the other
+thing — the sentence as written, which can hold a name, a number, a price,
+and which belongs to the person's *contacts* as much as to them.
+
+**Defaulting that on was costed rather than refused.** One line in prefs,
+plus: a privacy policy on a live website that says in two languages it is off
+until you turn it on, and so becomes false; a Play declaration that says
+"Optional", and so becomes false; and an Apple submission declaring that the
+app collects free text containing third parties' names and numbers without
+asking. That is a decision for the owner and their jurisdiction, not for a
+build, so it was put as a choice with the price attached.
+
+**The chosen answer treats the real problem as a product problem.** Nobody
+turns on a setting they never see. If the goal is more people sharing, the
+fix is not removing the question — it is asking it where somebody is, after
+they have used Sanad enough for the question to mean something.
+
+**When decides whether the question is fair.** `ask-to-help.ts` is five
+lines of rule and most of this entry's thinking: not before Sanad has
+introduced itself, not before five sentences somebody chose themselves, and
+never twice. Tapping a chip or an introduction card does not count towards
+the five — a tap is not a sentence, and a question asked after five taps is a
+question asked of somebody who has not typed anything. **A no is kept as
+firmly as a yes.** There is no "not now", no second asking, no nagging: the
+first ask was the ask.
+
+**One path for the answer, because there are now two places to give it.**
+Turning this on means three things — the preference, a consent row carrying
+the policy version it was agreed under, and, when it goes off, a request to
+delete what was already sent. Two copies of that would be two chances to
+forget the third, so `src/lib/help-sanad.ts` is the only one and both the
+Settings switch and the card use it.
+
+**And the consent record now says where they agreed.** `consent_source` has
+been `('signin', 'settings')` since 0001, which was every place consent could
+be given. Recording a chat card as "settings" would make the record say
+somebody opened a screen they never opened, and being able to say where
+consent was given is the entire point of the column. 0017 adds `assistant` —
+alone in its file, the lesson of §2.117 applied the first time it came up
+again rather than the second.
+
+**One existing check failed, and it was the check that was wrong.** §2.109's
+"a short conversation rests on the message bar" measures the gap between the
+last *bubble* and the bar, and the asking card sits in that gap — 306px of it.
+The card is content, not the dead space that check exists to catch, so it now
+measures the lowest thing rendered in the conversation rather than the lowest
+bubble, which is what it meant all along. The introduction card and a brain
+dump were in the same position and had never been measured either.
+
+**Checks:** 1465 unit tests (7 new), 141 capture checks (20 new), 38 against
+Postgres, 17 migrations one-transaction-each, 178 People checks, drift clean,
+three typechecks clean.

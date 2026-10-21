@@ -277,6 +277,55 @@ const D_SAMPLE =
   await open('/assistant');
   check('…and it stays away', (await page.getByTestId('assistant-intro').count()) === 0);
 
+  // ------------------------------------------- Sanad asks, once, for the words
+  // The switch for this is in Settings → Privacy, where nobody will find it.
+  // Sanad asks for itself, after enough use for the question to mean
+  // something, and keeps a no as firmly as a yes. BUILD-REVIEW §2.118.
+  await seed();
+  await page.evaluate(() => {
+    localStorage.setItem('ot.assistant.met', 'true');
+    localStorage.removeItem('ot.assistant.help');
+    localStorage.removeItem('ot.forgetTranscripts');
+  });
+  await open('/assistant');
+  check('nothing is asked of somebody who has just arrived', (await page.getByTestId('assistant-help-ask').count()) === 0);
+
+  // Four sentences is not enough; the fifth is.
+  const say = async (text) => {
+    await page.getByTestId('assistant-input').fill(text);
+    await page.getByTestId('assistant-send').click();
+    await page.waitForTimeout(900);
+  };
+  for (const q of ["What's next?", "What's late?", 'Who am I waiting on?', "What's my One Thing today?"]) await say(q);
+  check('…nor after four', (await page.getByTestId('assistant-help-ask').count()) === 0, String((await read('ot.assistant.help'))?.sent));
+  await say('Who has gone quiet?');
+  check('after five, Sanad asks', await page.getByTestId('assistant-help-ask').isVisible(), JSON.stringify(await read('ot.assistant.help')));
+  check('…and says what it is asking for', (await text('assistant-help-ask')).includes('shape of your questions'), (await text('assistant-help-ask')).slice(0, 120));
+  check('…while nothing has been granted yet', (await read('ot.prefs'))?.helpSanad !== true);
+
+  // No is an answer.
+  await page.getByTestId('assistant-help-no').click();
+  await page.waitForTimeout(300);
+  check('No thanks puts the question away', (await page.getByTestId('assistant-help-ask').count()) === 0);
+  check('…and grants nothing', (await read('ot.prefs'))?.helpSanad !== true);
+  check('…and records that they answered', (await read('ot.assistant.help'))?.decided === true);
+  await say('What else is open?');
+  check('…and is not asked again, however much they use it', (await page.getByTestId('assistant-help-ask').count()) === 0);
+  await open('/assistant');
+  check('…not even on the next visit', (await page.getByTestId('assistant-help-ask').count()) === 0);
+
+  // Yes is the other answer, and it is a consent row with its own source.
+  await page.evaluate(() => localStorage.setItem('ot.assistant.help', JSON.stringify({ sent: 9, decided: false })));
+  await open('/assistant');
+  check('somebody who has not answered is asked', await page.getByTestId('assistant-help-ask').isVisible());
+  await page.getByTestId('assistant-help-yes').click();
+  await page.waitForTimeout(400);
+  check('Yes turns it on', (await read('ot.prefs'))?.helpSanad === true);
+  const row = ((await read('ot.consentQueue')) ?? []).filter((r) => r.kind === 'assistant_transcript').at(-1);
+  check('…as a consent row saying where they agreed', row?.granted === true && row?.source === 'assistant', JSON.stringify(row));
+  check('…and Sanad says how to undo it', (await page.locator('body').innerText()).includes('Settings'));
+  check('…and the question is gone', (await page.getByTestId('assistant-help-ask').count()) === 0);
+
   // -------------------------------------------------------------- Assistant
   await seed();
   const askStart = await taskCount();
@@ -413,11 +462,19 @@ const D_SAMPLE =
   // with the screen empty under it — a phone showed four hundred points of
   // nothing between the last reply and the bar.
   const resting = await page.evaluate(() => {
-    const said = [...document.querySelectorAll('[data-testid="assistant-reply"], [data-testid="assistant-mine"]')];
-    const last = said[said.length - 1];
+    // The lowest thing in the conversation, not the lowest *bubble*: a card
+    // can sit under the last reply — the introduction, a brain dump, Sanad
+    // asking to keep the words (§2.118) — and a card is content, not the
+    // dead space this is here to catch.
+    const shown = [
+      ...document.querySelectorAll(
+        '[data-testid="assistant-reply"], [data-testid="assistant-mine"], [data-testid="assistant-intro"], [data-testid="assistant-help-ask"], [data-testid="qa-dump"]'
+      ),
+    ];
     const bar = document.querySelector('[data-testid="assistant-input"]');
-    if (!last || !bar) return null;
-    return Math.round(bar.getBoundingClientRect().top - last.getBoundingClientRect().bottom);
+    if (shown.length === 0 || !bar) return null;
+    const lowest = Math.max(...shown.map((el) => el.getBoundingClientRect().bottom));
+    return Math.round(bar.getBoundingClientRect().top - lowest);
   });
   check('a short conversation rests on the message bar', resting !== null && resting < 220, `${resting}px of empty space`);
 

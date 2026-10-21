@@ -633,6 +633,16 @@ export type Added = {
     dump: { label: string; say: string };
     ask: { label: string; say: string };
     card: { label: string; say: string };
+    /**
+     * Sanad asking, once, whether it may keep the words as well as their
+     * shape — `src/features/assistant/ask-to-help.ts`. The same question the
+     * Settings switch asks, where somebody will see it.
+     */
+    helpT: string;
+    helpB: string;
+    helpYes: string;
+    helpNo: string;
+    helpOn: string;
   };
   /**
    * The Assistant's suggestion chips. Each is a short label and the
@@ -1447,6 +1457,11 @@ const ADDED: Record<Lang, Added> = {
       dump: { label: 'Empty your head', say: 'Renew the licence. Book a flight. Pay the rent.' },
       ask: { label: 'Ask about your day', say: 'What’s next?' },
       card: { label: 'Scan a card', say: 'Scan a card' },
+      helpT: 'May I keep what you write?',
+      helpB: 'I already learn from the shape of your questions, with names and numbers taken out on your phone. Keeping the sentences as you wrote them teaches me faster. Only the owner of the app can read them, every reading is logged, and you can turn this off any time — which deletes them.',
+      helpYes: 'Yes, keep them',
+      helpNo: 'No thanks',
+      helpOn: 'Thank you. You can turn this off in Settings → Privacy, and I’ll delete them.',
     },
     chips: {
       late: { label: 'What’s late?', say: 'What’s late?' },
@@ -2140,6 +2155,11 @@ const ADDED: Record<Lang, Added> = {
       dump: { label: 'فضّي بالك', say: 'أجدد الرخصة. أحجز تذكرة. أدفع الإيجار.' },
       ask: { label: 'اسأل عن يومك', say: 'وش التالي؟' },
       card: { label: 'صوّر كرت', say: 'صوّر كرت' },
+      helpT: 'أقدر أحتفظ باللي تكتبه؟',
+      helpB: 'أنا أصلاً أتعلّم من شكل أسئلتك، بعد ما جوالك يشيل منها الأسماء والأرقام. والاحتفاظ بالجمل مثل ما كتبتها يعلّمني أسرع. ما يقرأها إلا مالك التطبيق، وكل قراءة تنكتب، وتقدر توقف هذا وقت ما تبي — وساعتها تنمسح.',
+      helpYes: 'إي، احتفظ فيها',
+      helpNo: 'لا شكراً',
+      helpOn: 'شكراً لك. تقدر توقفه من الإعدادات ← الخصوصية، وأنا أمسحها.',
     },
     chips: {
       late: { label: 'وش المتأخر؟', say: 'وش المتأخر؟' },

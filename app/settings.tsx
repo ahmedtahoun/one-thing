@@ -52,8 +52,8 @@ import { ME_PHOTO, usePhotos } from '@/lib/photos';
 import { requestExport } from '@/lib/privacy-request';
 import { requestAppReview } from '@/lib/store-review';
 import { SUPPORT_EMAIL, supportMailUrl } from '@/lib/support';
-import { askToForgetTranscripts } from '@/lib/analytics/phrasings';
 import { POLICY_VERSION, recordConsent } from '@/lib/consent';
+import { useHelpSanad } from '@/lib/help-sanad';
 import type { Channel, NudgeStyle, Prefs } from '@/lib/model-types';
 import { useNotifications } from '@/lib/notifications/NotificationsProvider';
 import { usePrefs } from '@/lib/prefs';
@@ -118,6 +118,11 @@ export default function Settings() {
 
   const back = () => (router.canGoBack() ? router.back() : router.replace('/today'));
 
+  // One path for this, shared with Sanad's own asking — src/lib/help-sanad.ts.
+
+  const helpSanad = useHelpSanad();
+
+
   const setMarketing = useCallback(
     (granted: boolean) => {
       setPrefs({ marketing: granted });
@@ -137,17 +142,6 @@ export default function Settings() {
    * next sync deletes what was sent (src/lib/analytics/phrasings.ts,
    * supabase/migrations/0016_transcripts.sql). BUILD-REVIEW §2.115.
    */
-  const setHelpSanad = useCallback(
-    (granted: boolean) => {
-      setPrefs({ helpSanad: granted });
-      recordConsent([
-        { kind: 'assistant_transcript', granted, version: POLICY_VERSION, at: new Date().toISOString(), source: 'settings' },
-      ]).catch(() => {});
-      if (!granted) void askToForgetTranscripts();
-    },
-    [setPrefs]
-  );
-
   const pickFocus = (minutes: Prefs['focusMinutes']) => {
     setPrefs({ focusMinutes: minutes });
     // The prototype keeps one focus length: changing it here changes today's
@@ -578,7 +572,7 @@ export default function Settings() {
                 label={st.sanad}
                 sub={st.sanadS}
                 on={prefs.helpSanad}
-                onToggle={() => setHelpSanad(!prefs.helpSanad)}
+                onToggle={() => helpSanad.set(!prefs.helpSanad, 'settings')}
               />
               <LinkRow label={acc.si.privL} onPress={() => router.push('/legal?tab=privacy')} />
               <LinkRow label={acc.si.termsL} onPress={() => router.push('/legal?tab=terms')} />
