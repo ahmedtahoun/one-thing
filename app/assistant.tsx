@@ -1198,18 +1198,23 @@ export default function Assistant() {
               is not asked again. src/features/assistant/ask-to-help.ts. */}
           {help.ready && metKnown && shouldAskToHelp({ sent: help.sent, decided: help.decided, met, on: helpSanad.on }) ? (
             <HelpCard
-              title={copy.meet.helpT}
-              body={copy.meet.helpB}
-              link={copy.meet.helpLink}
-              yes={copy.meet.helpYes}
-              no={copy.meet.helpNo}
+              copy={{
+                title: copy.meet.helpT,
+                body: copy.meet.helpB,
+                link: copy.meet.helpLink,
+                yes: copy.meet.helpYes,
+                no: copy.meet.helpNo,
+                sheetTitle: copy.meet.helpSheetT,
+                paragraphs: [copy.meet.helpSheet1, copy.meet.helpSheet2, copy.meet.helpSheet3, copy.meet.helpSheet4],
+                policy: copy.meet.helpPolicy,
+              }}
               onYes={() => {
                 help.decide();
                 helpSanad.set(true, 'assistant');
                 setMessages((list) => [...list, { id: newId(), from: 'bot', kind: 'note', text: copy.meet.helpOn }]);
               }}
               onNo={() => help.decide()}
-              onLink={() => router.push('/legal?tab=privacy')}
+              onPolicy={() => router.push('/legal?tab=privacy')}
             />
           ) : null}
         </ScrollView>

@@ -302,14 +302,34 @@ const D_SAMPLE =
   check('after five, Sanad asks', await page.getByTestId('assistant-help-ask').isVisible(), JSON.stringify(await read('ot.assistant.help')));
   const askText = await text('assistant-help-ask');
   check('…leading with what it is for, not with a disclaimer', askText.includes('Help improve Sanad'), askText.slice(0, 160));
-  check('…saying what is shared, who reads it and how to stop', /Share what you write/.test(askText) && /Only we read it/.test(askText) && /stop any time/.test(askText), askText.slice(0, 220));
-  // Short enough to read, with the specifics a tap away — which is what
-  // keeps a card this size an informed consent rather than a shrug.
-  check('…and the detail is one tap away', await page.getByTestId('assistant-help-more').isVisible());
-  check('…giving both answers the same weight', await page.getByTestId('assistant-help-yes').isVisible() && await page.getByTestId('assistant-help-no').isVisible());
+  // The card is almost nothing, but the one clause that cannot move behind
+  // the tap is the one saying what is shared: agreeing to "help improve
+  // Sanad" without being told your sentences are kept is agreeing to nothing.
+  check('…still saying on the card itself what is shared', /Share what you write/.test(askText), askText.slice(0, 200));
+  check('…giving both answers the same weight', (await page.getByTestId('assistant-help-yes').isVisible()) && (await page.getByTestId('assistant-help-no').isVisible()));
+
+  // And everything else is behind the tap.
+  await page.getByTestId('assistant-help-more').click();
+  await page.waitForTimeout(400);
+  const sheet = await text('assistant-help-sheet');
+  check('the tap opens the whole of it', await page.getByTestId('assistant-help-sheet').isVisible());
+  check('…what the phone removes before anything is sent', /replaces every name, number, email and link/.test(sheet), sheet.slice(0, 200));
+  check('…what is kept if they help', /sentences as you wrote them/.test(sheet));
+  check('…who can read it, and that every reading is logged', /Only the owner/.test(sheet) && /written into a log/.test(sheet));
+  check('…that it is never sold or used to decide anything about them', /never sold/.test(sheet) && /decide anything about you/.test(sheet));
+  check('…how long it is kept and how to stop', /90 days/.test(sheet) && /Settings/.test(sheet));
+  check('…and the policy itself is still reachable', await page.getByTestId('assistant-help-policy').isVisible());
+  check('…and it can be answered from here, without closing it first', (await page.getByTestId('assistant-help-sheet-yes').isVisible()) && (await page.getByTestId('assistant-help-sheet-no').isVisible()));
+  // Back to the card, undecided, to answer there instead.
+  await page.getByTestId('assistant-help-sheet-no').click();
+  await page.waitForTimeout(400);
+  check('answering in the sheet answers the question', (await page.getByTestId('assistant-help-ask').count()) === 0);
+  check('…and is the same no', (await read('ot.prefs'))?.helpSanad !== true && (await read('ot.assistant.help'))?.decided === true);
+  await page.evaluate(() => localStorage.setItem('ot.assistant.help', JSON.stringify({ sent: 9, decided: false })));
+  await open('/assistant');
   check('…while nothing has been granted yet', (await read('ot.prefs'))?.helpSanad !== true);
 
-  // No is an answer.
+  // No on the card itself is an answer too.
   await page.getByTestId('assistant-help-no').click();
   await page.waitForTimeout(300);
   check('No thanks puts the question away', (await page.getByTestId('assistant-help-ask').count()) === 0);

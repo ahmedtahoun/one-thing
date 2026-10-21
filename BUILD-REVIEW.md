@@ -5328,11 +5328,29 @@ answers, and the detail one tap away:
     [ Share ]  [ Don't share ]
 
 The title is now the Settings switch's own words, so the two places that ask
-this ask it the same way. "How we use it" opens the privacy policy, which is
-what keeps a card this short an informed consent rather than a shrug — and
-what the suite checks, along with both buttons being present and the body
-naming what is shared, who reads it and how to stop.
+this ask it the same way.
 
-**Checks:** 1465 unit tests (7 new), 144 capture checks (23 new), 38 against
-Postgres, 17 migrations one-transaction-each, 178 People checks, drift clean,
-three typechecks clean.
+**Then the owner asked for the rest of it to move behind the tap**, and for
+the buttons to say what they do: *Help improve* and *Don't help*. That is the
+right instinct — a card nobody reads is worse than a sheet somebody chooses
+to open — and "How we use it" became a sheet of its own rather than a jump to
+the privacy policy. Four paragraphs: what the phone removes before anything
+is sent and that this happens either way, what is additionally kept if they
+help, who can read it and that every reading is logged and that it is never
+sold or used to decide anything about them, and the ninety days with how to
+stop. The policy is still linked from inside it, and **both answers are
+repeated at the bottom of the sheet**, because making somebody close the
+explanation to answer the question is how an explanation goes unread.
+
+**One line did not move, and the reason is the whole point.** The card still
+says *"Share what you write"*. Everything else can wait behind a tap; what is
+collected cannot, because agreeing to "help improve Sanad" without being told
+that means your sentences are kept is not agreeing to anything. A consent
+that hides what it collects is the pattern being fined — exactly what the
+short card was supposed to get away from — so the suite asserts that clause
+is on the card itself, not only in the sheet.
+
+**Checks:** 1465 unit tests (7 new), 153 capture checks (32 new, driving the
+card, the sheet and both answers from either), 38 against Postgres, 17
+migrations one-transaction-each, 178 People checks, drift clean, three
+typechecks clean.

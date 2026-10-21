@@ -639,12 +639,24 @@ export type Added = {
      * Settings switch asks, where somebody will see it.
      */
     helpT: string;
+    /**
+     * The one thing that cannot move behind the tap: what is shared. Agreeing
+     * to "help improve Sanad" without being told that means your sentences
+     * are kept is not agreeing to anything.
+     */
     helpB: string;
-    /** Opens the privacy policy, where the detail is. */
+    /** Opens the sheet below, where the rest of it is. */
     helpLink: string;
     helpYes: string;
     helpNo: string;
     helpOn: string;
+    /** "How we use it", in full: the same question, answered properly. */
+    helpSheetT: string;
+    helpSheet1: string;
+    helpSheet2: string;
+    helpSheet3: string;
+    helpSheet4: string;
+    helpPolicy: string;
   };
   /**
    * The Assistant's suggestion chips. Each is a short label and the
@@ -1460,11 +1472,17 @@ const ADDED: Record<Lang, Added> = {
       ask: { label: 'Ask about your day', say: 'What’s next?' },
       card: { label: 'Scan a card', say: 'Scan a card' },
       helpT: 'Help improve Sanad',
-      helpB: 'Share what you write, so Sanad gets better at understanding how you ask. Only we read it, and you can stop any time — we delete it when you do.',
+      helpB: 'Share what you write, so Sanad understands you better.',
       helpLink: 'How we use it',
-      helpYes: 'Share',
-      helpNo: 'Don’t share',
+      helpYes: 'Help improve',
+      helpNo: 'Don’t help',
       helpOn: 'Thanks. You can stop any time in Settings → Privacy.',
+      helpSheetT: 'How we use it',
+      helpSheet1: 'Sanad already learns from the shape of your questions. Before anything leaves your phone, your phone replaces every name, number, email and link with a marker — so we see “who do I owe a reply to {name}?” and never who {name} is. That happens whether or not you help.',
+      helpSheet2: 'If you help, we also keep the sentences as you wrote them, names and all. That teaches Sanad faster, because the words people really use are the ones it keeps missing.',
+      helpSheet3: 'Only the owner of the app can read them, and every time they are opened it is written into a log that cannot be edited. They are never sold, never shared for advertising, and never used to decide anything about you.',
+      helpSheet4: 'We delete them after 90 days. You can stop any time in Settings → Privacy, and we delete everything we kept.',
+      helpPolicy: 'Read the privacy policy',
     },
     chips: {
       late: { label: 'What’s late?', say: 'What’s late?' },
@@ -2159,11 +2177,17 @@ const ADDED: Record<Lang, Added> = {
       ask: { label: 'اسأل عن يومك', say: 'وش التالي؟' },
       card: { label: 'صوّر كرت', say: 'صوّر كرت' },
       helpT: 'ساعدنا نحسّن سند',
-      helpB: 'شارك اللي تكتبه، عشان سند يفهم طريقتك في السؤال أحسن. ما يقرأه غيرنا، وتقدر توقفه وقت ما تبي — ونمسحه ساعتها.',
+      helpB: 'شارك اللي تكتبه، عشان سند يفهمك أحسن.',
       helpLink: 'كيف نستخدمه',
-      helpYes: 'شارك',
-      helpNo: 'لا تشارك',
+      helpYes: 'ساعدنا نحسّنه',
+      helpNo: 'لا، شكراً',
       helpOn: 'شكراً لك. تقدر توقفه وقت ما تبي من الإعدادات ← الخصوصية.',
+      helpSheetT: 'كيف نستخدمه',
+      helpSheet1: 'سند أصلاً يتعلّم من شكل أسئلتك. وقبل ما يطلع أي شي من جوالك، الجوال يستبدل كل اسم ورقم وإيميل ورابط بعلامة — فنشوف «مين لازم أرد على {name}؟» وما نعرف أبداً مين {name}. وهذا يصير سواء ساعدتنا أو لا.',
+      helpSheet2: 'وإذا ساعدتنا، نحتفظ كمان بالجمل مثل ما كتبتها، بالأسماء وكل شي. وهذا يعلّم سند أسرع، لأن الكلمات اللي يستخدمها الناس فعلاً هي اللي يفوّتها.',
+      helpSheet3: 'ما يقرأها إلا مالك التطبيق، وكل مرة تنفتح ينكتب ذلك في سجل ما يتعدّل. وما تنباع أبداً، وما تنشارك للإعلانات، وما تُستخدم لاتخاذ أي قرار عنك.',
+      helpSheet4: 'نمسحها بعد ٩٠ يوم. وتقدر توقف هذا وقت ما تبي من الإعدادات ← الخصوصية، ونمسح كل اللي احتفظنا فيه.',
+      helpPolicy: 'اقرأ سياسة الخصوصية',
     },
     chips: {
       late: { label: 'وش المتأخر؟', say: 'وش المتأخر؟' },
