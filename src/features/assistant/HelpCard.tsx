@@ -1,6 +1,12 @@
 /**
  * Sanad asking, once, whether it may keep the words.
  *
+ * Written the way a consent card is written when it is written well: the
+ * benefit in the title, two lines of what and who, equal weight on both
+ * answers, and the detail one tap away rather than crammed in. The first
+ * draft was a paragraph that read like a disclaimer, which is the surest way
+ * to be agreed to without being read.
+ *
  * Every account already sends the shape of what it is asked, with names and
  * numbers taken out on the phone. This asks for the other thing: the
  * sentence as written. It is the same question the switch in Settings →
@@ -21,17 +27,21 @@ import { useDirection } from '@/i18n/LanguageProvider';
 export function HelpCard({
   title,
   body,
+  link,
   yes,
   no,
   onYes,
   onNo,
+  onLink,
 }: {
   title: string;
   body: string;
+  link: string;
   yes: string;
   no: string;
   onYes: () => void;
   onNo: () => void;
+  onLink: () => void;
 }) {
   const dir = useDirection();
 
@@ -50,6 +60,15 @@ export function HelpCard({
       <Text token="caption" color={ink.s4}>
         {body}
       </Text>
+
+      {/* Short enough to read, with the detail a tap away. A consent that
+          fits on a card still has to be specific, and this is where the
+          specifics live — the policy's own words. */}
+      <Pressable testID="assistant-help-more" onPress={onLink} accessibilityRole="link" hitSlop={8} style={{ alignSelf: dir.isRTL ? 'flex-end' : 'flex-start' }}>
+        <Text token="caption" weight="600" color={ink.s3} style={{ textDecorationLine: 'underline' }}>
+          {link}
+        </Text>
+      </Pressable>
 
       <View style={{ flexDirection: dir.row, gap: 8, marginTop: 2 }}>
         <Pressable

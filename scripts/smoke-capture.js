@@ -300,7 +300,13 @@ const D_SAMPLE =
   check('…nor after four', (await page.getByTestId('assistant-help-ask').count()) === 0, String((await read('ot.assistant.help'))?.sent));
   await say('Who has gone quiet?');
   check('after five, Sanad asks', await page.getByTestId('assistant-help-ask').isVisible(), JSON.stringify(await read('ot.assistant.help')));
-  check('…and says what it is asking for', (await text('assistant-help-ask')).includes('shape of your questions'), (await text('assistant-help-ask')).slice(0, 120));
+  const askText = await text('assistant-help-ask');
+  check('…leading with what it is for, not with a disclaimer', askText.includes('Help improve Sanad'), askText.slice(0, 160));
+  check('…saying what is shared, who reads it and how to stop', /Share what you write/.test(askText) && /Only we read it/.test(askText) && /stop any time/.test(askText), askText.slice(0, 220));
+  // Short enough to read, with the specifics a tap away — which is what
+  // keeps a card this size an informed consent rather than a shrug.
+  check('…and the detail is one tap away', await page.getByTestId('assistant-help-more').isVisible());
+  check('…giving both answers the same weight', await page.getByTestId('assistant-help-yes').isVisible() && await page.getByTestId('assistant-help-no').isVisible());
   check('…while nothing has been granted yet', (await read('ot.prefs'))?.helpSanad !== true);
 
   // No is an answer.

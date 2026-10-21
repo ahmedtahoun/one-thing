@@ -1193,40 +1193,24 @@ export default function Assistant() {
               onDone={meet}
             />
           ) : null}
-
-
-          {/* Sanad's one question, once they have used it enough for the answer to
-
-              mean something. A no is kept as firmly as a yes — it is not asked
-
-              again. src/features/assistant/ask-to-help.ts, §2.118. */}
-
+          {/* Sanad's one question, once they have used it enough for the
+              answer to mean something. A no is kept as firmly as a yes — it
+              is not asked again. src/features/assistant/ask-to-help.ts. */}
           {help.ready && metKnown && shouldAskToHelp({ sent: help.sent, decided: help.decided, met, on: helpSanad.on }) ? (
-
             <HelpCard
-
               title={copy.meet.helpT}
-
               body={copy.meet.helpB}
-
+              link={copy.meet.helpLink}
               yes={copy.meet.helpYes}
-
               no={copy.meet.helpNo}
-
               onYes={() => {
-
                 help.decide();
-
                 helpSanad.set(true, 'assistant');
-
                 setMessages((list) => [...list, { id: newId(), from: 'bot', kind: 'note', text: copy.meet.helpOn }]);
-
               }}
-
               onNo={() => help.decide()}
-
+              onLink={() => router.push('/legal?tab=privacy')}
             />
-
           ) : null}
         </ScrollView>
 

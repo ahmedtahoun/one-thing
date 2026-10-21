@@ -640,6 +640,8 @@ export type Added = {
      */
     helpT: string;
     helpB: string;
+    /** Opens the privacy policy, where the detail is. */
+    helpLink: string;
     helpYes: string;
     helpNo: string;
     helpOn: string;
@@ -1457,11 +1459,12 @@ const ADDED: Record<Lang, Added> = {
       dump: { label: 'Empty your head', say: 'Renew the licence. Book a flight. Pay the rent.' },
       ask: { label: 'Ask about your day', say: 'What’s next?' },
       card: { label: 'Scan a card', say: 'Scan a card' },
-      helpT: 'May I keep what you write?',
-      helpB: 'I already learn from the shape of your questions, with names and numbers taken out on your phone. Keeping the sentences as you wrote them teaches me faster. Only the owner of the app can read them, every reading is logged, and you can turn this off any time — which deletes them.',
-      helpYes: 'Yes, keep them',
-      helpNo: 'No thanks',
-      helpOn: 'Thank you. You can turn this off in Settings → Privacy, and I’ll delete them.',
+      helpT: 'Help improve Sanad',
+      helpB: 'Share what you write, so Sanad gets better at understanding how you ask. Only we read it, and you can stop any time — we delete it when you do.',
+      helpLink: 'How we use it',
+      helpYes: 'Share',
+      helpNo: 'Don’t share',
+      helpOn: 'Thanks. You can stop any time in Settings → Privacy.',
     },
     chips: {
       late: { label: 'What’s late?', say: 'What’s late?' },
@@ -2155,11 +2158,12 @@ const ADDED: Record<Lang, Added> = {
       dump: { label: 'فضّي بالك', say: 'أجدد الرخصة. أحجز تذكرة. أدفع الإيجار.' },
       ask: { label: 'اسأل عن يومك', say: 'وش التالي؟' },
       card: { label: 'صوّر كرت', say: 'صوّر كرت' },
-      helpT: 'أقدر أحتفظ باللي تكتبه؟',
-      helpB: 'أنا أصلاً أتعلّم من شكل أسئلتك، بعد ما جوالك يشيل منها الأسماء والأرقام. والاحتفاظ بالجمل مثل ما كتبتها يعلّمني أسرع. ما يقرأها إلا مالك التطبيق، وكل قراءة تنكتب، وتقدر توقف هذا وقت ما تبي — وساعتها تنمسح.',
-      helpYes: 'إي، احتفظ فيها',
-      helpNo: 'لا شكراً',
-      helpOn: 'شكراً لك. تقدر توقفه من الإعدادات ← الخصوصية، وأنا أمسحها.',
+      helpT: 'ساعدنا نحسّن سند',
+      helpB: 'شارك اللي تكتبه، عشان سند يفهم طريقتك في السؤال أحسن. ما يقرأه غيرنا، وتقدر توقفه وقت ما تبي — ونمسحه ساعتها.',
+      helpLink: 'كيف نستخدمه',
+      helpYes: 'شارك',
+      helpNo: 'لا تشارك',
+      helpOn: 'شكراً لك. تقدر توقفه وقت ما تبي من الإعدادات ← الخصوصية.',
     },
     chips: {
       late: { label: 'وش المتأخر؟', say: 'وش المتأخر؟' },

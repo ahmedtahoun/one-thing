@@ -5310,6 +5310,29 @@ measures the lowest thing rendered in the conversation rather than the lowest
 bubble, which is what it meant all along. The introduction card and a brain
 dump were in the same position and had never been measured either.
 
-**Checks:** 1465 unit tests (7 new), 141 capture checks (20 new), 38 against
+**The first wording was a disclaimer, and was rewritten.** It ran to five
+clauses — what is already collected, what the phone removes, who can read it,
+that every reading is logged, that it can be turned off — all true, all in one
+grey paragraph, and the surest way to be agreed to without being read. The
+owner asked for the shape the big platforms use. The honest version of that
+advice is Apple's "Help Apple Improve…", not Meta's: Meta has been fined
+repeatedly in the EU over exactly these prompts, so its patterns are the last
+thing to copy for a consent that has to be valid. What the good ones share is
+a benefit in the title, two short lines of what and who, equal weight on both
+answers, and the detail one tap away:
+
+    Help improve Sanad
+    Share what you write, so Sanad gets better at understanding how you ask.
+    Only we read it, and you can stop any time — we delete it when you do.
+    How we use it
+    [ Share ]  [ Don't share ]
+
+The title is now the Settings switch's own words, so the two places that ask
+this ask it the same way. "How we use it" opens the privacy policy, which is
+what keeps a card this short an informed consent rather than a shrug — and
+what the suite checks, along with both buttons being present and the body
+naming what is shared, who reads it and how to stop.
+
+**Checks:** 1465 unit tests (7 new), 144 capture checks (23 new), 38 against
 Postgres, 17 migrations one-transaction-each, 178 People checks, drift clean,
 three typechecks clean.
