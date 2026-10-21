@@ -16,6 +16,7 @@
  */
 import type { QueuedFocus, QueuedReview } from '../activity';
 import type { QueuedEvent } from '../analytics/events';
+import type { QueuedPhrasing } from '../analytics/phrasings';
 import type { ConsentRecord } from '../consent';
 import type { QueuedPrivacyRequest } from '../privacy-request';
 import type { Contact, FollowUp, HistoryEntry, OneThing, Task } from '../model-types';
@@ -124,6 +125,8 @@ export type SyncResult = {
   consentSent: number;
   /** How many queued analytics events went out. */
   eventsSent: number;
+  /** How many queued Assistant phrasings went out. */
+  phrasingsSent: number;
   /** How many queued privacy requests went out. */
   privacySent: number;
   /** How many queued focus sessions and closed reviews went out. */
@@ -178,6 +181,8 @@ export async function syncOnce(options: {
   consent: ConsentRecord[];
   /** Analytics events recorded on this device and not yet on the server. */
   events: QueuedEvent[];
+  /** Redacted Assistant phrasings not yet on the server (../analytics/phrasings.ts). */
+  phrasings: QueuedPhrasing[];
   /** Export requests recorded on this device and not yet on the server. */
   privacyRequests: QueuedPrivacyRequest[];
   /** Focus sessions and closed evening reviews not yet on the server. */
@@ -186,7 +191,7 @@ export async function syncOnce(options: {
   /** Today's date key, YYYY-MM-DD, in the device's time zone. */
   today: string;
 }): Promise<SyncResult> {
-  const { remote, userId, local, base, consent, events, privacyRequests, focus, reviews, today } = options;
+  const { remote, userId, local, base, consent, events, phrasings, privacyRequests, focus, reviews, today } = options;
   const withUser = <R extends object>(row: R) => ({ ...row, user_id: userId });
 
   // ---------------------------------------------------------------- read ----
@@ -324,6 +329,15 @@ export async function syncOnce(options: {
       part.map((e) => ({ user_id: userId, name: e.name, props: e.props, at: e.at, platform: local.profile.platform }))
     );
   }
+  // Append-only like the events above, and redacted before they were queued:
+  // what goes out is "{name}" and "{phone}", never what anybody typed
+  // (../parse/redact.ts, supabase/migrations/0014_phrasings.sql).
+  for (const part of chunks(phrasings)) {
+    await remote.insert(
+      'assistant_phrasing',
+      part.map((p) => ({ user_id: userId, text: p.text, verdict: p.verdict, source: p.source, lang: p.lang, dialect: p.dialect, at: p.at, platform: local.profile.platform }))
+    );
+  }
   if (privacyRequests.length > 0) {
     await remote.insert(
       'privacy_request',
@@ -422,6 +436,7 @@ export async function syncOnce(options: {
     marketing: marketingRows[0]?.granted ?? null,
     consentSent: consent.length,
     eventsSent: events.length,
+    phrasingsSent: phrasings.length,
     privacySent: privacyRequests.length,
     focusSent: focus.length,
     reviewsSent: reviews.length,

@@ -5007,3 +5007,81 @@ none, which is the same reason that probe has always set `firstRun: false`.
 **Checks:** 1423 unit tests (41 new), 126 capture checks (23 new), 197 corpus
 phrasings (30 new), 54 at 360×640, drift clean, both typechecks clean, web
 export clean.
+
+
+### 2.114 How people ask Sanad, without finding out who they are
+
+The owner wants to read what people write to Sanad, so Sanad can be taught
+what it misses. The want is ordinary and the data is not: a line typed into
+the Assistant is "call Ahmed on +20 100 123 4567", and Ahmed is a third party
+who never agreed to anything.
+
+**The codebase already had a position on this.** `0006_events.sql` says in
+its own comment that an analytics event may never carry "a phone, an email or
+message text", and `events.ts` is a closed union so there is nowhere to put
+one. The privacy policy told people their assistant text goes to Anthropic
+and comes back as a task; it did not say it was kept for us to read. Crossing
+that quietly would have been the worst version of this feature.
+
+**So what is stored is the shape, not the sentence.** What improves a parser
+is not a transcript — it is the phrasings it failed on. "مين لازم ارد على
+{name}؟ → waiting" teaches everything useful; who {name} is teaches nothing.
+`src/lib/parse/redact.ts` replaces links, addresses, phone numbers, long
+digit runs, every contact in that phone's own address book, and the name the
+sentence is shaped around even when nobody by that name is saved
+(`candidateName`, already written for a different job). The work happens **on
+the device**, which is the point: the server never holds what was typed, and
+the address book it would need to redact properly never leaves the phone
+anyway.
+
+**Exact on patterns, best-effort on names — so the caller is allowed to be
+unsure.** A number or an address is caught every time. A nickname in a
+sentence shaped like nothing in particular can survive, so `fullyRedacted`
+looks for what a missed name leaves behind — a capitalised word that is not a
+placeholder and did not open the sentence — and `phrasingToQueue` drops the
+line rather than sending it. A lesson lost costs less than a name shared.
+Chips and intro rows are dropped too: those are the app quoting itself, and
+counting them would drown the sentences people actually chose.
+
+**The verdict is the other half, and one of them had to be invented.**
+`interpret` only ever returns task, plan or followups — there is no "I could
+not read that". So a sentence that reaches the end of every rule becomes a
+task named after itself, which is exactly the silent failure worth seeing.
+The Assistant records `unknown` when `isQuestion` is true and nothing
+answered it: a question filed as a task is a miss, however cheerfully it was
+filed.
+
+**Two locks on the same door.** The table refuses a row still holding an
+address or five digits in a row, so a client that forgot to redact is a
+rejected insert rather than a quiet leak. Both locks are tested — the module
+in `redact.test.ts`, the constraint against real Postgres twice.
+
+**And the admin panel reads it as `dataset`, not `personal`.** There is
+nothing in the screen that says who asked, so improving Sanad is work an
+Analyst can do; Support, whose permission is for personal data, is turned
+away. The page groups by sentence, counts, shows which languages and how many
+were spoken, and has one filter that matters: **Not understood**. Each of
+those rows is a line waiting to be written into
+`src/lib/parse/phrasings.test.ts`.
+
+**What this cost outside the code, which is most of the care.** The privacy
+policy now says what is kept, that the phone does the redacting before
+anything is sent, that a sentence it is unsure of is thrown away, and that
+the rest goes after a year — in all three languages, with the retention
+section amended and the "Last updated" line and `POLICY_VERSION` moved so
+consent records which text somebody agreed to. `STORE-PRIVACY.md` gains an
+Apple row (Usage Data → Other Usage Data, **not** linked, Product
+Personalization) and a Play note under "App activity → Other actions", and
+the existing "User Content" row now says explicitly that it does not cover
+assistant text. The export contract carries the new table, so a person's own
+export shows them exactly what was kept — which is also the plainest possible
+demonstration of what was not.
+
+**One thing deliberately not built.** Raw transcripts behind an opt-in were
+offered and declined. If they are ever wanted, what they need is in this
+entry: a consent kind, a Settings toggle off by default, a retention limit,
+and a second purpose on the Apple User Content row.
+
+**Checks:** 1450 unit tests (27 new), 36 against Postgres (1 new), 26 admin
+DB tests (5 new), 63 admin browser checks (5 new), 54 at 360×640, drift
+clean, three typechecks clean, both builds clean.

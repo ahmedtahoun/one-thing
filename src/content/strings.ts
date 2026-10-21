@@ -993,7 +993,7 @@ const ACC_en = {
     "opt": "(optional)",
     "err": "Please accept the Terms and Privacy Policy to continue.",
     "note": "We collect your name, phone, job title and how you use the app to run it and improve it. Marketing only if you opt in — change anytime in Settings.",
-    "updated": "Last updated 15 October 2026",
+    "updated": "Last updated 21 October 2026",
     "fail": "We couldn’t sign you in. Please try again."
   },
   "su": {
@@ -1098,7 +1098,7 @@ const ACC_en = {
     ],
     [
       "How long we keep it",
-      "For as long as your account exists. When you delete it, everything goes within 30 days, backups included. The only exception is a record we are obliged to keep — a purchase receipt, for instance — which we keep for as long as the law requires and no longer."
+      "For as long as your account exists. When you delete it, everything goes within 30 days, backups included. Two exceptions: a record we are obliged to keep — a purchase receipt, for instance — which we keep for as long as the law requires and no longer; and the markered-up shapes of assistant questions described below, which carry nothing that says who asked and go after a year."
     ],
     [
       "Who we share it with",
@@ -1106,7 +1106,7 @@ const ACC_en = {
     ],
     [
       "The assistant",
-      "When you write something and ask the assistant to make sense of it, the words you typed are sent to Anthropic, along with your language and your time zone, and come back as a suggested task. Your contact list is not sent — but if you typed somebody’s name in the note, that name travels with the text. Nothing the assistant produces is a decision about you: it fills in a task for you to accept, change or throw away."
+      "When you write something and ask the assistant to make sense of it, the words you typed are sent to Anthropic, along with your language and your time zone, and come back as a suggested task. Your contact list is not sent — but if you typed somebody’s name in the note, that name travels with the text. Nothing the assistant produces is a decision about you: it fills in a task for you to accept, change or throw away.\n\nTo make the assistant better at understanding you, we also keep the shape of what you asked and whether it understood. Before anything leaves your phone, your phone itself replaces every name, phone number, email address and web link with a marker — \"who do I owe a reply to {name}?\" — and a sentence it is not sure it has cleaned is thrown away rather than sent. What we keep is not attached to you in the screen we read it on, it never includes what you actually wrote, and we delete it after a year."
     ],
     [
       "Who at our company can see it",
@@ -1174,7 +1174,7 @@ const ACC_ar: typeof ACC_en = {
     "opt": "(اختياري)",
     "err": "وافق على الشروط وسياسة الخصوصية عشان تكمّل.",
     "note": "نجمع اسمك ورقمك ومسمّاك الوظيفي وطريقة استخدامك للتطبيق لتشغيله وتحسينه. التسويق فقط إذا وافقت — وتقدر تغيّرها من الإعدادات.",
-    "updated": "آخر تحديث ١٥ أكتوبر ٢٠٢٦",
+    "updated": "آخر تحديث ٢١ أكتوبر ٢٠٢٦",
     "fail": "ما قدرنا نسجّل دخولك. جرّب مرة ثانية."
   },
   "su": {
@@ -1279,7 +1279,7 @@ const ACC_ar: typeof ACC_en = {
     ],
     [
       "كم نحتفظ فيها",
-      "طول ما حسابك موجود. ولما تحذفه يروح كل شي خلال ٣٠ يوم، والنسخ الاحتياطية معه. والاستثناء الوحيد سجل نكون ملزَمين نحتفظ فيه — فاتورة شراء مثلاً — نحتفظ فيه بالمدة اللي يفرضها النظام ولا زيادة."
+      "طول ما حسابك موجود. ولما تحذفه يروح كل شي خلال ٣٠ يوم، والنسخ الاحتياطية معه. وفيه استثناءين: سجل نكون ملزَمين نحتفظ فيه — فاتورة شراء مثلاً — نحتفظ فيه بالمدة اللي يفرضها النظام ولا زيادة؛ وأشكال أسئلة المساعد المعلّم عليها الموضّحة تحت، اللي ما فيها شي يدل على مين سأل، وتنمسح بعد سنة."
     ],
     [
       "مع مين نشاركها",
@@ -1287,7 +1287,7 @@ const ACC_ar: typeof ACC_en = {
     ],
     [
       "المساعد",
-      "لما تكتب شي وتطلب من المساعد يفهمه، الكلمات اللي كتبتها تنرسل لـAnthropic، ومعها لغتك ومنطقتك الزمنية، وترجع لك على شكل مهمة مقترحة. قائمة جهات اتصالك ما تنرسل — لكن إذا كتبت اسم أحد داخل الملاحظة، الاسم يروح مع النص. وما يطلع من المساعد يعتبر قرار عنك: هو يعبّي لك مهمة أنت اللي تقبلها أو تعدّلها أو ترميها."
+      "لما تكتب شي وتطلب من المساعد يفهمه، الكلمات اللي كتبتها تنرسل لـAnthropic، ومعها لغتك ومنطقتك الزمنية، وترجع لك على شكل مهمة مقترحة. قائمة جهات اتصالك ما تنرسل — لكن إذا كتبت اسم أحد داخل الملاحظة، الاسم يروح مع النص. وما يطلع من المساعد يعتبر قرار عنك: هو يعبّي لك مهمة أنت اللي تقبلها أو تعدّلها أو ترميها.\n\nوعشان نحسّن فهم المساعد لك، نحتفظ كمان بشكل السؤال اللي سألته وهل فهمه ولا لا. وقبل ما يطلع أي شي من جوالك، الجوال نفسه يستبدل كل اسم ورقم وإيميل ورابط بعلامة — «مين لازم أرد على {name}؟» — والجملة اللي ما يتأكد إنه نظّفها يرميها بدل ما يرسلها. واللي نحتفظ فيه ما يكون مربوط فيك في الشاشة اللي نقرأه منها، وما فيه أبداً اللي كتبته فعلاً، ونمسحه بعد سنة."
     ],
     [
       "مين يقدر يشوفها عندنا",

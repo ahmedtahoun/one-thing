@@ -18,6 +18,7 @@ import Constants from 'expo-constants';
 import * as Notifications from 'expo-notifications';
 
 import { dropSentFocus, dropSentReviews, readFocusQueue, readReviewQueue } from '../activity';
+import { dropSentPhrasings, readPhrasingQueue } from '../analytics/phrasings';
 import { dropSentEvents, readEventQueue } from '../analytics/track';
 import { dropSentConsent, onConsentQueued, readConsentQueue } from '../consent';
 import { dropSentPrivacyRequests, onPrivacyRequestQueued, readPrivacyRequests } from '../privacy-request';
@@ -194,6 +195,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       const base: Base = rawBase ? { ...EMPTY_BASE, ...(JSON.parse(rawBase) as Partial<Base>) } : EMPTY_BASE;
       const consent = await readConsentQueue();
       const events = await readEventQueue();
+      const phrasings = await readPhrasingQueue();
       const privacyRequests = await readPrivacyRequests();
       const focus = await readFocusQueue();
       const reviews = await readReviewQueue();
@@ -205,6 +207,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
         base,
         consent,
         events,
+        phrasings,
         privacyRequests,
         focus,
         reviews,
@@ -233,6 +236,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       await AsyncStorage.setItem(baseKey(userId), JSON.stringify(result.base));
       await dropSentConsent(result.consentSent);
       await dropSentEvents(result.eventsSent);
+      await dropSentPhrasings(result.phrasingsSent);
       await dropSentPrivacyRequests(result.privacySent);
       await dropSentFocus(result.focusSent);
       await dropSentReviews(result.reviewsSent);

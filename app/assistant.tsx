@@ -39,6 +39,7 @@ import { Text } from '@/ui/Text';
 import { Toast, useToast } from '@/ui/Toast';
 import { TYPE_ICON } from '@/design/icon-paths';
 import { ink, surface, typeColour } from '@/design/tokens';
+import { currentDialect } from '@/i18n/dialect';
 import { useDirection, useLanguage } from '@/i18n/LanguageProvider';
 import { useAssistantMeter } from '@/lib/assistant-meter';
 import { dateKey, displayName, followUpStatus, isOnDay, type Contact, type FollowUp, type Task } from '@/lib/model-types';
@@ -86,6 +87,7 @@ import { introSteps, openingLine, type Opening } from '@/features/assistant/intr
 import { chipsFor, rankChips } from '@/features/assistant/suggestions';
 import { useAssistantHabits } from '@/lib/assistant-habits';
 import { useAssistantMet } from '@/lib/assistant-met';
+import { notePhrasing, type Verdict } from '@/lib/analytics/phrasings';
 import { telUrl, whatsAppUrl } from '@/features/compose/recipient';
 import { useCadence } from '@/lib/cadence';
 import { useFavorites } from '@/lib/favorites';
@@ -644,11 +646,31 @@ export default function Assistant() {
     if (!text) return;
     // Saying anything is meeting: the introduction does not wait to be dismissed.
     if (!met) meet();
+
+    /**
+     * What Sanad made of this sentence, for the phrasebook the owner reads to
+     * find what it still cannot answer (src/lib/analytics/phrasings.ts).
+     *
+     * The sentence is redacted on this device before it is queued — names,
+     * numbers and addresses out — and a line the redactor is not sure of is
+     * dropped rather than sent. A chip or an intro row is the app quoting
+     * itself and is not recorded at all. BUILD-REVIEW §2.114.
+     */
+    const learn = (verdict: Verdict) =>
+      notePhrasing({
+        text,
+        verdict,
+        source: raw !== undefined && !spoken ? 'chip' : spoken ? 'spoken' : 'typed',
+        lang,
+        dialect: currentDialect(),
+        contacts,
+      });
     const clear = () => raw === undefined && setInput('');
     // Saving a person takes no Assistant request: it is read on the device.
     if (typed && openContact && continueContact(openContact, text)) return clear();
     if (isContactCommand(text)) {
       clear();
+      learn('contact');
       return startContact(text);
     }
     // "Import my excel", "صور كرت": the paperclip's choices, asked for in
@@ -656,6 +678,7 @@ export default function Assistant() {
     const attach = attachCommand(text);
     if (attach) {
       clear();
+      learn('attach');
       setMessages((list) => [...list, { id: newId(), from: 'me', text }]);
       return chooseClip(attach);
     }
@@ -665,6 +688,7 @@ export default function Assistant() {
     const small = smallTalk(text);
     if (small && small.kind !== 'lookup') {
       clear();
+      learn('smalltalk');
       return answerSmall(text, small);
     }
     /**
@@ -694,6 +718,7 @@ export default function Assistant() {
         return;
       }
       clear();
+      learn(asQuestion.kind as Verdict);
       setMessages((list) => list.map((m) => (m.id === pending.id ? { ...m, answered: true } : m)));
       return showData(text, asQuestion);
     }
@@ -702,10 +727,12 @@ export default function Assistant() {
     const found = askData(text, dataWorld(), subject);
     if (found) {
       clear();
+      learn(found.kind as Verdict);
       return showData(text, found);
     }
     if (small) {
       clear();
+      learn('smalltalk');
       return answerSmall(text, small);
     }
     /**
@@ -750,6 +777,7 @@ export default function Assistant() {
         router.push('/paywall');
         return;
       }
+      learn('dump');
       const items: DumpItem[] = found.map((item) => ({ ...item, keep: true }));
       timers.current.push(
         setTimeout(() => {
@@ -775,6 +803,15 @@ export default function Assistant() {
     }
     if (pending) setMessages((list) => list.map((m) => ('kind' in m && m.kind === 'ask' ? { ...m, answered: true } : m)));
     if (needsServer) meter.spend();
+    /*
+     * The miss worth reading. Nothing above claimed this line, so it is
+     * about to become a task — and if it was punctuated and worded as a
+     * question, a task named after the question is not what was wanted. That
+     * is recorded as 'unknown' rather than 'task': it is the shape of a
+     * sentence Sanad still cannot answer, which is the whole reason the
+     * owner reads this list.
+     */
+    learn(isQuestion(text) ? 'unknown' : 'task');
     const sent = newId();
     setMessages((list) => [...list, { id: sent, from: 'me', text }]);
     clear();

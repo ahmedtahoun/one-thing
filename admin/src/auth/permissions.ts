@@ -39,6 +39,9 @@ export const SECTIONS = [
   ['subscriptions', 'Subscriptions', 'personal'],
   ['support', 'Support', 'personal'],
   ['growth', 'Growth', 'overview'],
+  // Redacted phrasings, not personal data: an Analyst reads these to improve
+  // Sanad, and there is nothing in them that says who asked (§2.114).
+  ['phrasings', 'How people ask', 'dataset'],
   ['privacy-requests', 'Privacy requests', 'personal'],
   ['audit-log', 'Audit log', 'audit'],
   ['team', 'Team & roles', 'team'],

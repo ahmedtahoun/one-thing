@@ -88,7 +88,8 @@ function device(userId: string, local: LocalState = emptyLocal()) {
       events: Parameters<typeof syncOnce>[0]['events'] = [],
       privacyRequests: Parameters<typeof syncOnce>[0]['privacyRequests'] = [],
       focus: Parameters<typeof syncOnce>[0]['focus'] = [],
-      reviews: Parameters<typeof syncOnce>[0]['reviews'] = []
+      reviews: Parameters<typeof syncOnce>[0]['reviews'] = [],
+      phrasings: Parameters<typeof syncOnce>[0]['phrasings'] = []
     ) {
       const result = await syncOnce({
         remote: postgresRemote(userId),
@@ -100,6 +101,7 @@ function device(userId: string, local: LocalState = emptyLocal()) {
         privacyRequests,
         focus,
         reviews,
+        phrasings,
         today: TODAY,
       });
       base = result.base;
@@ -251,6 +253,44 @@ describe('sync against Postgres', () => {
     assert.throws(
       () => asUser(B, `insert into public.analytics_event (user_id, name) values ('${A}', 'signin')`),
       /row-level security/
+    );
+  });
+
+  it('sends how somebody asked, already redacted, and keeps it to them', async () => {
+    const phone = device(A);
+    const result = await phone.sync(
+      [],
+      [],
+      [],
+      [],
+      [],
+      [
+        { text: 'مين لازم ارد على {name}؟', verdict: 'waiting', source: 'typed', lang: 'ar', dialect: 'egypt', at: '2026-10-10T08:00:00.000Z' },
+        { text: 'how is this month going?', verdict: 'unknown', source: 'spoken', lang: 'en', dialect: 'gulf', at: '2026-10-10T08:05:00.000Z' },
+      ]
+    );
+    assert.equal(result.phrasingsSent, 2);
+    assert.equal(count('assistant_phrasing', A), 2);
+    assert.equal(
+      psql(`select verdict from public.assistant_phrasing where source = 'spoken'`).trim(),
+      'unknown'
+    );
+
+    // A record of something that happened: readable by its own author, never
+    // editable, and nobody else's to read or to write on their behalf.
+    assert.throws(() => asUser(A, `update public.assistant_phrasing set text = 'x' where user_id = '${A}'`), /permission denied/);
+    assert.throws(() => asUser(A, `delete from public.assistant_phrasing where user_id = '${A}'`), /permission denied/);
+    assert.equal(Number(asUser(B, `select count(*) from public.assistant_phrasing`).trim()), 0);
+    assert.throws(
+      () => asUser(B, `insert into public.assistant_phrasing (user_id, text, verdict, source, lang, dialect) values ('${A}', 'hi', 'smalltalk', 'typed', 'en', 'gulf')`),
+      /row-level security/
+    );
+
+    // The device redacts; the table is the second lock. A client that forgot
+    // is rejected rather than quietly storing somebody's number.
+    assert.throws(
+      () => psql(`insert into public.assistant_phrasing (user_id, text, verdict, source, lang, dialect) values ('${A}', 'call her on 01001234567', 'task', 'typed', 'en', 'gulf')`),
+      /check constraint/
     );
   });
 

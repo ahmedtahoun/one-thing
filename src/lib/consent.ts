@@ -13,7 +13,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
  * records which version the user actually agreed to. Matches the "Last updated"
  * line on the Legal screen.
  */
-export const POLICY_VERSION = '2026-10-09';
+export const POLICY_VERSION = '2026-10-21';
 
 export type ConsentKind = 'terms_privacy' | 'marketing';
 

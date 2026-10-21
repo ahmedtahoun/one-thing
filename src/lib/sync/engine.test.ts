@@ -8,6 +8,7 @@ import { describe, it } from 'node:test';
 
 import type { QueuedFocus, QueuedReview } from '../activity';
 import type { QueuedEvent } from '../analytics/events';
+import type { QueuedPhrasing } from '../analytics/phrasings';
 import type { ConsentRecord } from '../consent';
 import type { QueuedPrivacyRequest } from '../privacy-request';
 import { isUuid, newId } from '../ids';
@@ -26,6 +27,7 @@ function device(remote: Remote, local: LocalState = emptyLocal(), userId = USER)
     local,
     consent: [] as ConsentRecord[],
     events: [] as QueuedEvent[],
+    phrasings: [] as QueuedPhrasing[],
     privacyRequests: [] as QueuedPrivacyRequest[],
     focus: [] as QueuedFocus[],
     reviews: [] as QueuedReview[],
@@ -39,6 +41,7 @@ function device(remote: Remote, local: LocalState = emptyLocal(), userId = USER)
         base,
         consent: d.consent,
         events: d.events,
+        phrasings: d.phrasings,
         privacyRequests: d.privacyRequests,
         focus: d.focus,
         reviews: d.reviews,
@@ -47,6 +50,7 @@ function device(remote: Remote, local: LocalState = emptyLocal(), userId = USER)
       base = result.base;
       d.consent = d.consent.slice(result.consentSent);
       d.events = d.events.slice(result.eventsSent);
+      d.phrasings = d.phrasings.slice(result.phrasingsSent);
       d.privacyRequests = d.privacyRequests.slice(result.privacySent);
       d.focus = d.focus.slice(result.focusSent);
       d.reviews = d.reviews.slice(result.reviewsSent);

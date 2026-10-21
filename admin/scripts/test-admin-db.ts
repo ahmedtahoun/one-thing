@@ -74,6 +74,18 @@ insert into support_message (ticket_id, from_user, text, at) values
 insert into privacy_request (id, user_id, "type", source, requested_at, deadline_at) values
   ('00000000-0000-4000-8000-000000000e01', '${U2}', 'export', 'app', now() - interval '1 day', now() + interval '29 days'),
   ('00000000-0000-4000-8000-000000000e02', '${U3}', 'delete', 'web', now() - interval '25 days', now() + interval '5 days');
+
+-- Phrasings as a device sends them: already redacted. Two people asking the
+-- same thing, one of them twice, and two Sanad could not answer.
+insert into assistant_phrasing (user_id, "text", verdict, "source", lang, dialect, at) values
+  ('${U1}', 'وش التالي؟', 'next', 'typed', 'ar', 'gulf', now() - interval '1 hour'),
+  ('${U2}', 'وش التالي؟', 'next', 'spoken', 'ar', 'gulf', now() - interval '2 hours'),
+  ('${U2}', 'وش التالي؟', 'next', 'typed', 'ar', 'egypt', now() - interval '3 hours'),
+  ('${U1}', 'رقم {name}؟', 'person', 'typed', 'ar', 'gulf', now() - interval '4 hours'),
+  ('${U3}', 'how is this month going?', 'unknown', 'typed', 'en', 'gulf', now() - interval '5 hours'),
+  ('${U3}', 'ايه اللي عملته امبارح؟', 'unknown', 'spoken', 'ar', 'egypt', now() - interval '6 hours'),
+  -- Older than the window the screen reads.
+  ('${U1}', 'something from last year', 'unknown', 'typed', 'en', 'gulf', now() - interval '200 days');
 `;
 
 describe('the admin panel against Postgres', () => {
@@ -330,6 +342,57 @@ describe('the admin panel against Postgres', () => {
       ]) {
         assert.throws(() => cluster.psql(bad), /violates check constraint|invalid input value/);
       }
+    });
+  });
+
+  describe('how people ask Sanad', () => {
+    it('groups one phrasing into one row, and counts how it was asked', async () => {
+      const { rows, total, unanswered } = await source.phrasings('all');
+      const next = rows.find((r) => r.text === 'وش التالي؟');
+      assert.equal(next?.count, 3, JSON.stringify(rows.map((r) => [r.text, r.count])));
+      assert.equal(next?.spoken, 1);
+      assert.deepEqual([...next!.langs].sort(), ['ar', 'ar-EG'], 'the dialect shows beside the language');
+      // The 200-day-old row is outside the window the screen reads.
+      assert.equal(total, 6, 'only the last 90 days');
+      assert.equal(unanswered, 2);
+    });
+
+    it('puts the most asked first, which is where the work is', async () => {
+      const { rows } = await source.phrasings('all');
+      assert.equal(rows[0]?.text, 'وش التالي؟');
+      assert.ok(rows.every((r, i) => i === 0 || r.count <= rows[i - 1]!.count));
+    });
+
+    it('narrows to what Sanad could not answer', async () => {
+      const { rows } = await source.phrasings('unanswered');
+      assert.ok(rows.length > 0);
+      assert.ok(rows.every((r) => r.verdict === 'unknown'), JSON.stringify(rows.map((r) => r.verdict)));
+      assert.ok(rows.some((r) => r.text === 'how is this month going?'));
+      assert.ok(!rows.some((r) => r.text === 'وش التالي؟'));
+    });
+
+    // The device redacts, and the table is the second lock on the same door:
+    // a client that forgot would be rejected rather than quietly stored.
+    it('refuses a row that still has an address or a number in it', () => {
+      for (const bad of ['call sara on 01001234567', 'mail her at info@test.com']) {
+        assert.throws(
+          () =>
+            cluster.psql(
+              `insert into assistant_phrasing (user_id, "text", verdict, "source", lang, dialect)
+               values ('${U1}', '${bad}', 'task', 'typed', 'en', 'gulf')`
+            ),
+          /check constraint/,
+          bad
+        );
+      }
+    });
+
+    it('keeps the lesson when the account that taught it goes', async () => {
+      const before = (await source.phrasings('all')).total;
+      await source.deleteUser(U3);
+      const after = await source.phrasings('all');
+      assert.equal(after.total, before, 'the rows stay');
+      assert.ok(after.rows.some((r) => r.text === 'how is this month going?'), 'and so does what they said');
     });
   });
 

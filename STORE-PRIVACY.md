@@ -42,11 +42,12 @@ Tracking is **No** throughout.
 | **Contact Info → Phone Number** | Yes | Yes | App Functionality | `app_user.phone_dial`, `phone_number`, typed during setup. |
 | **Contact Info → Physical Address** | Yes | Yes | App Functionality | `contact.address` — the address of a person the user saves, from a scanned card or the form. Not the user's own. |
 | **Contacts** | Yes | Yes | App Functionality | The `contact` table: name, company, two phones, two emails, address, labels, and the user's note about them. Added by hand, from the phone's contacts, from a file, or from a card. |
-| **User Content → Other User Content** | Yes | Yes | App Functionality | `task.title`, `notes`, `goal`, `points`, and the message drafts `draft_subject` / `draft_body`. This is the substance of the app. |
+| **User Content → Other User Content** | Yes | Yes | App Functionality | `task.title`, `notes`, `goal`, `points`, and the message drafts `draft_subject` / `draft_body`. This is the substance of the app. **Not** what somebody typed into the assistant: that goes to Anthropic to be read and comes back, and the only thing kept is the markered-up shape of it — see "Usage Data → Other Usage Data". |
 | **User Content → Customer Support** | Yes | Yes | App Functionality | `support_ticket`, `support_message`. |
 | **Identifiers → User ID** | Yes | Yes | App Functionality | `app_user.id`, plus `apple_sub` / `google_sub`. |
 | **Purchases → Purchase History** | Yes | Yes | App Functionality | `subscription` and `tip`, written from the store webhooks. |
 | **Usage Data → Product Interaction** | Yes | Yes | Analytics | `analytics_event`. See the note below — "Linked" is the honest answer. |
+| **Usage Data → Other Usage Data** | Yes | **No** | Product Personalization | `assistant_phrasing` — the *shape* of a question put to the assistant, and whether it was understood. The device replaces every name, number, address and link with a marker before it is queued (`src/lib/parse/redact.ts`), drops a sentence it is not sure it cleaned, and the table refuses a row still holding an address or a long run of digits. The row carries a `user_id` so the person's own export and deletion can find it, and nothing in the screen that is read shows it; Apple's "Linked" asks whether the data is *used* in a way tied to identity, and it is not. |
 | **Diagnostics → Crash Data** | Yes | **No** | App Functionality | Sentry, and only when `EXPO_PUBLIC_SENTRY_DSN` is set. `src/lib/crash.ts` sets `sendDefaultPii: false` and deletes `event.user`, so there is nothing to link it by. |
 
 ### Declared as NOT collected, deliberately
@@ -91,13 +92,23 @@ Plus three questions about the whole app, answered at the end.
 | Personal info → User IDs | Yes | See **Sharing** | Required | App functionality |
 | Contacts → Contacts | Yes | See **Sharing** | Optional | App functionality |
 | Messages → Other in-app messages | Yes | See **Sharing** | Optional | App functionality |
-| App activity → Other actions | Yes | No | Optional | Analytics |
+| App activity → Other actions | Yes | No | Optional | Analytics, App functionality |
 | App info and performance → Crash logs | Yes | Yes (Sentry) | Optional | App functionality |
 | Financial info → Purchase history | Yes | No | Optional | App functionality |
 
 Declared **not collected**: Photos and videos, Audio, Files and docs,
 Location, Health, Calendar, Web browsing — for the same reasons as the Apple
 table above.
+
+**"App activity → Other actions" now covers two things.** The seventeen
+analytics events, and `assistant_phrasing` — the shape of a question put to
+the assistant with every name, number, address and link replaced by a marker
+on the device before it is sent, kept so the assistant can be taught the
+phrasings it misses. Play has no closer category: it is not a message (there
+is no message left in it), and Play's "Other actions" is where product
+telemetry that is neither a crash nor a purchase belongs. The second purpose
+is App functionality, because what it buys is an assistant that understands
+more of what is said to it.
 
 **"Messages → Other in-app messages" is a judgement call.** The app stores
 `draft_subject` and `draft_body` — messages the user wrote but has not sent,

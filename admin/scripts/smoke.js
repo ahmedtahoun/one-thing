@@ -261,6 +261,8 @@ async function signOut(page) {
     check('Support has no Audit log or Team', !body.includes('Audit log') && !body.includes('Team & roles'));
     await page.goto(`${BASE}/team`);
     check('Support is turned away from Team', page.url().endsWith('/overview'), page.url());
+    await page.goto(`${BASE}/phrasings`);
+    check('…and from how people ask, which is not their job', page.url().endsWith('/overview'), page.url());
     await click(page, 'Users');
     await click(page, 'Khalid Al-Mansouri');
     await page.waitForSelector('text=Account actions');
@@ -278,6 +280,17 @@ async function signOut(page) {
     check('the Analyst is turned away from Users', page.url().endsWith('/overview'), page.url());
     await page.goto(`${BASE}/growth`);
     check('the Analyst cannot change offer codes', !(await text(page)).includes('New code') && !(await text(page)).includes('Pause'));
+
+    // Redacted phrasings are not personal data, so improving Sanad is work
+    // an Analyst can do (§2.114).
+    await page.goto(`${BASE}/phrasings`);
+    const asked = await text(page);
+    check('the Analyst can read how people ask Sanad', page.url().endsWith('/phrasings'), page.url());
+    check('…and sees what Sanad could not answer', asked.includes('Not understood'), asked.slice(0, 200));
+    check('…with nobody named in any of it', !/\b(Noura|Omar|Sara|Mohammed)\b/.test(asked) && !/@|\d{5,}/.test(asked.replace(/\d+ (?:days?|wk|hours?) ago/g, '')), asked.slice(0, 300));
+    await page.goto(`${BASE}/phrasings?show=unanswered`);
+    const onlyMisses = await text(page);
+    check('the filter keeps only the misses', onlyMisses.includes('how is this month going?') && !onlyMisses.includes("what's next?"), onlyMisses.slice(0, 240));
   } finally {
     await browser.close();
     server.kill();
