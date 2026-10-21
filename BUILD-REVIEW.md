@@ -5155,3 +5155,46 @@ a person's own export hands them back exactly what they offered.
 **Checks:** 1458 unit tests (8 new), 38 against Postgres (2 new), 178 People
 checks (7 new), 28 admin DB tests (2 new), 69 admin browser checks (6 new),
 54 at 360×640, drift clean, three typechecks clean, both builds clean.
+
+
+### 2.116 Two gates the branch had not run, and what they caught
+
+The branch's own checks were clean and CI was not. Both failures were real,
+and neither could have been found by running the suites this work had been
+running.
+
+**The website carries the policy, and the policy had changed.** `website/` is
+generated from the same strings the app reads, and `checks.yml` regenerates
+it and fails on a diff. §2.114 and §2.115 rewrote the privacy text, the
+retention section and the "Last updated" line in both languages, so the
+published pages were a version behind — the one place a reader outside the
+app would have gone looking. Regenerated, and the pages now carry the
+redaction paragraph, the opt-in paragraph and 21 October in English and
+Arabic.
+
+**And the admin fidelity probe had never measured what it meant to.**
+`fidelity.js` finds a probe's text by scanning the document in order, and
+half the admin screens are named after the sidebar link that opens them —
+"Privacy requests", "Audit log", "Team & roles". The link comes first in the
+DOM, so the probe had been measuring the *link* and calling it the heading.
+That was invisible for as long as the sidebar matched the prototype's, and
+stopped being invisible the moment it gained two entries: three headings
+appeared to move 86 px, which is exactly two sidebar rows, and none of them
+had moved at all.
+
+The fix is to the probe rather than to a tolerance list. Both the panel and
+the prototype put the sidebar in an `<aside>`, so the main column is searched
+first and the whole page only if the text lives nowhere else — a label that
+exists only in the sidebar is still probed. 56 probes, none failing, and each
+now measures the heading it was written for.
+
+**What this says about the gates themselves.** A check that has only ever run
+against unchanged structure is not yet known to work; it is only known not to
+have complained. The sidebar had not changed since the panel was built, so
+one of its 56 probes was measuring the wrong element and nothing could tell.
+The same is true of the website check in the other direction: it did its job
+precisely because it compares generated output against what is committed
+rather than asking anybody to remember.
+
+**Checks:** the full gate again, plus 56 admin fidelity probes and the
+website build.
