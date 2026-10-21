@@ -633,6 +633,31 @@ export type Added = {
     dump: { label: string; say: string };
     ask: { label: string; say: string };
     card: { label: string; say: string };
+    /**
+     * Sanad asking, once, whether it may keep the words as well as their
+     * shape — `src/features/assistant/ask-to-help.ts`. The same question the
+     * Settings switch asks, where somebody will see it.
+     */
+    helpT: string;
+    /**
+     * The one thing that cannot move behind the tap: what is shared. Agreeing
+     * to "help improve Sanad" without being told that means your sentences
+     * are kept is not agreeing to anything.
+     */
+    helpB: string;
+    /** Opens the sheet below, where the rest of it is. */
+    helpLink: string;
+    helpYes: string;
+    helpNo: string;
+    helpOn: string;
+    /**
+     * The heading of the privacy policy section the sheet shows. The *body*
+     * is never copied — it is read out of `priv` — so this is the only word
+     * shared between the two, and `copy.test.ts` asserts a section by this
+     * name exists. One text, so the sheet cannot drift from what was agreed.
+     */
+    helpSection: string;
+    helpPolicy: string;
   };
   /**
    * The Assistant's suggestion chips. Each is a short label and the
@@ -1447,6 +1472,14 @@ const ADDED: Record<Lang, Added> = {
       dump: { label: 'Empty your head', say: 'Renew the licence. Book a flight. Pay the rent.' },
       ask: { label: 'Ask about your day', say: 'What’s next?' },
       card: { label: 'Scan a card', say: 'Scan a card' },
+      helpT: 'Help improve Sanad',
+      helpB: 'Share what you write, so Sanad understands you better.',
+      helpLink: 'How we use it',
+      helpYes: 'Help improve',
+      helpNo: 'Don’t help',
+      helpOn: 'Thanks. You can stop any time in Settings → Privacy.',
+      helpSection: 'Helping improve Sanad',
+      helpPolicy: 'Read the whole privacy policy',
     },
     chips: {
       late: { label: 'What’s late?', say: 'What’s late?' },
@@ -2140,6 +2173,14 @@ const ADDED: Record<Lang, Added> = {
       dump: { label: 'فضّي بالك', say: 'أجدد الرخصة. أحجز تذكرة. أدفع الإيجار.' },
       ask: { label: 'اسأل عن يومك', say: 'وش التالي؟' },
       card: { label: 'صوّر كرت', say: 'صوّر كرت' },
+      helpT: 'ساعدنا نحسّن سند',
+      helpB: 'شارك اللي تكتبه، عشان سند يفهمك أحسن.',
+      helpLink: 'كيف نستخدمه',
+      helpYes: 'ساعدنا نحسّنه',
+      helpNo: 'لا، شكراً',
+      helpOn: 'شكراً لك. تقدر توقفه وقت ما تبي من الإعدادات ← الخصوصية.',
+      helpSection: 'مساعدتنا في تحسين سند',
+      helpPolicy: 'اقرأ سياسة الخصوصية كاملة',
     },
     chips: {
       late: { label: 'وش المتأخر؟', say: 'وش المتأخر؟' },

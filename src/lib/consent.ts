@@ -29,7 +29,12 @@ export type ConsentRecord = {
   granted: boolean;
   version: string;
   at: string;
-  source: 'signin' | 'settings';
+  /**
+   * Where they agreed. 'assistant' is Sanad asking for itself, once, rather
+   * than somebody finding the switch in Settings — §2.118, and the matching
+   * enum value is 0017.
+   */
+  source: 'signin' | 'settings' | 'assistant';
 };
 
 /** Builds the two rows the sign-in screen produces. */

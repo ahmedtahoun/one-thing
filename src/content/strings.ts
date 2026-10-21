@@ -1106,7 +1106,11 @@ const ACC_en = {
     ],
     [
       "The assistant",
-      "When you write something and ask the assistant to make sense of it, the words you typed are sent to Anthropic, along with your language and your time zone, and come back as a suggested task. Your contact list is not sent — but if you typed somebody’s name in the note, that name travels with the text. Nothing the assistant produces is a decision about you: it fills in a task for you to accept, change or throw away.\n\nTo make the assistant better at understanding you, we also keep the shape of what you asked and whether it understood. Before anything leaves your phone, your phone itself replaces every name, phone number, email address and web link with a marker — \"who do I owe a reply to {name}?\" — and a sentence it is not sure it has cleaned is thrown away rather than sent. What we keep is not attached to you in the screen we read it on, it never includes what you actually wrote, and we delete it after a year.\n\nIf you would rather we saw the real sentence, Settings → Privacy has a switch called \"Help improve Sanad\". It is off unless you turn it on. With it on, what you type is also kept as you wrote it — names and all — and only the owner of the app can read it, with every reading written down in a log. Turn it off and we delete every line it collected. Either way it goes after 90 days."
+      "When you write something and ask the assistant to make sense of it, the words you typed are sent to Anthropic, along with your language and your time zone, and come back as a suggested task. Your contact list is not sent — but if you typed somebody’s name in the note, that name travels with the text. Nothing the assistant produces is a decision about you: it fills in a task for you to accept, change or throw away."
+    ],
+    [
+      "Helping improve Sanad",
+      "To make the assistant better at understanding you, we also keep the shape of what you asked and whether it understood. Before anything leaves your phone, your phone itself replaces every name, phone number, email address and web link with a marker — \"who do I owe a reply to {name}?\" — and a sentence it is not sure it has cleaned is thrown away rather than sent. What we keep is not attached to you in the screen we read it on, it never includes what you actually wrote, and we delete it after a year.\n\nIf you would rather we saw the real sentence, Settings → Privacy has a switch called \"Help improve Sanad\". It is off unless you turn it on. With it on, what you type is also kept as you wrote it — names and all — and only the owner of the app can read it, with every reading written down in a log. Turn it off and we delete every line it collected. Either way it goes after 90 days."
     ],
     [
       "Who at our company can see it",
@@ -1287,7 +1291,11 @@ const ACC_ar: typeof ACC_en = {
     ],
     [
       "المساعد",
-      "لما تكتب شي وتطلب من المساعد يفهمه، الكلمات اللي كتبتها تنرسل لـAnthropic، ومعها لغتك ومنطقتك الزمنية، وترجع لك على شكل مهمة مقترحة. قائمة جهات اتصالك ما تنرسل — لكن إذا كتبت اسم أحد داخل الملاحظة، الاسم يروح مع النص. وما يطلع من المساعد يعتبر قرار عنك: هو يعبّي لك مهمة أنت اللي تقبلها أو تعدّلها أو ترميها.\n\nوعشان نحسّن فهم المساعد لك، نحتفظ كمان بشكل السؤال اللي سألته وهل فهمه ولا لا. وقبل ما يطلع أي شي من جوالك، الجوال نفسه يستبدل كل اسم ورقم وإيميل ورابط بعلامة — «مين لازم أرد على {name}؟» — والجملة اللي ما يتأكد إنه نظّفها يرميها بدل ما يرسلها. واللي نحتفظ فيه ما يكون مربوط فيك في الشاشة اللي نقرأه منها، وما فيه أبداً اللي كتبته فعلاً، ونمسحه بعد سنة.\n\nوإذا تبي نشوف الجملة نفسها، في الإعدادات ← الخصوصية مفتاح اسمه «ساعدنا نحسّن سند». مطفي إلا إذا شغّلته أنت. ولو شغّلته، اللي تكتبه ينحفظ كمان مثل ما كتبته — بالأسماء وكل شي — وما يقرأه إلا مالك التطبيق، وكل قراءة تنكتب في سجل. وإذا طفّيته نمسح كل سطر انجمع. وعلى كل حال ينمسح بعد ٩٠ يوم."
+      "لما تكتب شي وتطلب من المساعد يفهمه، الكلمات اللي كتبتها تنرسل لـAnthropic، ومعها لغتك ومنطقتك الزمنية، وترجع لك على شكل مهمة مقترحة. قائمة جهات اتصالك ما تنرسل — لكن إذا كتبت اسم أحد داخل الملاحظة، الاسم يروح مع النص. وما يطلع من المساعد يعتبر قرار عنك: هو يعبّي لك مهمة أنت اللي تقبلها أو تعدّلها أو ترميها."
+    ],
+    [
+      "مساعدتنا في تحسين سند",
+      "وعشان نحسّن فهم المساعد لك، نحتفظ كمان بشكل السؤال اللي سألته وهل فهمه ولا لا. وقبل ما يطلع أي شي من جوالك، الجوال نفسه يستبدل كل اسم ورقم وإيميل ورابط بعلامة — «مين لازم أرد على {name}؟» — والجملة اللي ما يتأكد إنه نظّفها يرميها بدل ما يرسلها. واللي نحتفظ فيه ما يكون مربوط فيك في الشاشة اللي نقرأه منها، وما فيه أبداً اللي كتبته فعلاً، ونمسحه بعد سنة.\n\nوإذا تبي نشوف الجملة نفسها، في الإعدادات ← الخصوصية مفتاح اسمه «ساعدنا نحسّن سند». مطفي إلا إذا شغّلته أنت. ولو شغّلته، اللي تكتبه ينحفظ كمان مثل ما كتبته — بالأسماء وكل شي — وما يقرأه إلا مالك التطبيق، وكل قراءة تنكتب في سجل. وإذا طفّيته نمسح كل سطر انجمع. وعلى كل حال ينمسح بعد ٩٠ يوم."
     ],
     [
       "مين يقدر يشوفها عندنا",

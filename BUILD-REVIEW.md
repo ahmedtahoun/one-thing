@@ -5253,3 +5253,130 @@ declared unlinked while the row carries a `user_id`.
 **Checks:** 16 migrations applied one-transaction-each (new gate, and watched
 to fail), 1458 unit tests, 38 against Postgres, 28 admin DB tests, drift
 clean, three typechecks clean.
+
+
+### 2.118 Asking properly, instead of defaulting it on
+
+The owner asked whether "Help improve Sanad" could be turned on
+automatically. The useful part of the answer was that **the automatic
+collection already exists and is already on**: every account sends the
+redacted shapes, no toggle, no consent needed, and that is where nearly all
+the parser-learning value is (§2.114). What the switch guards is the other
+thing — the sentence as written, which can hold a name, a number, a price,
+and which belongs to the person's *contacts* as much as to them.
+
+**Defaulting that on was costed rather than refused.** One line in prefs,
+plus: a privacy policy on a live website that says in two languages it is off
+until you turn it on, and so becomes false; a Play declaration that says
+"Optional", and so becomes false; and an Apple submission declaring that the
+app collects free text containing third parties' names and numbers without
+asking. That is a decision for the owner and their jurisdiction, not for a
+build, so it was put as a choice with the price attached.
+
+**The chosen answer treats the real problem as a product problem.** Nobody
+turns on a setting they never see. If the goal is more people sharing, the
+fix is not removing the question — it is asking it where somebody is, after
+they have used Sanad enough for the question to mean something.
+
+**When decides whether the question is fair.** `ask-to-help.ts` is five
+lines of rule and most of this entry's thinking: not before Sanad has
+introduced itself, not before five sentences somebody chose themselves, and
+never twice. Tapping a chip or an introduction card does not count towards
+the five — a tap is not a sentence, and a question asked after five taps is a
+question asked of somebody who has not typed anything. **A no is kept as
+firmly as a yes.** There is no "not now", no second asking, no nagging: the
+first ask was the ask.
+
+**One path for the answer, because there are now two places to give it.**
+Turning this on means three things — the preference, a consent row carrying
+the policy version it was agreed under, and, when it goes off, a request to
+delete what was already sent. Two copies of that would be two chances to
+forget the third, so `src/lib/help-sanad.ts` is the only one and both the
+Settings switch and the card use it.
+
+**And the consent record now says where they agreed.** `consent_source` has
+been `('signin', 'settings')` since 0001, which was every place consent could
+be given. Recording a chat card as "settings" would make the record say
+somebody opened a screen they never opened, and being able to say where
+consent was given is the entire point of the column. 0017 adds `assistant` —
+alone in its file, the lesson of §2.117 applied the first time it came up
+again rather than the second.
+
+**One existing check failed, and it was the check that was wrong.** §2.109's
+"a short conversation rests on the message bar" measures the gap between the
+last *bubble* and the bar, and the asking card sits in that gap — 306px of it.
+The card is content, not the dead space that check exists to catch, so it now
+measures the lowest thing rendered in the conversation rather than the lowest
+bubble, which is what it meant all along. The introduction card and a brain
+dump were in the same position and had never been measured either.
+
+**The first wording was a disclaimer, and was rewritten.** It ran to five
+clauses — what is already collected, what the phone removes, who can read it,
+that every reading is logged, that it can be turned off — all true, all in one
+grey paragraph, and the surest way to be agreed to without being read. The
+owner asked for the shape the big platforms use. The honest version of that
+advice is Apple's "Help Apple Improve…", not Meta's: Meta has been fined
+repeatedly in the EU over exactly these prompts, so its patterns are the last
+thing to copy for a consent that has to be valid. What the good ones share is
+a benefit in the title, two short lines of what and who, equal weight on both
+answers, and the detail one tap away:
+
+    Help improve Sanad
+    Share what you write, so Sanad gets better at understanding how you ask.
+    Only we read it, and you can stop any time — we delete it when you do.
+    How we use it
+    [ Share ]  [ Don't share ]
+
+The title is now the Settings switch's own words, so the two places that ask
+this ask it the same way.
+
+**Then the owner asked for the rest of it to move behind the tap**, and for
+the buttons to say what they do: *Help improve* and *Don't help*. That is the
+right instinct — a card nobody reads is worse than a sheet somebody chooses
+to open — and "How we use it" became a sheet of its own rather than a jump to
+the privacy policy. Four paragraphs: what the phone removes before anything
+is sent and that this happens either way, what is additionally kept if they
+help, who can read it and that every reading is logged and that it is never
+sold or used to decide anything about them, and the ninety days with how to
+stop. The policy is still linked from inside it, and **both answers are
+repeated at the bottom of the sheet**, because making somebody close the
+explanation to answer the question is how an explanation goes unread.
+
+**Then the sheet was asked about again: too long, or should it just be in
+the privacy policy?** The right answer was hiding in the question. It *was*
+in the privacy policy — the two paragraphs had been added there in §2.114 and
+§2.115 — so the sheet was a second telling of the same promise, which is one
+text too many. Two copies of what somebody is agreeing to drift the moment
+one of them is edited, and the one they would be held to is the policy.
+
+So the policy's "The assistant" section was split: the paragraph about
+Anthropic stays, and the two about keeping what people write became a section
+of their own, **"Helping improve Sanad"**. The sheet shows that section,
+heading and body, read straight out of `priv`. Four hand-written paragraphs
+in three languages were deleted; the sheet got shorter because the policy is
+tighter than the retelling was; and the policy gained a section somebody can
+actually find.
+
+The only thing now shared between the two is the heading, used to look the
+section up — so `copy.test.ts` asserts that a section by that name exists in
+both languages and that it still says the two things being agreed to. A
+translation that renames one and not the other would otherwise empty the
+sheet silently.
+
+**One line did not move, and the reason is the whole point.** The card still
+says *"Share what you write"*. Everything else can wait behind a tap; what is
+collected cannot, because agreeing to "help improve Sanad" without being told
+that means your sentences are kept is not agreeing to anything. A consent
+that hides what it collects is the pattern being fined — exactly what the
+short card was supposed to get away from — so the suite asserts that clause
+is on the card itself, not only in the sheet.
+
+**And a third temporal dead zone in three days.** The section lookup was
+placed above the `copy` it reads, and the Assistant screen rendered nothing
+at all — caught by the suite within a minute, which is the argument for
+having one. The gate found it; a careful reading of the diff had not.
+
+**Checks:** 1469 unit tests (11 new), 153 capture checks (32 new, driving the
+card, the sheet and both answers from either), 38 against Postgres, 17
+migrations one-transaction-each, 178 People checks, drift clean, three
+typechecks clean, website regenerated.

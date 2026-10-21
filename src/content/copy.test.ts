@@ -94,3 +94,27 @@ describe('every English line has Arabic behind it', () => {
     assert.deepEqual(lost, [], `placeholders differ:\n  ${lost.join('\n  ')}`);
   });
 });
+
+/**
+ * The Assistant's asking card shows the privacy policy's own section rather
+ * than a second copy of it (§2.118). The only thing shared between the two
+ * is the heading, used to find the section — so if a translation renames one
+ * and not the other, the sheet silently empties. This is what notices.
+ */
+describe('the section the asking card shows', () => {
+  for (const lang of ['en', 'ar'] as const) {
+    it(`${lang}: the policy has the section the card looks for`, () => {
+      const wanted = added(lang).meet.helpSection;
+      const section = ACC[lang].priv.find(([heading]) => heading === wanted);
+      assert.ok(section, `no privacy section called "${wanted}"`);
+      assert.ok((section?.[1] ?? '').length > 200, 'the section is the explanation, not a stub');
+    });
+
+    it(`${lang}: and it is the one that explains the switch`, () => {
+      const body = ACC[lang].priv.find(([h]) => h === added(lang).meet.helpSection)?.[1] ?? '';
+      // The two things somebody is agreeing to, in the text they agree to.
+      assert.ok(/90|٩٠/.test(body), 'how long it is kept');
+      assert.ok(body.includes(added(lang).meet.helpT) || /Help improve Sanad|ساعدنا نحسّن سند/.test(body), 'the name of the switch');
+    });
+  }
+});

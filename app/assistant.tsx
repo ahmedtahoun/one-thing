@@ -82,12 +82,16 @@ import { followUpFromParsed, taskFromParsed } from '@/lib/parse/to-task';
 import { LoopTag } from '@/features/capture/LoopTag';
 import { promiseDraft } from '@/features/compose/drafts';
 import { MicNotice, useMicGate } from '@/features/mic/MicNotice';
+import { HelpCard } from '@/features/assistant/HelpCard';
+import { countsTowardsAsking, shouldAskToHelp } from '@/features/assistant/ask-to-help';
 import { IntroCard } from '@/features/assistant/IntroCard';
 import { introSteps, openingLine, type Opening } from '@/features/assistant/intro';
 import { chipsFor, rankChips } from '@/features/assistant/suggestions';
 import { useAssistantHabits } from '@/lib/assistant-habits';
 import { useAssistantMet } from '@/lib/assistant-met';
 import { notePhrasing, type Verdict } from '@/lib/analytics/phrasings';
+import { useAssistantHelp } from '@/lib/assistant-help';
+import { useHelpSanad } from '@/lib/help-sanad';
 import { usePrefs } from '@/lib/prefs';
 import { telUrl, whatsAppUrl } from '@/features/compose/recipient';
 import { useCadence } from '@/lib/cadence';
@@ -156,7 +160,7 @@ const newId = () => `m_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
 const ONE_THING_SLOT = '09:00';
 
 export default function Assistant() {
-  const { t, fux, a11y, lang, inline } = useLanguage();
+  const { t, fux, a11y, lang, inline, acc } = useLanguage();
   const dir = useDirection();
   const { session } = useSession();
   const { tasks, oneThing, addTask, toggleDone, restore, setOneThingDone } = useTasks();
@@ -170,6 +174,9 @@ export default function Assistant() {
   // "Help improve Sanad": whether the words themselves may travel with the
   // shape of them. Off until somebody turns it on — src/lib/consent.ts.
   const { prefs } = usePrefs();
+  /** How much they have used Sanad, and whether they have answered its one question. */
+  const help = useAssistantHelp();
+  const helpSanad = useHelpSanad();
   // Whether Sanad has introduced itself on this phone yet — src/lib/assistant-met.ts.
   const { met, ready: metKnown, meet } = useAssistantMet();
   /** Whether they had met Sanad when this screen opened, held still while they use it. */
@@ -200,6 +207,13 @@ export default function Assistant() {
   const back = () => (router.canGoBack() ? router.back() : router.replace('/today'));
 
   const copy = added(lang);
+  /**
+   * The privacy policy's own "Helping improve Sanad" section — what the
+   * asking card shows behind "How we use it", rather than a second telling
+   * of the same promise. `copy.test.ts` asserts the section exists under
+   * this heading in both languages, so the lookup cannot quietly miss. §2.118.
+   */
+  const helpSection = acc.priv.find(([heading]) => heading === copy.meet.helpSection);
   const quick = t.rQuick as unknown as readonly QuickWhen[];
   const world = (): World => ({ contacts, tasks, followUps, now: new Date() });
   /** Everything a question can be answered from, all of it already here. */
@@ -660,11 +674,15 @@ export default function Assistant() {
      * dropped rather than sent. A chip or an intro row is the app quoting
      * itself and is not recorded at all. BUILD-REVIEW §2.114.
      */
+    const from = raw !== undefined && !spoken ? 'chip' : spoken ? 'spoken' : 'typed';
+    // Only a sentence they chose counts towards being asked: tapping a card
+    // is not choosing one (src/features/assistant/ask-to-help.ts).
+    if (countsTowardsAsking(from)) help.noteSent();
     const learn = (verdict: Verdict) =>
       notePhrasing({
         text,
         verdict,
-        source: raw !== undefined && !spoken ? 'chip' : spoken ? 'spoken' : 'typed',
+        source: from,
         lang,
         dialect: currentDialect(),
         contacts,
@@ -1180,6 +1198,32 @@ export default function Assistant() {
                 void send(say);
               }}
               onDone={meet}
+            />
+          ) : null}
+          {/* Sanad's one question, once they have used it enough for the
+              answer to mean something. A no is kept as firmly as a yes — it
+              is not asked again. src/features/assistant/ask-to-help.ts. */}
+          {help.ready && metKnown && shouldAskToHelp({ sent: help.sent, decided: help.decided, met, on: helpSanad.on }) ? (
+            <HelpCard
+              copy={{
+                title: copy.meet.helpT,
+                body: copy.meet.helpB,
+                link: copy.meet.helpLink,
+                yes: copy.meet.helpYes,
+                no: copy.meet.helpNo,
+                // The privacy policy's own section, so there is one text and
+                // not two — src/content/strings.ts, `priv`.
+                sheetTitle: helpSection?.[0] ?? copy.meet.helpSection,
+                sheetBody: helpSection?.[1] ?? '',
+                policy: copy.meet.helpPolicy,
+              }}
+              onYes={() => {
+                help.decide();
+                helpSanad.set(true, 'assistant');
+                setMessages((list) => [...list, { id: newId(), from: 'bot', kind: 'note', text: copy.meet.helpOn }]);
+              }}
+              onNo={() => help.decide()}
+              onPolicy={() => router.push('/legal?tab=privacy')}
             />
           ) : null}
         </ScrollView>
