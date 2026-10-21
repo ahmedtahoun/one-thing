@@ -22,6 +22,11 @@ import { isQuestion } from './ask-data';
 import { C } from '@/content/strings';
 import type { Contact } from '@/lib/model-types';
 
+// The expected clocks below are written in UTC, where CI runs. On a laptop in
+// Cairo "at 4" is read against a 13:00 morning and lands at 13:00 UTC, so the
+// file pins its own zone rather than failing three hours off.
+process.env.TZ = 'UTC';
+
 const NOW = new Date('2026-10-15T10:00:00.000Z');
 const contacts: Contact[] = [
   { id: 'c1', name: 'Sara Haddad', createdAt: '2026-09-01T09:00:00.000Z' },
