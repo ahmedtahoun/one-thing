@@ -1089,6 +1089,10 @@ export const EGYPTIAN_LINES: Readonly<Record<string, string>> = {
   "احفظ {n}": "احفظ {n}",
   "حفظت {n}": "حفظت {n}",
 
+  // The Settings switch that offers Sanad the words themselves.
+  "ساعدنا نحسّن سند": "ساعدنا نحسّن سند",
+  "نرسل اللي تكتبه لسند مثل ما كتبته، عشان نعلّمه طريقتك في السؤال. مطفي من البداية. وإذا طفّيته نمسح اللي انرسل.": "بنبعت اللي بتكتبه لسند زي ما كتبته، عشان نعلّمه طريقتك في السؤال. مقفول من الأول. ولو قفلته بنمسح اللي اتبعت.",
+
   // Sanad introducing itself, and the four things it offers a newcomer.
   "سند": "سند",
   "صباح الخير يا {name}.": "صباح الخير يا {name}.",

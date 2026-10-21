@@ -254,6 +254,16 @@ async function signOut(page) {
     check('Send export completes the request', (await text(page)).split('Completed').length === completedBefore + 1);
 
     // ----------------------------------------------------------- roles ----
+    // What people told Sanad in their own words. The Owner's alone, and
+    // every view of it is written down (§2.115).
+    await page.goto(`${BASE}/transcripts`);
+    const words = await text(page);
+    check('the Owner can read what people told Sanad', page.url().endsWith('/transcripts'), page.url());
+    check('…in the words they used, names and all', words.includes('Faisal'), words.slice(0, 260));
+    check('…and it says where the lines come from', words.includes('Help improve Sanad'));
+    await page.goto(`${BASE}/audit-log`);
+    check('…and reading it is in the audit log', (await text(page)).includes('Viewed Sanad transcripts'));
+
     await signOut(page);
     await signIn(page, 'dana@onlyonething.app');
     body = await text(page);
@@ -263,6 +273,8 @@ async function signOut(page) {
     check('Support is turned away from Team', page.url().endsWith('/overview'), page.url());
     await page.goto(`${BASE}/phrasings`);
     check('…and from how people ask, which is not their job', page.url().endsWith('/overview'), page.url());
+    await page.goto(`${BASE}/transcripts`);
+    check('…and from what people told Sanad, which is not theirs either', page.url().endsWith('/overview'), page.url());
     await click(page, 'Users');
     await click(page, 'Khalid Al-Mansouri');
     await page.waitForSelector('text=Account actions');
@@ -291,6 +303,12 @@ async function signOut(page) {
     await page.goto(`${BASE}/phrasings?show=unanswered`);
     const onlyMisses = await text(page);
     check('the filter keeps only the misses', onlyMisses.includes('how is this month going?') && !onlyMisses.includes("what's next?"), onlyMisses.slice(0, 240));
+
+    // The words themselves are personal data, and an Analyst's permission is
+    // for the pseudonymised kind. The line between the two screens is the
+    // whole point of there being two (§2.115).
+    await page.goto(`${BASE}/transcripts`);
+    check('the Analyst cannot read what people actually wrote', page.url().endsWith('/overview'), page.url());
   } finally {
     await browser.close();
     server.kill();

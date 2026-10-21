@@ -21,6 +21,9 @@ export const DEFAULT_PREFS: Prefs = {
   sound: true,
   vibration: true,
   marketing: false,
+  // Off until asked for. Nothing anybody typed leaves the phone unredacted
+  // until this is true.
+  helpSanad: false,
 };
 
 type PrefsValue = {

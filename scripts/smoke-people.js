@@ -599,6 +599,27 @@ const SESSION = { userId: 'smoke', name: 'Khalid Al-Mansouri', firstName: 'Khali
   await page.waitForTimeout(200);
   check('marketing is stored', (await read('ot.prefs')).marketing === true);
 
+  // "Help improve Sanad": the words themselves, instead of only the
+  // markered-up shape every account sends. Off until somebody turns it on,
+  // and turning it off is a request to forget. BUILD-REVIEW §2.115.
+  check('the Sanad switch starts off', (await read('ot.prefs')).helpSanad !== true);
+  const consentFor = async (kind) => ((await read('ot.consentQueue')) ?? []).filter((r) => r.kind === kind);
+  await page.getByTestId('settings-help-sanad').click();
+  await page.waitForTimeout(250);
+  check('turning it on is stored', (await read('ot.prefs')).helpSanad === true);
+  const onRow = (await consentFor('assistant_transcript')).at(-1);
+  check('…as its own consent row, with the policy version on it', onRow?.granted === true && typeof onRow?.version === 'string' && onRow?.source === 'settings', JSON.stringify(onRow));
+  check('…and nothing is owed a deletion yet', (await read('ot.forgetTranscripts')) === null);
+
+  await page.getByTestId('settings-help-sanad').click();
+  await page.waitForTimeout(250);
+  check('turning it off is stored', (await read('ot.prefs')).helpSanad === false);
+  const offRow = (await consentFor('assistant_transcript')).at(-1);
+  check('…as a second row rather than an edit of the first', offRow?.granted === false && (await consentFor('assistant_transcript')).length === 2);
+  // Withdrawing is a request to forget, not only to stop: the flag outlives
+  // the tap and the next sync acts on it.
+  check('…and asks for what was sent to be deleted', (await read('ot.forgetTranscripts')) === true);
+
   await page.getByTestId('settings-lang-ar').click();
   await page.waitForTimeout(300);
   check('language switches at once', (await page.locator('body').innerText()).includes('الإعدادات'));

@@ -25,6 +25,7 @@ import type {
   UserDetail,
   UserRow,
   PhrasingRow,
+  TranscriptRow,
 } from './types';
 
 // ------------------------------------------------- the prototype's seed ----
@@ -367,6 +368,12 @@ export const demoSource: DataSource = {
    * three languages, and the unanswered ones at the top because those are
    * the reason to open this screen at all.
    */
+  /** Three demo accounts offering their words, in the three languages. */
+  async transcripts(filter: 'all' | 'unanswered') {
+    const rows = DEMO_TRANSCRIPTS.filter((t) => filter === 'all' || t.verdict === 'unknown');
+    return { rows, people: 3, total: DEMO_TRANSCRIPTS.length };
+  },
+
   async phrasings(filter: 'all' | 'unanswered') {
     const rows = DEMO_PHRASINGS.filter((p) => filter === 'all' || p.verdict === 'unknown');
     return {
@@ -477,4 +484,19 @@ const DEMO_PHRASINGS: PhrasingRow[] = [
   { text: 'كم مرة كلمت {name}؟', verdict: 'unknown', count: 14, langs: ['ar'], spoken: 3, lastAt: '2026-10-19T19:05:00.000Z' },
   { text: 'how is this month going?', verdict: 'unknown', count: 11, langs: ['en'], spoken: 1, lastAt: '2026-10-19T11:44:00.000Z' },
   { text: 'مين اكتر واحد بكلمه؟', verdict: 'unknown', count: 8, langs: ['ar-EG'], spoken: 4, lastAt: '2026-10-18T20:15:00.000Z' },
+];
+
+/**
+ * The words as people typed them — names and all, which is the point and the
+ * reason this screen is `personal` and audit-logged. Only accounts that
+ * turned on "Help improve Sanad" are ever in here.
+ */
+const DEMO_TRANSCRIPTS: TranscriptRow[] = [
+  { text: 'ايه اللي عملته امبارح؟', verdict: 'unknown', source: 'spoken', lang: 'ar-EG', at: '2026-10-20T12:30:00.000Z' },
+  { text: 'كم مرة كلمت محمد السعدي الشهر ده؟', verdict: 'unknown', source: 'typed', lang: 'ar-EG', at: '2026-10-20T11:12:00.000Z' },
+  { text: 'مين لازم ارد عليه؟', verdict: 'waiting', source: 'typed', lang: 'ar-EG', at: '2026-10-20T10:40:00.000Z' },
+  { text: 'how is this month going?', verdict: 'unknown', source: 'typed', lang: 'en', at: '2026-10-19T11:44:00.000Z' },
+  { text: 'remind me tomorrow at 4 to call Faisal about the lease', verdict: 'task', source: 'spoken', lang: 'en', at: '2026-10-19T09:02:00.000Z' },
+  { text: 'وش رقم ريم القحطاني؟', verdict: 'person', source: 'typed', lang: 'ar', at: '2026-10-18T17:25:00.000Z' },
+  { text: 'مين اكتر واحد بكلمه؟', verdict: 'unknown', source: 'spoken', lang: 'ar-EG', at: '2026-10-18T20:15:00.000Z' },
 ];

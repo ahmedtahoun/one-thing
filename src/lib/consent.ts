@@ -15,7 +15,14 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
  */
 export const POLICY_VERSION = '2026-10-21';
 
-export type ConsentKind = 'terms_privacy' | 'marketing';
+/**
+ * `assistant_transcript` is what somebody agrees to when they turn on "Help
+ * improve Sanad": the words they type, kept as they typed them, instead of
+ * only the markered-up shape every account sends (src/lib/parse/redact.ts).
+ * Off until granted, revocable, and revoking it deletes what was collected.
+ * BUILD-REVIEW §2.115.
+ */
+export type ConsentKind = 'terms_privacy' | 'marketing' | 'assistant_transcript';
 
 export type ConsentRecord = {
   kind: ConsentKind;

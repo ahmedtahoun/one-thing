@@ -88,6 +88,7 @@ import { chipsFor, rankChips } from '@/features/assistant/suggestions';
 import { useAssistantHabits } from '@/lib/assistant-habits';
 import { useAssistantMet } from '@/lib/assistant-met';
 import { notePhrasing, type Verdict } from '@/lib/analytics/phrasings';
+import { usePrefs } from '@/lib/prefs';
 import { telUrl, whatsAppUrl } from '@/features/compose/recipient';
 import { useCadence } from '@/lib/cadence';
 import { useFavorites } from '@/lib/favorites';
@@ -166,6 +167,9 @@ export default function Assistant() {
   const toast = useToast();
   const mic = useMicGate();
   const habits = useAssistantHabits();
+  // "Help improve Sanad": whether the words themselves may travel with the
+  // shape of them. Off until somebody turns it on — src/lib/consent.ts.
+  const { prefs } = usePrefs();
   // Whether Sanad has introduced itself on this phone yet — src/lib/assistant-met.ts.
   const { met, ready: metKnown, meet } = useAssistantMet();
   /** Whether they had met Sanad when this screen opened, held still while they use it. */
@@ -664,6 +668,7 @@ export default function Assistant() {
         lang,
         dialect: currentDialect(),
         contacts,
+        helpSanad: prefs.helpSanad,
       });
     const clear = () => raw === undefined && setInput('');
     // Saving a person takes no Assistant request: it is read on the device.

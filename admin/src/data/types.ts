@@ -222,3 +222,27 @@ export type Phrasings = {
   /** How many of the askings Sanad could not answer. */
   unanswered: number;
 };
+
+/**
+ * What somebody actually typed to Sanad, kept only for accounts that turned
+ * on "Help improve Sanad" and deleted the moment they turn it off
+ * (supabase/migrations/0015_transcripts.sql).
+ *
+ * Personal data, plainly: a sentence can hold a name, a number, a price.
+ * The screen shows no name or email beside it, but the row is somebody's and
+ * reading it is audit-logged like every other view of personal data.
+ */
+export type TranscriptRow = {
+  text: string;
+  verdict: string;
+  source: string;
+  lang: string;
+  at: string;
+};
+
+export type Transcripts = {
+  rows: TranscriptRow[];
+  /** How many accounts are offering, and how many lines they have sent. */
+  people: number;
+  total: number;
+};

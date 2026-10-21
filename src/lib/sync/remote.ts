@@ -57,5 +57,9 @@ export function supabaseRemote(db: SupabaseClient): Remote {
         fail(table, 'delete', error);
       }
     },
+    async call(fn) {
+      const { error } = await db.rpc(fn);
+      fail(fn, 'call', error);
+    },
   };
 }

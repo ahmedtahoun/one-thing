@@ -5085,3 +5085,73 @@ and a second purpose on the Apple User Content row.
 **Checks:** 1450 unit tests (27 new), 36 against Postgres (1 new), 26 admin
 DB tests (5 new), 63 admin browser checks (5 new), 54 at 360×640, drift
 clean, three typechecks clean, both builds clean.
+
+
+### 2.115 The words themselves, for whoever offers them
+
+§2.114 kept the shape of every question and threw the sentence away. The
+owner asked for the sentence. That is the option the previous entry costed
+out and listed the price of, so this is that list, paid.
+
+**Consent is a row, and the database checks it — not the app.** A new
+`assistant_transcript` consent kind, a Settings switch under Privacy that is
+off until somebody turns it on, and an insert policy that calls
+`consent_now(auth.uid(), 'assistant_transcript')`. `consent` is append-only,
+so "do they agree" is the *latest* row and not merely "is there a row" — a
+grant followed by a withdrawal reads as withdrawn. A client that kept sending
+after the switch went off is refused by Postgres, which is where a rule like
+this has to live: the app can be wrong, and a build can be old.
+
+**Withdrawing is a request to forget, not only to stop.** Stopping at "no new
+rows" would be the letter of consent and not its meaning, so turning the
+switch off empties the queue on the device at once and sets a flag; the next
+sync calls `forget_my_transcripts()` and clears it. The flag outlives the tap
+because the phone may be in a lift, which is the same reason consent itself
+waits in a queue. The engine calls it **before** it sends, so a sync cannot
+refill the pile it is emptying — asserted on the call order, not on the
+result.
+
+**The two tables are deliberately different in kind.** A redacted shape
+survives a deletion with a null `user_id` because it is nobody's; a
+transcript cascades, because it is very much somebody's. The shape keeps a
+year; the sentence keeps ninety days. The shape goes to a screen an Analyst
+can read; the sentence goes to one only the Owner can, with each reading in
+the audit log. Writing them as two tables rather than one nullable column is
+what makes all of that expressible.
+
+**Opting in widens what is *kept*, never what is *sent*.** A sentence the
+device could not safely redact is still dropped whole, consent or not: the
+redaction gate decides whether anything travels, and the switch only decides
+whether the words travel beside the shape. Getting that backwards would have
+turned a privacy feature into its opposite, so it is a test of its own.
+
+**Two bugs, both mine, both found by suites written before this.** The
+existing "deleting wipes the account from the device" check failed on
+`ot.forgetTranscripts` — a stale flag would have made the *next* account's
+first sync delete words it never sent. Looking at why led to the worse one:
+§2.114's phrasing queue was never cleared on sign-out or delete either, so
+anything queued would have gone up as the next account's. Both are cleared
+now, in both paths. A check somebody wrote for a different feature caught
+what I did to this one, which is the whole argument for the wipe test
+enumerating keys rather than asserting a count.
+
+**Where the permission landed, and why it is not where it started.** First
+draft gave the screen `personal`, which the role tests immediately showed
+meant Support could read every user's sentences. Support's job is one person
+at a time; reading everybody's is not support work. It has its own
+permission now, held by the Owner alone: personal data keeps the Analyst out,
+and the nature of the work keeps Support out. Both exclusions are asserted in
+the browser.
+
+**And the declarations moved again.** The policy now describes the switch,
+what it changes, that only the owner can read it, that every reading is
+logged, that turning it off deletes what was collected, and the ninety days —
+in all three languages. Apple's "User Content → Other User Content" gains
+Product Personalization as a second purpose, scoped in writing to this table
+alone. Play's "Messages → Other in-app messages" gains Personalisation and a
+note on what "optional" means here. The export contract carries the table, so
+a person's own export hands them back exactly what they offered.
+
+**Checks:** 1458 unit tests (8 new), 38 against Postgres (2 new), 178 People
+checks (7 new), 28 admin DB tests (2 new), 69 admin browser checks (6 new),
+54 at 360×640, drift clean, three typechecks clean, both builds clean.

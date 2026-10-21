@@ -52,6 +52,7 @@ import { ME_PHOTO, usePhotos } from '@/lib/photos';
 import { requestExport } from '@/lib/privacy-request';
 import { requestAppReview } from '@/lib/store-review';
 import { SUPPORT_EMAIL, supportMailUrl } from '@/lib/support';
+import { askToForgetTranscripts } from '@/lib/analytics/phrasings';
 import { POLICY_VERSION, recordConsent } from '@/lib/consent';
 import type { Channel, NudgeStyle, Prefs } from '@/lib/model-types';
 import { useNotifications } from '@/lib/notifications/NotificationsProvider';
@@ -125,6 +126,24 @@ export default function Settings() {
       recordConsent([
         { kind: 'marketing', granted, version: POLICY_VERSION, at: new Date().toISOString(), source: 'settings' },
       ]).catch(() => {});
+    },
+    [setPrefs]
+  );
+
+  /**
+   * "Help improve Sanad": the words themselves, not only the markered-up
+   * shape every account sends. Its own consent row, like marketing, and
+   * turning it off is a request to forget rather than merely to stop — the
+   * next sync deletes what was sent (src/lib/analytics/phrasings.ts,
+   * supabase/migrations/0015_transcripts.sql). BUILD-REVIEW §2.115.
+   */
+  const setHelpSanad = useCallback(
+    (granted: boolean) => {
+      setPrefs({ helpSanad: granted });
+      recordConsent([
+        { kind: 'assistant_transcript', granted, version: POLICY_VERSION, at: new Date().toISOString(), source: 'settings' },
+      ]).catch(() => {});
+      if (!granted) void askToForgetTranscripts();
     },
     [setPrefs]
   );
@@ -553,6 +572,13 @@ export default function Settings() {
                 sub={st.mktS}
                 on={prefs.marketing}
                 onToggle={() => setMarketing(!prefs.marketing)}
+              />
+              <ToggleRow
+                testID="settings-help-sanad"
+                label={st.sanad}
+                sub={st.sanadS}
+                on={prefs.helpSanad}
+                onToggle={() => setHelpSanad(!prefs.helpSanad)}
               />
               <LinkRow label={acc.si.privL} onPress={() => router.push('/legal?tab=privacy')} />
               <LinkRow label={acc.si.termsL} onPress={() => router.push('/legal?tab=terms')} />

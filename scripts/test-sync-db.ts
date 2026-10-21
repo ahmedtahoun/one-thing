@@ -75,6 +75,11 @@ function postgresRemote(userId: string): Remote {
       if (values.length === 0) return;
       asUser(userId, `delete from public.${table} where "${column}"::text in (select json_array_elements_text(${json(values)}))`);
     },
+    async call(fn) {
+      // As the user, so a `security definer` function's own auth.uid() check
+      // is the thing being tested rather than something the harness bypasses.
+      asUser(userId, `select public.${fn}()`);
+    },
   };
 }
 
@@ -89,7 +94,8 @@ function device(userId: string, local: LocalState = emptyLocal()) {
       privacyRequests: Parameters<typeof syncOnce>[0]['privacyRequests'] = [],
       focus: Parameters<typeof syncOnce>[0]['focus'] = [],
       reviews: Parameters<typeof syncOnce>[0]['reviews'] = [],
-      phrasings: Parameters<typeof syncOnce>[0]['phrasings'] = []
+      phrasings: Parameters<typeof syncOnce>[0]['phrasings'] = [],
+      forgetTranscripts = false
     ) {
       const result = await syncOnce({
         remote: postgresRemote(userId),
@@ -102,6 +108,7 @@ function device(userId: string, local: LocalState = emptyLocal()) {
         focus,
         reviews,
         phrasings,
+        forgetTranscripts,
         today: TODAY,
       });
       base = result.base;
@@ -291,6 +298,51 @@ describe('sync against Postgres', () => {
     assert.throws(
       () => psql(`insert into public.assistant_phrasing (user_id, text, verdict, source, lang, dialect) values ('${A}', 'call her on 01001234567', 'task', 'typed', 'en', 'gulf')`),
       /check constraint/
+    );
+  });
+
+  it('keeps the words themselves only while somebody is offering them', async () => {
+    const phone = device(A);
+    const said = {
+      text: 'مين لازم ارد على {name}؟',
+      verdict: 'waiting' as const,
+      source: 'typed' as const,
+      lang: 'ar',
+      dialect: 'egypt',
+      at: '2026-10-10T08:00:00.000Z',
+      raw: 'مين لازم ارد على سارة؟',
+    };
+
+    // Nobody has agreed yet, so the database refuses the words. The shape
+    // still goes: that is what every account sends.
+    await assert.rejects(phone.sync([], [], [], [], [], [said]), /row-level security/);
+    assert.equal(count('assistant_transcript', A), 0);
+
+    // Agreeing is a consent row like any other, and the policy reads the
+    // latest one rather than merely finding one.
+    await phone.sync([{ kind: 'assistant_transcript', granted: true, version: '2026-10-21', at: '2026-10-10T07:00:00.000Z', source: 'settings' }]);
+    await phone.sync([], [], [], [], [], [said]);
+    assert.equal(count('assistant_transcript', A), 1);
+    assert.equal(psql(`select text from public.assistant_transcript where user_id = '${A}'`).trim(), 'مين لازم ارد على سارة؟');
+
+    // Taking it back stops the next one…
+    await phone.sync([{ kind: 'assistant_transcript', granted: false, version: '2026-10-21', at: '2026-10-10T09:00:00.000Z', source: 'settings' }]);
+    await assert.rejects(phone.sync([], [], [], [], [], [said]), /row-level security/);
+
+    // …and forgets what was already said.
+    await phone.sync([], [], [], [], [], [], true);
+    assert.equal(count('assistant_transcript', A), 0);
+    // The redacted shapes are still there: they are nobody's, and they are
+    // the lesson that was the point.
+    assert.ok(count('assistant_phrasing', A) > 0);
+  });
+
+  it('takes the words with the account, unlike the shapes', async () => {
+    assert.equal(
+      psql(`select count(*) from information_schema.referential_constraints rc
+            join information_schema.table_constraints tc on tc.constraint_name = rc.constraint_name
+            where tc.table_name = 'assistant_transcript' and rc.delete_rule = 'CASCADE'`).trim(),
+      '1'
     );
   });
 

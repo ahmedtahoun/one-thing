@@ -28,6 +28,7 @@ function device(remote: Remote, local: LocalState = emptyLocal(), userId = USER)
     consent: [] as ConsentRecord[],
     events: [] as QueuedEvent[],
     phrasings: [] as QueuedPhrasing[],
+    forgetTranscripts: false,
     privacyRequests: [] as QueuedPrivacyRequest[],
     focus: [] as QueuedFocus[],
     reviews: [] as QueuedReview[],
@@ -42,6 +43,7 @@ function device(remote: Remote, local: LocalState = emptyLocal(), userId = USER)
         consent: d.consent,
         events: d.events,
         phrasings: d.phrasings,
+        forgetTranscripts: d.forgetTranscripts,
         privacyRequests: d.privacyRequests,
         focus: d.focus,
         reviews: d.reviews,
@@ -306,5 +308,56 @@ describe('adopting ids from before sync', () => {
     assert.equal(followUps[0]?.contactId, contacts[0]?.id);
     assert.equal(followUps[0]?.taskId, tasks[0]?.id);
     assert.equal(legacyIds({ tasks, contacts, history, followUps }).size, 0);
+  });
+});
+
+describe('what Sanad is told, and what it is allowed to keep', () => {
+  const said = (over = {}) => ({
+    text: 'مين لازم ارد على {name}؟',
+    verdict: 'waiting' as const,
+    source: 'typed' as const,
+    lang: 'ar',
+    dialect: 'egypt',
+    at: '2026-10-10T08:00:00.000Z',
+    ...over,
+  });
+
+  it('sends the shape every time and the words only when they were offered', async () => {
+    const server = memoryRemote();
+    const phone = device(server);
+    phone.phrasings = [said(), said({ raw: 'مين لازم ارد على سارة؟' })];
+    const result = await phone.sync();
+    assert.equal(result.phrasingsSent, 2);
+    assert.equal(server.tables.get('assistant_phrasing')?.length, 2, 'both shapes');
+    assert.equal(server.tables.get('assistant_transcript')?.length, 1, 'one set of words');
+    assert.equal(server.tables.get('assistant_transcript')?.[0]?.text, 'مين لازم ارد على سارة؟');
+    // The shapes carry no name even for the one that offered its words.
+    assert.ok(server.tables.get('assistant_phrasing')?.every((r) => !String(r.text).includes('سارة')));
+  });
+
+  it('forgets what was said when somebody takes the offer back', async () => {
+    const server = memoryRemote();
+    const phone = device(server);
+    phone.phrasings = [said({ raw: 'مين لازم ارد على سارة؟' })];
+    await phone.sync();
+    assert.equal(server.tables.get('assistant_transcript')?.length, 1);
+
+    phone.forgetTranscripts = true;
+    const result = await phone.sync();
+    assert.equal(result.forgotTranscripts, true);
+    assert.equal(server.tables.get('assistant_transcript')?.length, 0, 'the words go');
+    // The shape stays: it is nobody's, and it is the lesson that was the
+    // point of collecting anything at all.
+    assert.equal(server.tables.get('assistant_phrasing')?.length, 1);
+  });
+
+  it('forgets before it sends, so a sync cannot refill what it is emptying', async () => {
+    const server = memoryRemote();
+    const phone = device(server);
+    phone.forgetTranscripts = true;
+    phone.phrasings = [said({ raw: 'something else' })];
+    await phone.sync();
+    const order = server.log.filter((l) => l.startsWith('call ') || l.includes('assistant_transcript'));
+    assert.equal(order[0], 'call forget_my_transcripts', JSON.stringify(order));
   });
 });

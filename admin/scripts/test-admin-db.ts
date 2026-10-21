@@ -75,6 +75,14 @@ insert into privacy_request (id, user_id, "type", source, requested_at, deadline
   ('00000000-0000-4000-8000-000000000e01', '${U2}', 'export', 'app', now() - interval '1 day', now() + interval '29 days'),
   ('00000000-0000-4000-8000-000000000e02', '${U3}', 'delete', 'web', now() - interval '25 days', now() + interval '5 days');
 
+-- One of the three has turned on "Help improve Sanad", so their words are
+-- kept as well as their shapes. The other two have not.
+insert into consent (user_id, kind, granted, version, granted_at, source) values
+  ('${U1}', 'assistant_transcript', true, '2026-10-21', now() - interval '2 days', 'settings');
+insert into assistant_transcript (user_id, "text", verdict, "source", lang, dialect, at) values
+  ('${U1}', 'how is this month going?', 'unknown', 'typed', 'en', 'gulf', now() - interval '5 hours'),
+  ('${U1}', 'remind me tomorrow at 4 to call Faisal about the lease', 'task', 'spoken', 'en', 'gulf', now() - interval '8 hours');
+
 -- Phrasings as a device sends them: already redacted. Two people asking the
 -- same thing, one of them twice, and two Sanad could not answer.
 insert into assistant_phrasing (user_id, "text", verdict, "source", lang, dialect, at) values
@@ -394,6 +402,28 @@ describe('the admin panel against Postgres', () => {
       assert.equal(after.total, before, 'the rows stay');
       assert.ok(after.rows.some((r) => r.text === 'how is this month going?'), 'and so does what they said');
     });
+  });
+
+  describe('what people told Sanad', () => {
+    it('reads the words as they were written, newest first', async () => {
+      const { rows, total, people } = await source.transcripts('all');
+      assert.equal(total, 2);
+      assert.equal(people, 1, 'one account is offering');
+      assert.equal(rows[0]?.text, 'how is this month going?');
+      assert.equal(rows[1]?.source, 'spoken');
+      // A name survives here, which is the whole difference from /phrasings.
+      assert.ok(rows.some((r) => r.text.includes('Faisal')));
+    });
+
+    it('narrows to the ones Sanad could not answer', async () => {
+      const { rows } = await source.transcripts('unanswered');
+      assert.equal(rows.length, 1);
+      assert.equal(rows[0]?.verdict, 'unknown');
+    });
+
+    // That the words die with the account is the foreign key's job, and it is
+    // proved against the real one in scripts/test-sync-db.ts. Deleting a user
+    // here would only make this suite depend on the order of its own tests.
   });
 
   it('exports analytics without a name, an email or a phone number in it', async () => {

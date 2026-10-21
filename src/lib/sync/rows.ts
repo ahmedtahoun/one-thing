@@ -125,7 +125,13 @@ export type ProfileRow = {
 };
 
 /** Settings without the marketing choice, which travels as consent rows. */
-export type SyncedPrefs = Omit<Prefs, 'marketing'>;
+/**
+ * Everything in Settings except the two that are consent rather than taste.
+ * `marketing` and `helpSanad` each mirror the latest `consent` row, which is
+ * where the timestamp and the policy version live; syncing them here as well
+ * would give the same fact two homes and let them disagree.
+ */
+export type SyncedPrefs = Omit<Prefs, 'marketing' | 'helpSanad'>;
 
 export type Profile = {
   name: string;

@@ -21,11 +21,15 @@ export type Permission =
   | 'delete' // Delete account, Delete now
   | 'codes' // offer codes
   | 'audit' // read the audit log
+  | 'transcripts' // read what people typed to Sanad, for the accounts offering it
   | 'team' // Team & roles
   | 'reset-password'; // set a teammate's password, shown once
 
 const ROLE: Record<Role, Permission[]> = {
-  Owner: ['overview', 'dataset', 'personal', 'trial', 'reply', 'export-user', 'fix', 'grant', 'suspend', 'delete', 'codes', 'audit', 'team', 'reset-password'],
+  // `transcripts` is the Owner's alone, and deliberately nobody else's: it is
+  // personal data, so not the Analyst's, and reading everyone's sentences is
+  // not support work, so not Support's either (§2.115).
+  Owner: ['overview', 'dataset', 'personal', 'trial', 'reply', 'export-user', 'fix', 'grant', 'suspend', 'delete', 'codes', 'audit', 'transcripts', 'team', 'reset-password'],
   Support: ['overview', 'personal', 'trial', 'reply', 'export-user', 'fix'],
   Analyst: ['overview', 'dataset'],
 };
@@ -42,6 +46,9 @@ export const SECTIONS = [
   // Redacted phrasings, not personal data: an Analyst reads these to improve
   // Sanad, and there is nothing in them that says who asked (§2.114).
   ['phrasings', 'How people ask', 'dataset'],
+  // The same sentences unredacted, from the accounts that offered them.
+  // Personal data, so `personal` and audit-logged — §2.115.
+  ['transcripts', 'What they told Sanad', 'transcripts'],
   ['privacy-requests', 'Privacy requests', 'personal'],
   ['audit-log', 'Audit log', 'audit'],
   ['team', 'Team & roles', 'team'],

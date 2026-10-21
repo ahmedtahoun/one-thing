@@ -37,6 +37,8 @@ import type {
   UserRow,
   Phrasings,
   PhrasingRow,
+  Transcripts,
+  TranscriptRow,
 } from './types';
 
 type Sql = ReturnType<typeof postgres>;
@@ -648,6 +650,38 @@ export function dbSource(url: string): DataSource {
         distinct: rows.length,
         total: Number(totals[0]?.total ?? 0),
         unanswered: Number(totals[0]?.unanswered ?? 0),
+      };
+    },
+
+    /**
+     * What people typed, newest first, from the accounts offering it. Not
+     * grouped and not counted: the value here is reading a real sentence in
+     * the words somebody chose, which is the whole reason this table is
+     * separate from the redacted one.
+     */
+    async transcripts(filter: 'all' | 'unanswered'): Promise<Transcripts> {
+      const rows = await sql`
+        select t.text, t.verdict::text as verdict, t.source::text as source,
+               case when t.lang = 'ar' and t.dialect = 'egypt' then 'ar-EG' else t.lang end as lang,
+               t.at
+        from assistant_transcript t
+        where (${filter === 'unanswered'} = false or t.verdict = 'unknown')
+        order by t.at desc
+        limit 300`;
+      const totals = await sql`
+        select count(*)::int as total, count(distinct user_id)::int as people from assistant_transcript`;
+      return {
+        rows: rows.map(
+          (r): TranscriptRow => ({
+            text: String(r.text),
+            verdict: String(r.verdict),
+            source: String(r.source),
+            lang: String(r.lang),
+            at: iso(r.at as Date)!,
+          })
+        ),
+        people: Number(totals[0]?.people ?? 0),
+        total: Number(totals[0]?.total ?? 0),
       };
     },
 

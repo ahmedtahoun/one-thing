@@ -6,6 +6,7 @@ import { useCallback } from 'react';
 
 import { clearActivityQueues } from './activity';
 import { clearEventQueue } from './analytics/track';
+import { clearPhrasings } from './analytics/phrasings';
 import { clearConsentQueue } from './consent';
 import { clearPrivacyRequests } from './privacy-request';
 import { usePeople } from './people';
@@ -41,6 +42,7 @@ export function useAccount() {
     // in place it would go up as the next account's, which is worse than
     // losing an event or an export request whose owner has just left.
     await clearEventQueue();
+    await clearPhrasings();
     await clearPrivacyRequests();
     await clearActivityQueues();
     await endSession();
@@ -58,6 +60,7 @@ export function useAccount() {
     wipeDevice();
     await clearConsentQueue();
     await clearEventQueue();
+    await clearPhrasings();
     await clearPrivacyRequests();
     await clearActivityQueues();
     await endSession();

@@ -18,6 +18,8 @@
  * `src/lib/parse/phrasings.test.ts` waiting to be written.
  * BUILD-REVIEW §2.114.
  */
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
 import { outbox } from '../outbox';
 import { fullyRedacted, redact, tooBare, type Redactable } from '../parse/redact';
 
@@ -59,6 +61,12 @@ export type PhrasingSource = (typeof SOURCES)[number];
 export type QueuedPhrasing = {
   /** Redacted on the device. Never what was typed. */
   text: string;
+  /**
+   * What they actually typed, and only for somebody who turned on "Help
+   * improve Sanad". Absent otherwise, which is every account by default —
+   * `assistant_transcript` consent, src/lib/consent.ts. BUILD-REVIEW §2.115.
+   */
+  raw?: string;
   verdict: Verdict;
   source: PhrasingSource;
   /** 'en' | 'ar', and the dialect separately: Egyptian is a second axis. */
@@ -87,6 +95,8 @@ export type NotePhrasing = {
   lang: string;
   dialect: string;
   contacts: readonly Redactable[];
+  /** True only where `assistant_transcript` consent is granted right now. */
+  helpSanad?: boolean;
   at?: string;
 };
 
@@ -106,8 +116,31 @@ export function phrasingToQueue(note: NotePhrasing): QueuedPhrasing | null {
   if (note.source === 'chip' || note.source === 'intro') return null;
   const text = redact(note.text, note.contacts);
   if (!fullyRedacted(text) || tooBare(text)) return null;
-  return { text, verdict: note.verdict, source: note.source, lang: note.lang, dialect: note.dialect, at: note.at ?? new Date().toISOString() };
+  const row: QueuedPhrasing = {
+    text,
+    verdict: note.verdict,
+    source: note.source,
+    lang: note.lang,
+    dialect: note.dialect,
+    at: note.at ?? new Date().toISOString(),
+  };
+  /*
+   * The sentence as written rides along only where somebody has offered it.
+   * The two travel together on purpose: one queue, one trip, and a row whose
+   * shape was kept but whose words were dropped is the ordinary case rather
+   * than a second code path that could get it wrong.
+   *
+   * The redaction rules above still decide whether anything is sent at all.
+   * A sentence the device could not safely redact is dropped whole — opting
+   * in is a licence to keep the words of what is sent, not a licence to send
+   * what would otherwise have been held back.
+   */
+  if (note.helpSanad) row.raw = note.text.trim().slice(0, MAX_RAW);
+  return row;
 }
+
+/** What the column takes. A longer run was a monologue, and its shape is enough. */
+export const MAX_RAW = 2000;
 
 /**
  * Records how somebody asked. Never awaited by a screen, and never allowed to
@@ -116,4 +149,49 @@ export function phrasingToQueue(note: NotePhrasing): QueuedPhrasing | null {
 export function notePhrasing(note: NotePhrasing): void {
   const row = phrasingToQueue(note);
   if (row) queue.add(row).catch(() => {});
+}
+
+/**
+ * A withdrawal outlives the tap that made it.
+ *
+ * Turning "Help improve Sanad" off has to reach the server, and the phone may
+ * be in a lift at the time. So the switch sets this, the next sync calls
+ * `forget_my_transcripts` and clears it, and until then it stays set — the
+ * same reason consent itself waits in a queue rather than being written where
+ * a lost connection could drop it. BUILD-REVIEW §2.115.
+ */
+const FORGET_KEY = 'ot.forgetTranscripts';
+
+export async function askToForgetTranscripts(): Promise<void> {
+  // What has not gone yet simply never goes. Only the server needs telling.
+  await clearPhrasingQueue().catch(() => {});
+  await AsyncStorage.setItem(FORGET_KEY, 'true').catch(() => {});
+}
+
+export async function owedAForget(): Promise<boolean> {
+  try {
+    return (await AsyncStorage.getItem(FORGET_KEY)) === 'true';
+  } catch {
+    return false;
+  }
+}
+
+/** Called once the server has done it. */
+export async function forgetDone(): Promise<void> {
+  await AsyncStorage.removeItem(FORGET_KEY).catch(() => {});
+}
+
+/**
+ * Forgets everything this device was holding about how somebody asked —
+ * queued lines and any outstanding request to forget.
+ *
+ * Sign-out and Delete account only. What is queued belongs to the session
+ * that is ending and cannot be attributed to it any more, and a forget flag
+ * left behind would make the *next* account's first sync delete words it
+ * never sent. (`clearEventQueue` is here for the first of those reasons; the
+ * second is this module's own.)
+ */
+export async function clearPhrasings(): Promise<void> {
+  await clearPhrasingQueue().catch(() => {});
+  await forgetDone();
 }

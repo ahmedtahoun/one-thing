@@ -42,7 +42,7 @@ Tracking is **No** throughout.
 | **Contact Info → Phone Number** | Yes | Yes | App Functionality | `app_user.phone_dial`, `phone_number`, typed during setup. |
 | **Contact Info → Physical Address** | Yes | Yes | App Functionality | `contact.address` — the address of a person the user saves, from a scanned card or the form. Not the user's own. |
 | **Contacts** | Yes | Yes | App Functionality | The `contact` table: name, company, two phones, two emails, address, labels, and the user's note about them. Added by hand, from the phone's contacts, from a file, or from a card. |
-| **User Content → Other User Content** | Yes | Yes | App Functionality | `task.title`, `notes`, `goal`, `points`, and the message drafts `draft_subject` / `draft_body`. This is the substance of the app. **Not** what somebody typed into the assistant: that goes to Anthropic to be read and comes back, and the only thing kept is the markered-up shape of it — see "Usage Data → Other Usage Data". |
+| **User Content → Other User Content** | Yes | Yes | App Functionality, **Product Personalization** | `task.title`, `notes`, `goal`, `points`, and the message drafts `draft_subject` / `draft_body` — the substance of the app, App Functionality. Product Personalization is the second purpose and covers `assistant_transcript` only: the sentences somebody typed to the assistant, kept **as written** and **only** for accounts that switched on "Help improve Sanad" in Settings → Privacy. Off by default, revocable, and revoking deletes every line already collected (`forget_my_transcripts`, 0015). The database refuses the insert unless consent is granted *at that moment*, the rows cascade with the account, and they are deleted after 90 days. The markered-up shape every account sends is a different thing — see "Usage Data → Other Usage Data". |
 | **User Content → Customer Support** | Yes | Yes | App Functionality | `support_ticket`, `support_message`. |
 | **Identifiers → User ID** | Yes | Yes | App Functionality | `app_user.id`, plus `apple_sub` / `google_sub`. |
 | **Purchases → Purchase History** | Yes | Yes | App Functionality | `subscription` and `tip`, written from the store webhooks. |
@@ -91,7 +91,7 @@ Plus three questions about the whole app, answered at the end.
 | Personal info → Address | Yes | See **Sharing** | Optional | App functionality |
 | Personal info → User IDs | Yes | See **Sharing** | Required | App functionality |
 | Contacts → Contacts | Yes | See **Sharing** | Optional | App functionality |
-| Messages → Other in-app messages | Yes | See **Sharing** | Optional | App functionality |
+| Messages → Other in-app messages | Yes | See **Sharing** | Optional | App functionality, Personalisation |
 | App activity → Other actions | Yes | No | Optional | Analytics, App functionality |
 | App info and performance → Crash logs | Yes | Yes (Sentry) | Optional | App functionality |
 | Financial info → Purchase history | Yes | No | Optional | App functionality |
@@ -109,6 +109,15 @@ is no message left in it), and Play's "Other actions" is where product
 telemetry that is neither a crash nor a purchase belongs. The second purpose
 is App functionality, because what it buys is an assistant that understands
 more of what is said to it.
+
+**"Messages → Other in-app messages" also carries the opt-in transcripts.**
+`assistant_transcript` holds what somebody typed to the assistant, as they
+typed it, and only for accounts that turned on "Help improve Sanad". It is
+optional in the strongest sense Play means: off until switched on, switched
+off again at any time, and switching it off deletes what was collected.
+Personalisation is the second purpose, because what it buys is an assistant
+that understands more of what is said to it. The redacted shapes every
+account sends are declared separately under "App activity → Other actions".
 
 **"Messages → Other in-app messages" is a judgement call.** The app stores
 `draft_subject` and `draft_body` — messages the user wrote but has not sent,

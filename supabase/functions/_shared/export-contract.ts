@@ -55,6 +55,9 @@ export const EXPORTED: readonly Exported[] = [
   // "{name}" and "{phone}", which is also the plainest way to show somebody
   // what was and was not kept.
   { table: 'assistant_phrasing', as: 'assistantPhrasings', by: 'user_id' },
+  // What they typed, for the ones who turned on "Help improve Sanad" (0015).
+  // Theirs more plainly than anything else here, so theirs to take away.
+  { table: 'assistant_transcript', as: 'assistantTranscripts', by: 'user_id' },
   // Pro given rather than bought (0012). It belongs here for the same
   // reason `subscription` does: it is why their plan was what it was. The
   // admin who gave it does not — see `hide`.

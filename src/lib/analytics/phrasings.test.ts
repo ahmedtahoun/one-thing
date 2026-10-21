@@ -1,6 +1,6 @@
 import { strict as assert } from 'node:assert';
 import { test } from 'node:test';
-import { phrasingToQueue, VERDICTS, type NotePhrasing } from './phrasings';
+import { MAX_RAW, phrasingToQueue, VERDICTS, type NotePhrasing } from './phrasings';
 
 const note = (over: Partial<NotePhrasing> = {}): NotePhrasing => ({
   text: "what's next?",
@@ -60,4 +60,38 @@ test('every verdict is one the admin panel can group by', () => {
 
 test('spoken is kept apart from typed: they are different habits', () => {
   assert.equal(phrasingToQueue(note({ source: 'spoken' }))?.source, 'spoken');
+});
+
+// --- "Help improve Sanad": the words themselves, for whoever offers them ---
+
+test('nothing anybody typed travels until they say so', () => {
+  const row = phrasingToQueue(note({ text: 'Call Sara about the price' }));
+  assert.equal(row?.raw, undefined, JSON.stringify(row));
+  assert.ok(!JSON.stringify(row).includes('Sara'));
+});
+
+test('…and travels beside the shape once they do', () => {
+  const row = phrasingToQueue(note({ text: 'Call Sara about the price', helpSanad: true }));
+  assert.equal(row?.raw, 'Call Sara about the price');
+  // The shape is still kept and still redacted: one of them is not a
+  // substitute for the other, and they have different lives on the server.
+  assert.ok(!row!.text.includes('Sara'), row!.text);
+});
+
+test('opting in does not loosen what is sent at all — only what is kept of it', () => {
+  // The device could not be sure it cleaned this one, so it is dropped
+  // whole. Consent is a licence to keep the words of what is sent, not a
+  // licence to send what would have been held back.
+  assert.equal(phrasingToQueue(note({ text: 'Dinner with Mahmoud on Tuesday', helpSanad: true })), null);
+  assert.equal(phrasingToQueue(note({ text: 'Sara Haddad +20 100 123 4567', helpSanad: true })), null);
+});
+
+test('a chip is still the app quoting itself, consent or not', () => {
+  assert.equal(phrasingToQueue(note({ source: 'chip', helpSanad: true })), null);
+});
+
+test('a monologue is cut to what the column takes', () => {
+  const long = `${'call the supplier and then '.repeat(200)}done`;
+  const row = phrasingToQueue(note({ text: long, helpSanad: true }));
+  assert.ok((row?.raw?.length ?? 0) <= MAX_RAW, String(row?.raw?.length));
 });
