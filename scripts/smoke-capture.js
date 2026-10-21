@@ -278,9 +278,10 @@ const D_SAMPLE =
   check('…and it stays away', (await page.getByTestId('assistant-intro').count()) === 0);
 
   // ------------------------------------------- Sanad asks, once, for the words
-  // The switch for this is in Settings → Privacy, where nobody will find it.
-  // Sanad asks for itself, after enough use for the question to mean
-  // something, and keeps a no as firmly as a yes. BUILD-REVIEW §2.118.
+  // The welcome asks this on its third step now (smoke-day.js). This card is
+  // what asks whoever skipped the welcome: after enough use for the question
+  // to mean something, once, keeping a no as firmly as a yes. The seed below
+  // is exactly that person — onboarded, never asked. BUILD-REVIEW §2.118.
   await seed();
   await page.evaluate(() => {
     localStorage.setItem('ot.assistant.met', 'true');
@@ -308,29 +309,26 @@ const D_SAMPLE =
   check('…still saying on the card itself what is shared', /Share what you write/.test(askText), askText.slice(0, 200));
   check('…giving both answers the same weight', (await page.getByTestId('assistant-help-yes').isVisible()) && (await page.getByTestId('assistant-help-no').isVisible()));
 
-  // And everything else is behind the tap.
-  await page.getByTestId('assistant-help-more').click();
-  await page.waitForTimeout(400);
-  const sheet = await text('assistant-help-sheet');
-  check('the tap opens the whole of it', await page.getByTestId('assistant-help-sheet').isVisible());
-  // What the tap shows is the privacy policy's own section, not a second
-  // telling of it: two copies of what somebody agrees to drift the moment
-  // one is edited, and the policy is the one they would be held to (§2.118).
-  check('…and it is the policy\'s own section', sheet.includes('Helping improve Sanad'), sheet.slice(0, 160));
-  check('…what the phone removes before anything is sent', /replaces every name, phone number, email address and web link/.test(sheet), sheet.slice(0, 400));
-  check('…what is kept if they help', /kept as you wrote them/.test(sheet) || /as you wrote it/.test(sheet), sheet.slice(0, 600));
-  check('…who can read it, and that every reading is logged', /only the owner/i.test(sheet) && /log/.test(sheet));
-  check('…how long it is kept and how to stop', /90 days/.test(sheet) && /Settings/.test(sheet));
-  check('…and the whole policy is still one tap further', await page.getByTestId('assistant-help-policy').isVisible());
-  check('…and it can be answered from here, without closing it first', (await page.getByTestId('assistant-help-sheet-yes').isVisible()) && (await page.getByTestId('assistant-help-sheet-no').isVisible()));
-  // Back to the card, undecided, to answer there instead.
-  await page.getByTestId('assistant-help-sheet-no').click();
-  await page.waitForTimeout(400);
-  check('answering in the sheet answers the question', (await page.getByTestId('assistant-help-ask').count()) === 0);
-  check('…and is the same no', (await read('ot.prefs'))?.helpSanad !== true && (await read('ot.assistant.help'))?.decided === true);
-  await page.evaluate(() => localStorage.setItem('ot.assistant.help', JSON.stringify({ sent: 9, decided: false })));
+  // And everything else is one tap away, in the one place it is written:
+  // the privacy policy's own section. There used to be a sheet repeating it
+  // here — one text laid out, translated and screenshot twice, which is one
+  // place too many for words somebody is agreeing to (§2.119).
+  await page.getByTestId('assistant-help-policy').click();
+  await page.waitForTimeout(700);
+  check('the tap opens the privacy policy itself', page.url().includes('/legal'), page.url());
+  check('…landing on its own “Helping improve Sanad” section', await page.getByTestId('legal-at').isVisible());
+  const at = await text('legal-at');
+  check('…which is the heading, not a retelling of it', at.includes('Helping improve Sanad'), at.slice(0, 160));
+  check('…what the phone removes before anything is sent', /replaces every name, phone number, email address and web link/.test(at), at.slice(0, 400));
+  check('…what is kept if they help', /kept as you wrote them/.test(at) || /as you wrote it/.test(at), at.slice(0, 600));
+  check('…who can read it, and that every reading is logged', /only the owner/i.test(at) && /log/.test(at));
+  check('…how long it is kept and how to stop', /90 days/.test(at) && /Settings/.test(at));
+
+  // Reading it is not answering it.
   await open('/assistant');
-  check('…while nothing has been granted yet', (await read('ot.prefs'))?.helpSanad !== true);
+  check('coming back leaves the question still unanswered', await page.getByTestId('assistant-help-ask').isVisible());
+  check('…and nothing granted by having read it', (await read('ot.prefs'))?.helpSanad !== true);
+  check('…and nothing recorded', (await read('ot.assistant.help'))?.decided !== true);
 
   // No on the card itself is an answer too.
   await page.getByTestId('assistant-help-no').click();

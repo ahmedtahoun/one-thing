@@ -5380,3 +5380,115 @@ having one. The gate found it; a careful reading of the diff had not.
 card, the sheet and both answers from either), 38 against Postgres, 17
 migrations one-transaction-each, 178 People checks, drift clean, three
 typechecks clean, website regenerated.
+
+### 2.119 Asking at the start, and one text instead of two
+
+Three asks in one, from the owner, about the card §2.118 ended on: take the
+text out from under *Helping improve Sanad* and leave it in the privacy
+policy; hide the card once somebody has answered; and — "if we can" — ask for
+this at setup instead, which "will be great".
+
+**The first was right, and it was the last step of a journey already walked.**
+§2.118 had already stopped the sheet retelling the policy and made it *show*
+the policy's own section. Having done that, the sheet was no longer a second
+text — it was a second *surface*: a sheet to lay out, translate, screenshot,
+probe and keep in step, carrying words already published under the heading
+everybody knows to look under. So the sheet is gone. "How we use it" opens
+the policy and lands on the section (`app/legal.tsx`, `?at=help`). The card
+lost a hundred lines and a component; nothing it said was lost.
+
+**The anchor is resolved from the copy, not passed as a number.** `?at=help`
+is the only anchor there is, and `legal.tsx` turns it into the heading by
+reading `meet.helpSection` — the same lookup the card used to do. An index
+would have been shorter and would have pointed at the wrong paragraph the
+first time the policy was reordered. The section reports its own position
+through `onLayout` and the screen scrolls there once; the sections had to
+become direct children of the scroll content for that, because `onLayout`
+reports `y` against the immediate parent and a wrapping view would have left
+every offset short by the height of the "Last updated" line.
+
+**The second was already true, which is worth saying plainly rather than
+building something.** The card disappears on either answer and does not come
+back: `decide()` is recorded on the device, `shouldAskToHelp` reads it, and
+§2.118's suite already drove both answers and both of "not asked again,
+however much they use it" and "not even on the next visit". There was
+nothing to fix. The question was a fair one to ask, though — the card had
+*just* been seen to persist behind an open sheet, because the sheet was a
+separate surface over the top of it. Removing the sheet removes that too.
+
+**The third is the interesting one, and it reverses a decision §2.118 made
+carefully.** That entry argued for *when*: not before Sanad has introduced
+itself, not before five sentences somebody chose themselves, never twice —
+because "asked on the first screen it is a toll gate in front of an app
+somebody has not used". That reasoning still holds for a *toll gate*. What
+it got wrong is who gets asked at all. A card that waits for five typed
+sentences in the Assistant is a card most people never see: it needs somebody
+to come back, open the chat, and keep typing. The question it is trying to
+ask fairly is one it mostly does not ask.
+
+The welcome already asks two questions nobody would otherwise be asked —
+how to nudge, which channels (§2.84). A third, in the same run, asked of
+everybody once, is not a toll gate: it is the screen already asking about
+preferences asking about one more. Apple does exactly this during device
+setup, which is the precedent §2.118 settled on for the wording and is a
+better precedent for the placement than the chat card was.
+
+**So both ask, and neither nags.** The welcome's third step asks first, and
+Sanad's card is what asks whoever skipped the welcome — unchanged, five
+sentences and all. They share `meet.help*`, so the question is worded the
+same wherever it is asked, and they share `help-sanad.ts`, so an answer
+means the same three things wherever it is given.
+
+**Skip had to mean *unanswered*, not *no*.** This is the one place the
+design could have quietly gone wrong. `decide()` is what stops anything
+asking again, so writing it on Skip would have meant that skipping the
+welcome — the thing the welcome promises costs nothing — silently declined a
+question on somebody's behalf and guaranteed they were never asked. Skip
+writes nothing. The suite asserts it: after Skip, no preference, no consent
+row, and nothing recorded as decided.
+
+**A no is still recorded.** It writes `granted: false` through the same
+single path, so there is an auditable row saying this person was asked, at
+the welcome, under this policy version, and said no. That is the opposite of
+a dark pattern and it costs one line.
+
+**And the record says where, which needed a fourth enum value.**
+`consent_source` was `('signin', 'settings')` in 0001 and gained `assistant`
+in 0017. The welcome is neither: not the sign-in sheet, not somebody who went
+looking in Settings. 0018 adds `welcome` — alone in its file, §2.117's lesson
+now applied twice without being relearned.
+
+**The step that asks has no CTA, and that is deliberate.** Every other step
+ends with one ink pill. This one ends with two full-width buttons of the same
+height, stacked: a question with one button is not a question, and "Help
+improve Sanad" and "Don't help" do not fit half a narrow phone side by side,
+so shrinking either would have been weighting it. `ctaKey` moved "Let's
+start" back a step and `asks(step)` says which step draws its own pair.
+
+**The welcome spends the room the card does not have.** Two sentences the
+card leaves behind the tap are on the step itself: what is *not* shared —
+not your tasks, your people or your notes — and that it can be changed in
+Settings at any time. Both are claims, so `copy.test.ts` checks both exist
+in both languages and that the second one names where. The Egyptian lines
+were hand-written, as that suite demands, and the dead `helpPolicy` mapping
+went with the sheet it belonged to.
+
+**And the Arabic capture of the new step found a flip that was already
+shipped.** The policy link read `alignSelf: dir.isRTL ? 'flex-end' :
+'flex-start'`, which looks like careful mirroring and is the opposite: the
+writing direction is set on the root (`src/ui/Screen.tsx`), so the cross axis
+already starts at the right in Arabic and choosing `flex-end` for RTL flips
+it a second time. The link sat on the left of an entirely right-aligned
+screen. It is `'flex-start'` in both places now. Nothing measured this —
+drift probes headings and the smoke suites ask whether a link is *there*, not
+which side of the screen it is on. Shooting the new screen in both languages
+is what showed it, which is the whole argument for capturing screens nobody
+has a prototype for.
+
+**Checks:** 1471 unit tests (2 new), 106 welcome checks (14 new, driving both
+answers, the direct link to the step, and Skip leaving it unanswered), 152
+assistant checks (the sheet's replaced by the policy landing on its own
+section), 178 People checks, 38 against Postgres, 18 migrations
+one-transaction-each, drift clean at 1.3 pt worst, pixel compare clean, 54
+narrow checks, three typechecks clean, website unchanged because the policy
+text did not move.

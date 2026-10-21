@@ -1,29 +1,36 @@
 /**
  * The welcome, shown once after Account setup.
  *
- * Two steps, to SCREENS.md § 04 and the prototype's own markup: an intro,
- * then the two questions the app would otherwise answer on the person's
- * behalf — how to nudge, and which channels they actually use. Why two and
- * not the three the prototype's dead markup holds, and why this now runs on
- * first use when the handoff skipped it: `src/features/onboarding/steps.ts`.
+ * Three steps: an intro, then the two questions the app would otherwise
+ * answer on the person's behalf — how to nudge, and which channels they
+ * actually use — and then the one question it must not answer for them,
+ * whether Sanad may keep what they write. Why three and not the two it was,
+ * and why none of them is the prototype's dead third step:
+ * `src/features/onboarding/steps.ts`.
  *
- * Every word here was already in `strings.ts` in both languages, ported
- * from the handoff and never used. Nothing was written for this screen but
- * the heading over the channel tiles, which the prototype computed inline.
+ * Every word on the first two steps was already in `strings.ts` in both
+ * languages, ported from the handoff and never used. Nothing was written for
+ * them but the heading over the channel tiles, which the prototype computed
+ * inline. The third step borrows the question's own words from `meet.help*`,
+ * so it reads the same here as on Sanad's card and in Settings.
  *
  * Skip leaves the defaults exactly as Account setup used to apply them, so
- * skipping costs nothing and changes nothing.
+ * skipping costs nothing and changes nothing — and on the third step it
+ * leaves the question *unanswered* rather than answered no, which is why
+ * Sanad's card can still ask somebody who skipped. BUILD-REVIEW §2.119.
  */
 import { useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 
 import { added } from '@/content/additions';
-import { ctaKey, canTurnOff, next, pips, type Step } from '@/features/onboarding/steps';
+import { asks, ctaKey, canTurnOff, next, pips, type Step } from '@/features/onboarding/steps';
 import { LogoMark } from '@/design/BrandMarks';
 import { TYPE_ICON, type IconName } from '@/design/icon-paths';
 import { ink, radius, space, surface, typeColour } from '@/design/tokens';
 import { useDirection, useLanguage } from '@/i18n/LanguageProvider';
+import { useAssistantHelp } from '@/lib/assistant-help';
+import { useHelpSanad } from '@/lib/help-sanad';
 import { usePrefs } from '@/lib/prefs';
 import { useOnboarded } from '@/lib/onboarded';
 import type { Channel, NudgeStyle } from '@/lib/model-types';
@@ -37,13 +44,18 @@ export default function Onboarding() {
   const { t, lang } = useLanguage();
   const dir = useDirection();
   const copy = added(lang).onboarding;
+  const help = added(lang).meet;
   const { prefs, setPrefs } = usePrefs();
   const { markOnboarded } = useOnboarded();
+  // The single consent path — preference, consent row, and the forget
+  // request if it ever goes off again. src/lib/help-sanad.ts.
+  const helpSanad = useHelpSanad();
+  const asked = useAssistantHelp();
   // `?step=1` opens the second step directly. The capture harness needs it
   // to shoot a screen that is otherwise two taps in, and so does anyone
   // reviewing the Arabic of it.
   const params = useLocalSearchParams<{ step?: string }>();
-  const [step, setStep] = useState<Step>(params.step === '1' ? 1 : 0);
+  const [step, setStep] = useState<Step>(params.step === '1' ? 1 : params.step === '2' ? 2 : 0);
 
   const leave = () => {
     markOnboarded();
@@ -54,6 +66,18 @@ export default function Onboarding() {
     const after = next(step);
     if (after === null) return leave();
     setStep(after);
+  };
+
+  /**
+   * Either answer to the third step is an answer: it is recorded as its own
+   * consent row carrying the policy version, a no as firmly as a yes, and
+   * marked answered so nothing asks again. Skip is not an answer and does
+   * neither.
+   */
+  const answer = (granted: boolean) => {
+    helpSanad.set(granted, 'welcome');
+    asked.decide();
+    leave();
   };
 
   const toggle = (key: Channel) => {
@@ -99,7 +123,7 @@ export default function Onboarding() {
             </Text>
           </View>
         </View>
-      ) : (
+      ) : step === 1 ? (
         <View testID="onboarding-choices" style={{ flex: 1, gap: 22, paddingTop: 24 }}>
           <View style={{ gap: 8 }}>
             <Text token="h1" size={28} lh={34}>
@@ -210,16 +234,82 @@ export default function Onboarding() {
             </Text>
           </View>
         </View>
+      ) : (
+        /* The one question on this screen whose answer is the person's and
+           not a preference: what is shared, what is not, that it can be
+           changed, and where the whole of it is written. */
+        <View testID="onboarding-help" style={{ flex: 1, justifyContent: 'center', gap: 20 }}>
+          <View style={{ width: 52, height: 52, borderRadius: 18, backgroundColor: surface.fill2, alignItems: 'center', justifyContent: 'center' }}>
+            <Icon name="spark" size={24} color={ink.base} strokeWidth={1.9} />
+          </View>
+
+          <View style={{ gap: 10 }}>
+            <Text token="h1" size={28} lh={34}>
+              {help.helpT}
+            </Text>
+            <Text token="body" size={16} lh={25} color={ink.s3}>
+              {help.helpB}
+            </Text>
+          </View>
+
+          <View style={{ gap: 12 }}>
+            <Text token="bodyS" color={ink.s3} lh={22.4}>
+              {help.helpWhen}
+            </Text>
+            <Text token="bodyS" color={ink.s4} lh={22.4}>
+              {help.helpLater}
+            </Text>
+          </View>
+
+          {/* The whole of it, where it is published: the policy's own
+              section. Pushed, so coming back lands on this step again. */}
+          <Pressable
+            testID="onboarding-help-policy"
+            onPress={() => router.push('/legal?tab=privacy&at=help')}
+            accessibilityRole="link"
+            hitSlop={8}
+            // The root carries the writing direction, so the cross axis
+            // already starts on the right in Arabic — see HelpCard.
+            style={{ alignSelf: 'flex-start' }}
+          >
+            <Text token="bodyS" weight="600" color={ink.s2} style={{ textDecorationLine: 'underline' }}>
+              {help.helpLink}
+            </Text>
+          </Pressable>
+        </View>
       )}
 
       {/* Ink, not `Button`'s primary green: the prototype draws this CTA
-          #0b0b0b, the same call OneThingCard's Lock In makes. */}
-      <Button
-        testID="onboarding-next"
-        label={t[ctaKey(step)]}
-        onPress={forward}
-        style={{ height: 56, borderRadius: radius.pill, backgroundColor: ink.base }}
-      />
+          #0b0b0b, the same call OneThingCard's Lock In makes.
+          The step that asks has no single CTA — two answers of the same
+          size instead, because a question with one button is not a
+          question. Stacked rather than side by side: "Help improve Sanad"
+          and "Don't help" do not fit half a narrow phone, and shrinking
+          one of them would be weighting it. */}
+      {asks(step) ? (
+        <View style={{ gap: 10 }}>
+          <Button
+            testID="onboarding-help-yes"
+            label={help.helpYes}
+            onPress={() => answer(true)}
+            style={{ height: 56, borderRadius: radius.pill, backgroundColor: ink.base }}
+          />
+          <Button
+            testID="onboarding-help-no"
+            label={help.helpNo}
+            variant="outline"
+            onPress={() => answer(false)}
+            style={{ height: 56, borderRadius: radius.pill }}
+          />
+        </View>
+      ) : (
+        <Button
+          testID="onboarding-next"
+          label={t[ctaKey(step)]}
+          onPress={forward}
+          style={{ height: 56, borderRadius: radius.pill, backgroundColor: ink.base }}
+        />
+      )}
     </Screen>
   );
 }

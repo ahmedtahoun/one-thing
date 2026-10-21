@@ -97,9 +97,12 @@ describe('every English line has Arabic behind it', () => {
 
 /**
  * The Assistant's asking card shows the privacy policy's own section rather
- * than a second copy of it (§2.118). The only thing shared between the two
- * is the heading, used to find the section — so if a translation renames one
- * and not the other, the sheet silently empties. This is what notices.
+ * than a second copy of it (§2.118). Since §2.119 there is no copy at all:
+ * the card's "How we use it" opens the policy and lands on that section
+ * (`app/legal.tsx`, `?at=help`), which it finds by this heading. So the
+ * heading is still the one word shared between the two, and a translation
+ * that renames one and not the other now opens the policy at the top
+ * instead of at the section. This is what notices.
  */
 describe('the section the asking card shows', () => {
   for (const lang of ['en', 'ar'] as const) {
@@ -115,6 +118,22 @@ describe('the section the asking card shows', () => {
       // The two things somebody is agreeing to, in the text they agree to.
       assert.ok(/90|٩٠/.test(body), 'how long it is kept');
       assert.ok(body.includes(added(lang).meet.helpT) || /Help improve Sanad|ساعدنا نحسّن سند/.test(body), 'the name of the switch');
+    });
+
+    /**
+     * The welcome's third step has the room the card does not, and spends it
+     * on the half the card leaves out: what is *not* shared, and that the
+     * answer can be changed. Both are claims, so both are checked rather
+     * than left to whatever a translation happened to say.
+     */
+    it(`${lang}: the welcome says what is not shared, and that it can be undone`, () => {
+      const { helpWhen, helpLater } = added(lang).meet;
+      assert.ok(helpWhen.length > 20, 'what is not shared');
+      assert.ok(helpLater.length > 20, 'that it can be changed');
+      assert.ok(
+        /Settings|الإعدادات/.test(helpLater),
+        'it says where to change it, not just that it can be changed'
+      );
     });
   }
 });

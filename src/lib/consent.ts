@@ -32,9 +32,10 @@ export type ConsentRecord = {
   /**
    * Where they agreed. 'assistant' is Sanad asking for itself, once, rather
    * than somebody finding the switch in Settings — §2.118, and the matching
-   * enum value is 0017.
+   * enum value is 0017. 'welcome' is the third step of the welcome, which
+   * asks before the first conversation — §2.119, enum value 0018.
    */
-  source: 'signin' | 'settings' | 'assistant';
+  source: 'signin' | 'settings' | 'assistant' | 'welcome';
 };
 
 /** Builds the two rows the sign-in screen produces. */

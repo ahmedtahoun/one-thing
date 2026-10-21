@@ -1,32 +1,43 @@
 /**
- * The welcome's two steps. Run with `npm test`.
+ * The welcome's three steps. Run with `npm test`.
  */
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { STEPS, canTurnOff, ctaKey, isLast, next, pips, type Step } from './steps';
+import { STEPS, asks, canTurnOff, ctaKey, isLast, next, pips, type Step } from './steps';
 
 describe('the welcome’s steps', () => {
-  it('is two, and the last one knows it', () => {
-    assert.equal(STEPS, 2);
+  it('is three, and the last one knows it', () => {
+    assert.equal(STEPS, 3);
     assert.equal(isLast(0), false);
-    assert.equal(isLast(1), true);
+    assert.equal(isLast(1), false);
+    assert.equal(isLast(2), true);
   });
 
-  it('says Continue, then Let’s start', () => {
+  /**
+   * "Let's start" moved back a step when the question was added after it:
+   * the CTA finishes the steps that *tell*, and the step that *asks* is
+   * finished by one of its two answers instead.
+   */
+  it('says Continue, then Let’s start, and then asks instead', () => {
     assert.equal(ctaKey(0), 'cont');
     assert.equal(ctaKey(1), 'start');
+    assert.equal(asks(0), false);
+    assert.equal(asks(1), false);
+    assert.equal(asks(2), true, 'the last step draws its own two answers');
   });
 
-  it('walks forward once and then finishes', () => {
+  it('walks forward to the question and then finishes', () => {
     assert.equal(next(0), 1);
-    assert.equal(next(1), null, 'the last step finishes rather than advancing');
+    assert.equal(next(1), 2);
+    assert.equal(next(2), null, 'the last step finishes rather than advancing');
   });
 
   it('stretches the pip for the step you are on', () => {
-    assert.deepEqual(pips(0), [{ width: 22, active: true }, { width: 6, active: false }]);
-    assert.deepEqual(pips(1), [{ width: 6, active: false }, { width: 22, active: true }]);
-    for (const step of [0, 1] as Step[]) {
+    assert.deepEqual(pips(0), [{ width: 22, active: true }, { width: 6, active: false }, { width: 6, active: false }]);
+    assert.deepEqual(pips(1), [{ width: 6, active: false }, { width: 22, active: true }, { width: 6, active: false }]);
+    assert.deepEqual(pips(2), [{ width: 6, active: false }, { width: 6, active: false }, { width: 22, active: true }]);
+    for (const step of [0, 1, 2] as Step[]) {
       assert.equal(pips(step).filter((p) => p.active).length, 1, 'exactly one pip is lit');
       assert.equal(pips(step).length, STEPS);
     }

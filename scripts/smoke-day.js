@@ -251,8 +251,11 @@ const ONE_THING = { en: 'Finish the investor proposal', ar: 'أخلّص عرض �
   check('and sets a custom reminder', reminded.remind === 'custom' && !!reminded.remindAt);
 
   // ------------------------------------------------- the welcome
-  // Two steps, shown after Account setup. Skip must leave the defaults
-  // exactly as they were, because that is the whole claim made for it.
+  // Three steps, shown after Account setup: the intro, the two settings the
+  // app would otherwise choose for somebody, and the one question it must
+  // not answer for them. Skip must leave the defaults exactly as they were
+  // — and leave the question unanswered — because that is the whole claim
+  // made for it. BUILD-REVIEW §2.119.
   await seed();
   await open('/onboarding');
   check('the welcome opens on its intro', await page.getByTestId('onboarding-intro').isVisible());
@@ -280,9 +283,44 @@ const ONE_THING = { en: 'Finish the investor proposal', ar: 'أخلّص عرض �
   check('the last channel cannot be turned off', ((await read('ot.prefs')) || {}).channels?.whatsapp === true);
 
   await page.getByTestId('onboarding-next').click();
+  await page.waitForTimeout(500);
+  check('“Let’s start” reaches the question', await page.getByTestId('onboarding-help').isVisible());
+  check('…and the third pip is lit', (await page.getByTestId('onboarding-pip-2-on').count()) === 1);
+  const ask = await page.getByTestId('onboarding-help').innerText();
+  check('…asked by name, not as a disclaimer', ask.includes('Help improve Sanad'), ask.slice(0, 160));
+  check('…saying what is shared', /Share what you write/.test(ask), ask.slice(0, 240));
+  // The welcome has the room the card does not, so it says the other half
+  // too: what is *not* shared, and that the answer is not final.
+  check('…and what is not', /not your tasks/.test(ask), ask.slice(0, 320));
+  check('…and that it can be changed later', /Settings/.test(ask), ask.slice(0, 320));
+  check(
+    '…with two answers of the same size, and no single CTA to weight one',
+    (await page.getByTestId('onboarding-help-yes').count()) === 1 &&
+      (await page.getByTestId('onboarding-help-no').count()) === 1 &&
+      (await page.getByTestId('onboarding-next').count()) === 0
+  );
+  check('…and the whole of it one tap away', (await page.getByTestId('onboarding-help-policy').count()) === 1);
+
+  await page.getByTestId('onboarding-help-yes').click();
   await page.waitForTimeout(700);
-  check('“Let’s start” lands on Today', page.url().endsWith('/today'), page.url());
+  check('an answer lands on Today', page.url().endsWith('/today'), page.url());
   check('…and the welcome is marked seen', (await read('ot.onboarded')) === true);
+  check('…“Help improve Sanad” is on', (await read('ot.prefs'))?.helpSanad === true);
+  const yes = ((await read('ot.consentQueue')) ?? []).filter((r) => r.kind === 'assistant_transcript').at(-1);
+  check('…as a consent row saying where they agreed', yes?.granted === true && yes?.source === 'welcome', JSON.stringify(yes));
+  check('…and nothing will ask again', (await read('ot.assistant.help'))?.decided === true);
+
+  // The other answer is an answer too, kept as firmly as a yes.
+  await seed();
+  await open('/onboarding?step=2');
+  check('the question can be opened directly', await page.getByTestId('onboarding-help').isVisible());
+  await page.getByTestId('onboarding-help-no').click();
+  await page.waitForTimeout(700);
+  check('“Don’t help” lands on Today as well', page.url().endsWith('/today'), page.url());
+  check('…and grants nothing', (await read('ot.prefs'))?.helpSanad !== true);
+  const no = ((await read('ot.consentQueue')) ?? []).filter((r) => r.kind === 'assistant_transcript').at(-1);
+  check('…but is recorded, with where it was given', no?.granted === false && no?.source === 'welcome', JSON.stringify(no));
+  check('…and nothing asks again', (await read('ot.assistant.help'))?.decided === true);
 
   // Skip, from a clean slate: nothing written, defaults intact.
   await seed();
@@ -291,6 +329,10 @@ const ONE_THING = { en: 'Finish the investor proposal', ar: 'أخلّص عرض �
   await page.waitForTimeout(700);
   check('Skip lands on Today as well', page.url().endsWith('/today'), page.url());
   check('…and leaves the defaults alone', !(await read('ot.prefs')), JSON.stringify(await read('ot.prefs')));
+  // Skipping is not a no. Nothing is recorded, so Sanad's card can still
+  // ask once it has been used enough for the question to mean something.
+  check('…and leaves the question unanswered, not answered no', !(await read('ot.assistant.help')), JSON.stringify(await read('ot.assistant.help')));
+  check('…having recorded no consent either way', !((await read('ot.consentQueue')) ?? []).some((r) => r.kind === 'assistant_transcript'));
 
   // ------------------------------------------------- the coach marks
   // They run only for somebody who came through the welcome. Every seeded

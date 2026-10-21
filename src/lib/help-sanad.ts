@@ -1,8 +1,9 @@
 /**
  * The one way "Help improve Sanad" is turned on or off.
  *
- * Two screens offer it now — the switch in Settings → Privacy and the card
- * Sanad shows once it has been used a few times — and turning it on means
+ * Three screens offer it now — the third step of the welcome, the switch in
+ * Settings → Privacy, and the card Sanad shows once it has been used a few
+ * times without an answer either way — and turning it on means
  * three things, not one: the preference, a consent row carrying the policy
  * version it was agreed under, and, when it goes off, a request to delete
  * what was already sent. Two copies of that would be two chances to forget
@@ -15,7 +16,7 @@ import { POLICY_VERSION, recordConsent } from './consent';
 import { usePrefs } from './prefs';
 
 /** Where somebody said yes or no, which is kept on the consent row. */
-export type HelpSource = 'settings' | 'assistant';
+export type HelpSource = 'settings' | 'assistant' | 'welcome';
 
 export function useHelpSanad(): { on: boolean; set: (granted: boolean, from: HelpSource) => void } {
   const { prefs, setPrefs } = usePrefs();
