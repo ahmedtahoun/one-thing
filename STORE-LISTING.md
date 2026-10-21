@@ -1,6 +1,6 @@
 # Store listing — copy to paste into App Store Connect and Play Console
 
-Version 1.0.0 · iOS build 14 · Android versionCode 14 · Bundle / package `app.onlyonething`.
+Version 1.0.0 · iOS build 15 · Android versionCode 15 · Bundle / package `app.onlyonething`.
 Text only; the screenshots are in `store-assets/` (see "Screenshots" at the end —
 the folder changed, and `store-assets/marketing/` is an older set).
 
