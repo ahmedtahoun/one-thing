@@ -5198,3 +5198,58 @@ rather than asking anybody to remember.
 
 **Checks:** the full gate again, plus 56 admin fidelity probes and the
 website build.
+
+
+### 2.117 A migration that passed every check and could not have been applied
+
+Asked to apply 0014 and 0015 to production, the first thing worth doing was
+not applying them. `admin/DEPLOY.md` § 5 says to run one file per execution
+in the SQL Editor, and the SQL Editor wraps an execution in one transaction.
+Nothing in this repository had ever run a migration that way.
+
+**0015 could not be applied at all.** It added `assistant_transcript` to the
+`consent_kind` enum and then used that value in a policy, and Postgres
+refuses to let a new enum value be used in the transaction that added it:
+
+    ERROR:  unsafe use of new value "assistant_transcript" of enum type consent_kind
+    HINT:  New enum values must be committed before they can be used.
+
+It passed `npm run schema:check`, 38 tests against a real Postgres, and three
+green CI jobs — all of which run each *statement* in its own transaction,
+because `psql` without `-1` does. Every one of them was testing a thing
+production does not do.
+
+**The repository already knew about this hazard and the warning missed.**
+DEPLOY.md § 5 explains it for 0011 and 0012, which fail when *pasted
+together*. The lesson had been written down as a rule about two files, and
+0015 was one file that could not apply on its own — a worse case that the
+narrower statement of the rule did not cover.
+
+**Split, and the split is the fix.** 0015 is now the `alter type` alone and
+0016 is everything that uses it. Both apply cleanly one-file-per-transaction.
+
+**And the check that was missing now exists.** `npm run schema:txn` applies
+every migration the way DEPLOY.md tells somebody to apply it — one file,
+`psql -1`, a fresh cluster — and reports which fail. It was proved by
+recombining the two files and watching it fail with the original error, then
+splitting them again: a gate nobody has watched fail is a gate nobody knows
+works, which is §2.116's lesson arriving a second time in two days.
+
+**What this says about where the gates were pointed.** `schema:check` asks
+"is this SQL valid", and the answer was yes. Nobody had asked "can this be
+applied the way we apply things", which is a different question and the only
+one that was going to be answered on the production database at the moment it
+mattered. The suites were thorough about the code and silent about the
+procedure.
+
+**The store declarations are the other half of the same request**, and they
+are not mine to make: they live in App Store Connect and the Play Console.
+`STORE-PRIVACY-CHANGES.md` is what can be done from here — not a second copy
+of `STORE-PRIVACY.md`, which stays the reference, but the **delta** for one
+submission: two rows to change, one to add, what to leave alone, and the
+answer to give if a reviewer asks why Usage Data → Other Usage Data is
+declared unlinked while the row carries a `user_id`.
+
+**Checks:** 16 migrations applied one-transaction-each (new gate, and watched
+to fail), 1458 unit tests, 38 against Postgres, 28 admin DB tests, drift
+clean, three typechecks clean.
