@@ -5342,6 +5342,27 @@ stop. The policy is still linked from inside it, and **both answers are
 repeated at the bottom of the sheet**, because making somebody close the
 explanation to answer the question is how an explanation goes unread.
 
+**Then the sheet was asked about again: too long, or should it just be in
+the privacy policy?** The right answer was hiding in the question. It *was*
+in the privacy policy — the two paragraphs had been added there in §2.114 and
+§2.115 — so the sheet was a second telling of the same promise, which is one
+text too many. Two copies of what somebody is agreeing to drift the moment
+one of them is edited, and the one they would be held to is the policy.
+
+So the policy's "The assistant" section was split: the paragraph about
+Anthropic stays, and the two about keeping what people write became a section
+of their own, **"Helping improve Sanad"**. The sheet shows that section,
+heading and body, read straight out of `priv`. Four hand-written paragraphs
+in three languages were deleted; the sheet got shorter because the policy is
+tighter than the retelling was; and the policy gained a section somebody can
+actually find.
+
+The only thing now shared between the two is the heading, used to look the
+section up — so `copy.test.ts` asserts that a section by that name exists in
+both languages and that it still says the two things being agreed to. A
+translation that renames one and not the other would otherwise empty the
+sheet silently.
+
 **One line did not move, and the reason is the whole point.** The card still
 says *"Share what you write"*. Everything else can wait behind a tap; what is
 collected cannot, because agreeing to "help improve Sanad" without being told
@@ -5350,7 +5371,12 @@ that hides what it collects is the pattern being fined — exactly what the
 short card was supposed to get away from — so the suite asserts that clause
 is on the card itself, not only in the sheet.
 
-**Checks:** 1465 unit tests (7 new), 153 capture checks (32 new, driving the
+**And a third temporal dead zone in three days.** The section lookup was
+placed above the `copy` it reads, and the Assistant screen rendered nothing
+at all — caught by the suite within a minute, which is the argument for
+having one. The gate found it; a careful reading of the diff had not.
+
+**Checks:** 1469 unit tests (11 new), 153 capture checks (32 new, driving the
 card, the sheet and both answers from either), 38 against Postgres, 17
 migrations one-transaction-each, 178 People checks, drift clean, three
-typechecks clean.
+typechecks clean, website regenerated.

@@ -4,10 +4,15 @@
  *
  * The card is deliberately almost nothing: the benefit, one line saying what
  * is shared, a tap for the rest, and two answers of equal weight. Everything
- * else — what the phone removes before anything is sent, who can read what is
- * kept, the audit log, the ninety days, how to stop — is behind the tap,
- * where somebody who wants it will find it and somebody who does not is not
- * made to wade through it.
+ * else is behind the tap, where somebody who wants it will find it and
+ * somebody who does not is not made to wade through it.
+ *
+ * **What is behind the tap is the privacy policy's own "Helping improve
+ * Sanad" section, read straight out of it.** It was a second telling of the
+ * same promise for about an hour, which is one text too many: two copies of
+ * what somebody is agreeing to drift the moment one of them is edited, and
+ * the one they would be held to is the policy. So the sheet shows that, and
+ * the policy gained a section of its own worth linking to.
  *
  * **One line cannot move behind the tap, and it is the one that says what is
  * shared.** Agreeing to "help improve Sanad" without being told that means
@@ -30,8 +35,9 @@ export type HelpCopy = {
   link: string;
   yes: string;
   no: string;
+  /** The privacy policy's own section: its heading and its body. */
   sheetTitle: string;
-  paragraphs: readonly string[];
+  sheetBody: string;
   policy: string;
 };
 
@@ -103,11 +109,10 @@ export function HelpCard({ copy, onYes, onNo, onPolicy }: { copy: HelpCopy; onYe
       <Sheet open={open} onClose={() => setOpen(false)} testID="assistant-help-sheet" padding={{ paddingTop: 8, paddingHorizontal: 20, paddingBottom: 28 }} gap={12}>
         <Text token="h3">{copy.sheetTitle}</Text>
         <ScrollView style={{ maxHeight: 360 }} contentContainerStyle={{ gap: 12 }} showsVerticalScrollIndicator={false}>
-          {copy.paragraphs.map((line, i) => (
-            <Text key={i} token="bodyS" color={ink.s3}>
-              {line}
-            </Text>
-          ))}
+          {/* The policy's own words, not a second telling of them. */}
+          <Text token="bodyS" color={ink.s3} lh={22.4}>
+            {copy.sheetBody}
+          </Text>
           <Pressable testID="assistant-help-policy" onPress={onPolicy} accessibilityRole="link" hitSlop={8} style={{ alignSelf: dir.isRTL ? 'flex-end' : 'flex-start' }}>
             <Text token="bodyS" weight="600" color={ink.s2} style={{ textDecorationLine: 'underline' }}>
               {copy.policy}

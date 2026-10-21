@@ -160,7 +160,7 @@ const newId = () => `m_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
 const ONE_THING_SLOT = '09:00';
 
 export default function Assistant() {
-  const { t, fux, a11y, lang, inline } = useLanguage();
+  const { t, fux, a11y, lang, inline, acc } = useLanguage();
   const dir = useDirection();
   const { session } = useSession();
   const { tasks, oneThing, addTask, toggleDone, restore, setOneThingDone } = useTasks();
@@ -207,6 +207,13 @@ export default function Assistant() {
   const back = () => (router.canGoBack() ? router.back() : router.replace('/today'));
 
   const copy = added(lang);
+  /**
+   * The privacy policy's own "Helping improve Sanad" section — what the
+   * asking card shows behind "How we use it", rather than a second telling
+   * of the same promise. `copy.test.ts` asserts the section exists under
+   * this heading in both languages, so the lookup cannot quietly miss. §2.118.
+   */
+  const helpSection = acc.priv.find(([heading]) => heading === copy.meet.helpSection);
   const quick = t.rQuick as unknown as readonly QuickWhen[];
   const world = (): World => ({ contacts, tasks, followUps, now: new Date() });
   /** Everything a question can be answered from, all of it already here. */
@@ -1204,8 +1211,10 @@ export default function Assistant() {
                 link: copy.meet.helpLink,
                 yes: copy.meet.helpYes,
                 no: copy.meet.helpNo,
-                sheetTitle: copy.meet.helpSheetT,
-                paragraphs: [copy.meet.helpSheet1, copy.meet.helpSheet2, copy.meet.helpSheet3, copy.meet.helpSheet4],
+                // The privacy policy's own section, so there is one text and
+                // not two — src/content/strings.ts, `priv`.
+                sheetTitle: helpSection?.[0] ?? copy.meet.helpSection,
+                sheetBody: helpSection?.[1] ?? '',
                 policy: copy.meet.helpPolicy,
               }}
               onYes={() => {

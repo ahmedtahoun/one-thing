@@ -313,12 +313,15 @@ const D_SAMPLE =
   await page.waitForTimeout(400);
   const sheet = await text('assistant-help-sheet');
   check('the tap opens the whole of it', await page.getByTestId('assistant-help-sheet').isVisible());
-  check('…what the phone removes before anything is sent', /replaces every name, number, email and link/.test(sheet), sheet.slice(0, 200));
-  check('…what is kept if they help', /sentences as you wrote them/.test(sheet));
-  check('…who can read it, and that every reading is logged', /Only the owner/.test(sheet) && /written into a log/.test(sheet));
-  check('…that it is never sold or used to decide anything about them', /never sold/.test(sheet) && /decide anything about you/.test(sheet));
+  // What the tap shows is the privacy policy's own section, not a second
+  // telling of it: two copies of what somebody agrees to drift the moment
+  // one is edited, and the policy is the one they would be held to (§2.118).
+  check('…and it is the policy\'s own section', sheet.includes('Helping improve Sanad'), sheet.slice(0, 160));
+  check('…what the phone removes before anything is sent', /replaces every name, phone number, email address and web link/.test(sheet), sheet.slice(0, 400));
+  check('…what is kept if they help', /kept as you wrote them/.test(sheet) || /as you wrote it/.test(sheet), sheet.slice(0, 600));
+  check('…who can read it, and that every reading is logged', /only the owner/i.test(sheet) && /log/.test(sheet));
   check('…how long it is kept and how to stop', /90 days/.test(sheet) && /Settings/.test(sheet));
-  check('…and the policy itself is still reachable', await page.getByTestId('assistant-help-policy').isVisible());
+  check('…and the whole policy is still one tap further', await page.getByTestId('assistant-help-policy').isVisible());
   check('…and it can be answered from here, without closing it first', (await page.getByTestId('assistant-help-sheet-yes').isVisible()) && (await page.getByTestId('assistant-help-sheet-no').isVisible()));
   // Back to the card, undecided, to answer there instead.
   await page.getByTestId('assistant-help-sheet-no').click();
