@@ -645,19 +645,29 @@ export type Added = {
      * are kept is not agreeing to anything.
      */
     helpB: string;
-    /** Opens the sheet below, where the rest of it is. */
+    /**
+     * What the rest of it is kept under, in the only place it is written:
+     * the privacy policy's own section. Tapping it opens the policy there
+     * (`app/legal.tsx`, `?at=help`) rather than a second telling of it.
+     */
     helpLink: string;
     helpYes: string;
     helpNo: string;
     helpOn: string;
     /**
-     * The heading of the privacy policy section the sheet shows. The *body*
-     * is never copied — it is read out of `priv` — so this is the only word
-     * shared between the two, and `copy.test.ts` asserts a section by this
-     * name exists. One text, so the sheet cannot drift from what was agreed.
+     * The welcome's third step has room for the sentence the card does not:
+     * what is *not* shared. On the card this is behind the link.
+     */
+    helpWhen: string;
+    /** And that the answer is not final, wherever it was given. */
+    helpLater: string;
+    /**
+     * The heading of the privacy policy section that holds the detail. The
+     * body is never copied — it is read out of `priv` — so this is the only
+     * word shared between the two, and both `copy.test.ts` and the `?at=help`
+     * anchor rely on a section by this name existing.
      */
     helpSection: string;
-    helpPolicy: string;
   };
   /**
    * The Assistant's suggestion chips. Each is a short label and the
@@ -1478,8 +1488,9 @@ const ADDED: Record<Lang, Added> = {
       helpYes: 'Help improve',
       helpNo: 'Don’t help',
       helpOn: 'Thanks. You can stop any time in Settings → Privacy.',
+      helpWhen: 'Only what you type to Sanad — not your tasks, your people or your notes.',
+      helpLater: 'You can change this any time in Settings → Privacy.',
       helpSection: 'Helping improve Sanad',
-      helpPolicy: 'Read the whole privacy policy',
     },
     chips: {
       late: { label: 'What’s late?', say: 'What’s late?' },
@@ -2179,8 +2190,9 @@ const ADDED: Record<Lang, Added> = {
       helpYes: 'ساعدنا نحسّنه',
       helpNo: 'لا، شكراً',
       helpOn: 'شكراً لك. تقدر توقفه وقت ما تبي من الإعدادات ← الخصوصية.',
+      helpWhen: 'بس اللي تكتبه لسند — ما يشمل مهامك ولا جهات اتصالك ولا ملاحظاتك.',
+      helpLater: 'تقدر تغيّره وقت ما تبي من الإعدادات ← الخصوصية.',
       helpSection: 'مساعدتنا في تحسين سند',
-      helpPolicy: 'اقرأ سياسة الخصوصية كاملة',
     },
     chips: {
       late: { label: 'وش المتأخر؟', say: 'وش المتأخر؟' },

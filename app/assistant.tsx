@@ -207,13 +207,6 @@ export default function Assistant() {
   const back = () => (router.canGoBack() ? router.back() : router.replace('/today'));
 
   const copy = added(lang);
-  /**
-   * The privacy policy's own "Helping improve Sanad" section — what the
-   * asking card shows behind "How we use it", rather than a second telling
-   * of the same promise. `copy.test.ts` asserts the section exists under
-   * this heading in both languages, so the lookup cannot quietly miss. §2.118.
-   */
-  const helpSection = acc.priv.find(([heading]) => heading === copy.meet.helpSection);
   const quick = t.rQuick as unknown as readonly QuickWhen[];
   const world = (): World => ({ contacts, tasks, followUps, now: new Date() });
   /** Everything a question can be answered from, all of it already here. */
@@ -1211,11 +1204,6 @@ export default function Assistant() {
                 link: copy.meet.helpLink,
                 yes: copy.meet.helpYes,
                 no: copy.meet.helpNo,
-                // The privacy policy's own section, so there is one text and
-                // not two — src/content/strings.ts, `priv`.
-                sheetTitle: helpSection?.[0] ?? copy.meet.helpSection,
-                sheetBody: helpSection?.[1] ?? '',
-                policy: copy.meet.helpPolicy,
               }}
               onYes={() => {
                 help.decide();
@@ -1223,7 +1211,9 @@ export default function Assistant() {
                 setMessages((list) => [...list, { id: newId(), from: 'bot', kind: 'note', text: copy.meet.helpOn }]);
               }}
               onNo={() => help.decide()}
-              onPolicy={() => router.push('/legal?tab=privacy')}
+              // Straight to the policy's own "Helping improve Sanad"
+              // section — there is no second copy of it any more. §2.119.
+              onPolicy={() => router.push('/legal?tab=privacy&at=help')}
             />
           ) : null}
         </ScrollView>

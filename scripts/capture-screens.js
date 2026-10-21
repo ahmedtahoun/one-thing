@@ -118,6 +118,9 @@ const ROUTES = [
   // beside — and a pair in screen-pairs.json.
   { path: '/onboarding', name: '04-onboarding', signedIn: true, firstRun: true },
   { path: '/onboarding?step=1', name: '04-onboarding-choices', signedIn: true, firstRun: true },
+  // The third step, added after the handoff and so without a pair: the one
+  // question the welcome asks rather than decides. §2.119.
+  { path: '/onboarding?step=2', name: '04-onboarding-help', signedIn: true, firstRun: true },
   { path: '/scan-many', name: '25-scan-many', signedIn: true, firstRun: false, seedPeople: true },
   { path: '/recap', name: '26-recap', signedIn: true, firstRun: false, seedTasks: true, seedPeople: true, oneThing: true },
   { path: '/smart-lists', name: '27-smart-lists', signedIn: true, firstRun: false, seedPeople: true, seedTasks: true },

@@ -102,11 +102,19 @@ users can request deletion **yes**, committed to the Play Families policy
 
 ## Two things worth having ready
 
-**A reviewer may ask what "Help improve Sanad" is.** It is in Settings →
-Privacy, off until switched on. The privacy policy describes it in both
-languages — the paragraph beginning "If you would rather we saw the real
-sentence" in English, and "وإذا تبي نشوف الجملة نفسها" in Arabic. The
-published pages at `onlyonething.app/privacy` carry it too.
+**A reviewer may ask what "Help improve Sanad" is.** It is off until
+switched on, and three places ask or offer it: the third step of the welcome
+on first run, the switch in Settings → Privacy, and a card Sanad shows to
+somebody who skipped the welcome. The privacy policy describes it in both
+languages under its own heading, "Helping improve Sanad" / "مساعدتنا في
+تحسين سند". The published pages at `onlyonething.app/privacy` carry it too.
+
+**Nothing in either console's declarations changes because of that.** The
+data collected is the same data, still optional, still deletable; what moved
+is where the question is asked. A reviewer stepping through first run will
+now *see* the question, which is the point — it is a plain opt-in with two
+answers of equal weight, a "Skip" that declines nothing, and the policy one
+tap away.
 
 **The policy's date moved to 21 October 2026**, and `POLICY_VERSION` moved
 with it, so consent rows record which text each person agreed to. If either
