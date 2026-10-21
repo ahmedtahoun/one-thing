@@ -135,7 +135,7 @@ export default function Settings() {
    * shape every account sends. Its own consent row, like marketing, and
    * turning it off is a request to forget rather than merely to stop — the
    * next sync deletes what was sent (src/lib/analytics/phrasings.ts,
-   * supabase/migrations/0015_transcripts.sql). BUILD-REVIEW §2.115.
+   * supabase/migrations/0016_transcripts.sql). BUILD-REVIEW §2.115.
    */
   const setHelpSanad = useCallback(
     (granted: boolean) => {

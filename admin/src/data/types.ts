@@ -226,7 +226,7 @@ export type Phrasings = {
 /**
  * What somebody actually typed to Sanad, kept only for accounts that turned
  * on "Help improve Sanad" and deleted the moment they turn it off
- * (supabase/migrations/0015_transcripts.sql).
+ * (supabase/migrations/0016_transcripts.sql).
  *
  * Personal data, plainly: a sentence can hold a name, a number, a price.
  * The screen shows no name or email beside it, but the row is somebody's and

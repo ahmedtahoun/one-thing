@@ -363,7 +363,7 @@ export async function syncOnce(options: {
      * And the words themselves, where somebody offered them. A separate
      * table rather than a column, because the two have different lives: the
      * shape outlives the account and this does not, and only this one is
-     * deleted when the switch goes off (0015_transcripts.sql).
+     * deleted when the switch goes off (0016_transcripts.sql).
      *
      * The insert is refused by the database if consent has since been
      * withdrawn, which is the point of checking it there as well as here: a

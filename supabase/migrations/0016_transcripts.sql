@@ -7,6 +7,9 @@
 -- grievance. Three things follow from that, and all three are here rather
 -- than in a client that could forget them. BUILD-REVIEW §2.115.
 --
+-- The consent value this depends on is added by 0015, alone, because a new
+-- enum value cannot be used in the transaction that added it (§2.117).
+--
 --   1. It arrives only with consent, and the consent is checked by the
 --      database, not only by the app: `assistant_transcript` must be granted
 --      and still granted for an insert to be allowed.
@@ -15,7 +18,6 @@
 --      much somebody's, so this one cascades.
 --   3. It is kept 90 days, not the year a redacted phrasing gets.
 
-alter type consent_kind add value if not exists 'assistant_transcript';
 
 create table assistant_transcript (
   id uuid primary key default gen_random_uuid(),

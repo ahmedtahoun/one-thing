@@ -183,6 +183,15 @@ Extend it as migrations are added: pick something each one creates.
 3. Watch for an error. Postgres rolls a failed file back whole, so a file
    that errors has changed nothing — fix the cause and run it again.
 
+**0015 and 0016 are the same trap, and a worse version of it.** `0015` adds
+`assistant_transcript` to `consent_kind`; `0016` uses it in a policy. They
+were written as one file, which could not apply on its own at all — not
+merely when pasted with its neighbour. `npm run schema:txn` applies every
+migration the way this page tells you to, one file per transaction, and
+would have caught it; `npm run schema:check` could not, because it runs each
+*statement* in its own transaction and so never reproduces the SQL Editor.
+BUILD-REVIEW §2.117.
+
 **Why one at a time, really.** `0011` is
 `alter type plan_kind add value 'pro_plus'`, and Postgres will not let a new
 enum value be *used* in the same transaction that added it. The SQL Editor
@@ -191,8 +200,9 @@ together fail with *"invalid input value for enum plan_kind"* — `0012`'s
 check constraint naming a value that is not committed yet. Run `0011`, let
 it finish, then run `0012`.
 
-**Before any of this**, `npm run schema:check` applies the whole sequence to
-a throwaway Postgres, so a migration that cannot apply cleanly is found on a
+**Before any of this**, `npm run schema:txn` applies every file to a
+throwaway Postgres one transaction at a time — the way you are about to —
+and `npm run schema:check` applies the whole sequence to another, so a migration that cannot apply cleanly is found on a
 laptop rather than in production.
 
 ## 6. Check it
